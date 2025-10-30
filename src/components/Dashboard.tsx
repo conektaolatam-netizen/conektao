@@ -381,10 +381,72 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     }
   };
 
-  return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{/* Added responsive container with max-width and padding */}
+  return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">{/* Added responsive container with max-width and padding */}
+      {/* Flowing waves background */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        {/* Wave Layer 1 - Orange flow */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.25) 0%, rgba(255, 165, 0, 0.08) 50%, transparent 85%)
+            `,
+            animation: 'wave1 20s ease-in-out infinite',
+            filter: 'blur(60px)'
+          }}
+        ></div>
+        
+        {/* Wave Layer 2 - Teal flow */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.25) 0%, rgba(20, 184, 166, 0.08) 50%, transparent 85%)
+            `,
+            animation: 'wave2 25s ease-in-out infinite reverse',
+            filter: 'blur(70px)'
+          }}
+        ></div>
+        
+        {/* Wave Layer 3 - Orange gradient */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.20) 0%, rgba(255, 106, 0, 0.06) 60%, transparent 90%)
+            `,
+            animation: 'wave3 30s ease-in-out infinite',
+            filter: 'blur(80px)'
+          }}
+        ></div>
+        
+        {/* Wave Layer 4 - Teal movement */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 1300px 800px at 30% 40%, rgba(6, 182, 212, 0.20) 0%, rgba(6, 182, 212, 0.06) 55%, transparent 88%)
+            `,
+            animation: 'wave4 22s ease-in-out infinite',
+            filter: 'blur(75px)'
+          }}
+        ></div>
+        
+        {/* Wave Layer 5 - Additional orange */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 900px 1200px at 70% 60%, rgba(255, 165, 0, 0.18) 0%, rgba(255, 165, 0, 0.05) 65%, transparent 92%)
+            `,
+            animation: 'wave5 18s ease-in-out infinite',
+            filter: 'blur(85px)'
+          }}
+        ></div>
+      </div>
       
       {/* Stats Grid - Moved to top */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full relative z-10">
         {stats.map((stat, index) => {
         const isMainStat = stat.size === 'large';
         const isTicketPromedio = stat.title === 'Ticket Promedio';
@@ -428,7 +490,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       </div>
 
       {/* Marketplace Section - Mercado de Proveedores y Makro lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative z-10">
         {/* Mercado de Proveedores - Mitad del ancho */}
         <button className="group relative p-6 rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-primary-foreground shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 border-0 overflow-hidden" onClick={() => onModuleChange(marketplaceAction.module)}>
           {/* Efectos de fondo */}
@@ -489,7 +551,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       </div>
 
       {/* Quick Actions - Módulos Regulares - Diseño delgado y limpio */}
-      <div>
+      <div className="relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {regularActions.map((action, index) => <button key={index} className={`group relative h-20 p-4 rounded-xl bg-card border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 overflow-hidden`} style={{
               borderImage: `linear-gradient(45deg, ${action.gradient.replace('from-', '').replace('to-', '').replace('-500', '').replace('-600', '')}) 1`,
@@ -529,7 +591,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       </div>
 
       {/* Módulos de IA - Futuristas y delgados */}
-      <div className="space-y-4">
+      <div className="space-y-4 relative z-10">
         <h3 className="text-sm sm:text-lg md:text-xl font-bold text-center bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
           🚀 INTELIGENCIA ARTIFICIAL AVANZADA
         </h3>
@@ -564,7 +626,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
 
 
       {/* Analytics Preview & AI Suggestions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
         {/* Analytics Chart with Real Data Preview */}
         <Card className="p-6 bg-card/80 backdrop-blur-sm border-0 shadow-float rounded-2xl">
           <div className="flex items-center justify-between mb-6">
