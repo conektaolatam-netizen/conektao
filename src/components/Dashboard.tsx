@@ -390,10 +390,18 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         const isTicketPromedio = stat.title === 'Ticket Promedio';
         return <Card 
           key={index} 
-          className={`group p-4 bg-card/80 backdrop-blur-sm border-0 shadow-float hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 rounded-2xl cursor-pointer ${isMainStat ? 'ring-2 ring-primary/30 hover:ring-primary/50' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`}
+          className={`group p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_2px_10px_rgb(0,0,0,0.4)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.7),0_4px_15px_rgba(255,106,0,0.3)] transition-all duration-300 hover:-translate-y-2 rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 hover:ring-primary/60 shadow-primary/20' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`}
           onClick={() => handleStatsClick(stat.title)}
+          style={{
+            boxShadow: isMainStat 
+              ? '0 10px 40px rgba(0,0,0,0.7), 0 2px 15px rgba(255,106,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)' 
+              : '0 8px 30px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)'
+          }}
         >
-              <div className="flex items-center justify-between">
+              {/* 3D effect overlay */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none"></div>
+              
+              <div className="flex items-center justify-between relative z-10">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs sm:text-sm font-medium text-muted-foreground">
