@@ -390,7 +390,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         const isTicketPromedio = stat.title === 'Ticket Promedio';
         return <Card 
           key={index} 
-          className={`group p-4 bg-white/70 backdrop-blur-sm border-0 shadow-float hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 rounded-2xl cursor-pointer ${isMainStat ? 'ring-2 ring-green-200 bg-gradient-to-br from-green-50/80 to-emerald-50/80 hover:ring-green-300' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`}
+          className={`group p-4 bg-card/80 backdrop-blur-sm border-0 shadow-float hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 rounded-2xl cursor-pointer ${isMainStat ? 'ring-2 ring-primary/30 hover:ring-primary/50' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`}
           onClick={() => handleStatsClick(stat.title)}
         >
               <div className="flex items-center justify-between">
@@ -405,13 +405,13 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                     {stat.value}
                   </p>
                   <div className="flex items-center space-x-2">
-                    <Badge className={`bg-gradient-to-r ${stat.gradient} text-white px-3 py-1 rounded-full text-xs ${isMainStat ? 'ring-1 ring-white shadow-lg' : ''}`}>
+                    <Badge className={`bg-gradient-to-r ${stat.gradient} text-primary-foreground px-3 py-1 rounded-full text-xs ${isMainStat ? 'ring-1 ring-primary shadow-lg' : ''}`}>
                       {stat.change}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{stat.description}</p>
                 </div>
-                <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg group-hover:scale-110 transition-transform ${isMainStat ? 'shadow-green-200 ring-2 ring-green-100' : ''}`}>
+                <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.gradient} text-primary-foreground shadow-lg group-hover:scale-110 transition-transform ${isMainStat ? 'shadow-primary/30 ring-2 ring-primary/20' : ''}`}>
                   <stat.icon className="h-8 w-8" />
                 </div>
               </div>
@@ -422,19 +422,19 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       {/* Marketplace Section - Mercado de Proveedores y Makro lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Mercado de Proveedores - Mitad del ancho */}
-        <button className="group relative p-6 rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-white shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 border-0 overflow-hidden" onClick={() => onModuleChange(marketplaceAction.module)}>
+        <button className="group relative p-6 rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-primary-foreground shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 border-0 overflow-hidden" onClick={() => onModuleChange(marketplaceAction.module)}>
           {/* Efectos de fondo */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-          <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+          <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           
           {/* Badge HOT */}
-          <div className="absolute top-3 right-3 px-2 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-bold animate-pulse hidden lg:block">
+          <div className="absolute top-3 right-3 px-2 py-1 bg-foreground/20 backdrop-blur-sm rounded-full text-xs font-bold animate-pulse hidden lg:block">
             🔥 {marketplaceAction.badge}
           </div>
           
           <div className="relative z-10">
             <div className="flex items-center space-x-4 mb-3">
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-transform">
                 <marketplaceAction.icon className="h-8 w-8" />
               </div>
               <div className="text-left">
@@ -457,21 +457,21 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center mb-3">
-                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center mr-3">
+                  <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center mr-3">
                     <div className="text-sm">🛒</div>
                   </div>
                   <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-white">MAKRO</h2>
-                    <p className="text-gray-300 text-xs sm:text-sm">Descuento especial</p>
+                    <h2 className="text-lg sm:text-xl font-bold text-primary-foreground">MAKRO</h2>
+                    <p className="text-muted-foreground text-xs sm:text-sm">Descuento especial</p>
                   </div>
                 </div>
-                <p className="text-white text-sm">
+                <p className="text-primary-foreground text-sm">
                   Vino para tu restaurante 🎯
                 </p>
               </div>
               
               {/* 60% Discount Section */}
-              <div className="text-right text-white">
+              <div className="text-right text-primary-foreground">
                 <div className="text-4xl font-black leading-none">60%</div>
                 <div className="text-xs font-bold tracking-wider">DESC</div>
               </div>
@@ -483,7 +483,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       {/* Quick Actions - Módulos Regulares - Diseño delgado y limpio */}
       <div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {regularActions.map((action, index) => <button key={index} className={`group relative h-20 p-4 rounded-xl bg-white border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 overflow-hidden`} style={{
+          {regularActions.map((action, index) => <button key={index} className={`group relative h-20 p-4 rounded-xl bg-card border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 overflow-hidden`} style={{
               borderImage: `linear-gradient(45deg, ${action.gradient.replace('from-', '').replace('to-', '').replace('-500', '').replace('-600', '')}) 1`,
               borderImageSlice: 1
             }} onClick={() => onModuleChange(action.module)}>
@@ -493,26 +493,26 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
               {/* Indicadores */}
               {action.urgent && <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>}
               {action.alert && <div className="absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">!</span>
+                  <span className="text-xs font-bold text-primary-foreground">!</span>
                 </div>}
               
               <div className="relative z-10 flex items-center justify-between h-full">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg bg-gradient-to-br ${action.gradient} text-white group-hover:bg-white/20 transition-all`}>
+                  <div className={`p-2 rounded-lg bg-gradient-to-br ${action.gradient} text-primary-foreground group-hover:bg-foreground/20 transition-all`}>
                     <action.icon className="h-5 w-5" />
                   </div>
                   <div className="text-left">
-                    <p className={`font-bold text-xs sm:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-white transition-colors`}>
+                    <p className={`font-bold text-xs sm:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors`}>
                       {action.title}
                     </p>
-                    <p className="text-xs text-gray-500 group-hover:text-white/80 transition-colors">
+                    <p className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
                       {action.description}
                     </p>
                   </div>
                 </div>
                 
                 {/* Badges informativos */}
-                {action.badge && <span className={`px-2 py-1 bg-gradient-to-r ${action.gradient} text-white rounded-full text-xs font-semibold opacity-80 group-hover:bg-white/20`}>
+                {action.badge && <span className={`px-2 py-1 bg-gradient-to-r ${action.gradient} text-primary-foreground rounded-full text-xs font-semibold opacity-80 group-hover:bg-foreground/20`}>
                     {action.badge}
                   </span>}
               </div>
@@ -526,21 +526,21 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           🚀 INTELIGENCIA ARTIFICIAL AVANZADA
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {aiActions.map((action, index) => <button key={index} className={`group relative h-20 p-6 rounded-2xl bg-gradient-to-r ${action.gradient} text-white shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:-translate-y-2 active:scale-95 border-0 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
+          {aiActions.map((action, index) => <button key={index} className={`group relative h-20 p-6 rounded-2xl bg-gradient-to-r ${action.gradient} text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:-translate-y-2 active:scale-95 border-0 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
               {/* Efectos holográficos */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               
               {/* Partículas flotantes */}
-              <div className="absolute top-2 right-4 w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
-              <div className="absolute top-4 right-8 w-1 h-1 bg-white/40 rounded-full animate-pulse"></div>
+              <div className="absolute top-2 right-4 w-2 h-2 bg-foreground/60 rounded-full animate-bounce"></div>
+              <div className="absolute top-4 right-8 w-1 h-1 bg-foreground/40 rounded-full animate-pulse"></div>
               
               {/* Badge tecnológico */}
               
               
               <div className="relative z-10 flex items-center justify-between h-full">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 group-hover:rotate-12 transition-all">
+                  <div className="p-3 rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 group-hover:rotate-12 transition-all">
                     <action.icon className="h-6 w-6" />
                   </div>
                   <div className="text-left">
@@ -558,9 +558,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       {/* Analytics Preview & AI Suggestions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Analytics Chart with Real Data Preview */}
-        <Card className="p-6 bg-white/70 backdrop-blur-sm border-0 shadow-float rounded-2xl">
+        <Card className="p-6 bg-card/80 backdrop-blur-sm border-0 shadow-float rounded-2xl">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-800">Resumen de Ventas Diarias</h3>
+            <h3 className="text-sm sm:text-base md:text-lg font-bold text-foreground">Resumen de Ventas Diarias</h3>
             <Button variant="outline" size="sm" onClick={() => onModuleChange('billing')} className="border-2 border-orange-200 hover:border-primary font-extrabold rounded-full text-[#f17b13] text-xs">
               Ver Análisis Completo
             </Button>
@@ -650,7 +650,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
               </div>
               
               {/* Análisis actual dinámico */}
-              <div className="bg-white/10 rounded-xl p-4 mb-4">
+              <div className="bg-foreground/10 rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center">
                     <AlertTriangle className={`h-5 w-5 mr-2 ${aiRecommendations?.hasAlert ? 'text-yellow-300 animate-pulse' : 'text-green-300'}`} />
@@ -695,7 +695,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
               </div>
 
               {/* Estrategia sugerida */}
-              <div className="bg-white/10 rounded-xl p-4 mb-4">
+              <div className="bg-foreground/10 rounded-xl p-4 mb-4">
                 <div className="flex items-center mb-2">
                   <Zap className="h-5 w-5 text-cyan-300 mr-2" />
                   <span className="font-semibold text-sm">Estrategia Sugerida</span>
@@ -721,10 +721,10 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                 <Badge className={`${aiRecommendations?.hasAlert ? 'bg-yellow-500/20' : 'bg-green-500/20'} backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs`}>
                   {isLoadingAI ? '🧠 Analizando' : aiRecommendations?.hasAlert ? '⚠️ Alerta Activa' : '✅ Optimizado'}
                 </Badge>
-                <Badge className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
+                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
                   📊 Datos en Tiempo Real
                 </Badge>
-                <Badge className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
+                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
                   🚀 IA Automática
                 </Badge>
                 {aiRecommendations && (
@@ -738,7 +738,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
             <div className="text-center">
               <Button 
                 size="lg" 
-                className="bg-white/20 backdrop-blur-sm text-white border-white/30 hover:bg-white/30 hover:scale-105 transition-all rounded-2xl px-6 py-3 w-full" 
+                className="bg-foreground/20 backdrop-blur-sm text-white border-white/30 hover:bg-foreground/30 hover:scale-105 transition-all rounded-2xl px-6 py-3 w-full"
                 onClick={() => onModuleChange('ai')}
               >
                 🧠 Chat con IA Avanzada
