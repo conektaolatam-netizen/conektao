@@ -311,26 +311,47 @@ const POSBilling = () => {
   const orderTotal = selectedProducts.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   // Agregar producto al pedido
-  const addProductToOrder = (product: Product) => {
+  const addProductToOrder = async (product: Product) => {
     const existingProduct = selectedProducts.find(p => p.id === product.id);
+    let updatedProducts: SelectedProduct[];
+    
     if (existingProduct) {
-      setSelectedProducts(prev => 
-        prev.map(p => p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p)
+      updatedProducts = selectedProducts.map(p => 
+        p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
       );
     } else {
-      setSelectedProducts(prev => [...prev, { ...product, quantity: 1 }]);
+      updatedProducts = [...selectedProducts, { ...product, quantity: 1 }];
+    }
+    
+    setSelectedProducts(updatedProducts);
+    
+    // Sincronizar con base de datos si hay mesa seleccionada
+    if (selectedTable && orderType === 'dine-in') {
+      const total = updatedProducts.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      await updateTableOrder(selectedTable.number, updatedProducts, total);
     }
   };
 
   // Remover producto del pedido
-  const removeProductFromOrder = (productId: string) => {
-    setSelectedProducts(prev => {
-      const product = prev.find(p => p.id === productId);
-      if (product && product.quantity > 1) {
-        return prev.map(p => p.id === productId ? { ...p, quantity: p.quantity - 1 } : p);
-      }
-      return prev.filter(p => p.id !== productId);
-    });
+  const removeProductFromOrder = async (productId: string) => {
+    let updatedProducts: SelectedProduct[];
+    
+    const product = selectedProducts.find(p => p.id === productId);
+    if (product && product.quantity > 1) {
+      updatedProducts = selectedProducts.map(p => 
+        p.id === productId ? { ...p, quantity: p.quantity - 1 } : p
+      );
+    } else {
+      updatedProducts = selectedProducts.filter(p => p.id !== productId);
+    }
+    
+    setSelectedProducts(updatedProducts);
+    
+    // Sincronizar con base de datos si hay mesa seleccionada
+    if (selectedTable && orderType === 'dine-in') {
+      const total = updatedProducts.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      await updateTableOrder(selectedTable.number, updatedProducts, total);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -347,6 +368,12 @@ const POSBilling = () => {
     try {
       // Simular procesamiento de pago
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Liberar mesa si es dine-in
+      if (selectedTable && orderType === 'dine-in') {
+        await updateTableState(selectedTable.number, 'libre', 0, [], 0);
+      }
+      
       setCurrentView('success');
     } catch (error) {
       console.error('Error processing payment:', error);
