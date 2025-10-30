@@ -126,11 +126,11 @@ const Layout: React.FC<LayoutProps> = ({
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.06) 0%, rgba(255, 165, 0, 0.02) 50%, transparent 85%)
+              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.12) 0%, rgba(255, 165, 0, 0.04) 50%, transparent 85%)
             `,
             animation: 'wave1 25s ease-in-out infinite',
-            filter: 'blur(100px)',
-            opacity: 0.5
+            filter: 'blur(80px)',
+            opacity: 0.8
           }}
         ></div>
         
@@ -139,11 +139,11 @@ const Layout: React.FC<LayoutProps> = ({
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.06) 0%, rgba(20, 184, 166, 0.02) 50%, transparent 85%)
+              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 50%, transparent 85%)
             `,
             animation: 'wave2 30s ease-in-out infinite reverse',
-            filter: 'blur(120px)',
-            opacity: 0.5
+            filter: 'blur(90px)',
+            opacity: 0.8
           }}
         ></div>
         
@@ -152,11 +152,24 @@ const Layout: React.FC<LayoutProps> = ({
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.05) 0%, rgba(255, 106, 0, 0.015) 60%, transparent 90%)
+              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.10) 0%, rgba(255, 106, 0, 0.03) 60%, transparent 90%)
             `,
             animation: 'wave3 35s ease-in-out infinite',
-            filter: 'blur(140px)',
-            opacity: 0.4
+            filter: 'blur(100px)',
+            opacity: 0.7
+          }}
+        ></div>
+        
+        {/* Wave Layer 4 - Additional teal movement */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 1300px 800px at 30% 40%, rgba(6, 182, 212, 0.10) 0%, rgba(6, 182, 212, 0.03) 55%, transparent 88%)
+            `,
+            animation: 'wave4 28s ease-in-out infinite',
+            filter: 'blur(95px)',
+            opacity: 0.7
           }}
         ></div>
       </div>
