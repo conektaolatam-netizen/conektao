@@ -8,15 +8,15 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Conektao Design System - Corporate Colors */
-    --background: 0 0% 99%;
-    --foreground: 0 0% 9%;
+    /* Conektao Design System - Corporate Colors - Dark Theme */
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
 
     /* Corporate Orange #FF6A00 */
     --primary: 25 100% 50%;
@@ -28,32 +28,32 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
     --secondary-hover: 180 100% 22%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 25 100% 95%;
-    --accent-foreground: 25 100% 20%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 95%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 96%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
     --ring: 25 100% 50%;
 
     /* Custom Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(180 100% 27%), hsl(180 100% 35%));
     --gradient-hero: linear-gradient(135deg, hsl(25 100% 50%) 0%, hsl(180 100% 27%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
 
     /* Shadows */
-    --shadow-primary: 0 4px 20px hsl(25 100% 50% / 0.2);
-    --shadow-secondary: 0 4px 20px hsl(180 100% 27% / 0.2);
-    --shadow-card: 0 2px 10px hsl(0 0% 0% / 0.1);
-    --shadow-float: 0 8px 30px hsl(0 0% 0% / 0.12);
-    --shadow-elegant: 0 10px 30px -10px hsl(25 100% 50% / 0.3);
-    --shadow-glow: 0 0 40px hsl(25 100% 60% / 0.4);
+    --shadow-primary: 0 4px 20px hsl(25 100% 50% / 0.3);
+    --shadow-secondary: 0 4px 20px hsl(180 100% 27% / 0.3);
+    --shadow-card: 0 2px 10px hsl(0 0% 0% / 0.4);
+    --shadow-float: 0 8px 30px hsl(0 0% 0% / 0.5);
+    --shadow-elegant: 0 10px 30px -10px hsl(25 100% 50% / 0.4);
+    --shadow-glow: 0 0 40px hsl(25 100% 60% / 0.5);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -61,26 +61,26 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 10%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-foreground: 0 0% 95%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 25 100% 50%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 100%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent: 0 0% 15%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent-foreground: 0 0% 95%;
 
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 0 0% 20%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 25 100% 50%;
 
     /* AI surfaces */
-    --ai-surface: 0 0% 0%;
-    --ai-foreground: 0 0% 98%;
-    --ai-border: 0 0% 12%;
+    --ai-surface: 0 0% 8%;
+    --ai-foreground: 0 0% 95%;
+    --ai-border: 0 0% 18%;
   }
 
   .dark {
