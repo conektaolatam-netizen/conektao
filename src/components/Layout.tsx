@@ -257,9 +257,9 @@ const Layout: React.FC<LayoutProps> = ({
       <ProfileControlCenter open={profileControlOpen} onOpenChange={setProfileControlOpen} />
 
       {/* Main content */}
-      <main className="p-2 sm:p-4 md:p-6">
-        <div className="bg-gradient-to-br from-orange-50 via-white to-teal-50 rounded-xl sm:rounded-2xl border border-white/20 shadow-lg">
-          <div className="p-3 sm:p-4 lg:p-6 bg-slate-50 rounded-xl sm:rounded-2xl">
+      <main className="p-2 sm:p-4 md:p-6 bg-background">
+        <div className="bg-card rounded-xl sm:rounded-2xl border border-border/20 shadow-lg">
+          <div className="p-3 sm:p-4 lg:p-6 bg-card rounded-xl sm:rounded-2xl">
             {currentModule === 'restaurant-management' ? <RestaurantManagement /> : children}
           </div>
         </div>
