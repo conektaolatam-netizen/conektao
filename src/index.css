@@ -9,13 +9,13 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Conektao Design System - Corporate Colors - Dark Theme */
-    --background: 0 0% 8%;
+    --background: 0 0% 2%;
     --foreground: 0 0% 95%;
 
-    --card: 0 0% 10%;
+    --card: 0 0% 3%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 10%;
+    --popover: 0 0% 3%;
     --popover-foreground: 0 0% 95%;
 
     /* Corporate Orange #FF6A00 */
@@ -45,7 +45,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(180 100% 27%), hsl(180 100% 35%));
     --gradient-hero: linear-gradient(135deg, hsl(25 100% 50%) 0%, hsl(180 100% 27%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 3%) 0%, hsl(0 0% 5%) 100%);
 
     /* Shadows */
     --shadow-primary: 0 4px 20px hsl(25 100% 50% / 0.3);
@@ -61,7 +61,7 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 10%;
+    --sidebar-background: 0 0% 3%;
 
     --sidebar-foreground: 0 0% 95%;
 
@@ -78,7 +78,7 @@ All colors MUST be HSL.
     --sidebar-ring: 25 100% 50%;
 
     /* AI surfaces */
-    --ai-surface: 0 0% 8%;
+    --ai-surface: 0 0% 2%;
     --ai-foreground: 0 0% 95%;
     --ai-border: 0 0% 18%;
   }
