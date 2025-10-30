@@ -118,12 +118,12 @@ const Layout: React.FC<LayoutProps> = ({
     gradient: 'from-red-500 to-pink-600'
   }];
   const currentModuleData = modules.find(m => m.id === currentModule);
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+  return <div className="min-h-screen bg-background">
       {/* Simplified Header */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-white/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-border/10 bg-background/80 backdrop-blur-xl">
         <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <Button variant="ghost" size="sm" onClick={() => onModuleChange('dashboard')} className="flex items-center gap-2 sm:gap-3 hover:bg-orange-50 transition-all duration-200 min-w-0">
+            <Button variant="ghost" size="sm" onClick={() => onModuleChange('dashboard')} className="flex items-center gap-2 sm:gap-3 hover:bg-primary/10 transition-all duration-200 min-w-0">
               {currentModule === 'dashboard' ? <>
                   <div className="w-6 sm:w-8 h-6 sm:h-8 bg-gradient-to-br from-orange-600 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
                     <Sparkles className="w-3 sm:w-5 h-3 sm:h-5 text-white" />
