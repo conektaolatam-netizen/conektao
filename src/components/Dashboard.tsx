@@ -382,18 +382,18 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   };
 
   return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">{/* Added responsive container with max-width and padding */}
-      {/* Flowing waves background - Very subtle */}
+      {/* Flowing waves background - Very subtle but visible */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {/* Wave Layer 1 - Orange flow */}
         <div 
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.06) 0%, rgba(255, 165, 0, 0.02) 50%, transparent 85%)
+              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.12) 0%, rgba(255, 165, 0, 0.04) 50%, transparent 85%)
             `,
-            animation: 'wave1 25s ease-in-out infinite',
-            filter: 'blur(100px)',
-            opacity: 0.6
+            animation: 'wave1 22s ease-in-out infinite',
+            filter: 'blur(90px)',
+            opacity: 0.75
           }}
         ></div>
         
@@ -402,11 +402,11 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.06) 0%, rgba(20, 184, 166, 0.02) 50%, transparent 85%)
+              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 50%, transparent 85%)
             `,
-            animation: 'wave2 30s ease-in-out infinite reverse',
-            filter: 'blur(110px)',
-            opacity: 0.6
+            animation: 'wave2 26s ease-in-out infinite reverse',
+            filter: 'blur(100px)',
+            opacity: 0.75
           }}
         ></div>
         
@@ -415,11 +415,11 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.05) 0%, rgba(255, 106, 0, 0.015) 60%, transparent 90%)
+              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.10) 0%, rgba(255, 106, 0, 0.035) 60%, transparent 90%)
             `,
-            animation: 'wave3 35s ease-in-out infinite',
-            filter: 'blur(120px)',
-            opacity: 0.5
+            animation: 'wave3 30s ease-in-out infinite',
+            filter: 'blur(110px)',
+            opacity: 0.7
           }}
         ></div>
       </div>
