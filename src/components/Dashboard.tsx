@@ -504,27 +504,23 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
             }, 100);
           }}
         >
-          {/* Imagen de fondo de Makro */}
+          {/* Imagen de fondo de Makro - sin zoom */}
           <div 
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+            className="absolute inset-0 bg-cover bg-center"
             style={{
               backgroundImage: "url('/lovable-uploads/makro-banner.jpg')",
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center'
             }}
           />
           
-          {/* Overlay para mejorar legibilidad */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
-          
-          {/* Badge de descuento */}
-          <div className="absolute top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-full font-bold text-lg shadow-lg animate-pulse">
-            60% OFF
-          </div>
+          {/* Overlay oscuro solo en hover */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300" />
 
-          {/* Texto informativo */}
+          {/* Texto informativo en hover */}
           <div className="absolute bottom-4 left-4 text-white">
-            <p className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <p className="text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               Click para ver productos →
             </p>
           </div>
