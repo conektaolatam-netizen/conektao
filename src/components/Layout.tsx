@@ -119,57 +119,65 @@ const Layout: React.FC<LayoutProps> = ({
   }];
   const currentModuleData = modules.find(m => m.id === currentModule);
   return <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Subtle flowing waves background - Global */}
+      {/* Flowing waves background - Global */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        {/* Wave Layer 1 - Subtle orange flow */}
+        {/* Wave Layer 1 - Orange flow */}
         <div 
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.12) 0%, rgba(255, 165, 0, 0.04) 50%, transparent 85%)
+              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.25) 0%, rgba(255, 165, 0, 0.08) 50%, transparent 85%)
             `,
-            animation: 'wave1 25s ease-in-out infinite',
-            filter: 'blur(80px)',
-            opacity: 0.8
+            animation: 'wave1 20s ease-in-out infinite',
+            filter: 'blur(60px)'
           }}
         ></div>
         
-        {/* Wave Layer 2 - Subtle teal flow */}
+        {/* Wave Layer 2 - Teal flow */}
         <div 
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 50%, transparent 85%)
+              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.25) 0%, rgba(20, 184, 166, 0.08) 50%, transparent 85%)
             `,
-            animation: 'wave2 30s ease-in-out infinite reverse',
-            filter: 'blur(90px)',
-            opacity: 0.8
+            animation: 'wave2 25s ease-in-out infinite reverse',
+            filter: 'blur(70px)'
           }}
         ></div>
         
-        {/* Wave Layer 3 - Subtle orange gradient */}
+        {/* Wave Layer 3 - Orange gradient */}
         <div 
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.10) 0%, rgba(255, 106, 0, 0.03) 60%, transparent 90%)
+              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.20) 0%, rgba(255, 106, 0, 0.06) 60%, transparent 90%)
             `,
-            animation: 'wave3 35s ease-in-out infinite',
-            filter: 'blur(100px)',
-            opacity: 0.7
+            animation: 'wave3 30s ease-in-out infinite',
+            filter: 'blur(80px)'
           }}
         ></div>
         
-        {/* Wave Layer 4 - Additional teal movement */}
+        {/* Wave Layer 4 - Teal movement */}
         <div 
           className="absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 1300px 800px at 30% 40%, rgba(6, 182, 212, 0.10) 0%, rgba(6, 182, 212, 0.03) 55%, transparent 88%)
+              radial-gradient(ellipse 1300px 800px at 30% 40%, rgba(6, 182, 212, 0.20) 0%, rgba(6, 182, 212, 0.06) 55%, transparent 88%)
             `,
-            animation: 'wave4 28s ease-in-out infinite',
-            filter: 'blur(95px)',
-            opacity: 0.7
+            animation: 'wave4 22s ease-in-out infinite',
+            filter: 'blur(75px)'
+          }}
+        ></div>
+        
+        {/* Wave Layer 5 - Additional orange */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse 900px 1200px at 70% 60%, rgba(255, 165, 0, 0.18) 0%, rgba(255, 165, 0, 0.05) 65%, transparent 92%)
+            `,
+            animation: 'wave5 18s ease-in-out infinite',
+            filter: 'blur(85px)'
           }}
         ></div>
       </div>
