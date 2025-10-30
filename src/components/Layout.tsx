@@ -257,8 +257,91 @@ const Layout: React.FC<LayoutProps> = ({
       <ProfileControlCenter open={profileControlOpen} onOpenChange={setProfileControlOpen} />
 
       {/* Main content */}
-      <main className="p-2 sm:p-4 md:p-6 bg-background">
-        <div className="bg-card rounded-xl sm:rounded-2xl border border-border/20 shadow-lg">
+      <main className="p-2 sm:p-4 md:p-6 bg-background relative">
+        {/* Enhanced flowing waves - smoother and more visible */}
+        <div className="absolute inset-0 rounded-xl sm:rounded-2xl overflow-hidden pointer-events-none">
+          <div className="absolute inset-0">
+            {/* Wave Layer 1 - Large flowing orange waves */}
+            <div 
+              className="absolute inset-0 opacity-15"
+              style={{
+                background: `
+                  radial-gradient(ellipse 1200px 800px at 20% 80%, rgba(255, 165, 0, 0.3) 0%, rgba(255, 165, 0, 0.15) 40%, transparent 80%),
+                  radial-gradient(ellipse 800px 1000px at 80% 20%, rgba(255, 106, 0, 0.25) 0%, rgba(255, 106, 0, 0.1) 50%, transparent 85%)
+                `,
+                animation: 'wave1 3s ease-in-out infinite',
+                filter: 'blur(60px)'
+              }}
+            ></div>
+            
+            {/* Wave Layer 2 - Large flowing teal waves */}
+            <div 
+              className="absolute inset-0 opacity-15"
+              style={{
+                background: `
+                  radial-gradient(ellipse 1400px 600px at 60% 70%, rgba(20, 184, 166, 0.3) 0%, rgba(20, 184, 166, 0.15) 45%, transparent 85%),
+                  radial-gradient(ellipse 700px 1200px at 30% 30%, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0.1) 50%, transparent 90%)
+                `,
+                animation: 'wave2 4s ease-in-out infinite reverse',
+                filter: 'blur(80px)'
+              }}
+            ></div>
+            
+            {/* Wave Layer 3 - Flowing orange gradients */}
+            <div 
+              className="absolute inset-0 opacity-12"
+              style={{
+                background: `
+                  radial-gradient(ellipse 1600px 400px at 70% 50%, rgba(255, 165, 0, 0.3) 0%, rgba(255, 165, 0, 0.12) 55%, transparent 90%),
+                  radial-gradient(ellipse 600px 1400px at 25% 85%, rgba(255, 106, 0, 0.25) 0%, rgba(255, 106, 0, 0.1) 60%, transparent 95%)
+                `,
+                animation: 'wave3 5s ease-in-out infinite',
+                filter: 'blur(100px)'
+              }}
+            ></div>
+            
+            {/* Wave Layer 4 - Additional flowing teal waves */}
+            <div 
+              className="absolute inset-0 opacity-12"
+              style={{
+                background: `
+                  radial-gradient(ellipse 1000px 700px at 40% 25%, rgba(20, 184, 166, 0.3) 0%, rgba(20, 184, 166, 0.12) 50%, transparent 85%),
+                  radial-gradient(ellipse 1300px 500px at 75% 85%, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0.1) 55%, transparent 90%)
+                `,
+                animation: 'wave4 3.5s ease-in-out infinite',
+                filter: 'blur(90px)'
+              }}
+            ></div>
+            
+            {/* Wave Layer 5 - Smooth flowing orange */}
+            <div 
+              className="absolute inset-0 opacity-10"
+              style={{
+                background: `
+                  radial-gradient(ellipse 900px 1100px at 15% 60%, rgba(255, 165, 0, 0.3) 0%, rgba(255, 165, 0, 0.1) 60%, transparent 95%),
+                  radial-gradient(ellipse 1500px 600px at 85% 40%, rgba(255, 106, 0, 0.25) 0%, rgba(255, 106, 0, 0.1) 65%, transparent 95%)
+                `,
+                animation: 'wave5 2.5s ease-in-out infinite reverse',
+                filter: 'blur(110px)'
+              }}
+            ></div>
+            
+            {/* Wave Layer 6 - Smooth flowing teal */}
+            <div 
+              className="absolute inset-0 opacity-10"
+              style={{
+                background: `
+                  radial-gradient(ellipse 800px 1300px at 55% 15%, rgba(20, 184, 166, 0.3) 0%, rgba(20, 184, 166, 0.1) 65%, transparent 95%),
+                  radial-gradient(ellipse 1700px 500px at 30% 75%, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0.1) 70%, transparent 98%)
+                `,
+                animation: 'wave6 6s ease-in-out infinite',
+                filter: 'blur(120px)'
+              }}
+            ></div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl sm:rounded-2xl border border-border/20 shadow-lg relative z-10">
           <div className="p-3 sm:p-4 lg:p-6 bg-card rounded-xl sm:rounded-2xl">
             {currentModule === 'restaurant-management' ? <RestaurantManagement /> : children}
           </div>
