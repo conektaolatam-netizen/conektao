@@ -494,37 +494,39 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           </div>
         </button>
 
-        {/* Makro Discount - Al lado como descuento */}
+        {/* Makro promo */}
         <div 
-          className="relative overflow-hidden rounded-2xl p-6 shadow-xl cursor-pointer hover:scale-105 transition-all duration-300"
-          onClick={() => onModuleChange('marketplace')}
+          className="relative overflow-hidden rounded-2xl shadow-xl cursor-pointer hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[180px] group"
+          onClick={() => {
+            onModuleChange('marketplace');
+            setTimeout(() => {
+              window.history.pushState({}, '', '/?view=marketplace&supplier=makro');
+            }, 100);
+          }}
         >
-          {/* Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-700 to-red-600"></div>
+          {/* Imagen de fondo de Makro */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+            style={{
+              backgroundImage: "url('/lovable-uploads/makro-banner.jpg')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          />
           
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center mb-3">
-                  <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center mr-3">
-                    <div className="text-sm">🛒</div>
-                  </div>
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-primary-foreground">MAKRO</h2>
-                    <p className="text-muted-foreground text-xs sm:text-sm">Descuento especial</p>
-                  </div>
-                </div>
-                <p className="text-primary-foreground text-sm">
-                  Vino para tu restaurante 🎯
-                </p>
-              </div>
-              
-              {/* 60% Discount Section */}
-              <div className="text-right text-primary-foreground">
-                <div className="text-4xl font-black leading-none">60%</div>
-                <div className="text-xs font-bold tracking-wider">DESC</div>
-              </div>
-            </div>
+          {/* Overlay para mejorar legibilidad */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
+          
+          {/* Badge de descuento */}
+          <div className="absolute top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-full font-bold text-lg shadow-lg animate-pulse">
+            60% OFF
+          </div>
+
+          {/* Texto informativo */}
+          <div className="absolute bottom-4 left-4 text-white">
+            <p className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              Click para ver productos →
+            </p>
           </div>
         </div>
       </div>

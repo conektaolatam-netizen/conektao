@@ -48,6 +48,14 @@ const SupplierMarketplace = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
   const [cart, setCart] = useState<{[key: string]: number}>({});
   const [currentView, setCurrentView] = useState<'suppliers' | 'products'>('suppliers');
+  
+  // Leer parámetro de URL para filtrar por proveedor
+  const [urlParams] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      supplier: params.get('supplier')
+    };
+  });
 
   useEffect(() => {
     loadSuppliers();
@@ -90,7 +98,7 @@ const SupplierMarketplace = () => {
         return acc;
       }, {} as {[key: string]: any}) || {};
 
-      const formattedSuppliers = suppliersData?.map(supplier => {
+      let formattedSuppliers = suppliersData?.map(supplier => {
         const settings = settingsMap[supplier.user_id];
         return {
           id: supplier.id,
@@ -104,6 +112,20 @@ const SupplierMarketplace = () => {
           productCount: countMap[supplier.id] || 0
         };
       }) || [];
+
+      // Filtrar por proveedor si hay parámetro de URL
+      if (urlParams.supplier) {
+        formattedSuppliers = formattedSuppliers.filter(supplier => 
+          supplier.name.toLowerCase().includes(urlParams.supplier!.toLowerCase())
+        );
+        
+        // Si hay exactamente un proveedor, abrir sus productos automáticamente
+        if (formattedSuppliers.length === 1) {
+          setTimeout(() => {
+            loadSupplierProducts(formattedSuppliers[0].id);
+          }, 500);
+        }
+      }
 
       setSuppliers(formattedSuppliers);
     } catch (error) {
