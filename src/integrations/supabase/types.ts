@@ -1503,6 +1503,7 @@ export type Database = {
       restaurants: {
         Row: {
           address: string | null
+          allow_sales_without_stock: boolean | null
           created_at: string
           default_tip_percentage: number | null
           id: string
@@ -1517,6 +1518,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          allow_sales_without_stock?: boolean | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string
@@ -1531,6 +1533,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          allow_sales_without_stock?: boolean | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string

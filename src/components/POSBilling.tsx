@@ -91,6 +91,15 @@ const POSBilling = () => {
   
   // Estado de mesas con sincronización con base de datos
   const [tables, setTables] = useState<Table[]>([]);
+  
+  // Estado para disponibilidad de productos
+  const [productsAvailability, setProductsAvailability] = useState<Record<string, {
+    maxUnits: number;
+    limitingIngredient: string | null;
+  }>>({});
+  
+  // Estado para configuración de ventas sin stock
+  const [allowSalesWithoutStock, setAllowSalesWithoutStock] = useState(false);
 
   // Cargar estado de mesas desde la base de datos
   const loadTableStates = async () => {
@@ -249,6 +258,42 @@ const POSBilling = () => {
     }
   };
 
+  // Cargar disponibilidad de productos
+  const loadProductsAvailability = async () => {
+    if (!products.length) return;
+    
+    const availabilityMap: Record<string, any> = {};
+    
+    for (const product of products) {
+      const result = await checkAvailability(product.id, 1);
+      availabilityMap[product.id] = {
+        maxUnits: result.maxUnits,
+        limitingIngredient: result.limitingIngredient
+      };
+    }
+    
+    setProductsAvailability(availabilityMap);
+  };
+
+  // Cargar configuración del restaurante
+  const loadRestaurantConfig = async () => {
+    if (!profile?.restaurant_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('allow_sales_without_stock')
+        .eq('id', profile.restaurant_id)
+        .single();
+      
+      if (error) throw error;
+      
+      setAllowSalesWithoutStock(data?.allow_sales_without_stock || false);
+    } catch (error) {
+      console.error('Error loading restaurant config:', error);
+    }
+  };
+
   // Función para enviar a cocina
   const handleSendToKitchen = async (
     items: Array<{
@@ -287,8 +332,16 @@ const POSBilling = () => {
     if (user && profile?.restaurant_id) {
       loadProducts();
       loadTableStates();
+      loadRestaurantConfig();
     }
   }, [user, profile?.restaurant_id]);
+
+  // Cargar disponibilidad cuando los productos cambien
+  useEffect(() => {
+    if (products.length > 0) {
+      loadProductsAvailability();
+    }
+  }, [products]);
 
   // Función para obtener icono según categoría
   const getProductIcon = (category: string) => {
@@ -317,16 +370,38 @@ const POSBilling = () => {
     const existingProduct = selectedProducts.find(p => p.id === product.id);
     const newQuantity = existingProduct ? existingProduct.quantity + 1 : 1;
     
-    // Verificar disponibilidad de ingredientes
-    const isAvailable = await checkAvailability(product.id, newQuantity);
+    // ✅ CORRECCIÓN: Desestructurar el objeto de disponibilidad correctamente
+    const availabilityResult = await checkAvailability(product.id, newQuantity);
     
-    if (!isAvailable) {
-      toast({
-        title: "Producto no disponible",
-        description: `No hay suficientes ingredientes para preparar ${product.name}. Por favor verifica el inventario.`,
-        variant: "destructive",
-      });
-      return;
+    // Verificar si el producto está disponible
+    if (!availabilityResult.isAvailable) {
+      // Verificar si el restaurante permite ventas sin stock
+      if (!allowSalesWithoutStock) {
+        // Bloquear venta y mostrar error detallado
+        toast({
+          title: "❌ Producto no disponible",
+          description: `No hay suficientes ingredientes para preparar ${newQuantity} unidad(es) de ${product.name}.
+          
+Unidades máximas disponibles: ${availabilityResult.maxUnits}
+${availabilityResult.limitingIngredient ? `Ingrediente limitante: ${availabilityResult.limitingIngredient}` : ''}
+
+¿Deseas actualizar el inventario?`,
+          variant: "destructive",
+          duration: 8000,
+        });
+        return;
+      } else {
+        // Permitir venta pero con advertencia
+        toast({
+          title: "⚠️ Advertencia: Stock insuficiente",
+          description: `Vendiendo sin stock actualizado. Recuerda hacer reconciliación posterior.
+
+Unidades máximas con stock: ${availabilityResult.maxUnits}
+${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityResult.limitingIngredient}` : ''}`,
+          variant: "default",
+          duration: 6000,
+        });
+      }
     }
     
     let updatedProducts: SelectedProduct[];
@@ -701,10 +776,15 @@ const POSBilling = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                   {filteredProducts.map(product => {
                     const IconComponent = getProductIcon(product.category);
+                    const availability = productsAvailability[product.id];
+                    const isAvailable = availability && availability.maxUnits > 0;
+                    
                     return (
                       <Card
                         key={product.id}
-                        className="group cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-2 hover:border-orange-200"
+                        className={`group cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-2 ${
+                          isAvailable ? 'hover:border-orange-200' : 'hover:border-red-200 opacity-75'
+                        }`}
                         onClick={() => addProductToOrder(product)}
                       >
                         <CardContent className="p-4 text-center space-y-2">
@@ -716,6 +796,27 @@ const POSBilling = () => {
                           <Badge variant="secondary" className="text-xs">
                             {product.category}
                           </Badge>
+                          
+                          {/* Badge de disponibilidad */}
+                          {availability && (
+                            <div className="mt-2">
+                              <Badge 
+                                variant={isAvailable ? "default" : "destructive"}
+                                className="text-xs"
+                              >
+                                {isAvailable 
+                                  ? `${availability.maxUnits} disponibles` 
+                                  : 'Sin stock'
+                                }
+                              </Badge>
+                              
+                              {!isAvailable && availability.limitingIngredient && (
+                                <p className="text-xs text-destructive mt-1">
+                                  Falta: {availability.limitingIngredient}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
