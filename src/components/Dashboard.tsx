@@ -13,16 +13,27 @@ import DailyAIAnalysis from '@/components/ai/DailyAIAnalysis';
 import DailyRecommendations from '@/components/ai/DailyRecommendations';
 import AIUsageCounter from '@/components/ai/AIUsageCounter';
 import AdminAIDashboard from '@/components/admin/AdminAIDashboard';
-
 interface DashboardProps {
   onModuleChange: (module: string) => void;
 }
+const Dashboard = ({
+  onModuleChange
+}: DashboardProps) => {
+  const {
+    user,
+    profile,
+    restaurant
+  } = useAuth();
+  const {
+    notifications,
+    unreadCount
+  } = useNotifications();
+  const {
+    currentView,
+    navigateToView,
+    goBack
+  } = useDashboardNavigation();
 
-const Dashboard = ({ onModuleChange }: DashboardProps) => {
-  const { user, profile, restaurant } = useAuth();
-  const { notifications, unreadCount } = useNotifications();
-  const { currentView, navigateToView, goBack } = useDashboardNavigation();
-  
   // Estados para datos reales de ventas
   const [realSalesData, setRealSalesData] = useState({
     dailySales: 0,
@@ -40,28 +51,25 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   // Función para generar recomendaciones automáticas de la IA
   const generateAIRecommendations = async () => {
     if (!user || isLoadingAI) return;
-    
     setIsLoadingAI(true);
     try {
-      const { data, error } = await supabase.functions.invoke('conektao-ai', {
-        body: { 
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('conektao-ai', {
+        body: {
           message: "Analiza mi negocio y genera estrategias de marketing específicas para aumentar ventas. Identifica productos con bajo rendimiento y recomienda descuentos exactos y promociones para mover inventario. Enfócate en optimización de recursos y crecimiento de ingresos con ROI proyectado.",
           userId: user.id,
           restaurantId: restaurant?.id
         }
       });
-      
       if (data?.response) {
         setAiRecommendations({
           analysis: data.response,
           underperforming_product: data.underperforming_product,
           marketing_insights: data.marketing_insights,
           timestamp: new Date(),
-          hasAlert: data.response.toLowerCase().includes('oportunidad') || 
-                   data.response.toLowerCase().includes('mejora') || 
-                   data.response.toLowerCase().includes('bajo') ||
-                   data.response.toLowerCase().includes('alerta') ||
-                   data.underperforming_product !== null
+          hasAlert: data.response.toLowerCase().includes('oportunidad') || data.response.toLowerCase().includes('mejora') || data.response.toLowerCase().includes('bajo') || data.response.toLowerCase().includes('alerta') || data.underperforming_product !== null
         });
       }
     } catch (error) {
@@ -74,19 +82,18 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   // Función para implementar estrategia sugerida
   const implementStrategy = async () => {
     if (!aiRecommendations) return;
-    
     const confirmImplement = confirm(`🚀 ¿Implementar la estrategia sugerida por la IA?\n\n${aiRecommendations.analysis.substring(0, 200)}...`);
-    
     if (confirmImplement) {
       try {
-        const { data } = await supabase.functions.invoke('conektao-ai', {
-          body: { 
+        const {
+          data
+        } = await supabase.functions.invoke('conektao-ai', {
+          body: {
             message: `Implementa la estrategia recomendada: ${aiRecommendations.analysis}. Genera un plan de acción detallado paso a paso.`,
             userId: user?.id,
             restaurantId: restaurant?.id
           }
         });
-        
         if (data?.response) {
           alert(`✅ PLAN DE IMPLEMENTACIÓN GENERADO\n\n${data.response}`);
         }
@@ -117,48 +124,41 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     }, 60 * 60 * 1000);
     return () => clearInterval(hourlyCheck);
   }, [user, aiRecommendations?.timestamp]);
-
   const loadSalesData = async () => {
     if (!user || !profile?.restaurant_id) return;
-    
     try {
       // Obtener fecha actual en zona horaria local (Colombia)
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      
-      // Obtener usuarios del mismo restaurante
-      const { data: restaurantUsers } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('restaurant_id', profile.restaurant_id);
 
+      // Obtener usuarios del mismo restaurante
+      const {
+        data: restaurantUsers
+      } = await supabase.from('profiles').select('id').eq('restaurant_id', profile.restaurant_id);
       const userIds = restaurantUsers?.map(u => u.id) || [];
 
       // Ventas del día (desde las 00:00:00 hasta 23:59:59 del día actual)
-      const { data: dailySales, error: dailyError } = await supabase
-        .from('sales')
-        .select('total_amount')
-        .gte('created_at', todayStart.toISOString())
-        .lt('created_at', todayEnd.toISOString());
+      const {
+        data: dailySales,
+        error: dailyError
+      } = await supabase.from('sales').select('total_amount').gte('created_at', todayStart.toISOString()).lt('created_at', todayEnd.toISOString());
 
       // Ventas del mes (desde el primer día del mes)
-      const { data: monthlySales, error: monthlyError } = await supabase
-        .from('sales')
-        .select('total_amount')
-        .gte('created_at', monthStart.toISOString());
-
+      const {
+        data: monthlySales,
+        error: monthlyError
+      } = await supabase.from('sales').select('total_amount').gte('created_at', monthStart.toISOString());
       if (!dailyError && !monthlyError && dailySales && monthlySales) {
         const dailyTotal = dailySales.reduce((sum: number, sale: any) => sum + parseFloat(sale.total_amount), 0);
         const monthlyTotal = monthlySales.reduce((sum: number, sale: any) => sum + parseFloat(sale.total_amount), 0);
         const dailyCount = dailySales.length;
         const monthlyCount = monthlySales.length;
-        
+
         // Calcular ticket promedio mensual = total vendido del mes / personas que visitaron en el mes
         // Cada venta representa una persona/visita
         const averageTicketMonthly = monthlyCount > 0 ? monthlyTotal / monthlyCount : 0;
-
         setRealSalesData({
           dailySales: dailyTotal,
           monthlySales: monthlyTotal,
@@ -176,13 +176,15 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   const businessName = profile?.full_name || 'Mi Negocio';
 
   // Get real analytics data from global state
-  const formatCurrency = (amount: number) => 
-    amount.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+  const formatCurrency = (amount: number) => amount.toLocaleString('es-CO', {
+    style: 'currency',
+    currency: 'COP'
+  });
 
   // Calcular datos reales en tiempo real
   const calculateGrowthPercentage = (current: number, target: number) => {
     if (target === 0) return 0;
-    return ((current / target) * 100).toFixed(1);
+    return (current / target * 100).toFixed(1);
   };
 
   // Target mensual estimado (puede ser configurable)
@@ -245,7 +247,6 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         status: "Listo"
       }];
     }
-
     return [{
       text: `Ventas del día: ${formatCurrency(realSalesData.dailySales)} - ${realSalesData.dailyOrders} órdenes`,
       time: "Actualizado ahora",
@@ -321,12 +322,12 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     if (profile?.role === 'owner' || profile?.role === 'admin') {
       return true;
     }
-    
+
     // For employees, check specific permissions
     if (action.permission && profile?.permissions) {
       return profile.permissions[action.permission as keyof typeof profile.permissions];
     }
-    
+
     // If no permission specified, hide it for employees
     return false;
   });
@@ -360,14 +361,12 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     badge: "Quantum",
     special: "ai"
   }];
-
   const recentActivity = generateRecentActivity();
 
   // Handle navigation to different views
   if (currentView === 'daily-sales') {
     return <DailySalesView onClose={goBack} />;
   }
-
   if (currentView === 'monthly-sales') {
     return <MonthlySalesView onClose={goBack} />;
   }
@@ -380,48 +379,38 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       navigateToView('monthly-sales');
     }
   };
-
   return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">{/* Added responsive container with max-width and padding */}
       {/* Flowing waves background - Very subtle but visible */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {/* Wave Layer 1 - Orange flow */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `
+        <div className="absolute inset-0" style={{
+        background: `
               radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.12) 0%, rgba(255, 165, 0, 0.04) 50%, transparent 85%)
             `,
-            animation: 'wave1 22s ease-in-out infinite',
-            filter: 'blur(90px)',
-            opacity: 0.75
-          }}
-        ></div>
+        animation: 'wave1 22s ease-in-out infinite',
+        filter: 'blur(90px)',
+        opacity: 0.75
+      }}></div>
         
         {/* Wave Layer 2 - Teal flow */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `
+        <div className="absolute inset-0" style={{
+        background: `
               radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 50%, transparent 85%)
             `,
-            animation: 'wave2 26s ease-in-out infinite reverse',
-            filter: 'blur(100px)',
-            opacity: 0.75
-          }}
-        ></div>
+        animation: 'wave2 26s ease-in-out infinite reverse',
+        filter: 'blur(100px)',
+        opacity: 0.75
+      }}></div>
         
         {/* Wave Layer 3 - Orange gradient */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `
+        <div className="absolute inset-0" style={{
+        background: `
               radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.10) 0%, rgba(255, 106, 0, 0.035) 60%, transparent 90%)
             `,
-            animation: 'wave3 30s ease-in-out infinite',
-            filter: 'blur(110px)',
-            opacity: 0.7
-          }}
-        ></div>
+        animation: 'wave3 30s ease-in-out infinite',
+        filter: 'blur(110px)',
+        opacity: 0.7
+      }}></div>
       </div>
       
       {/* Stats Grid - Moved to top */}
@@ -429,16 +418,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         {stats.map((stat, index) => {
         const isMainStat = stat.size === 'large';
         const isTicketPromedio = stat.title === 'Ticket Promedio';
-        return <Card 
-          key={index} 
-          className={`group p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_2px_10px_rgb(0,0,0,0.4)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.7),0_4px_15px_rgba(255,106,0,0.3)] transition-all duration-300 hover:-translate-y-2 rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 hover:ring-primary/60 shadow-primary/20' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`}
-          onClick={() => handleStatsClick(stat.title)}
-          style={{
-            boxShadow: isMainStat 
-              ? '0 10px 40px rgba(0,0,0,0.7), 0 2px 15px rgba(255,106,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)' 
-              : '0 8px 30px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)'
-          }}
-        >
+        return <Card key={index} className={`group p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_2px_10px_rgb(0,0,0,0.4)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.7),0_4px_15px_rgba(255,106,0,0.3)] transition-all duration-300 hover:-translate-y-2 rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 hover:ring-primary/60 shadow-primary/20' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`} onClick={() => handleStatsClick(stat.title)} style={{
+          boxShadow: isMainStat ? '0 10px 40px rgba(0,0,0,0.7), 0 2px 15px rgba(255,106,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)' : '0 8px 30px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)'
+        }}>
               {/* 3D effect overlay */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none"></div>
               
@@ -495,15 +477,12 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         </button>
 
         {/* Makro promo */}
-        <div 
-          className="relative overflow-hidden rounded-2xl shadow-xl cursor-pointer hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[180px] group"
-          onClick={() => {
-            onModuleChange('marketplace');
-            setTimeout(() => {
-              window.history.pushState({}, '', '/?view=marketplace&supplier=makro');
-            }, 100);
-          }}
-        >
+        <div className="relative overflow-hidden rounded-2xl shadow-xl cursor-pointer hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[180px] group" onClick={() => {
+        onModuleChange('marketplace');
+        setTimeout(() => {
+          window.history.pushState({}, '', '/?view=marketplace&supplier=makro');
+        }, 100);
+      }}>
           {/* Fondo degradado naranja/rojo */}
           <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-orange-600 to-red-600" />
           
@@ -523,7 +502,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           <div className="absolute inset-0 flex flex-col justify-center items-start p-6 z-10">
             <div className="space-y-1">
               <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-black text-white drop-shadow-lg">60%</span>
+                <span className="text-6xl font-black text-white drop-shadow-lg text-center">60%</span>
                 <span className="text-3xl font-bold text-white drop-shadow-lg">OFF</span>
               </div>
               <p className="text-xl font-semibold text-white drop-shadow-md">
@@ -555,9 +534,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
       <div className="relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {regularActions.map((action, index) => <button key={index} className={`group relative h-20 p-4 rounded-xl bg-card border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 overflow-hidden`} style={{
-              borderImage: `linear-gradient(45deg, ${action.gradient.replace('from-', '').replace('to-', '').replace('-500', '').replace('-600', '')}) 1`,
-              borderImageSlice: 1
-            }} onClick={() => onModuleChange(action.module)}>
+          borderImage: `linear-gradient(45deg, ${action.gradient.replace('from-', '').replace('to-', '').replace('-500', '').replace('-600', '')}) 1`,
+          borderImageSlice: 1
+        }} onClick={() => onModuleChange(action.module)}>
               {/* Fondo degradado que aparece en hover */}
               <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
               
@@ -650,21 +629,27 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-600 w-12">Lun</span>
                   <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-blue-400 to-indigo-500 h-4 rounded-full" style={{ width: realSalesData.dailySales > 0 ? '0%' : '0%' }}></div>
+                    <div className="bg-gradient-to-r from-blue-400 to-indigo-500 h-4 rounded-full" style={{
+                    width: realSalesData.dailySales > 0 ? '0%' : '0%'
+                  }}></div>
                   </div>
                   <span className="text-xs font-medium w-16 text-right">{formatCurrency(0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-600 w-12">Mar</span>
                   <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-4 rounded-full" style={{ width: '0%' }}></div>
+                    <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-4 rounded-full" style={{
+                    width: '0%'
+                  }}></div>
                   </div>
                   <span className="text-xs font-medium w-16 text-right">{formatCurrency(0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-600 w-12">Mié</span>
                   <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-purple-400 to-pink-500 h-4 rounded-full" style={{ width: '0%' }}></div>
+                    <div className="bg-gradient-to-r from-purple-400 to-pink-500 h-4 rounded-full" style={{
+                    width: '0%'
+                  }}></div>
                   </div>
                   <span className="text-xs font-medium w-16 text-right">{formatCurrency(realSalesData.dailySales * 0.9)}</span>
                 </div>
@@ -692,10 +677,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
               </div>
               <div className="mt-3 text-center">
                 <div className="text-xs text-gray-600 mb-2">
-                  {aiRecommendations?.underperforming_product ? 
-                    `Productos con menor rendimiento: ${aiRecommendations.underperforming_product}` :
-                    `Facturas hoy: ${realSalesData.dailyOrders} • Ticket promedio: ${formatCurrency(realSalesData.averageTicket)}`
-                  }
+                  {aiRecommendations?.underperforming_product ? `Productos con menor rendimiento: ${aiRecommendations.underperforming_product}` : `Facturas hoy: ${realSalesData.dailyOrders} • Ticket promedio: ${formatCurrency(realSalesData.averageTicket)}`}
                 </div>
                 <Button onClick={() => onModuleChange('billing')} size="sm" className="bg-primary hover:bg-primary/90 text-white px-4 py-1 rounded-full text-xs">
                   Ver Detalles por Producto
@@ -729,40 +711,24 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                       {isLoadingAI ? 'Analizando...' : aiRecommendations?.hasAlert ? 'Alerta Detectada' : 'Todo en Orden'}
                     </span>
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-white/70 hover:text-white text-xs p-1"
-                    onClick={generateAIRecommendations}
-                    disabled={isLoadingAI}
-                  >
+                  <Button size="sm" variant="ghost" className="text-white/70 hover:text-white text-xs p-1" onClick={generateAIRecommendations} disabled={isLoadingAI}>
                     🔄
                   </Button>
                 </div>
                 <p className="text-white/90 text-sm leading-relaxed">
-                  {isLoadingAI ? (
-                    "🧠 Analizando datos en tiempo real..."
-                  ) : (
-                    <>
+                  {isLoadingAI ? "🧠 Analizando datos en tiempo real..." : <>
                       <span>
                         Hoy: {formatCurrency(realSalesData.dailySales)} • Facturas: {realSalesData.dailyOrders} • Ticket: {formatCurrency(realSalesData.averageTicket)}
                       </span>
-                      {aiRecommendations?.analysis ? (
-                        <>
+                      {aiRecommendations?.analysis ? <>
                           {" — "}
                           {aiRecommendations.analysis.substring(0, 150)}...
-                        </>
-                      ) : (
-                        " — Esperando recomendaciones de la IA..."
-                      )}
-                    </>
-                  )}
+                        </> : " — Esperando recomendaciones de la IA..."}
+                    </>}
                 </p>
-                {aiRecommendations?.timestamp && (
-                  <p className="text-white/60 text-xs mt-2">
+                {aiRecommendations?.timestamp && <p className="text-white/60 text-xs mt-2">
                     Última actualización: {aiRecommendations.timestamp.toLocaleTimeString()}
-                  </p>
-                )}
+                  </p>}
               </div>
 
               {/* Estrategia sugerida */}
@@ -772,18 +738,10 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                   <span className="font-semibold text-sm">Estrategia Sugerida</span>
                 </div>
                 <p className="text-white/90 text-sm leading-relaxed mb-3">
-                  {aiRecommendations?.analysis ? 
-                    aiRecommendations.analysis.substring(150, 300) + "..." :
-                    "Promoción especial: Alianza con influencers locales"
-                  }
+                  {aiRecommendations?.analysis ? aiRecommendations.analysis.substring(150, 300) + "..." : "Promoción especial: Alianza con influencers locales"}
                 </p>
                 
-                <Button 
-                  size="sm" 
-                  className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-full text-xs w-full"
-                  onClick={implementStrategy}
-                  disabled={!aiRecommendations || isLoadingAI}
-                >
+                <Button size="sm" className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-full text-xs w-full" onClick={implementStrategy} disabled={!aiRecommendations || isLoadingAI}>
                   {isLoadingAI ? '🧠 Analizando...' : '🎯 Implementar Estrategia IA'}
                 </Button>
               </div>
@@ -798,20 +756,14 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
                 <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
                   🚀 IA Automática
                 </Badge>
-                {aiRecommendations && (
-                  <Badge className="bg-purple-500/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
+                {aiRecommendations && <Badge className="bg-purple-500/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
                     🎯 Estrategia Lista
-                  </Badge>
-                )}
+                  </Badge>}
               </div>
             </div>
             
             <div className="text-center">
-              <Button 
-                size="lg" 
-                className="bg-foreground/20 backdrop-blur-sm text-white border-white/30 hover:bg-foreground/30 hover:scale-105 transition-all rounded-2xl px-6 py-3 w-full"
-                onClick={() => onModuleChange('ai')}
-              >
+              <Button size="lg" className="bg-foreground/20 backdrop-blur-sm text-white border-white/30 hover:bg-foreground/30 hover:scale-105 transition-all rounded-2xl px-6 py-3 w-full" onClick={() => onModuleChange('ai')}>
                 🧠 Chat con IA Avanzada
               </Button>
               <p className="text-white/70 text-xs mt-2">
