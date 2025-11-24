@@ -286,7 +286,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     module: "inventory",
     gradient: "from-purple-500 to-violet-600",
     icon: Package,
-    description: "Gestionar ingredientes",
+    description: "Gestionar productos e ingredientes",
     alert: true,
     permission: "manage_inventory"
   }, {
@@ -294,8 +294,8 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     module: "products",
     gradient: "from-pink-500 to-rose-600",
     icon: Coffee,
-    description: "Catálogo de productos",
-    badge: "Nuevo",
+    description: "Ver catálogo de productos",
+    badge: "Catálogo",
     permission: "manage_products"
   }, {
     title: "Cocina",
