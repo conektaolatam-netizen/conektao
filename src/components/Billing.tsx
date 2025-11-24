@@ -18,11 +18,14 @@ import { useApp } from '@/context/AppContext';
 import type { Sale } from '@/context/AppContext';
 import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
+import { useProductAvailability } from '@/hooks/useProductAvailability';
+
 const Billing = () => {
   const {
     state,
     dispatch
   } = useApp();
+  const { checkAvailability } = useProductAvailability();
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -49,6 +52,13 @@ const Billing = () => {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [selectedTableForGuests, setSelectedTableForGuests] = useState<number | null>(null);
   const [guestCount, setGuestCount] = useState('');
+  
+  // Estado para disponibilidad de productos
+  const [productsAvailability, setProductsAvailability] = useState<Record<string, {
+    maxUnits: number;
+    limitingIngredient: string | null;
+  }>>({});
+  
   const {
     toast
   } = useToast();
@@ -282,21 +292,55 @@ const Billing = () => {
         return;
       }
       console.log('Products loaded for restaurant:', dbProducts);
+      
+      // Primero crear los productos sin disponibilidad
       const formattedProducts = dbProducts?.map((product: any) => ({
         id: product.id,
         name: product.name,
         category: product.category?.name || 'Sin categoría',
         price: product.price,
-        description: `Disponible: ${product.inventory?.[0]?.current_stock || 0} unidades`,
+        description: 'Cargando disponibilidad...', // Temporal
         image: getProductIcon(product.name, state.userData?.businessType || 'restaurant'),
         popular: false,
-        stock: product.inventory?.[0]?.current_stock || 0
+        stock: 0 // Temporal
       })) || [];
+      
       setProducts(formattedProducts);
+      
+      // Ahora calcular la disponibilidad real desde ingredientes
+      await loadProductsAvailability(formattedProducts);
     } catch (error) {
       console.error('Error loading products:', error);
       setProducts(generateFallbackProducts());
     }
+  };
+  
+  // Nueva función para cargar disponibilidad real desde ingredientes
+  const loadProductsAvailability = async (productsList: any[]) => {
+    if (!productsList.length) return;
+    
+    const availabilityMap: Record<string, any> = {};
+    const updatedProducts = [...productsList];
+    
+    for (let i = 0; i < productsList.length; i++) {
+      const product = productsList[i];
+      const result = await checkAvailability(product.id, 1);
+      
+      availabilityMap[product.id] = {
+        maxUnits: result.maxUnits,
+        limitingIngredient: result.limitingIngredient
+      };
+      
+      // Actualizar la descripción con la disponibilidad real
+      updatedProducts[i] = {
+        ...product,
+        description: `Disponible: ${result.maxUnits} unidades`,
+        stock: result.maxUnits
+      };
+    }
+    
+    setProductsAvailability(availabilityMap);
+    setProducts(updatedProducts);
   };
   const loadTipSettings = async () => {
     try {
