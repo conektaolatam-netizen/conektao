@@ -2120,42 +2120,24 @@ export type Database = {
         Args: { target_restaurant_id: string }
         Returns: boolean
       }
-      can_see_customer_emails: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      cleanup_expired_invitations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      can_see_customer_emails: { Args: never; Returns: boolean }
+      cleanup_expired_invitations: { Args: never; Returns: undefined }
       generate_monthly_invoice_document: {
         Args: { p_month: number; p_restaurant_id: string; p_year: number }
         Returns: string
       }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_role: { Args: never; Returns: string }
       is_owner_or_admin: {
         Args: { target_restaurant_id: string; user_id: string }
         Returns: boolean
       }
-      mask_customer_email: {
-        Args: { email: string }
-        Returns: string
-      }
-      reset_daily_ai_usage: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      mask_customer_email: { Args: { email: string }; Returns: string }
+      reset_daily_ai_usage: { Args: never; Returns: undefined }
       seed_table_states: {
         Args: { p_count?: number; p_restaurant_id: string }
         Returns: undefined
       }
-      user_restaurant_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      user_restaurant_id: { Args: { _user_id: string }; Returns: string }
       validate_clock_location: {
         Args: {
           restaurant_id_param: string
