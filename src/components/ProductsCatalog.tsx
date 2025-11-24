@@ -23,12 +23,12 @@ interface Product {
 
 const ProductsCatalog = () => {
   const { profile } = useAuth();
-  const { checkAvailability } = useProductAvailability();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
+  const [productsWithAvailability, setProductsWithAvailability] = useState<any[]>([]);
 
   useEffect(() => {
     loadProducts();
@@ -53,6 +53,36 @@ const ProductsCatalog = () => {
 
       if (error) throw error;
       setProducts(data || []);
+      
+      // Load availability for each product
+      if (data && data.length > 0) {
+        const productsWithData = await Promise.all(
+          data.map(async (product) => {
+            try {
+              const { data: availData } = await supabase
+                .rpc('check_product_ingredients_available', {
+                  p_product_id: product.id,
+                  p_quantity: 1
+                });
+              
+              return {
+                ...product,
+                maxUnits: availData?.[0]?.max_units || 0,
+                limitingIngredient: availData?.[0]?.limiting_ingredient_name || null
+              };
+            } catch (error) {
+              console.error(`Error loading availability for ${product.name}:`, error);
+              return {
+                ...product,
+                maxUnits: 0,
+                limitingIngredient: null
+              };
+            }
+          })
+        );
+        
+        setProductsWithAvailability(productsWithData);
+      }
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -77,7 +107,7 @@ const ProductsCatalog = () => {
     }
   };
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = productsWithAvailability.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || product.category_id === selectedCategory;
@@ -136,7 +166,7 @@ const ProductsCatalog = () => {
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredProducts.map((product) => {
-          const isAvailable = checkAvailability(product.id);
+          const isAvailable = product.maxUnits > 0;
           
           return (
             <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -174,6 +204,12 @@ const ProductsCatalog = () => {
                     {product.categories.name}
                   </Badge>
                 )}
+                {/* Availability Badge */}
+                <Badge variant={isAvailable ? "default" : "destructive"} className="w-fit mt-2">
+                  {isAvailable 
+                    ? `${product.maxUnits} disponibles` 
+                    : 'Sin stock'}
+                </Badge>
               </CardHeader>
               <CardContent>
                 {product.description && (

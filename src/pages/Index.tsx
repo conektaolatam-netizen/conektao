@@ -25,7 +25,6 @@ import TutorialGuide from '@/components/TutorialGuide';
 import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
 import InventoryManagement from '@/components/inventory/InventoryManagement';
-import ProductsManagement from '@/components/ProductsManagement';
 import Welcome from './Welcome';
 
 const Index = () => {
@@ -169,12 +168,7 @@ const Index = () => {
         if (!hasPermission('manage_inventory')) {
           return renderUnauthorized('Inventario');
         }
-        return <InventoryManagement />;
-      case 'products':
-        if (!hasPermission('manage_products')) {
-          return renderUnauthorized('Productos');
-        }
-        return <ProductsManagement />;
+        return <InventoryManagement onModuleChange={handleModuleChange} />;
       case 'ai':
         return <AIAssistant />;
       case 'contai':
