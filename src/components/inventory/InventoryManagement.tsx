@@ -3,9 +3,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IngredientsManager } from './IngredientsManager';
 import ProductManager from '../ProductManager';
 import { CompoundIngredientsManager } from './CompoundIngredientsManager';
-import { Package, Beaker, BookOpen } from 'lucide-react';
+import ProductsCatalog from '../ProductsCatalog';
+import { Package, Beaker, BookOpen, Eye } from 'lucide-react';
 
-const InventoryManagement = () => {
+const InventoryManagement = ({ onModuleChange }: { onModuleChange?: (module: string) => void }) => {
   const [activeTab, setActiveTab] = useState<string>("ingredients");
 
   return (
@@ -18,7 +19,7 @@ const InventoryManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="ingredients" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Ingredientes
@@ -31,6 +32,10 @@ const InventoryManagement = () => {
             <Beaker className="h-4 w-4" />
             Recetas Internas
           </TabsTrigger>
+          <TabsTrigger value="catalog" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Catálogo Visual
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ingredients" className="mt-6">
@@ -38,11 +43,15 @@ const InventoryManagement = () => {
         </TabsContent>
 
         <TabsContent value="products" className="mt-6">
-          <ProductManager />
+          <ProductManager onModuleChange={onModuleChange} />
         </TabsContent>
 
         <TabsContent value="compounds" className="mt-6">
           <CompoundIngredientsManager />
+        </TabsContent>
+
+        <TabsContent value="catalog" className="mt-6">
+          <ProductsCatalog />
         </TabsContent>
       </Tabs>
     </div>

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Package, DollarSign, Coffee, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, DollarSign, Coffee, X, AlertCircle, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -43,7 +43,13 @@ interface ProductIngredient {
   ingredient?: Ingredient;
 }
 
-const ProductManager = () => {
+interface ProductAvailability {
+  maxUnits: number;
+  limitingIngredient: string | null;
+  productCost: number;
+}
+
+const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) => void }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -63,6 +69,10 @@ const ProductManager = () => {
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>([]);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity_needed: '' });
   
+  // Product availability tracking
+  const [productsAvailability, setProductsAvailability] = useState<Record<string, ProductAvailability>>({});
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -80,6 +90,53 @@ const ProductManager = () => {
   const loadData = async () => {
     await Promise.all([loadProducts(), loadCategories(), loadIngredients()]);
     setLoading(false);
+  };
+
+  // Load products availability after products are loaded
+  useEffect(() => {
+    if (products.length > 0) {
+      loadProductsAvailability();
+    }
+  }, [products]);
+
+  const loadProductsAvailability = async () => {
+    if (!products.length) return;
+    
+    setIsLoadingAvailability(true);
+    const availabilityMap: Record<string, ProductAvailability> = {};
+    
+    for (const product of products) {
+      try {
+        // Check availability
+        const { data: availData } = await supabase
+          .rpc('check_product_ingredients_available', {
+            p_product_id: product.id,
+            p_quantity: 1
+          });
+        
+        // Calculate cost
+        const { data: costData } = await supabase
+          .rpc('calculate_product_cost', {
+            p_product_id: product.id
+          });
+        
+        availabilityMap[product.id] = {
+          maxUnits: availData?.[0]?.max_units || 0,
+          limitingIngredient: availData?.[0]?.limiting_ingredient_name || null,
+          productCost: costData || 0
+        };
+      } catch (error) {
+        console.error(`Error loading availability for ${product.name}:`, error);
+        availabilityMap[product.id] = {
+          maxUnits: 0,
+          limitingIngredient: null,
+          productCost: 0
+        };
+      }
+    }
+    
+    setProductsAvailability(availabilityMap);
+    setIsLoadingAvailability(false);
   };
 
   const loadProducts = async () => {
@@ -325,10 +382,65 @@ const ProductManager = () => {
   };
 
   // Ingredients management
-  const handleOpenIngredientsDialog = (product: Product) => {
+  const handleOpenIngredientsDialog = async (product: Product) => {
     setSelectedProductForIngredients(product);
-    loadProductIngredients(product.id);
+    await loadProductIngredients(product.id);
+    
+    // Check for low stock ingredients
+    const lowStockIngredients = productIngredients.filter(pi => 
+      pi.ingredient && pi.ingredient.current_stock < (pi.ingredient as any).min_stock
+    );
+    
+    if (lowStockIngredients.length > 0) {
+      toast({
+        title: "⚠️ Stock Bajo Detectado",
+        description: `${lowStockIngredients.length} ingrediente(s) por debajo del mínimo`,
+        variant: "destructive"
+      });
+    }
+    
     setIsIngredientsDialogOpen(true);
+  };
+
+  // Handle "Reponer Ingredientes" button
+  const handleReponerIngredientes = () => {
+    // Find products with 0 availability
+    const productsOutOfStock = products.filter(
+      p => productsAvailability[p.id]?.maxUnits === 0
+    );
+    
+    if (productsOutOfStock.length === 0) {
+      toast({
+        title: "✅ Todo en orden",
+        description: "Tienes stock suficiente para todos tus productos"
+      });
+      return;
+    }
+    
+    // Build message with limiting ingredients
+    const ingredientsToRestock = new Map<string, string[]>();
+    
+    productsOutOfStock.forEach(product => {
+      const availability = productsAvailability[product.id];
+      if (availability?.limitingIngredient) {
+        const productsList = ingredientsToRestock.get(availability.limitingIngredient) || [];
+        productsList.push(product.name);
+        ingredientsToRestock.set(availability.limitingIngredient, productsList);
+      }
+    });
+    
+    let message = `📦 INGREDIENTES A REPONER:\n\n`;
+    ingredientsToRestock.forEach((productsList, ingredient) => {
+      message += `• ${ingredient}\n  Afecta: ${productsList.join(', ')}\n\n`;
+    });
+    
+    message += `\n¿Ir al Marketplace para comprar?`;
+    
+    const goToMarketplace = confirm(message);
+    
+    if (goToMarketplace && onModuleChange) {
+      onModuleChange('marketplace');
+    }
   };
 
   const handleAddIngredientToProduct = async () => {
@@ -401,9 +513,17 @@ const ProductManager = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-primary">Gestión de Productos</h2>
-          <p className="text-muted-foreground mt-2">Administra tu catálogo de productos</p>
+          <p className="text-muted-foreground mt-2">Administra tu catálogo de productos y su disponibilidad</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleReponerIngredientes}
+            className="border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Reponer Ingredientes
+          </Button>
           <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -591,6 +711,62 @@ const ProductManager = () => {
                   )}
                 </div>
 
+                {/* NEW: Availability and Cost Section */}
+                {!isLoadingAvailability && productsAvailability[product.id] && (
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {/* Product Cost */}
+                      <div>
+                        <p className="text-muted-foreground text-xs">Costo</p>
+                        <p className="font-semibold text-orange-600">
+                          {formatCurrency(productsAvailability[product.id].productCost)}
+                        </p>
+                      </div>
+                      
+                      {/* Profit Margin */}
+                      <div>
+                        <p className="text-muted-foreground text-xs">Margen</p>
+                        <p className="font-semibold text-green-600 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          {productsAvailability[product.id].productCost > 0 
+                            ? ((product.price - productsAvailability[product.id].productCost) / product.price * 100).toFixed(1)
+                            : 0}%
+                        </p>
+                      </div>
+                      
+                      {/* Available Units - HIGHLIGHTED */}
+                      <div className={`col-span-2 rounded-lg p-2 ${
+                        productsAvailability[product.id].maxUnits === 0 
+                          ? 'bg-destructive/10 border border-destructive/20' 
+                          : 'bg-primary/5'
+                      }`}>
+                        <p className="text-muted-foreground text-xs mb-1">Disponible para vender</p>
+                        <div className="flex items-center justify-between">
+                          <p className={`font-bold text-lg ${
+                            productsAvailability[product.id].maxUnits === 0 
+                              ? 'text-destructive' 
+                              : 'text-primary'
+                          }`}>
+                            {productsAvailability[product.id].maxUnits} unidades
+                          </p>
+                          {productsAvailability[product.id].maxUnits === 0 && (
+                            <AlertCircle className="h-5 w-5 text-destructive" />
+                          )}
+                        </div>
+                        
+                        {/* Show limiting ingredient if exists */}
+                        {productsAvailability[product.id].limitingIngredient && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Limitado por: <span className="font-medium text-destructive">
+                              {productsAvailability[product.id].limitingIngredient}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -654,23 +830,43 @@ const ProductManager = () => {
                 <p className="text-sm text-muted-foreground">No hay ingredientes asignados</p>
               ) : (
                 <div className="space-y-2">
-                  {productIngredients.map(pi => (
-                    <div key={pi.id} className="flex items-center justify-between p-2 border rounded">
-                      <div>
-                        <span className="font-medium">{pi.ingredient?.name}</span>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          {pi.quantity_needed} {pi.ingredient?.unit}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveIngredientFromProduct(pi.id)}
+                  {productIngredients.map(pi => {
+                    const isLowStock = pi.ingredient && 
+                      pi.ingredient.current_stock < (pi.ingredient as any).min_stock;
+                    
+                    return (
+                      <div 
+                        key={pi.id} 
+                        className={`flex items-center justify-between p-2 border rounded ${
+                          isLowStock ? 'border-destructive bg-destructive/5' : ''
+                        }`}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{pi.ingredient?.name}</span>
+                            {isLowStock && (
+                              <Badge variant="destructive" className="text-xs">
+                                Stock Bajo
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-sm text-muted-foreground block">
+                            {pi.quantity_needed} {pi.ingredient?.unit} necesarios
+                          </span>
+                          <span className="text-xs text-muted-foreground block">
+                            Stock actual: {pi.ingredient?.current_stock} {pi.ingredient?.unit}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveIngredientFromProduct(pi.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
