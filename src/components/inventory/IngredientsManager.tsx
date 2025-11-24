@@ -114,8 +114,10 @@ export const IngredientsManager = () => {
     setIsStockDialogOpen(false);
   };
 
-  const filteredIngredients = ingredients.filter(ing =>
-    ing.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filtrar solo ingredientes simples (no compuestos)
+  const filteredIngredients = ingredients.filter(ingredient =>
+    !ingredient.is_compound && 
+    ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getLowStockCount = () => 
@@ -130,9 +132,9 @@ export const IngredientsManager = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Gestión de Ingredientes</h2>
+          <h2 className="text-3xl font-bold">Ingredientes Simples</h2>
           <p className="text-muted-foreground">
-            Administra los ingredientes que componen tus productos
+            Ingredientes que se compran directamente a proveedores
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>

@@ -12,10 +12,12 @@ export interface Ingredient {
   min_stock: number;
   cost_per_unit?: number;
   is_active: boolean;
+  is_compound?: boolean;
   user_id?: string;
   restaurant_id?: string;
   created_at?: string;
   updated_at?: string;
+  expiry_date?: string;
 }
 
 export interface IngredientMovement {

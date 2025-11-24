@@ -24,7 +24,7 @@ import UserManagement from '@/components/UserManagement';
 import TutorialGuide from '@/components/TutorialGuide';
 import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
-import { IngredientsManager } from '@/components/inventory/IngredientsManager';
+import InventoryManagement from '@/components/inventory/InventoryManagement';
 import ProductsManagement from '@/components/ProductsManagement';
 import Welcome from './Welcome';
 
@@ -169,7 +169,7 @@ const Index = () => {
         if (!hasPermission('manage_inventory')) {
           return renderUnauthorized('Inventario');
         }
-        return <IngredientsManager />;
+        return <InventoryManagement />;
       case 'products':
         if (!hasPermission('manage_products')) {
           return renderUnauthorized('Productos');

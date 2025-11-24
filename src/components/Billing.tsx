@@ -16,7 +16,7 @@ import CashManagement from './CashManagement';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/context/AppContext';
 import type { Sale } from '@/context/AppContext';
-import ProductCreator from './ProductCreator';
+import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
 const Billing = () => {
   const {
@@ -1749,7 +1749,7 @@ Por favor:
 
   // Vista de caja
   if (currentView === 'cash') {
-    return <CashManagement className="bg-neutral-950" />;
+    return <CashManagement />;
   }
 
   // Vista principal - selección de órdenes
@@ -1860,7 +1860,7 @@ Por favor:
               </Button>
             </div>
             <div className="p-6">
-              <ProductCreator onProductCreated={handleProductCreated} onNeedCostCalculation={handleNeedCostCalculation} existingProduct={editingProductWithAI} />
+              <ProductCreatorNew onProductCreated={handleProductCreated} existingProduct={editingProductWithAI} />
             </div>
           </div>
         </div>}
