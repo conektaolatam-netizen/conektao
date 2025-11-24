@@ -327,27 +327,79 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
   const handleDelete = async (productId: string) => {
     if (!confirm('¿Estás seguro de eliminar permanentemente este producto? Esta acción no se puede deshacer.')) return;
 
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId)
-      .eq('user_id', user?.id);
+    try {
+      // 1. Get all ingredients used by this product
+      const { data: productIngredients, error: ingredientsError } = await supabase
+        .from('product_ingredients')
+        .select('ingredient_id')
+        .eq('product_id', productId);
 
-    if (error) {
+      if (ingredientsError) throw ingredientsError;
+
+      const ingredientIds = productIngredients?.map(pi => pi.ingredient_id) || [];
+
+      // 2. Delete product_ingredients relationships
+      const { error: deleteRelError } = await supabase
+        .from('product_ingredients')
+        .delete()
+        .eq('product_id', productId);
+
+      if (deleteRelError) throw deleteRelError;
+
+      // 3. Delete the product
+      const { error: deleteProductError } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+        .eq('user_id', user?.id);
+
+      if (deleteProductError) throw deleteProductError;
+
+      // 4. Check and delete orphaned ingredients (ingredients not used by any other product)
+      if (ingredientIds.length > 0) {
+        for (const ingredientId of ingredientIds) {
+          // Check if this ingredient is used by any other product
+          const { data: otherProducts, error: checkError } = await supabase
+            .from('product_ingredients')
+            .select('id')
+            .eq('ingredient_id', ingredientId)
+            .limit(1);
+
+          if (checkError) {
+            console.error('Error checking ingredient usage:', checkError);
+            continue;
+          }
+
+          // If not used by any other product, delete it
+          if (!otherProducts || otherProducts.length === 0) {
+            const { error: deleteIngError } = await supabase
+              .from('ingredients')
+              .delete()
+              .eq('id', ingredientId)
+              .eq('user_id', user?.id);
+
+            if (deleteIngError) {
+              console.error('Error deleting orphaned ingredient:', deleteIngError);
+            }
+          }
+        }
+      }
+
+      toast({
+        title: "Producto eliminado",
+        description: "El producto y sus ingredientes exclusivos se eliminaron correctamente"
+      });
+      
+      loadProducts();
+      loadIngredients();
+    } catch (error: any) {
+      console.error('Delete error:', error);
       toast({
         title: "Error",
-        description: "No se pudo eliminar el producto",
+        description: error.message || "No se pudo eliminar el producto",
         variant: "destructive"
       });
-      return;
     }
-
-    toast({
-      title: "Producto eliminado",
-      description: "El producto se eliminó permanentemente"
-    });
-    
-    loadProducts();
   };
 
   const resetForm = () => {
