@@ -9,8 +9,6 @@ import DashboardPage from '@/pages/Dashboard';
 import Billing from '@/components/Billing';
 import EmployeeSystem from '@/components/EmployeeSystem';
 import Marketplace from '@/components/Marketplace';
-import Inventory from '@/components/Inventory';
-import InventoryReal from '@/components/InventoryReal';
 import ProductManager from '@/components/ProductManager';
 import AIAssistant from '@/components/AIAssistant';
 import ContAI from '@/components/ContAI';
@@ -26,6 +24,7 @@ import UserManagement from '@/components/UserManagement';
 import TutorialGuide from '@/components/TutorialGuide';
 import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
+import { IngredientsManager } from '@/components/inventory/IngredientsManager';
 import Welcome from './Welcome';
 
 const Index = () => {
@@ -169,7 +168,7 @@ const Index = () => {
         if (!hasPermission('manage_inventory')) {
           return renderUnauthorized('Inventario');
         }
-        return <InventoryReal />;
+        return <IngredientsManager />;
       case 'products':
         if (!hasPermission('manage_products')) {
           return renderUnauthorized('Productos');
