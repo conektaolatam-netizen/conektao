@@ -457,6 +457,7 @@ export type Database = {
       }
       ingredient_movements: {
         Row: {
+          batch_code: string | null
           created_at: string | null
           id: string
           ingredient_id: string
@@ -465,8 +466,10 @@ export type Database = {
           quantity: number
           reference_id: string | null
           reference_type: string | null
+          waste_detected: boolean | null
         }
         Insert: {
+          batch_code?: string | null
           created_at?: string | null
           id?: string
           ingredient_id: string
@@ -475,8 +478,10 @@ export type Database = {
           quantity: number
           reference_id?: string | null
           reference_type?: string | null
+          waste_detected?: boolean | null
         }
         Update: {
+          batch_code?: string | null
           created_at?: string | null
           id?: string
           ingredient_id?: string
@@ -485,6 +490,7 @@ export type Database = {
           quantity?: number
           reference_id?: string | null
           reference_type?: string | null
+          waste_detected?: boolean | null
         }
         Relationships: [
           {
@@ -502,6 +508,7 @@ export type Database = {
           created_at: string | null
           current_stock: number
           description: string | null
+          expiry_date: string | null
           id: string
           is_active: boolean | null
           min_stock: number
@@ -516,6 +523,7 @@ export type Database = {
           created_at?: string | null
           current_stock?: number
           description?: string | null
+          expiry_date?: string | null
           id?: string
           is_active?: boolean | null
           min_stock?: number
@@ -530,6 +538,7 @@ export type Database = {
           created_at?: string | null
           current_stock?: number
           description?: string | null
+          expiry_date?: string | null
           id?: string
           is_active?: boolean | null
           min_stock?: number
@@ -578,6 +587,44 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_alerts: {
+        Row: {
+          created_at: string | null
+          id: string
+          ingredient_id: string | null
+          is_read: boolean | null
+          message: string
+          resolved_at: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ingredient_id?: string | null
+          is_read?: boolean | null
+          message: string
+          resolved_at?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ingredient_id?: string | null
+          is_read?: boolean | null
+          message?: string
+          resolved_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alerts_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
         ]
@@ -2241,14 +2288,22 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      calculate_product_cost: {
+        Args: { p_product_id: string }
+        Returns: number
+      }
       can_manage_restaurant: {
         Args: { target_restaurant_id: string }
         Returns: boolean
       }
       can_see_customer_emails: { Args: never; Returns: boolean }
       check_product_ingredients_available: {
-        Args: { p_product_id: string; p_quantity: number }
-        Returns: boolean
+        Args: { p_product_id: string; p_quantity?: number }
+        Returns: {
+          is_available: boolean
+          limiting_ingredient_name: string
+          max_units: number
+        }[]
       }
       cleanup_expired_invitations: { Args: never; Returns: undefined }
       generate_monthly_invoice_document: {

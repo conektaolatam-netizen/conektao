@@ -16,6 +16,8 @@ export interface ProductIngredient {
 export const useProductAvailability = (productId?: string) => {
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>([]);
   const [isAvailable, setIsAvailable] = useState(true);
+  const [maxUnits, setMaxUnits] = useState<number>(0);
+  const [limitingIngredient, setLimitingIngredient] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const checkAvailability = async (prodId: string, quantity: number = 1) => {
@@ -27,10 +29,21 @@ export const useProductAvailability = (productId?: string) => {
         });
 
       if (error) throw error;
-      return data as boolean;
+      
+      // The RPC now returns a table with columns: is_available, max_units, limiting_ingredient_name
+      if (data && data.length > 0) {
+        const result = data[0];
+        return {
+          isAvailable: result.is_available,
+          maxUnits: result.max_units,
+          limitingIngredient: result.limiting_ingredient_name
+        };
+      }
+      
+      return { isAvailable: true, maxUnits: 999999, limitingIngredient: null };
     } catch (error) {
       console.error('Error checking availability:', error);
-      return true; // Default to available if check fails (product might not have ingredients)
+      return { isAvailable: true, maxUnits: 999999, limitingIngredient: null };
     }
   };
 
@@ -57,8 +70,10 @@ export const useProductAvailability = (productId?: string) => {
       setProductIngredients(ingredients);
 
       // Check if product is available
-      const available = await checkAvailability(prodId, 1);
-      setIsAvailable(available);
+      const availabilityResult = await checkAvailability(prodId, 1);
+      setIsAvailable(availabilityResult.isAvailable);
+      setMaxUnits(availabilityResult.maxUnits);
+      setLimitingIngredient(availabilityResult.limitingIngredient);
     } catch (error) {
       console.error('Error loading product ingredients:', error);
     } finally {
@@ -136,6 +151,8 @@ export const useProductAvailability = (productId?: string) => {
   return {
     productIngredients,
     isAvailable,
+    maxUnits,
+    limitingIngredient,
     loading,
     checkAvailability,
     loadProductIngredients,

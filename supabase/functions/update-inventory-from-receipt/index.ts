@@ -27,7 +27,23 @@ serve(async (req) => {
       );
     }
 
-    console.log('Updating inventory automatically for user:', userId, 'Paid with cash:', paidWithCash);
+    console.log('Updating ingredients inventory for user:', userId, 'Paid with cash:', paidWithCash);
+
+    // Get user's restaurant_id
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('restaurant_id')
+      .eq('id', userId)
+      .single();
+
+    if (!userProfile?.restaurant_id) {
+      return new Response(
+        JSON.stringify({ error: 'User restaurant not found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const restaurantId = userProfile.restaurant_id;
 
     // 1. Create expense record first
     const { data: expense, error: expenseError } = await supabase
@@ -58,147 +74,125 @@ serve(async (req) => {
 
     console.log('Expense created:', expense.id);
 
-    const updatedProducts = [];
-    const newProducts = [];
+    const updatedIngredients = [];
+    const newIngredients = [];
 
-    // 2. Process each item and update inventory
+    // 2. Process each item and update ingredients inventory
     for (const item of extractedData.items) {
-      console.log(`Processing item: ${item.description}`);
+      console.log(`Processing ingredient: ${item.description}`);
 
-      // Find matching product (exact or similar)
-      const { data: matchingProducts } = await supabase
-        .from('products')
+      // Find matching ingredient (exact or similar)
+      const { data: matchingIngredients } = await supabase
+        .from('ingredients')
         .select('*')
         .eq('user_id', userId)
+        .eq('restaurant_id', restaurantId)
+        .eq('is_active', true)
         .ilike('name', `%${item.description}%`)
         .limit(1);
 
-      let productId = null;
+      let ingredientId = null;
       
-      if (matchingProducts && matchingProducts.length > 0) {
-        // Product exists - update it
-        productId = matchingProducts[0].id;
+      if (matchingIngredients && matchingIngredients.length > 0) {
+        // Ingredient exists - update with weighted average cost
+        const ingredient = matchingIngredients[0];
+        ingredientId = ingredient.id;
         
-        // Update product cost price with the new price from invoice
+        const currentStock = ingredient.current_stock || 0;
+        const currentCost = ingredient.cost_per_unit || 0;
+        const newQuantity = item.quantity;
+        const newCost = item.unit_price;
+        
+        // Calculate weighted average cost: ((old_stock * old_cost) + (new_qty * new_cost)) / (old_stock + new_qty)
+        const newAvgCost = currentStock > 0 
+          ? ((currentStock * currentCost) + (newQuantity * newCost)) / (currentStock + newQuantity)
+          : newCost;
+
+        const newStock = currentStock + newQuantity;
+
+        // Update ingredient with new stock and weighted average cost
         await supabase
-          .from('products')
+          .from('ingredients')
           .update({
-            cost_price: item.unit_price,
+            current_stock: newStock,
+            cost_per_unit: newAvgCost,
             updated_at: new Date().toISOString()
           })
-          .eq('id', productId);
+          .eq('id', ingredientId);
 
-        // Find existing inventory
-        const { data: inventory } = await supabase
-          .from('inventory')
-          .select('*')
-          .eq('product_id', productId)
-          .maybeSingle();
+        updatedIngredients.push({
+          name: item.description,
+          previous_stock: currentStock,
+          new_stock: newStock,
+          added_quantity: newQuantity,
+          previous_cost: currentCost,
+          new_avg_cost: newAvgCost,
+          unit: ingredient.unit
+        });
 
-        if (inventory) {
-          // Update existing inventory
-          const newStock = inventory.current_stock + item.quantity;
-          await supabase
-            .from('inventory')
-            .update({
-              current_stock: newStock,
-              last_updated: new Date().toISOString()
-            })
-            .eq('id', inventory.id);
+        console.log(`Updated ingredient ${item.description}: stock ${currentStock} -> ${newStock}, cost ${currentCost} -> ${newAvgCost}`);
 
-          updatedProducts.push({
-            name: item.description,
-            previous_stock: inventory.current_stock,
-            new_stock: newStock,
-            added_quantity: item.quantity,
-            unit_cost: item.unit_price
-          });
-        } else {
-          // Create new inventory entry for existing product
-          await supabase
-            .from('inventory')
-            .insert({
-              product_id: productId,
-              current_stock: item.quantity,
-              min_stock: 5,
-              unit: item.unit || 'unidades',
-              user_id: userId
-            });
-
-          updatedProducts.push({
-            name: item.description,
-            previous_stock: 0,
-            new_stock: item.quantity,
-            added_quantity: item.quantity,
-            unit_cost: item.unit_price
-          });
-        }
-
-        // Create inventory movement
+        // Create ingredient movement
         await supabase
-          .from('inventory_movements')
+          .from('ingredient_movements')
           .insert({
-            product_id: productId,
+            ingredient_id: ingredientId,
             movement_type: 'IN',
-            quantity: item.quantity,
+            quantity: newQuantity,
             reference_type: 'PURCHASE',
             reference_id: expense.id,
-            notes: `Compra automática - Factura ${extractedData.invoice_number}`
+            notes: `Compra - Factura ${extractedData.invoice_number || 'N/A'}`,
+            batch_code: item.batch_code || null
           });
 
       } else {
-        // Product doesn't exist - create new product and inventory
-        console.log(`Creating new product: ${item.description}`);
+        // Ingredient doesn't exist - create new ingredient
+        console.log(`Creating new ingredient: ${item.description}`);
         
-        const { data: newProduct, error: productError } = await supabase
-          .from('products')
+        const { data: newIngredient, error: ingredientError } = await supabase
+          .from('ingredients')
           .insert({
             name: item.description,
-            cost_price: item.unit_price,
-            price: item.unit_price * 1.5, // Default markup of 50%
+            current_stock: item.quantity,
+            cost_per_unit: item.unit_price,
+            unit: item.unit || 'kg',
+            min_stock: 5,
             user_id: userId,
+            restaurant_id: restaurantId,
             is_active: true,
             created_at: new Date().toISOString()
           })
           .select()
           .single();
 
-        if (productError) {
-          console.error('Error creating product:', productError);
+        if (ingredientError) {
+          console.error('Error creating ingredient:', ingredientError);
           continue; // Skip this item and continue with others
         }
 
-        productId = newProduct.id;
+        ingredientId = newIngredient.id;
 
-        // Create inventory for new product
-        await supabase
-          .from('inventory')
-          .insert({
-            product_id: productId,
-            current_stock: item.quantity,
-            min_stock: 5,
-            unit: item.unit || 'unidades',
-            user_id: userId
-          });
+        newIngredients.push({
+          name: item.description,
+          initial_stock: item.quantity,
+          cost_per_unit: item.unit_price,
+          unit: item.unit || 'kg'
+        });
 
-        // Create inventory movement
+        console.log(`Created new ingredient ${item.description}: stock ${item.quantity}, cost ${item.unit_price}`);
+
+        // Create ingredient movement
         await supabase
-          .from('inventory_movements')
+          .from('ingredient_movements')
           .insert({
-            product_id: productId,
+            ingredient_id: ingredientId,
             movement_type: 'IN',
             quantity: item.quantity,
             reference_type: 'PURCHASE',
             reference_id: expense.id,
-            notes: `Producto nuevo - Factura ${extractedData.invoice_number}`
+            notes: `Ingrediente nuevo - Factura ${extractedData.invoice_number || 'N/A'}`,
+            batch_code: item.batch_code || null
           });
-
-        newProducts.push({
-          name: item.description,
-          initial_stock: item.quantity,
-          unit_cost: item.unit_price,
-          selling_price: item.unit_price * 1.5
-        });
       }
 
       // 3. Create expense item record
@@ -206,10 +200,10 @@ serve(async (req) => {
         .from('expense_items')
         .insert({
           expense_id: expense.id,
-          product_id: productId,
+          product_id: ingredientId, // Using product_id field for ingredient reference
           description: item.description,
           quantity: item.quantity,
-          unit: item.unit || 'unidades',
+          unit: item.unit || 'kg',
           unit_price: item.unit_price,
           subtotal: item.subtotal
         });
@@ -219,41 +213,32 @@ serve(async (req) => {
     let cashPaymentRegistered = false;
     if (paidWithCash) {
       try {
-        // Obtener el restaurant_id del usuario
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('restaurant_id')
-          .eq('id', userId)
-          .single();
+        // Buscar caja abierta del día actual
+        const { data: openCashRegister } = await supabase
+          .from('cash_registers')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .eq('date', new Date().toISOString().split('T')[0])
+          .eq('is_closed', false)
+          .maybeSingle();
 
-        if (userProfile?.restaurant_id) {
-          // Buscar caja abierta del día actual
-          const { data: openCashRegister } = await supabase
-            .from('cash_registers')
-            .select('*')
-            .eq('restaurant_id', userProfile.restaurant_id)
-            .eq('date', new Date().toISOString().split('T')[0])
-            .eq('is_closed', false)
-            .maybeSingle();
+        if (openCashRegister) {
+          // Registrar pago en efectivo
+          await supabase
+            .from('cash_payments')
+            .insert({
+              cash_register_id: openCashRegister.id,
+              user_id: userId,
+              amount: -extractedData.total, // Negativo porque es un gasto
+              description: `Compra - ${extractedData.supplier_name}`,
+              category: 'compras',
+              payment_method: 'efectivo'
+            });
 
-          if (openCashRegister) {
-            // Registrar pago en efectivo
-            await supabase
-              .from('cash_payments')
-              .insert({
-                cash_register_id: openCashRegister.id,
-                user_id: userId,
-                amount: -extractedData.total, // Negativo porque es un gasto
-                description: `Compra - ${extractedData.supplier_name}`,
-                category: 'compras',
-                payment_method: 'efectivo'
-              });
-
-            cashPaymentRegistered = true;
-            console.log('Cash payment registered in cash register:', openCashRegister.id);
-          } else {
-            console.log('No open cash register found for today');
-          }
+          cashPaymentRegistered = true;
+          console.log('Cash payment registered in cash register:', openCashRegister.id);
+        } else {
+          console.log('No open cash register found for today');
         }
       } catch (cashError) {
         console.error('Error registering cash payment:', cashError);
@@ -261,23 +246,23 @@ serve(async (req) => {
       }
     }
 
-    console.log('Inventory update completed successfully');
+    console.log('Ingredients inventory update completed successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         expense_id: expense.id,
-        updated_products: updatedProducts,
-        new_products: newProducts,
+        updated_ingredients: updatedIngredients,
+        new_ingredients: newIngredients,
         cash_payment_registered: cashPaymentRegistered,
         summary: {
           total_items: extractedData.items.length,
-          products_updated: updatedProducts.length,
-          products_created: newProducts.length,
+          ingredients_updated: updatedIngredients.length,
+          ingredients_created: newIngredients.length,
           total_amount: extractedData.total,
           paid_with_cash: paidWithCash
         },
-        message: `✅ Inventario actualizado: ${updatedProducts.length} productos actualizados, ${newProducts.length} productos nuevos creados${cashPaymentRegistered ? ' • Pago en efectivo registrado en caja' : ''}`
+        message: `✅ Inventario de ingredientes actualizado: ${updatedIngredients.length} actualizados (con precio promedio ponderado), ${newIngredients.length} nuevos creados${cashPaymentRegistered ? ' • Pago en efectivo registrado en caja' : ''}`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
