@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import KitchenOrderModal from '@/components/kitchen/KitchenOrderModal';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
+import { useProductAvailability } from '@/hooks/useProductAvailability';
 
 interface Table {
   number: number;
@@ -66,6 +67,7 @@ interface SelectedProduct extends Product {
 const POSBilling = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const { checkAvailability } = useProductAvailability();
   
   // Estados principales
   const [currentView, setCurrentView] = useState<'order-type' | 'tables' | 'guests' | 'customer-info' | 'menu' | 'payment' | 'success' | 'cash'>('order-type');
@@ -313,6 +315,20 @@ const POSBilling = () => {
   // Agregar producto al pedido
   const addProductToOrder = async (product: Product) => {
     const existingProduct = selectedProducts.find(p => p.id === product.id);
+    const newQuantity = existingProduct ? existingProduct.quantity + 1 : 1;
+    
+    // Verificar disponibilidad de ingredientes
+    const isAvailable = await checkAvailability(product.id, newQuantity);
+    
+    if (!isAvailable) {
+      toast({
+        title: "Producto no disponible",
+        description: `No hay suficientes ingredientes para preparar ${product.name}. Por favor verifica el inventario.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     let updatedProducts: SelectedProduct[];
     
     if (existingProduct) {

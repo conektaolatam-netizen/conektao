@@ -455,6 +455,92 @@ export type Database = {
         }
         Relationships: []
       }
+      ingredient_movements: {
+        Row: {
+          created_at: string | null
+          id: string
+          ingredient_id: string
+          movement_type: string
+          notes: string | null
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ingredient_id: string
+          movement_type: string
+          notes?: string | null
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ingredient_id?: string
+          movement_type?: string
+          notes?: string | null
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_movements_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingredients: {
+        Row: {
+          cost_per_unit: number | null
+          created_at: string | null
+          current_stock: number
+          description: string | null
+          id: string
+          is_active: boolean | null
+          min_stock: number
+          name: string
+          restaurant_id: string | null
+          unit: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cost_per_unit?: number | null
+          created_at?: string | null
+          current_stock?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_stock?: number
+          name: string
+          restaurant_id?: string | null
+          unit?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cost_per_unit?: number | null
+          created_at?: string | null
+          current_stock?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_stock?: number
+          name?: string
+          restaurant_id?: string | null
+          unit?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
           current_stock: number
@@ -855,6 +941,45 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_ingredients: {
+        Row: {
+          created_at: string | null
+          id: string
+          ingredient_id: string
+          product_id: string
+          quantity_needed: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ingredient_id: string
+          product_id: string
+          quantity_needed: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ingredient_id?: string
+          product_id?: string
+          quantity_needed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -2121,6 +2246,10 @@ export type Database = {
         Returns: boolean
       }
       can_see_customer_emails: { Args: never; Returns: boolean }
+      check_product_ingredients_available: {
+        Args: { p_product_id: string; p_quantity: number }
+        Returns: boolean
+      }
       cleanup_expired_invitations: { Args: never; Returns: undefined }
       generate_monthly_invoice_document: {
         Args: { p_month: number; p_restaurant_id: string; p_year: number }
