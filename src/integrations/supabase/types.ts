@@ -502,6 +502,54 @@ export type Database = {
           },
         ]
       }
+      ingredient_recipes: {
+        Row: {
+          base_ingredient_id: string
+          compound_ingredient_id: string
+          created_at: string
+          id: string
+          quantity_needed: number
+          unit: string
+          updated_at: string
+          yield_amount: number
+        }
+        Insert: {
+          base_ingredient_id: string
+          compound_ingredient_id: string
+          created_at?: string
+          id?: string
+          quantity_needed: number
+          unit?: string
+          updated_at?: string
+          yield_amount: number
+        }
+        Update: {
+          base_ingredient_id?: string
+          compound_ingredient_id?: string
+          created_at?: string
+          id?: string
+          quantity_needed?: number
+          unit?: string
+          updated_at?: string
+          yield_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_recipes_base_ingredient_id_fkey"
+            columns: ["base_ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_recipes_compound_ingredient_id_fkey"
+            columns: ["compound_ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           cost_per_unit: number | null
@@ -511,6 +559,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           is_active: boolean | null
+          is_compound: boolean | null
           min_stock: number
           name: string
           restaurant_id: string | null
@@ -526,6 +575,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           is_active?: boolean | null
+          is_compound?: boolean | null
           min_stock?: number
           name: string
           restaurant_id?: string | null
@@ -541,6 +591,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           is_active?: boolean | null
+          is_compound?: boolean | null
           min_stock?: number
           name?: string
           restaurant_id?: string | null
@@ -549,6 +600,57 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      internal_productions: {
+        Row: {
+          compound_ingredient_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          production_date: string
+          quantity_produced: number
+          restaurant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          compound_ingredient_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          production_date?: string
+          quantity_produced: number
+          restaurant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          compound_ingredient_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          production_date?: string
+          quantity_produced?: number
+          restaurant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_productions_compound_ingredient_id_fkey"
+            columns: ["compound_ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_productions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory: {
         Row: {
