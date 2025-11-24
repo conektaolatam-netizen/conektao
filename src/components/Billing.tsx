@@ -1943,7 +1943,7 @@ Por favor:
 
   // Vista principal - selección de órdenes
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-gray-950 p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="text-center flex-1">
