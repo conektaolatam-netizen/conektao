@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Package, DollarSign, Coffee, X, AlertCircle, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, DollarSign, Coffee, X, AlertCircle, ShoppingCart, TrendingUp, Power, PowerOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -298,8 +298,34 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
     setIsDialogOpen(true);
   };
 
+  const handleToggleActive = async (productId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active: !currentStatus })
+      .eq('id', productId)
+      .eq('user_id', user?.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el producto",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: currentStatus ? "Producto desactivado" : "Producto activado",
+      description: currentStatus 
+        ? "El producto ya no aparecerá en ventas" 
+        : "El producto está disponible para vender"
+    });
+    
+    loadProducts();
+  };
+
   const handleDelete = async (productId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+    if (!confirm('¿Estás seguro de eliminar permanentemente este producto? Esta acción no se puede deshacer.')) return;
 
     const { error } = await supabase
       .from('products')
@@ -318,7 +344,7 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
 
     toast({
       title: "Producto eliminado",
-      description: "El producto se eliminó correctamente"
+      description: "El producto se eliminó permanentemente"
     });
     
     loadProducts();
@@ -845,6 +871,15 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
                     onClick={() => handleEdit(product)}
                   >
                     <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleActive(product.id, product.is_active)}
+                    className={product.is_active ? "text-orange-600" : "text-green-600"}
+                    title={product.is_active ? "Desactivar producto" : "Activar producto"}
+                  >
+                    {product.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
                   </Button>
                   <Button
                     variant="outline"
