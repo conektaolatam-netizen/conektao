@@ -39,7 +39,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             type: 'inventory_confirmed',
-            message: '✅ ¡Perfecto! Actualizando inventario automáticamente...',
+            message: '✅ ¡Perfecto! Actualizando inventario de ingredientes automáticamente...',
             action: 'update_inventory'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -57,17 +57,17 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `Eres un asistente experto en facturas de restaurantes. 
+              content: `Eres un asistente experto en facturas de proveedores de restaurantes. 
 
-CONTEXTO: El usuario está revisando una factura que ya procesé.
+CONTEXTO: El usuario está revisando una factura que ya procesé para actualizar su INVENTARIO DE INGREDIENTES.
 
 INSTRUCCIONES:
-1. Si pregunta por productos específicos, ayúdale a identificarlos
-2. Si no logra ver algo, pregunta detalles específicos: "¿Puedes decirme qué producto es el segundo de la lista y cuánto costó?"
+1. Si pregunta por ingredientes específicos, ayúdale a identificarlos
+2. Si no logra ver algo, pregunta detalles específicos: "¿Puedes decirme qué ingrediente es el segundo de la lista y cuánto costó?"
 3. Si hay dudas sobre cantidades o precios, pide confirmación exacta
-4. Para inventario, pregunta: "¿Cuántas unidades llegaron de [producto] y cuál fue el costo unitario?"
+4. Para inventario, pregunta: "¿Cuántos kg/L llegaron de [ingrediente] y cuál fue el costo unitario?"
 5. Mantén respuestas cortas y específicas
-6. Si confirma datos, responde: "Perfecto, actualizando inventario con esos datos"`
+6. Si confirma datos, responde: "Perfecto, actualizando inventario de ingredientes con esos datos"`
             },
             {
               role: 'user',
@@ -112,15 +112,16 @@ INSTRUCCIONES:
 
     console.log('Processing receipt image for user:', userId);
 
-    // Get user's existing products for context
-    const { data: products } = await supabase
-      .from('products')
-      .select('name, cost_price, sku')
-      .eq('user_id', userId);
+    // Get user's existing ingredients for context
+    const { data: ingredients } = await supabase
+      .from('ingredients')
+      .select('name, cost_per_unit, unit')
+      .eq('user_id', userId)
+      .eq('is_active', true);
 
-    const productContext = products?.map(p => `${p.name} (${p.sku || 'N/A'})`).join(', ') || 'No products found';
+    const ingredientContext = ingredients?.map(i => `${i.name} (${i.unit})`).join(', ') || 'No ingredients found';
 
-    // Process image with OpenAI Vision (use a vision-capable model and robust error handling)
+    // Process image with OpenAI Vision
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -134,15 +135,16 @@ INSTRUCCIONES:
         messages: [
           {
             role: 'system',
-            content: `Eres un experto procesador de facturas para restaurantes. PRIORIDAD: Velocidad y precisión.
+            content: `Eres un experto procesador de facturas de proveedores para restaurantes. PRIORIDAD: Velocidad y precisión en la identificación de INGREDIENTES.
 
-PRODUCTOS EXISTENTES DEL USUARIO: ${productContext}
+INGREDIENTES EXISTENTES DEL USUARIO: ${ingredientContext}
 
 INSTRUCCIONES CRÍTICAS:
 1. Extrae TODA la información visible con máxima velocidad
-2. Usa nombres de productos existentes cuando sea similar
-3. Para dudas menores, haz suposiciones inteligentes y pregunta solo lo crítico
-4. Asigna automáticamente unidades lógicas (kg para carnes/vegetales, L para líquidos, unidades para items contables)
+2. Identifica INGREDIENTES (materias primas: carnes, vegetales, lácteos, bebidas, etc.) NO productos terminados
+3. Usa nombres de ingredientes existentes cuando sea similar
+4. Para dudas menores, haz suposiciones inteligentes y pregunta solo lo crítico
+5. Asigna automáticamente unidades lógicas (kg para carnes/vegetales, L para líquidos, unidades para items contables)
 
 FORMATO JSON OBLIGATORIO:
 {
@@ -157,22 +159,22 @@ FORMATO JSON OBLIGATORIO:
   "total": numero,
   "items": [
     {
-      "description": "nombre exacto del producto",
+      "description": "nombre exacto del ingrediente",
       "quantity": numero,
       "unit": "kg/L/unidades",
       "unit_price": numero,
       "subtotal": numero,
-      "matched_product": "nombre del producto existente si aplica"
+      "matched_ingredient": "nombre del ingrediente existente si aplica"
     }
   ],
   "questions": [],
   "auto_suggestions": {
     "inventory_updates": [
       {
-        "product_name": "nombre",
+        "ingredient_name": "nombre",
         "new_stock_to_add": numero,
         "unit_cost": numero,
-        "suggestion": "Agregar X unidades al inventario de Y"
+        "suggestion": "Agregar X kg/L al inventario de Y"
       }
     ]
   }
@@ -181,12 +183,12 @@ FORMATO JSON OBLIGATORIO:
 SOLO pregunta si:
 - No puedes leer texto crítico (proveedor, total)
 - Hay ambigüedad en cantidades principales
-- Productos completamente ilegibles`
+- Ingredientes completamente ilegibles`
           },
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los datos y prepara las actualizaciones automáticas de inventario.' },
+              { type: 'text', text: 'PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.' },
               { type: 'image_url', image_url: { url: imageBase64 } }
             ]
           }
@@ -232,7 +234,6 @@ SOLO pregunta si:
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      // No fallar con 500; pedir confirmación al usuario para mantener UX fluida
       return new Response(
         JSON.stringify({
           type: 'questions',
@@ -264,7 +265,7 @@ SOLO pregunta si:
           JSON.stringify({
             type: 'confirmation_needed',
             data: extractedData,
-            confirmation_message: `✅ Factura procesada correctamente!\n\n📦 ACTUALIZACIONES DE INVENTARIO SUGERIDAS:\n${extractedData.auto_suggestions.inventory_updates.map(item => `• ${item.suggestion}`).join('\n')}\n\n💰 ¿Esta compra fue pagada en EFECTIVO desde la caja registradora?\n\n🔄 Confirma para actualizar automáticamente el inventario y registrar el pago si corresponde.`,
+            confirmation_message: `✅ Factura procesada correctamente!\n\n📦 ACTUALIZACIONES DE INVENTARIO DE INGREDIENTES SUGERIDAS:\n${extractedData.auto_suggestions.inventory_updates.map(item => `• ${item.suggestion}`).join('\n')}\n\n💰 ¿Esta compra fue pagada en EFECTIVO desde la caja registradora?\n\n🔄 Confirma para actualizar automáticamente el inventario de ingredientes (con precio promedio ponderado) y registrar el pago si corresponde.`,
             conversation_id: crypto.randomUUID(),
             payment_required: true
           }),
@@ -273,116 +274,29 @@ SOLO pregunta si:
       }
     }
 
-    // If extraction was successful and no confirmation needed, save to database and update inventory
-    if (extractedData.success && extractedData.confidence > 85) {
-      console.log('Creating expense record...');
-
-      // Create expense record
-      const { data: expense, error: expenseError } = await supabase
-        .from('expenses')
-        .insert({
-          user_id: userId,
-          supplier_name: extractedData.supplier_name,
-          invoice_number: extractedData.invoice_number,
-          expense_date: extractedData.date,
-          currency: extractedData.currency || 'MXN',
-          subtotal: extractedData.subtotal,
-          tax: extractedData.tax || 0,
-          total_amount: extractedData.total,
-          status: 'processed',
-          ai_analysis: extractedData,
-          receipt_url: receiptUrl || null
-        })
-        .select()
-        .single();
-
-      if (expenseError) {
-        console.error('Error creating expense:', expenseError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to save expense' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log('Expense created:', expense.id);
-
-      // Create expense items and update inventory
-      for (const item of extractedData.items) {
-        // Find matching product
-        const { data: matchingProducts } = await supabase
-          .from('products')
-          .select('*')
-          .eq('user_id', userId)
-          .ilike('name', `%${item.description}%`)
-          .limit(1);
-
-        let productId = null;
-        if (matchingProducts && matchingProducts.length > 0) {
-          productId = matchingProducts[0].id;
-          
-          // Update existing inventory
-          const { data: inventory } = await supabase
-            .from('inventory')
-            .select('*')
-            .eq('product_id', productId)
-            .single();
-
-          if (inventory) {
-            await supabase
-              .from('inventory')
-              .update({
-                current_stock: inventory.current_stock + item.quantity,
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', inventory.id);
-
-            // Create inventory movement
-            await supabase
-              .from('inventory_movements')
-              .insert({
-                product_id: productId,
-                movement_type: 'IN',
-                quantity: item.quantity,
-                reference_type: 'PURCHASE',
-                reference_id: expense.id,
-                notes: `Compra - Factura ${extractedData.invoice_number}`
-              });
-          }
-        }
-
-        // Create expense item
-        await supabase
-          .from('expense_items')
-          .insert({
-            expense_id: expense.id,
-            product_id: productId,
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unit_price: item.unit_price,
-            subtotal: item.subtotal
-          });
-      }
-
-      return new Response(
-        JSON.stringify({
-          type: 'success',
-          expense_id: expense.id,
-          data: extractedData,
-          message: `Factura procesada exitosamente. Se detectaron ${extractedData.items.length} productos.`
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else {
+    // If extraction was successful but confidence is low, ask for confirmation
+    if (extractedData.success && extractedData.confidence <= 85) {
       return new Response(
         JSON.stringify({
           type: 'low_confidence',
           data: extractedData,
-          questions: ['La calidad de la imagen no es óptima. ¿Podrías tomar una foto más clara o confirmar los datos extraídos?']
+          questions: ['La calidad de la imagen no es óptima. ¿Podrías tomar una foto más clara o confirmar los ingredientes extraídos?']
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Return extracted data for frontend to handle
+    return new Response(
+      JSON.stringify({
+        type: 'confirmation_needed',
+        data: extractedData,
+        confirmation_message: `✅ Factura procesada!\n\nConfirma para actualizar inventario de ingredientes.`,
+        conversation_id: crypto.randomUUID(),
+        payment_required: true
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error in receipt-processor:', error);
