@@ -13,6 +13,8 @@ import DailyAIAnalysis from '@/components/ai/DailyAIAnalysis';
 import DailyRecommendations from '@/components/ai/DailyRecommendations';
 import AIUsageCounter from '@/components/ai/AIUsageCounter';
 import AdminAIDashboard from '@/components/admin/AdminAIDashboard';
+import { IngredientsManager } from '@/components/inventory/IngredientsManager';
+import { ProductRecipeManager } from '@/components/inventory/ProductRecipeManager';
 
 interface DashboardProps {
   onModuleChange: (module: string) => void;
@@ -282,12 +284,28 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
     urgent: false,
     permission: "access_pos"
   }, {
-    title: "Inventario",
+    title: "Productos",
     module: "inventory",
     gradient: "from-purple-500 to-violet-600",
     icon: Package,
-    description: "Stock",
+    description: "Stock de productos",
     alert: true,
+    permission: "manage_inventory"
+  }, {
+    title: "Ingredientes",
+    module: "ingredients",
+    gradient: "from-amber-500 to-yellow-600",
+    icon: Coffee,
+    description: "Gestionar ingredientes",
+    badge: "Control",
+    permission: "manage_inventory"
+  }, {
+    title: "Recetas",
+    module: "recipes",
+    gradient: "from-rose-500 to-pink-600",
+    icon: Coffee,
+    description: "Asignar ingredientes",
+    badge: "Auto",
     permission: "manage_inventory"
   }, {
     title: "Cocina",
@@ -370,6 +388,14 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
 
   if (currentView === 'monthly-sales') {
     return <MonthlySalesView onClose={goBack} />;
+  }
+
+  if (currentView === 'ingredients') {
+    return <IngredientsManager />;
+  }
+
+  if (currentView === 'recipes') {
+    return <ProductRecipeManager />;
   }
 
   // Handle clicks on stats cards
