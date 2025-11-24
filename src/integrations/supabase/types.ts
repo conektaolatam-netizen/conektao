@@ -240,6 +240,50 @@ export type Database = {
         }
         Relationships: []
       }
+      business_payment_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string
+          account_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_four_digits: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_holder: string
+          account_number: string
+          account_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_four_digits: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string
+          account_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_four_digits?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_payment_accounts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_payments: {
         Row: {
           amount: number
@@ -355,6 +399,59 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      customers: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          document_number: string
+          document_type: string
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          restaurant_id: string
+          tax_regime: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          document_number: string
+          document_type: string
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          restaurant_id: string
+          tax_regime?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          document_number?: string
+          document_type?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          restaurant_id?: string
+          tax_regime?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expense_items: {
         Row: {
@@ -772,6 +869,101 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          ai_validation_notes: string | null
+          ai_validation_status: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          invoice_number: string
+          invoice_type: string
+          payment_method: string
+          payment_voucher_url: string | null
+          pdf_url: string | null
+          restaurant_id: string
+          sale_id: string | null
+          sent_at: string | null
+          sent_to_email: boolean | null
+          subtotal: number
+          tax_amount: number | null
+          total_amount: number
+          xml_url: string | null
+        }
+        Insert: {
+          ai_validation_notes?: string | null
+          ai_validation_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          invoice_number: string
+          invoice_type: string
+          payment_method: string
+          payment_voucher_url?: string | null
+          pdf_url?: string | null
+          restaurant_id: string
+          sale_id?: string | null
+          sent_at?: string | null
+          sent_to_email?: boolean | null
+          subtotal: number
+          tax_amount?: number | null
+          total_amount: number
+          xml_url?: string | null
+        }
+        Update: {
+          ai_validation_notes?: string | null
+          ai_validation_status?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          payment_method?: string
+          payment_voucher_url?: string | null
+          pdf_url?: string | null
+          restaurant_id?: string
+          sale_id?: string | null
+          sent_at?: string | null
+          sent_to_email?: boolean | null
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_with_masked_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitchen_notifications: {
         Row: {
           created_at: string
@@ -1055,6 +1247,50 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_validations: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_method: string
+          validated_at: string | null
+          validated_by: string | null
+          validation_details: Json | null
+          validation_status: string
+          voucher_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_method: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_details?: Json | null
+          validation_status: string
+          voucher_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_method?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_details?: Json | null
+          validation_status?: string
+          voucher_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_validations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
