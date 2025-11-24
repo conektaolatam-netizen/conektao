@@ -69,6 +69,16 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>([]);
   const [newIngredient, setNewIngredient] = useState({ ingredient_id: '', quantity_needed: '' });
   
+  // New ingredient creation dialog
+  const [isNewIngredientDialogOpen, setIsNewIngredientDialogOpen] = useState(false);
+  const [newIngredientForm, setNewIngredientForm] = useState({
+    name: '',
+    unit: 'gramos',
+    min_stock: '0',
+    current_stock: '0',
+    cost_per_unit: ''
+  });
+  
   // Product availability tracking
   const [productsAvailability, setProductsAvailability] = useState<Record<string, ProductAvailability>>({});
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
@@ -495,6 +505,58 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
     }
   };
 
+  const handleCreateNewIngredient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newIngredientForm.name) return;
+
+    const ingredientData = {
+      name: newIngredientForm.name,
+      unit: newIngredientForm.unit,
+      min_stock: parseFloat(newIngredientForm.min_stock) || 0,
+      current_stock: parseFloat(newIngredientForm.current_stock) || 0,
+      cost_per_unit: newIngredientForm.cost_per_unit ? parseFloat(newIngredientForm.cost_per_unit) : null,
+      user_id: user.id,
+      is_active: true
+    };
+
+    const { data, error } = await supabase
+      .from('ingredients')
+      .insert([ingredientData])
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear el ingrediente",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "✅ Ingrediente creado",
+      description: `${newIngredientForm.name} se creó correctamente`
+    });
+
+    // Reset form
+    setNewIngredientForm({
+      name: '',
+      unit: 'gramos',
+      min_stock: '0',
+      current_stock: '0',
+      cost_per_unit: ''
+    });
+    
+    setIsNewIngredientDialogOpen(false);
+    
+    // Reload ingredients and auto-select the new one
+    await loadIngredients();
+    if (data) {
+      setNewIngredient(prev => ({ ...prev, ingredient_id: data.id }));
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -877,21 +939,32 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label>Ingrediente</Label>
-                  <Select
-                    value={newIngredient.ingredient_id}
-                    onValueChange={(value) => setNewIngredient(prev => ({ ...prev, ingredient_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ingredients.map(ing => (
-                        <SelectItem key={ing.id} value={ing.id}>
-                          {ing.name} ({ing.current_stock} {ing.unit})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select
+                      value={newIngredient.ingredient_id}
+                      onValueChange={(value) => setNewIngredient(prev => ({ ...prev, ingredient_id: value }))}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        {ingredients.map(ing => (
+                          <SelectItem key={ing.id} value={ing.id}>
+                            {ing.name} ({ing.current_stock} {ing.unit})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsNewIngredientDialogOpen(true)}
+                      title="Crear nuevo ingrediente"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label>Cantidad</Label>
@@ -917,6 +990,91 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
               Cerrar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for creating new ingredient */}
+      <Dialog open={isNewIngredientDialogOpen} onOpenChange={setIsNewIngredientDialogOpen}>
+        <DialogContent className="bg-background">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Ingrediente</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateNewIngredient} className="space-y-4">
+            <div>
+              <Label>Nombre del Ingrediente *</Label>
+              <Input
+                value={newIngredientForm.name}
+                onChange={(e) => setNewIngredientForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ej: Harina de trigo"
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Unidad de Medida</Label>
+                <Select
+                  value={newIngredientForm.unit}
+                  onValueChange={(value) => setNewIngredientForm(prev => ({ ...prev, unit: value }))}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="gramos">Gramos (g)</SelectItem>
+                    <SelectItem value="kilogramos">Kilogramos (kg)</SelectItem>
+                    <SelectItem value="litros">Litros (L)</SelectItem>
+                    <SelectItem value="mililitros">Mililitros (ml)</SelectItem>
+                    <SelectItem value="unidades">Unidades</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label>Stock Inicial</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newIngredientForm.current_stock}
+                  onChange={(e) => setNewIngredientForm(prev => ({ ...prev, current_stock: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Stock Mínimo</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newIngredientForm.min_stock}
+                  onChange={(e) => setNewIngredientForm(prev => ({ ...prev, min_stock: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              
+              <div>
+                <Label>Costo por Unidad (Opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={newIngredientForm.cost_per_unit}
+                  onChange={(e) => setNewIngredientForm(prev => ({ ...prev, cost_per_unit: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsNewIngredientDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={!newIngredientForm.name}>
+                Crear Ingrediente
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
