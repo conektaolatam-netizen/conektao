@@ -351,7 +351,7 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-blue-600" />
-            Procesador de Facturas con Deep Seek AI
+            Procesador de Facturas con IA
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -365,7 +365,7 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
                   <div>
                     <h3 className="text-lg font-semibold">🚀 Procesador Inteligente de Facturas</h3>
                     <p className="text-muted-foreground">
-                      ⚡ Deep Seek AI extraerá automáticamente proveedor, fecha, ingredientes, cantidades y precios de tu factura
+                      ⚡ La IA extraerá automáticamente proveedor, fecha, ingredientes, cantidades y precios de tu factura
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-sm mx-auto">
@@ -411,7 +411,7 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
                     <div>
-                      <p className="font-medium text-blue-800">🤖 Deep Seek AI procesando factura...</p>
+                      <p className="font-medium text-blue-800">🤖 IA procesando factura...</p>
                       <p className="text-sm text-blue-600">
                         ⚡ Analizando imagen • 🔍 Extrayendo datos • 📦 Preparando actualización de inventario
                       </p>
