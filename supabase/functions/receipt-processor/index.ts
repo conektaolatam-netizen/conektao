@@ -16,11 +16,11 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const deepSeekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
 
-    if (!openAIApiKey) {
+    if (!deepSeekApiKey) {
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'DeepSeek API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -46,14 +46,14 @@ serve(async (req) => {
         );
       }
       
-      const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const chatResponse = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'Authorization': `Bearer ${deepSeekApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-5-mini-2025-08-07',
+          model: 'deepseek-chat',
           messages: [
             {
               role: 'system',
@@ -80,7 +80,7 @@ INSTRUCCIONES:
 
       if (!chatResponse.ok) {
         const errText = await chatResponse.text();
-        console.error('OpenAI chat error:', errText);
+        console.error('DeepSeek chat error:', errText);
         return new Response(
           JSON.stringify({ 
             type: 'chat_response',
@@ -121,17 +121,17 @@ INSTRUCCIONES:
 
     const ingredientContext = ingredients?.map(i => `${i.name} (${i.unit})`).join(', ') || 'No ingredients found';
 
-    // Process image with OpenAI Vision
+    // Process image with DeepSeek Vision
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${deepSeekApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'deepseek-chat',
         messages: [
           {
             role: 'system',
@@ -194,18 +194,18 @@ SOLO pregunta si:
           }
         ],
         temperature: 0.2,
-        max_tokens: 900,
+        max_tokens: 4000,
       }),
       signal: controller.signal,
     }).catch((err) => {
-      console.error('OpenAI request failed:', err);
+      console.error('DeepSeek request failed:', err);
       return null as any;
     });
     clearTimeout(timeout);
 
     if (!response || !response.ok) {
       const errText = response ? await response.text() : 'No response';
-      console.error('OpenAI vision error:', errText);
+      console.error('DeepSeek vision error:', errText);
       return new Response(
         JSON.stringify({
           type: 'questions',
