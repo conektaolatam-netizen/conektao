@@ -9,12 +9,12 @@ const corsHeaders = {
 
 function getMimeType(base64String: string): string {
   // Detect MIME type from base64 string header
-  if (base64String.startsWith('/9j/')) return 'image/jpeg';
-  if (base64String.startsWith('iVBORw0KGgo')) return 'image/png';
-  if (base64String.startsWith('R0lGOD')) return 'image/gif';
-  if (base64String.startsWith('UklGR')) return 'image/webp';
+  if (base64String.startsWith("/9j/")) return "image/jpeg";
+  if (base64String.startsWith("iVBORw0KGgo")) return "image/png";
+  if (base64String.startsWith("R0lGOD")) return "image/gif";
+  if (base64String.startsWith("UklGR")) return "image/webp";
   // Default to jpeg for invoices/receipts
-  return 'image/jpeg';
+  return "image/jpeg";
 }
 
 serve(async (req) => {
@@ -69,7 +69,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "deepseek-chat",
+          model: "deepseek-vision",
           messages: [
             {
               role: "system",
@@ -210,9 +210,9 @@ SOLO pregunta si:
                 type: "text",
                 text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.",
               },
-              { 
-                type: "image_url", 
-                image_url: { url: `data:${getMimeType(imageBase64)};base64,${imageBase64}` }
+              {
+                type: "image_url",
+                image_url: { url: `data:${getMimeType(imageBase64)};base64,${imageBase64}` },
               },
             ],
           },
