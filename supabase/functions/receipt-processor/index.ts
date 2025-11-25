@@ -7,6 +7,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function getMimeType(base64String: string): string {
+  // Detect MIME type from base64 string header
+  if (base64String.startsWith('/9j/')) return 'image/jpeg';
+  if (base64String.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (base64String.startsWith('R0lGOD')) return 'image/gif';
+  if (base64String.startsWith('UklGR')) return 'image/webp';
+  // Default to jpeg for invoices/receipts
+  return 'image/jpeg';
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -200,7 +210,10 @@ SOLO pregunta si:
                 type: "text",
                 text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.",
               },
-              { type: "image_url", url: `base64,${base64Image}` },
+              { 
+                type: "image_url", 
+                image_url: { url: `data:${getMimeType(imageBase64)};base64,${imageBase64}` }
+              },
             ],
           },
         ],
