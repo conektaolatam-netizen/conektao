@@ -205,16 +205,9 @@ SOLO pregunta si:
           },
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.",
-              },
-              {
-                type: "text",
-                text: `IMAGEN DE FACTURA: data:${getMimeType(imageBase64)};base64,${imageBase64}`,
-              },
-            ],
+            content: ` PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario. 
+            IMAGEN DE FACTURA: 
+            data:${getMimeType(imageBase64)};base64,${imageBase64}`,
           },
         ],
         temperature: 0.2,
