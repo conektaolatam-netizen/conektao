@@ -1,28 +1,28 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const deepSeekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
 
     if (!deepSeekApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'DeepSeek API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "DeepSeek API key not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -31,32 +31,38 @@ serve(async (req) => {
 
     // If this is a conversation message, handle it
     if (userMessage && conversationId) {
-      console.log('Processing conversation message:', userMessage);
-      
+      console.log("Processing conversation message:", userMessage);
+
       // Check if user is confirming inventory update
-      if (userMessage.toLowerCase().includes('sí') || userMessage.toLowerCase().includes('confirmo') || userMessage.toLowerCase().includes('acepto') || userMessage.toLowerCase().includes('confirmar') || userMessage.toLowerCase().includes('aprobar')) {
+      if (
+        userMessage.toLowerCase().includes("sí") ||
+        userMessage.toLowerCase().includes("confirmo") ||
+        userMessage.toLowerCase().includes("acepto") ||
+        userMessage.toLowerCase().includes("confirmar") ||
+        userMessage.toLowerCase().includes("aprobar")
+      ) {
         // User confirmed - proceed with inventory update
         return new Response(
-          JSON.stringify({ 
-            type: 'inventory_confirmed',
-            message: '✅ ¡Perfecto! Actualizando inventario de ingredientes automáticamente...',
-            action: 'update_inventory'
+          JSON.stringify({
+            type: "inventory_confirmed",
+            message: "✅ ¡Perfecto! Actualizando inventario de ingredientes automáticamente...",
+            action: "update_inventory",
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      
-      const chatResponse = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
+
+      const chatResponse = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${deepSeekApiKey}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${deepSeekApiKey}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: 'deepseek-chat',
+          model: "deepseek-chat",
           messages: [
             {
-              role: 'system',
+              role: "system",
               content: `Eres un asistente experto en facturas de proveedores de restaurantes. 
 
 CONTEXTO: El usuario está revisando una factura que ya procesé para actualizar su INVENTARIO DE INGREDIENTES.
@@ -67,12 +73,12 @@ INSTRUCCIONES:
 3. Si hay dudas sobre cantidades o precios, pide confirmación exacta
 4. Para inventario, pregunta: "¿Cuántos kg/L llegaron de [ingrediente] y cuál fue el costo unitario?"
 5. Mantén respuestas cortas y específicas
-6. Si confirma datos, responde: "Perfecto, actualizando inventario de ingredientes con esos datos"`
+6. Si confirma datos, responde: "Perfecto, actualizando inventario de ingredientes con esos datos"`,
             },
             {
-              role: 'user',
-              content: userMessage
-            }
+              role: "user",
+              content: userMessage,
+            },
           ],
           max_completion_tokens: 150,
         }),
@@ -80,61 +86,63 @@ INSTRUCCIONES:
 
       if (!chatResponse.ok) {
         const errText = await chatResponse.text();
-        console.error('DeepSeek chat error:', errText);
+        console.error("DeepSeek chat error:", errText);
         return new Response(
-          JSON.stringify({ 
-            type: 'chat_response',
-            message: 'Lo siento, hubo un problema técnico al procesar tu mensaje. ¿Puedes intentar de nuevo o reformular?' 
+          JSON.stringify({
+            type: "chat_response",
+            message:
+              "Lo siento, hubo un problema técnico al procesar tu mensaje. ¿Puedes intentar de nuevo o reformular?",
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
       const chatData = await chatResponse.json();
-      const aiResponse = chatData?.choices?.[0]?.message?.content || 'He recibido tu mensaje. ¿Podrías darme más detalles?';
+      const aiResponse =
+        chatData?.choices?.[0]?.message?.content || "He recibido tu mensaje. ¿Podrías darme más detalles?";
 
       return new Response(
-        JSON.stringify({ 
-          type: 'chat_response',
-          message: aiResponse 
+        JSON.stringify({
+          type: "chat_response",
+          message: aiResponse,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     // Otherwise, process the receipt image
     if (!imageBase64 || !userId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('Processing receipt image for user:', userId);
+    console.log("Processing receipt image for user:", userId);
 
     // Get user's existing ingredients for context
     const { data: ingredients } = await supabase
-      .from('ingredients')
-      .select('name, cost_per_unit, unit')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+      .from("ingredients")
+      .select("name, cost_per_unit, unit")
+      .eq("user_id", userId)
+      .eq("is_active", true);
 
-    const ingredientContext = ingredients?.map(i => `${i.name} (${i.unit})`).join(', ') || 'No ingredients found';
+    const ingredientContext = ingredients?.map((i) => `${i.name} (${i.unit})`).join(", ") || "No ingredients found";
 
     // Process image with DeepSeek Vision
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${deepSeekApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${deepSeekApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: "deepseek-chat",
         messages: [
           {
-            role: 'system',
+            role: "system",
             content: `Eres un experto procesador de facturas de proveedores para restaurantes. PRIORIDAD: Velocidad y precisión en la identificación de INGREDIENTES.
 
 INGREDIENTES EXISTENTES DEL USUARIO: ${ingredientContext}
@@ -153,7 +161,7 @@ FORMATO JSON OBLIGATORIO:
   "supplier_name": "nombre del proveedor",
   "invoice_number": "número factura",
   "date": "YYYY-MM-DD",
-  "currency": "MXN",
+  "currency": "COP",
   "subtotal": numero,
   "tax": numero,
   "total": numero,
@@ -161,7 +169,7 @@ FORMATO JSON OBLIGATORIO:
     {
       "description": "nombre exacto del ingrediente",
       "quantity": numero,
-      "unit": "kg/L/unidades",
+      "unit": "kg/g/ml/L/unidades",
       "unit_price": numero,
       "subtotal": numero,
       "matched_ingredient": "nombre del ingrediente existente si aplica"
@@ -174,7 +182,7 @@ FORMATO JSON OBLIGATORIO:
         "ingredient_name": "nombre",
         "new_stock_to_add": numero,
         "unit_cost": numero,
-        "suggestion": "Agregar X kg/L al inventario de Y"
+        "suggestion": "Agregar X kg/g/ml/L al inventario de Y"
       }
     ]
   }
@@ -183,44 +191,49 @@ FORMATO JSON OBLIGATORIO:
 SOLO pregunta si:
 - No puedes leer texto crítico (proveedor, total)
 - Hay ambigüedad en cantidades principales
-- Ingredientes completamente ilegibles`
+- Ingredientes completamente ilegibles`,
           },
           {
-            role: 'user',
+            role: "user",
             content: [
-              { type: 'text', text: 'PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.' },
-              { type: 'image_url', image_url: { url: imageBase64 } }
-            ]
-          }
+              {
+                type: "text",
+                text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.",
+              },
+              { type: "image_url", url: `base64,${base64Image}` },
+            ],
+          },
         ],
         temperature: 0.2,
         max_tokens: 4000,
       }),
       signal: controller.signal,
     }).catch((err) => {
-      console.error('DeepSeek request failed:', err);
+      console.error("DeepSeek request failed:", err);
       return null as any;
     });
     clearTimeout(timeout);
 
     if (!response || !response.ok) {
-      const errText = response ? await response.text() : 'No response';
-      console.error('DeepSeek vision error:', errText);
+      const errText = response ? await response.text() : "No response";
+      console.error("DeepSeek vision error:", errText);
       return new Response(
         JSON.stringify({
-          type: 'questions',
-          questions: ['No pude interpretar claramente la imagen de la factura. ¿Puedes subir una foto más nítida o confirmar proveedor y total?'],
+          type: "questions",
+          questions: [
+            "No pude interpretar claramente la imagen de la factura. ¿Puedes subir una foto más nítida o confirmar proveedor y total?",
+          ],
           partial_data: null,
-          conversation_id: crypto.randomUUID()
+          conversation_id: crypto.randomUUID(),
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const data = await response.json();
-    const aiContent = data?.choices?.[0]?.message?.content || '';
+    const aiContent = data?.choices?.[0]?.message?.content || "";
 
-    console.log('AI Response:', aiContent);
+    console.log("AI Response:", aiContent);
 
     // Parse the JSON response
     let extractedData;
@@ -230,18 +243,18 @@ SOLO pregunta si:
       if (jsonMatch) {
         extractedData = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('No JSON found in response');
+        throw new Error("No JSON found in response");
       }
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
+      console.error("Failed to parse AI response:", parseError);
       return new Response(
         JSON.stringify({
-          type: 'questions',
-          questions: ['No pude extraer datos estructurados. ¿Puedes confirmar proveedor, número de factura y total?'],
+          type: "questions",
+          questions: ["No pude extraer datos estructurados. ¿Puedes confirmar proveedor, número de factura y total?"],
           partial_data: null,
-          conversation_id: crypto.randomUUID()
+          conversation_id: crypto.randomUUID(),
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -249,12 +262,12 @@ SOLO pregunta si:
     if (extractedData.questions && extractedData.questions.length > 0) {
       return new Response(
         JSON.stringify({
-          type: 'questions',
+          type: "questions",
           questions: extractedData.questions,
           partial_data: extractedData,
-          conversation_id: crypto.randomUUID()
+          conversation_id: crypto.randomUUID(),
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -263,13 +276,13 @@ SOLO pregunta si:
       if (extractedData.auto_suggestions?.inventory_updates?.length > 0) {
         return new Response(
           JSON.stringify({
-            type: 'confirmation_needed',
+            type: "confirmation_needed",
             data: extractedData,
-            confirmation_message: `✅ Factura procesada correctamente!\n\n📦 ACTUALIZACIONES DE INVENTARIO DE INGREDIENTES SUGERIDAS:\n${extractedData.auto_suggestions.inventory_updates.map(item => `• ${item.suggestion}`).join('\n')}\n\n💰 ¿Esta compra fue pagada en EFECTIVO desde la caja registradora?\n\n🔄 Confirma para actualizar automáticamente el inventario de ingredientes (con precio promedio ponderado) y registrar el pago si corresponde.`,
+            confirmation_message: `✅ Factura procesada correctamente!\n\n📦 ACTUALIZACIONES DE INVENTARIO DE INGREDIENTES SUGERIDAS:\n${extractedData.auto_suggestions.inventory_updates.map((item) => `• ${item.suggestion}`).join("\n")}\n\n💰 ¿Esta compra fue pagada en EFECTIVO desde la caja registradora?\n\n🔄 Confirma para actualizar automáticamente el inventario de ingredientes (con precio promedio ponderado) y registrar el pago si corresponde.`,
             conversation_id: crypto.randomUUID(),
-            payment_required: true
+            payment_required: true,
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     }
@@ -278,31 +291,32 @@ SOLO pregunta si:
     if (extractedData.success && extractedData.confidence <= 85) {
       return new Response(
         JSON.stringify({
-          type: 'low_confidence',
+          type: "low_confidence",
           data: extractedData,
-          questions: ['La calidad de la imagen no es óptima. ¿Podrías tomar una foto más clara o confirmar los ingredientes extraídos?']
+          questions: [
+            "La calidad de la imagen no es óptima. ¿Podrías tomar una foto más clara o confirmar los ingredientes extraídos?",
+          ],
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     // Return extracted data for frontend to handle
     return new Response(
       JSON.stringify({
-        type: 'confirmation_needed',
+        type: "confirmation_needed",
         data: extractedData,
         confirmation_message: `✅ Factura procesada!\n\nConfirma para actualizar inventario de ingredientes.`,
         conversation_id: crypto.randomUUID(),
-        payment_required: true
+        payment_required: true,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error) {
-    console.error('Error in receipt-processor:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Error in receipt-processor:", error);
+    return new Response(JSON.stringify({ error: "Internal server error", details: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
