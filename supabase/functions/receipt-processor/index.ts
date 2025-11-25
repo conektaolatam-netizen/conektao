@@ -69,7 +69,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "deepseek-vision",
+          model: "deepseek-chat",
           messages: [
             {
               role: "system",
@@ -211,8 +211,8 @@ SOLO pregunta si:
                 text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario.",
               },
               {
-                type: "image_url",
-                image_url: { url: `data:${getMimeType(imageBase64)};base64,${imageBase64}` },
+                type: "text",
+                text: `FACTURA: base64,${imageBase64}` },
               },
             ],
           },
