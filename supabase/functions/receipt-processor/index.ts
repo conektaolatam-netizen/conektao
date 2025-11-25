@@ -212,7 +212,7 @@ SOLO pregunta si:
               },
               {
                 type: "text",
-                text: `FACTURA: base64,${imageBase64}` },
+                text: `FACTURA: base64,${imageBase64}`,
               },
             ],
           },
