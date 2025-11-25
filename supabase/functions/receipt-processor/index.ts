@@ -7,15 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function getMimeType(base64String: string): string {
-  // Detect MIME type from base64 string header
-  if (base64String.startsWith("/9j/")) return "image/jpeg";
-  if (base64String.startsWith("iVBORw0KGgo")) return "image/png";
-  if (base64String.startsWith("R0lGOD")) return "image/gif";
-  if (base64String.startsWith("UklGR")) return "image/webp";
-  // Default to jpeg for invoices/receipts
-  return "image/jpeg";
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -26,10 +17,10 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
 
-    if (!deepSeekApiKey) {
-      return new Response(JSON.stringify({ error: "DeepSeek API key not configured" }), {
+    if (!openAIApiKey) {
+      return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -62,14 +53,14 @@ serve(async (req) => {
         );
       }
 
-      const chatResponse = await fetch("https://api.deepseek.com/chat/completions", {
+      const chatResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${deepSeekApiKey}`,
+          Authorization: `Bearer ${openAIApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "deepseek-chat",
+          model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
@@ -96,7 +87,7 @@ INSTRUCCIONES:
 
       if (!chatResponse.ok) {
         const errText = await chatResponse.text();
-        console.error("DeepSeek chat error:", errText);
+        console.error("OpenAI chat error:", errText);
         return new Response(
           JSON.stringify({
             type: "chat_response",
@@ -139,17 +130,17 @@ INSTRUCCIONES:
 
     const ingredientContext = ingredients?.map((i) => `${i.name} (${i.unit})`).join(", ") || "No ingredients found";
 
-    // Process image with DeepSeek Vision
+    // Process image with OpenAI Vision
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${deepSeekApiKey}`,
+        Authorization: `Bearer ${openAIApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -205,13 +196,22 @@ SOLO pregunta si:
           },
           {
             role: "user",
-            content: ` PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario. 
-            IMAGEN DE FACTURA: 
-            data:${getMimeType(imageBase64)};base64,${imageBase64}`,
+            content: [
+              {
+                type: "text",
+                text: "PROCESA ESTA FACTURA RÁPIDAMENTE. Extrae todos los INGREDIENTES y prepara las actualizaciones automáticas de inventario."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageBase64
+                }
+              }
+            ]
           },
         ],
         temperature: 0.2,
-        max_tokens: 4000,
+        max_tokens: 900,
       }),
       signal: controller.signal,
     }).catch((err) => {
@@ -222,7 +222,7 @@ SOLO pregunta si:
 
     if (!response || !response.ok) {
       const errText = response ? await response.text() : "No response";
-      console.error("DeepSeek vision error:", errText);
+      console.error("OpenAI vision error:", errText);
       return new Response(
         JSON.stringify({
           type: "questions",
