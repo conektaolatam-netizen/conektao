@@ -1502,7 +1502,7 @@ Por favor:
     return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
         {/* Header fijo */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b">
-          <div className="p-4">
+          <div className="p-4 bg-stone-950">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 <Button variant="ghost" size="sm" onClick={() => setCurrentView('tables')} className="rounded-full">
@@ -1528,7 +1528,7 @@ Por favor:
                         description: `Orden ${selectedTable}: ${newGuests} personas`
                       });
                     }
-                  }} className="text-xs text-primary hover:text-primary/80 transition-colors font-medium border-b border-dashed border-primary/30 hover:border-primary/60">
+                  }} className="text-xs transition-colors font-medium border-b border-dashed border-primary/30 hover:border-primary/60 text-cyan-500">
                       {tables.find(t => t.number === selectedTable)?.guestCount || tables.find(t => t.number === selectedTable)?.customers || 1} personas
                     </button>
                   </div>
@@ -1626,7 +1626,7 @@ Por favor:
           </AlertDialogContent>
         </AlertDialog>
 
-        <div className="p-4 grid lg:grid-cols-4 gap-6">
+        <div className="p-4 grid lg:grid-cols-4 gap-6 bg-neutral-950">
           {/* Lista de productos */}
           <div className="lg:col-span-3">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
