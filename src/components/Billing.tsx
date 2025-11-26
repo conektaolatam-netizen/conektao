@@ -1843,41 +1843,46 @@ Por favor:
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {tables.map(table => <Button key={table.number} variant="outline" onClick={() => handleTableSelect(table.number)} className={`h-24 flex-col gap-2 transition-all duration-500 rounded-xl border-2 bg-white
-                  ${table.status === 'libre' ? 'border-transparent bg-gradient-to-r from-green-400 to-emerald-500 p-0.5 hover:from-green-500 hover:to-emerald-600 hover:shadow-2xl hover:shadow-green-500/30' : 'border-transparent bg-gradient-to-r from-red-400 to-rose-400 p-0.5 hover:from-red-500 hover:to-rose-500 hover:shadow-2xl hover:shadow-red-500/30'}
-                  hover:scale-110 transform-gpu
-                  group
-                `}>
-                <div className={`w-full h-full bg-white rounded-lg flex flex-col items-center justify-center gap-2
-                  ${table.status === 'libre' ? 'group-hover:bg-gradient-to-br group-hover:from-green-50 group-hover:to-emerald-50' : 'group-hover:bg-gradient-to-br group-hover:from-red-50 group-hover:to-rose-50'}
-                  transition-all duration-500
-                `}>
-                  <Utensils className={`h-5 w-5 transition-all duration-300
-                    ${table.status === 'libre' ? 'text-green-600 group-hover:text-green-700' : 'text-red-500 group-hover:text-red-600'}`} />
-                  <div className="text-center">
-                    <div className={`font-bold text-sm bg-gradient-to-r bg-clip-text text-transparent transition-all duration-300
-                      ${table.status === 'libre' ? 'from-green-700 to-emerald-600 group-hover:from-green-800 group-hover:to-emerald-700' : 'from-red-600 to-rose-500 group-hover:from-red-700 group-hover:to-rose-600'}`}>
-                      Orden {table.number}
-                    </div>
-                    <div className="text-xs leading-tight">
-                      {table.status === 'libre' ? <span className={`bg-gradient-to-r bg-clip-text text-transparent font-medium
-                          from-green-600 to-emerald-500 group-hover:from-green-700 group-hover:to-emerald-600
-                          transition-all duration-300`}>
-                          Disponible
-                        </span> : <span className={`bg-gradient-to-r bg-clip-text text-transparent font-medium
-                          from-red-500 to-rose-400 group-hover:from-red-600 group-hover:to-rose-500
-                          transition-all duration-300`}>
-                          {table.customers} personas
-                        </span>}
-                    </div>
-                    {table.currentOrder && <div className={`text-xs font-medium bg-gradient-to-r bg-clip-text text-transparent
-                        from-orange-600 to-amber-500 group-hover:from-orange-700 group-hover:to-amber-600
-                        transition-all duration-300`}>
-                    {formatCurrency(table.orderTotal || 0)}
-                      </div>}
+            {tables.map(table => (
+              <Button 
+                key={table.number} 
+                variant="outline" 
+                onClick={() => handleTableSelect(table.number)} 
+                className={`relative h-24 flex-col gap-2 transition-all duration-300 rounded-xl hover:scale-105 ${
+                  table.status === 'libre'
+                    ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-4 border-green-500 ring-2 ring-green-200 shadow-green-100 shadow-lg hover:shadow-xl'
+                    : 'bg-gradient-to-br from-red-50 to-orange-100 border-4 border-red-500 ring-2 ring-red-200 shadow-red-100 shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {/* Indicador circular de estado */}
+                <div className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
+                  table.status === 'libre' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
+                
+                <Utensils className={`h-5 w-5 ${
+                  table.status === 'libre' ? 'text-green-600' : 'text-red-600'
+                }`} />
+                
+                <div className="text-center">
+                  <div className={`font-bold text-sm ${
+                    table.status === 'libre' ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    Orden {table.number}
                   </div>
+                  <div className={`text-xs ${
+                    table.status === 'libre' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {table.status === 'libre' ? 'Disponible' : `${table.customers} personas`}
+                  </div>
+                  {/* Solo mostrar monto si hay orden activa con valor > 0 */}
+                  {table.status === 'ocupada' && table.orderTotal > 0 && (
+                    <div className="text-sm font-bold text-red-600 mt-1">
+                      {formatCurrency(table.orderTotal)}
+                    </div>
+                  )}
                 </div>
-              </Button>)}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>}
