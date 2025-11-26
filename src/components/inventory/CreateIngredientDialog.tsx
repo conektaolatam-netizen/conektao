@@ -27,6 +27,38 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
     current_stock: '0'
   });
 
+  const [priceCalculation, setPriceCalculation] = useState({
+    totalPrice: '',
+    quantity: ''
+  });
+
+  const getUnitLabel = (unit: string) => {
+    const unitLabels: Record<string, string> = {
+      'gramos': 'por gramo',
+      'kilogramos': 'por kilogramo',
+      'litros': 'por litro',
+      'mililitros': 'por mililitro',
+      'unidades': 'por unidad',
+      'onzas': 'por onza',
+      'libras': 'por libra'
+    };
+    return unitLabels[unit] || 'por unidad';
+  };
+
+  const calculatePricePerUnit = () => {
+    const total = parseFloat(priceCalculation.totalPrice);
+    const qty = parseFloat(priceCalculation.quantity);
+    
+    if (!isNaN(total) && !isNaN(qty) && qty > 0) {
+      const pricePerUnit = (total / qty).toFixed(2);
+      setFormData({ ...formData, cost_per_unit: pricePerUnit });
+      toast({
+        title: "Precio calculado",
+        description: `$${pricePerUnit} ${getUnitLabel(formData.unit)}`,
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -34,6 +66,10 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
       cost_per_unit: '',
       min_stock: '0',
       current_stock: '0'
+    });
+    setPriceCalculation({
+      totalPrice: '',
+      quantity: ''
     });
   };
 
@@ -149,14 +185,16 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
             </div>
 
             <div>
-              <Label htmlFor="ingredient-cost">Precio Estimado</Label>
+              <Label htmlFor="ingredient-cost">
+                Precio Estimado <span className="text-muted-foreground text-xs font-normal">({getUnitLabel(formData.unit)})</span>
+              </Label>
               <Input
                 id="ingredient-cost"
                 type="number"
                 step="0.01"
                 value={formData.cost_per_unit}
                 onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
-                placeholder="0.00"
+                placeholder={`Ej: 25.50 ${getUnitLabel(formData.unit)}`}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Opcional - se actualiza con facturas
@@ -191,6 +229,46 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
                 Para alertas de reposición
               </p>
             </div>
+          </div>
+
+          <div className="bg-muted/50 p-4 rounded-lg border border-border">
+            <p className="text-sm font-medium mb-2">O calcula el precio automáticamente:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="calc-quantity" className="text-xs">Cantidad comprada</Label>
+                <Input
+                  id="calc-quantity"
+                  type="number"
+                  step="0.01"
+                  value={priceCalculation.quantity}
+                  onChange={(e) => setPriceCalculation({ ...priceCalculation, quantity: e.target.value })}
+                  placeholder={`Ej: 1000 ${formData.unit}`}
+                  className="h-9"
+                />
+              </div>
+              <div>
+                <Label htmlFor="calc-total" className="text-xs">Precio total</Label>
+                <Input
+                  id="calc-total"
+                  type="number"
+                  step="0.01"
+                  value={priceCalculation.totalPrice}
+                  onChange={(e) => setPriceCalculation({ ...priceCalculation, totalPrice: e.target.value })}
+                  placeholder="Ej: 150.00"
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={calculatePricePerUnit}
+              disabled={!priceCalculation.quantity || !priceCalculation.totalPrice}
+              className="w-full mt-2"
+            >
+              Calcular precio por unidad
+            </Button>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
