@@ -499,7 +499,7 @@ const Dashboard = ({
           </div>
 
           {/* Contenido principal - centrado */}
-          <div className="absolute inset-0 flex flex-col justify-center items-center z-10 pr-24">
+          <div className="absolute left-0 right-32 top-0 bottom-0 flex flex-col justify-center items-center z-10">
             <div className="space-y-1 text-center">
               <div className="flex items-baseline gap-2 justify-center">
                 <span className="text-7xl font-black text-white drop-shadow-lg">60%</span>
