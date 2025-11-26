@@ -24,40 +24,35 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
     unit: 'gramos',
     cost_per_unit: '',
     min_stock: '0',
-    current_stock: '0'
-  });
-
-  const [priceCalculation, setPriceCalculation] = useState({
-    totalPrice: '',
-    quantity: ''
+    current_stock: '0',
+    quantity_purchased: '',
+    total_price: ''
   });
 
   const getUnitLabel = (unit: string) => {
     const unitLabels: Record<string, string> = {
-      'gramos': 'por gramo',
-      'kilogramos': 'por kilogramo',
-      'litros': 'por litro',
-      'mililitros': 'por mililitro',
-      'unidades': 'por unidad',
-      'onzas': 'por onza',
-      'libras': 'por libra'
+      'gramos': 'gramo',
+      'kilogramos': 'kilogramo',
+      'litros': 'litro',
+      'mililitros': 'mililitro',
+      'unidades': 'unidad',
+      'onzas': 'onza',
+      'libras': 'libra'
     };
-    return unitLabels[unit] || 'por unidad';
+    return unitLabels[unit] || 'unidad';
   };
 
   const calculatePricePerUnit = () => {
-    const total = parseFloat(priceCalculation.totalPrice);
-    const qty = parseFloat(priceCalculation.quantity);
+    const total = parseFloat(formData.total_price);
+    const qty = parseFloat(formData.quantity_purchased);
     
     if (!isNaN(total) && !isNaN(qty) && qty > 0) {
-      const pricePerUnit = (total / qty).toFixed(2);
-      setFormData({ ...formData, cost_per_unit: pricePerUnit });
-      toast({
-        title: "Precio calculado",
-        description: `$${pricePerUnit} ${getUnitLabel(formData.unit)}`,
-      });
+      return (total / qty).toFixed(2);
     }
+    return null;
   };
+
+  const pricePerUnit = calculatePricePerUnit();
 
   const resetForm = () => {
     setFormData({
@@ -65,11 +60,9 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
       unit: 'gramos',
       cost_per_unit: '',
       min_stock: '0',
-      current_stock: '0'
-    });
-    setPriceCalculation({
-      totalPrice: '',
-      quantity: ''
+      current_stock: '0',
+      quantity_purchased: '',
+      total_price: ''
     });
   };
 
@@ -96,12 +89,14 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
         .eq('id', user.id)
         .single();
 
+      const calculatedPrice = pricePerUnit ? parseFloat(pricePerUnit) : null;
+
       const { error } = await supabase
         .from('ingredients')
         .insert({
           name: formData.name,
           unit: formData.unit,
-          cost_per_unit: formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : null,
+          cost_per_unit: calculatedPrice,
           min_stock: parseFloat(formData.min_stock),
           current_stock: parseFloat(formData.current_stock),
           user_id: user.id,
@@ -162,44 +157,72 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="ingredient-unit">Unidad de Medida *</Label>
-              <Select
-                value={formData.unit}
-                onValueChange={(value) => setFormData({ ...formData, unit: value })}
-              >
-                <SelectTrigger id="ingredient-unit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gramos">Gramos</SelectItem>
-                  <SelectItem value="kilogramos">Kilogramos</SelectItem>
-                  <SelectItem value="litros">Litros</SelectItem>
-                  <SelectItem value="mililitros">Mililitros</SelectItem>
-                  <SelectItem value="unidades">Unidades</SelectItem>
-                  <SelectItem value="onzas">Onzas</SelectItem>
-                  <SelectItem value="libras">Libras</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label htmlFor="ingredient-unit">Unidad de Medida *</Label>
+            <Select
+              value={formData.unit}
+              onValueChange={(value) => setFormData({ ...formData, unit: value })}
+            >
+              <SelectTrigger id="ingredient-unit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gramos">Gramos</SelectItem>
+                <SelectItem value="kilogramos">Kilogramos</SelectItem>
+                <SelectItem value="litros">Litros</SelectItem>
+                <SelectItem value="mililitros">Mililitros</SelectItem>
+                <SelectItem value="unidades">Unidades</SelectItem>
+                <SelectItem value="onzas">Onzas</SelectItem>
+                <SelectItem value="libras">Libras</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div>
-              <Label htmlFor="ingredient-cost">
-                Precio Estimado <span className="text-muted-foreground text-xs font-normal">({getUnitLabel(formData.unit)})</span>
-              </Label>
-              <Input
-                id="ingredient-cost"
-                type="number"
-                step="0.01"
-                value={formData.cost_per_unit}
-                onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
-                placeholder={`Ej: 25.50 ${getUnitLabel(formData.unit)}`}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Opcional - se actualiza con facturas
-              </p>
+          <div className="bg-muted/50 p-4 rounded-lg border border-border space-y-3">
+            <p className="text-sm font-medium">Información de Compra</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="quantity-purchased" className="text-sm">
+                  Cantidad Comprada
+                </Label>
+                <Input
+                  id="quantity-purchased"
+                  type="number"
+                  step="0.01"
+                  value={formData.quantity_purchased}
+                  onChange={(e) => setFormData({ ...formData, quantity_purchased: e.target.value })}
+                  placeholder={`Ej: 5 ${formData.unit}`}
+                />
+              </div>
+              <div>
+                <Label htmlFor="total-price" className="text-sm">
+                  Precio Total
+                </Label>
+                <Input
+                  id="total-price"
+                  type="number"
+                  step="0.01"
+                  value={formData.total_price}
+                  onChange={(e) => setFormData({ ...formData, total_price: e.target.value })}
+                  placeholder="Ej: 10000"
+                />
+              </div>
             </div>
+            
+            {pricePerUnit && (
+              <div className="bg-primary/10 p-3 rounded-md border border-primary/20">
+                <p className="text-sm font-medium text-primary">
+                  📊 Precio calculado: <span className="font-bold">${pricePerUnit}</span> por {getUnitLabel(formData.unit)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formData.quantity_purchased} {formData.unit} por ${formData.total_price} = ${pricePerUnit}/{getUnitLabel(formData.unit)}
+                </p>
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground">
+              💡 El precio por unidad se calcula automáticamente y se actualizará con facturas reales
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -231,51 +254,6 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
             </div>
           </div>
 
-          <div className="bg-muted/50 p-4 rounded-lg border border-border">
-            <p className="text-sm font-medium mb-2">O calcula el precio automáticamente:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="calc-quantity" className="text-xs">Cantidad comprada</Label>
-                <Input
-                  id="calc-quantity"
-                  type="number"
-                  step="0.01"
-                  value={priceCalculation.quantity}
-                  onChange={(e) => setPriceCalculation({ ...priceCalculation, quantity: e.target.value })}
-                  placeholder={`Ej: 1000 ${formData.unit}`}
-                  className="h-9"
-                />
-              </div>
-              <div>
-                <Label htmlFor="calc-total" className="text-xs">Precio total</Label>
-                <Input
-                  id="calc-total"
-                  type="number"
-                  step="0.01"
-                  value={priceCalculation.totalPrice}
-                  onChange={(e) => setPriceCalculation({ ...priceCalculation, totalPrice: e.target.value })}
-                  placeholder="Ej: 150.00"
-                  className="h-9"
-                />
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={calculatePricePerUnit}
-              disabled={!priceCalculation.quantity || !priceCalculation.totalPrice}
-              className="w-full mt-2"
-            >
-              Calcular precio por unidad
-            </Button>
-          </div>
-
-          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              💡 El costo se actualizará automáticamente cuando proceses facturas con este ingrediente
-            </p>
-          </div>
         </div>
 
         <DialogFooter>
