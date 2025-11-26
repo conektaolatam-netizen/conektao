@@ -854,93 +854,108 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
                 {/* NEW: Availability and Cost Section */}
                 {!isLoadingAvailability && productsAvailability[product.id] && (
                   <div className="border-t pt-3 space-y-2">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      {/* Product Cost */}
-                      <div>
-                        <p className="text-muted-foreground text-xs">Costo</p>
-                        <p className="font-semibold text-orange-600">
-                          {formatCurrency(productsAvailability[product.id].productCost)}
-                        </p>
-                      </div>
-                      
-                      {/* Profit Margin */}
-                      <div>
-                        <p className="text-muted-foreground text-xs">Margen</p>
-                        <p className="font-semibold text-green-600 flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
-                          {productsAvailability[product.id].productCost > 0 
-                            ? ((product.price - productsAvailability[product.id].productCost) / product.price * 100).toFixed(1)
-                            : 0}%
-                        </p>
-                      </div>
-                      
-                      {/* Available Units - HIGHLIGHTED */}
-                      <div className={`col-span-2 rounded-lg p-2 ${
-                        productsAvailability[product.id].maxUnits === 0 
-                          ? 'bg-destructive/10 border border-destructive/20' 
-                          : 'bg-primary/5'
-                      }`}>
-                        <p className="text-muted-foreground text-xs mb-1">Disponible para vender</p>
-                        <div className="flex items-center justify-between">
-                          <p className={`font-bold text-lg ${
-                            productsAvailability[product.id].maxUnits === 0 
-                              ? 'text-destructive' 
-                              : 'text-primary'
-                          }`}>
-                            {productsAvailability[product.id].maxUnits} unidades
+                    {productsAvailability[product.id].productCost > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {/* Product Cost */}
+                        <div className="bg-orange-50 dark:bg-orange-950 p-2 rounded-lg">
+                          <p className="text-muted-foreground text-xs">Costo Real</p>
+                          <p className="font-semibold text-orange-600">
+                            {formatCurrency(productsAvailability[product.id].productCost)}
                           </p>
-                          {productsAvailability[product.id].maxUnits === 0 && (
-                            <AlertCircle className="h-5 w-5 text-destructive" />
-                          )}
                         </div>
                         
-                        {/* Show limiting ingredient if exists */}
-                        {productsAvailability[product.id].limitingIngredient && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Limitado por: <span className="font-medium text-destructive">
-                              {productsAvailability[product.id].limitingIngredient}
-                            </span>
+                        {/* Profit Margin */}
+                        <div className="bg-green-50 dark:bg-green-950 p-2 rounded-lg">
+                          <p className="text-muted-foreground text-xs">Margen</p>
+                          <p className="font-semibold text-green-600 flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            {productsAvailability[product.id].productCost > 0 
+                              ? ((product.price - productsAvailability[product.id].productCost) / product.price * 100).toFixed(1)
+                              : 0}%
                           </p>
-                        )}
+                        </div>
+                        
+                        {/* Available Units - HIGHLIGHTED */}
+                        <div className={`col-span-2 rounded-lg p-2 ${
+                          productsAvailability[product.id].maxUnits === 0 
+                            ? 'bg-destructive/10 border border-destructive/20' 
+                            : 'bg-primary/5'
+                        }`}>
+                          <p className="text-muted-foreground text-xs mb-1">Disponible para vender</p>
+                          <div className="flex items-center justify-between">
+                            <p className={`font-bold text-lg ${
+                              productsAvailability[product.id].maxUnits === 0 
+                                ? 'text-destructive' 
+                                : 'text-primary'
+                            }`}>
+                              {productsAvailability[product.id].maxUnits} unidades
+                            </p>
+                            {productsAvailability[product.id].maxUnits === 0 && (
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                            )}
+                          </div>
+                          
+                          {/* Show limiting ingredient if exists */}
+                          {productsAvailability[product.id].limitingIngredient && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Limitado por: <span className="font-medium text-destructive">
+                                {productsAvailability[product.id].limitingIngredient}
+                              </span>
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Este producto aún no tiene un costo calculado
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="space-y-2">
+                  {/* Main Action Button - Recipe & Costing */}
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => handleOpenIngredientsDialog(product)}
-                    className="flex-1"
+                    className="w-full bg-gradient-primary"
                   >
-                    <Coffee className="h-4 w-4 mr-1" />
-                    Ingredientes
+                    <Coffee className="h-4 w-4 mr-2" />
+                    Receta y Costo
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(product)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleActive(product.id, product.is_active)}
-                    className={product.is_active ? "text-orange-600" : "text-green-600"}
-                    title={product.is_active ? "Desactivar producto" : "Activar producto"}
-                  >
-                    {product.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(product.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+
+                  {/* Secondary Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(product)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleActive(product.id, product.is_active)}
+                      className={product.is_active ? "text-orange-600" : "text-green-600"}
+                      title={product.is_active ? "Desactivar producto" : "Activar producto"}
+                    >
+                      {product.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(product.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
