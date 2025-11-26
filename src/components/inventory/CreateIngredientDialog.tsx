@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Beaker } from 'lucide-react';
+import { Check, Beaker, ChefHat } from 'lucide-react';
 
 interface CreateIngredientDialogProps {
   isOpen: boolean;
@@ -26,7 +27,8 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
     min_stock: '0',
     current_stock: '0',
     quantity_purchased: '',
-    total_price: ''
+    total_price: '',
+    is_compound: false
   });
 
   // Auto-fill current_stock when quantity_purchased changes
@@ -84,7 +86,8 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
       min_stock: '0',
       current_stock: '0',
       quantity_purchased: '',
-      total_price: ''
+      total_price: '',
+      is_compound: false
     });
   };
 
@@ -124,7 +127,7 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
           user_id: user.id,
           restaurant_id: profile?.restaurant_id || null,
           is_active: true,
-          is_compound: false
+          is_compound: formData.is_compound
         });
 
       if (error) throw error;
@@ -234,10 +237,10 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
             {pricePerUnit && (
               <div className="bg-primary/10 p-3 rounded-md border border-primary/20">
                 <p className="text-sm font-medium text-primary">
-                  📊 Precio calculado: <span className="font-bold">${pricePerUnit}</span> por {getUnitLabel(formData.unit)}
+                  ✓ Costo estimado: <span className="font-bold">${pricePerUnit}</span> por {getUnitLabel(formData.unit)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formData.quantity_purchased} {formData.unit} por ${formData.total_price} = ${pricePerUnit}/{getUnitLabel(formData.unit)}
+                  Este ingrediente ya tiene costo estimado y no requiere costeo adicional
                 </p>
               </div>
             )}
@@ -280,6 +283,26 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
               <p className="text-xs text-muted-foreground mt-1">
                 Para alertas de reposición
               </p>
+            </div>
+          </div>
+
+          {/* Compound ingredient option */}
+          <div className="border-t pt-4">
+            <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+              <Checkbox
+                id="is-compound"
+                checked={formData.is_compound}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_compound: checked as boolean })}
+              />
+              <div className="flex-1">
+                <Label htmlFor="is-compound" className="flex items-center gap-2 cursor-pointer font-medium">
+                  <ChefHat className="h-4 w-4 text-primary" />
+                  Ingrediente compuesto (preparación interna)
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Marca esta opción si este ingrediente se prepara en tu cocina. Podrás definir su receta y rendimiento después.
+                </p>
+              </div>
             </div>
           </div>
 
