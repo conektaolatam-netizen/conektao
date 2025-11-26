@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Package, Plus, Trash2, Calculator, Check, ChevronRight, FolderPlus } from 'lucide-react';
 import { CostCalculationDialog } from '@/components/CostCalculationDialog';
+import { CreateIngredientDialog } from './CreateIngredientDialog';
 
 interface CreateProductFlowProps {
   isOpen: boolean;
@@ -60,13 +61,6 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
   
   // New ingredient creation
   const [isNewIngredientDialogOpen, setIsNewIngredientDialogOpen] = useState(false);
-  const [newIngredientForm, setNewIngredientForm] = useState({
-    name: '',
-    unit: 'gramos',
-    cost_per_unit: '',
-    min_stock: '0',
-    current_stock: '0'
-  });
   
   const resetForm = () => {
     setStep(1);
@@ -81,13 +75,6 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
     setQuantityNeeded('');
     setCalculatedCost(null);
     setNewCategoryName('');
-    setNewIngredientForm({
-      name: '',
-      unit: 'gramos',
-      cost_per_unit: '',
-      min_stock: '0',
-      current_stock: '0'
-    });
   };
   
   // Generate automatic SKU
@@ -143,84 +130,11 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
     }
   };
 
-  // Handle new ingredient creation
-  const handleCreateIngredient = async () => {
-    if (!user || !newIngredientForm.name.trim()) {
-      toast({
-        title: "Nombre requerido",
-        description: "Ingresa un nombre para el ingrediente",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Get user's restaurant_id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('restaurant_id')
-        .eq('id', user.id)
-        .single();
-
-      const { data, error } = await supabase
-        .from('ingredients')
-        .insert({
-          name: newIngredientForm.name,
-          unit: newIngredientForm.unit,
-          cost_per_unit: newIngredientForm.cost_per_unit ? parseFloat(newIngredientForm.cost_per_unit) : null,
-          min_stock: parseFloat(newIngredientForm.min_stock),
-          current_stock: parseFloat(newIngredientForm.current_stock),
-          user_id: user.id,
-          restaurant_id: profile?.restaurant_id || null,
-          is_active: true,
-          is_compound: false
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "✓ Ingrediente creado",
-        description: `"${newIngredientForm.name}" está listo para usar`,
-      });
-
-      // Add the new ingredient to the recipe with the pending quantity
-      if (quantityNeeded) {
-        setProductIngredients([
-          ...productIngredients,
-          {
-            ingredient_id: data.id,
-            quantity_needed: parseFloat(quantityNeeded),
-            ingredient_name: data.name,
-            unit: data.unit
-          }
-        ]);
-        setQuantityNeeded('');
-      } else {
-        // If no quantity was set, just select the new ingredient
-        setSelectedIngredientId(data.id);
-      }
-
-      setIsNewIngredientDialogOpen(false);
-      setNewIngredientForm({
-        name: '',
-        unit: 'gramos',
-        cost_per_unit: '',
-        min_stock: '0',
-        current_stock: '0'
-      });
-
-      // Refresh ingredients list
-      await loadIngredients();
-    } catch (error: any) {
-      console.error('Error creating ingredient:', error);
-      toast({
-        title: "Error al crear ingrediente",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+  // Handle new ingredient creation success
+  const handleIngredientCreated = async () => {
+    // Refresh ingredients list
+    await loadIngredients();
+    setIsNewIngredientDialogOpen(false);
   };
 
   const handleClose = () => {
@@ -748,132 +662,11 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
       </Dialog>
 
       {/* New Ingredient Dialog */}
-      <Dialog open={isNewIngredientDialogOpen} onOpenChange={setIsNewIngredientDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Crear Nuevo Ingrediente</DialogTitle>
-            <DialogDescription>
-              Este ingrediente se guardará en tu inventario y estará disponible para futuras recetas
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="ingredient-name">Nombre del Ingrediente *</Label>
-              <Input
-                id="ingredient-name"
-                value={newIngredientForm.name}
-                onChange={(e) => setNewIngredientForm({ ...newIngredientForm, name: e.target.value })}
-                placeholder="Ej: Harina de trigo, Tomate fresco..."
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleCreateIngredient();
-                  }
-                }}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="ingredient-unit">Unidad de Medida *</Label>
-                <Select
-                  value={newIngredientForm.unit}
-                  onValueChange={(value) => setNewIngredientForm({ ...newIngredientForm, unit: value })}
-                >
-                  <SelectTrigger id="ingredient-unit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gramos">Gramos</SelectItem>
-                    <SelectItem value="kilogramos">Kilogramos</SelectItem>
-                    <SelectItem value="litros">Litros</SelectItem>
-                    <SelectItem value="mililitros">Mililitros</SelectItem>
-                    <SelectItem value="unidades">Unidades</SelectItem>
-                    <SelectItem value="onzas">Onzas</SelectItem>
-                    <SelectItem value="libras">Libras</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="ingredient-cost">Precio Estimado</Label>
-                <Input
-                  id="ingredient-cost"
-                  type="number"
-                  step="0.01"
-                  value={newIngredientForm.cost_per_unit}
-                  onChange={(e) => setNewIngredientForm({ ...newIngredientForm, cost_per_unit: e.target.value })}
-                  placeholder="0.00"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Opcional - se actualizará con facturas
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="ingredient-stock">Stock Inicial</Label>
-                <Input
-                  id="ingredient-stock"
-                  type="number"
-                  step="0.01"
-                  value={newIngredientForm.current_stock}
-                  onChange={(e) => setNewIngredientForm({ ...newIngredientForm, current_stock: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="ingredient-min">Stock Mínimo</Label>
-                <Input
-                  id="ingredient-min"
-                  type="number"
-                  step="0.01"
-                  value={newIngredientForm.min_stock}
-                  onChange={(e) => setNewIngredientForm({ ...newIngredientForm, min_stock: e.target.value })}
-                  placeholder="0"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Para alertas de reposición
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                💡 El costo se actualizará automáticamente cuando proceses facturas con este ingrediente
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsNewIngredientDialogOpen(false);
-                setNewIngredientForm({
-                  name: '',
-                  unit: 'gramos',
-                  cost_per_unit: '',
-                  min_stock: '0',
-                  current_stock: '0'
-                });
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleCreateIngredient} 
-              disabled={!newIngredientForm.name.trim()}
-            >
-              <Check className="h-4 w-4 mr-2" />
-              Crear y Usar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateIngredientDialog
+        isOpen={isNewIngredientDialogOpen}
+        onClose={() => setIsNewIngredientDialogOpen(false)}
+        onSuccess={handleIngredientCreated}
+      />
     </>
   );
 };
