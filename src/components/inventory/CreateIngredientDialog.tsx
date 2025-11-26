@@ -1,0 +1,221 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Check, Beaker } from 'lucide-react';
+
+interface CreateIngredientDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIngredientDialogProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    unit: 'gramos',
+    cost_per_unit: '',
+    min_stock: '0',
+    current_stock: '0'
+  });
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      unit: 'gramos',
+      cost_per_unit: '',
+      min_stock: '0',
+      current_stock: '0'
+    });
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleCreate = async () => {
+    if (!user || !formData.name.trim()) {
+      toast({
+        title: "Nombre requerido",
+        description: "Ingresa un nombre para el ingrediente",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Get user's restaurant_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      const { error } = await supabase
+        .from('ingredients')
+        .insert({
+          name: formData.name,
+          unit: formData.unit,
+          cost_per_unit: formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : null,
+          min_stock: parseFloat(formData.min_stock),
+          current_stock: parseFloat(formData.current_stock),
+          user_id: user.id,
+          restaurant_id: profile?.restaurant_id || null,
+          is_active: true,
+          is_compound: false
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "✓ Ingrediente creado",
+        description: `"${formData.name}" está listo para usar en tus recetas`,
+      });
+
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      handleClose();
+    } catch (error: any) {
+      console.error('Error creating ingredient:', error);
+      toast({
+        title: "Error al crear ingrediente",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Beaker className="h-5 w-5 text-primary" />
+            Crear Nuevo Ingrediente
+          </DialogTitle>
+          <DialogDescription>
+            Este ingrediente estará disponible para recetas, facturas y el sistema POS
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="ingredient-name">Nombre del Ingrediente *</Label>
+            <Input
+              id="ingredient-name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Ej: Harina de trigo, Tomate fresco..."
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCreate();
+                }
+              }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="ingredient-unit">Unidad de Medida *</Label>
+              <Select
+                value={formData.unit}
+                onValueChange={(value) => setFormData({ ...formData, unit: value })}
+              >
+                <SelectTrigger id="ingredient-unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gramos">Gramos</SelectItem>
+                  <SelectItem value="kilogramos">Kilogramos</SelectItem>
+                  <SelectItem value="litros">Litros</SelectItem>
+                  <SelectItem value="mililitros">Mililitros</SelectItem>
+                  <SelectItem value="unidades">Unidades</SelectItem>
+                  <SelectItem value="onzas">Onzas</SelectItem>
+                  <SelectItem value="libras">Libras</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="ingredient-cost">Precio Estimado</Label>
+              <Input
+                id="ingredient-cost"
+                type="number"
+                step="0.01"
+                value={formData.cost_per_unit}
+                onChange={(e) => setFormData({ ...formData, cost_per_unit: e.target.value })}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Opcional - se actualiza con facturas
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="ingredient-stock">Stock Inicial</Label>
+              <Input
+                id="ingredient-stock"
+                type="number"
+                step="0.01"
+                value={formData.current_stock}
+                onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="ingredient-min">Stock Mínimo</Label>
+              <Input
+                id="ingredient-min"
+                type="number"
+                step="0.01"
+                value={formData.min_stock}
+                onChange={(e) => setFormData({ ...formData, min_stock: e.target.value })}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Para alertas de reposición
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              💡 El costo se actualizará automáticamente cuando proceses facturas con este ingrediente
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleCreate} 
+            disabled={!formData.name.trim()}
+          >
+            <Check className="h-4 w-4 mr-2" />
+            Crear Ingrediente
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

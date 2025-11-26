@@ -7,6 +7,7 @@ import ProductManager from '../ProductManager';
 import { CompoundIngredientsManager } from './CompoundIngredientsManager';
 import ProductsCatalog from '../ProductsCatalog';
 import { CreateProductFlow } from './CreateProductFlow';
+import { CreateIngredientDialog } from './CreateIngredientDialog';
 import { Package, Beaker, BookOpen, Eye, Plus, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -156,23 +157,12 @@ const InventoryManagement = ({ onModuleChange }: { onModuleChange?: (module: str
         onCategoryCreated={loadCategories}
       />
 
-      {/* Create Ingredient Dialog - Simplified */}
-      <Dialog open={isCreateIngredientOpen} onOpenChange={setIsCreateIngredientOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Crear Ingrediente</DialogTitle>
-            <DialogDescription>
-              Para crear un ingrediente, ir a la pestaña "Ingredientes" y usar el botón "Nuevo Ingrediente"
-            </DialogDescription>
-          </DialogHeader>
-          <Button onClick={() => {
-            setIsCreateIngredientOpen(false);
-            setActiveTab("ingredients");
-          }}>
-            Ir a Ingredientes
-          </Button>
-        </DialogContent>
-      </Dialog>
+      {/* Create Ingredient Dialog */}
+      <CreateIngredientDialog
+        isOpen={isCreateIngredientOpen}
+        onClose={() => setIsCreateIngredientOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   );
 };
