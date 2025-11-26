@@ -486,23 +486,23 @@ const Dashboard = ({
           {/* Fondo degradado naranja/rojo */}
           <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-orange-600 to-red-600" />
           
-          {/* Logo Makro */}
-          <div className="absolute top-4 left-4 z-10">
+          {/* Logo Makro - arriba izquierda */}
+          <div className="absolute top-3 left-4 z-10">
             <div className="bg-white px-4 py-2 rounded-lg shadow-lg">
               <span className="text-2xl font-black text-orange-600">MAKRO</span>
             </div>
           </div>
 
-          {/* Imagen de vino */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 z-10">
+          {/* Imagen de vino - derecha */}
+          <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10">
             <div className="text-8xl filter drop-shadow-2xl">🍷</div>
           </div>
 
-          {/* Contenido principal */}
-          <div className="absolute inset-0 flex flex-col justify-center items-start p-6 z-10">
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-black text-white drop-shadow-lg text-center">60%</span>
+          {/* Contenido principal - centrado */}
+          <div className="absolute inset-0 flex flex-col justify-center items-center z-10 pr-24">
+            <div className="space-y-1 text-center">
+              <div className="flex items-baseline gap-2 justify-center">
+                <span className="text-7xl font-black text-white drop-shadow-lg">60%</span>
                 <span className="text-3xl font-bold text-white drop-shadow-lg">OFF</span>
               </div>
               <p className="text-xl font-semibold text-white drop-shadow-md">
