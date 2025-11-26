@@ -574,10 +574,10 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                       setCurrentView('guests');
                     }
                   }}
-                  className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 bg-gray-900 ${
+                  className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-hidden ${
                     table.status === 'libre'
-                      ? 'border-4 border-green-500 hover:border-green-400 shadow-lg shadow-green-500/20 hover:shadow-green-500/40'
-                      : 'border-4 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20 hover:shadow-red-500/40'
+                      ? 'border-4 border-green-500 hover:border-green-400 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:shadow-[0_0_30px_rgba(34,197,94,0.3)]'
+                      : 'border-4 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-br before:from-orange-500/5 before:via-transparent before:to-cyan-500/5 before:pointer-events-none'
                   }`}
                 >
                   <div className="text-center space-y-2">
