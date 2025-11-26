@@ -574,36 +574,27 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                       setCurrentView('guests');
                     }
                   }}
-                  className={`relative p-4 rounded-xl transition-all duration-300 hover:scale-105 ${
+                  className={`p-4 rounded-xl transition-all duration-300 hover:scale-105 bg-gray-900 ${
                     table.status === 'libre'
-                      ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-4 border-green-500 ring-2 ring-green-200 shadow-green-100 shadow-lg hover:shadow-xl'
-                      : 'bg-gradient-to-br from-red-50 to-orange-100 border-4 border-red-500 ring-2 ring-red-200 shadow-red-100 shadow-lg hover:shadow-xl'
+                      ? 'border-4 border-green-500 hover:border-green-400 shadow-lg shadow-green-500/20 hover:shadow-green-500/40'
+                      : 'border-4 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20 hover:shadow-red-500/40'
                   }`}
                 >
-                  {/* Indicador circular de estado */}
-                  <div className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
-                    table.status === 'libre' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  
                   <div className="text-center space-y-2">
                     <div className={`text-xl font-bold ${
-                      table.status === 'libre' ? 'text-green-700' : 'text-red-700'
+                      table.status === 'libre' ? 'text-green-400' : 'text-red-400'
                     }`}>
                       Mesa {table.number}
                     </div>
-                    <div className={`text-sm px-3 py-1 rounded-full ${
-                      table.status === 'libre'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {table.status === 'libre' ? '✓ Libre' : '● Ocupada'}
-                    </div>
-                    {table.status === 'ocupada' && (
-                      <div className="mt-2 space-y-1">
-                        <div className="text-sm text-gray-600">{table.guestCount} comensales</div>
-                        {/* Solo mostrar monto si hay orden activa con valor > 0 */}
+                    {table.status === 'libre' ? (
+                      <div className="text-sm text-green-400 font-medium">
+                        Disponible
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="text-sm text-gray-300">{table.guestCount} comensales</div>
                         {table.orderTotal > 0 && (
-                          <div className="font-bold text-red-600 text-lg">
+                          <div className="font-bold text-red-400 text-lg">
                             {formatCurrency(table.orderTotal)}
                           </div>
                         )}
