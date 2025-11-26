@@ -19,13 +19,14 @@ import type { Sale } from '@/context/AppContext';
 import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
-
 const Billing = () => {
   const {
     state,
     dispatch
   } = useApp();
-  const { checkAvailability } = useProductAvailability();
+  const {
+    checkAvailability
+  } = useProductAvailability();
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -52,13 +53,12 @@ const Billing = () => {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [selectedTableForGuests, setSelectedTableForGuests] = useState<number | null>(null);
   const [guestCount, setGuestCount] = useState('');
-  
+
   // Estado para disponibilidad de productos
   const [productsAvailability, setProductsAvailability] = useState<Record<string, {
     maxUnits: number;
     limitingIngredient: string | null;
   }>>({});
-  
   const {
     toast
   } = useToast();
@@ -292,21 +292,21 @@ const Billing = () => {
         return;
       }
       console.log('Products loaded for restaurant:', dbProducts);
-      
+
       // Primero crear los productos sin disponibilidad
       const formattedProducts = dbProducts?.map((product: any) => ({
         id: product.id,
         name: product.name,
         category: product.category?.name || 'Sin categoría',
         price: product.price,
-        description: 'Cargando disponibilidad...', // Temporal
+        description: 'Cargando disponibilidad...',
+        // Temporal
         image: getProductIcon(product.name, state.userData?.businessType || 'restaurant'),
         popular: false,
         stock: 0 // Temporal
       })) || [];
-      
       setProducts(formattedProducts);
-      
+
       // Ahora calcular la disponibilidad real desde ingredientes
       await loadProductsAvailability(formattedProducts);
     } catch (error) {
@@ -314,23 +314,20 @@ const Billing = () => {
       setProducts(generateFallbackProducts());
     }
   };
-  
+
   // Nueva función para cargar disponibilidad real desde ingredientes
   const loadProductsAvailability = async (productsList: any[]) => {
     if (!productsList.length) return;
-    
     const availabilityMap: Record<string, any> = {};
     const updatedProducts = [...productsList];
-    
     for (let i = 0; i < productsList.length; i++) {
       const product = productsList[i];
       const result = await checkAvailability(product.id, 1);
-      
       availabilityMap[product.id] = {
         maxUnits: result.maxUnits,
         limitingIngredient: result.limitingIngredient
       };
-      
+
       // Actualizar la descripción con la disponibilidad real
       updatedProducts[i] = {
         ...product,
@@ -338,7 +335,6 @@ const Billing = () => {
         stock: result.maxUnits
       };
     }
-    
     setProductsAvailability(availabilityMap);
     setProducts(updatedProducts);
   };
@@ -1843,44 +1839,23 @@ Por favor:
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {tables.map(table => (
-              <Button 
-                key={table.number} 
-                variant="outline" 
-                onClick={() => handleTableSelect(table.number)} 
-                className={`h-24 flex-col gap-2 transition-all duration-300 rounded-xl hover:scale-105 bg-gradient-to-br from-gray-900 via-gray-950 to-black ${
-                  table.status === 'libre'
-                    ? 'border-4 border-green-500 hover:border-green-400 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:shadow-[0_0_30px_rgba(34,197,94,0.3)]'
-                    : 'border-4 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-br before:from-orange-500/5 before:via-transparent before:to-cyan-500/5 before:pointer-events-none'
-                } relative overflow-hidden`}
-              >
-                <Utensils className={`h-5 w-5 ${
-                  table.status === 'libre' ? 'text-green-500' : 'text-red-500'
-                }`} />
+            {tables.map(table => <Button key={table.number} variant="outline" onClick={() => handleTableSelect(table.number)} className={`h-24 flex-col gap-2 transition-all duration-300 rounded-xl hover:scale-105 bg-gradient-to-br from-gray-900 via-gray-950 to-black ${table.status === 'libre' ? 'border-4 border-green-500 hover:border-green-400 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:shadow-[0_0_30px_rgba(34,197,94,0.3)]' : 'border-4 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-br before:from-orange-500/5 before:via-transparent before:to-cyan-500/5 before:pointer-events-none'} relative overflow-hidden`}>
+                <Utensils className={`h-5 w-5 ${table.status === 'libre' ? 'text-green-500' : 'text-red-500'}`} />
                 
                 <div className="text-center">
-                  <div className={`font-bold text-sm ${
-                    table.status === 'libre' ? 'text-green-400' : 'text-red-400'
-                  }`}>
+                  <div className={`font-bold text-sm ${table.status === 'libre' ? 'text-green-400' : 'text-red-400'}`}>
                     Orden {table.number}
                   </div>
-                  {table.status === 'libre' ? (
-                    <div className="text-xs text-green-400 font-medium">
+                  {table.status === 'libre' ? <div className="text-xs text-green-400 font-medium">
                       Disponible
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-300 space-y-1">
+                    </div> : <div className="text-xs text-gray-300 space-y-1">
                       <div>{table.customers} personas</div>
-                      {table.orderTotal > 0 && (
-                        <div className="text-sm font-bold text-red-400">
+                      {table.orderTotal > 0 && <div className="text-sm font-bold text-red-400">
                           {formatCurrency(table.orderTotal)}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        </div>}
+                    </div>}
                 </div>
-              </Button>
-            ))}
+              </Button>)}
           </div>
         </CardContent>
       </Card>}
@@ -1914,10 +1889,10 @@ Por favor:
 
         {/* Modal para número de comensales */}
         {showGuestModal && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl opacity-80">
               <div className="text-center mb-6">
                 <h2 className="text-xl font-semibold mb-2">Orden {selectedTableForGuests}</h2>
-                <p className="text-gray-600">¿Cuántas personas van a comer?</p>
+                <p className="text-neutral-600">¿Cuántas personas van a comer?</p>
               </div>
               
               <div className="space-y-4">
