@@ -29,6 +29,15 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
     total_price: ''
   });
 
+  // Auto-fill current_stock when quantity_purchased changes
+  const handleQuantityPurchasedChange = (value: string) => {
+    setFormData({ 
+      ...formData, 
+      quantity_purchased: value,
+      current_stock: value // Auto-fill stock with purchased quantity
+    });
+  };
+
   const getUnitLabel = (unit: string) => {
     const unitLabels: Record<string, string> = {
       'gramos': 'gramo',
@@ -40,6 +49,19 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
       'libras': 'libra'
     };
     return unitLabels[unit] || 'unidad';
+  };
+
+  const getUnitLabelPlural = (unit: string) => {
+    const unitLabels: Record<string, string> = {
+      'gramos': 'gramos',
+      'kilogramos': 'kilogramos',
+      'litros': 'litros',
+      'mililitros': 'mililitros',
+      'unidades': 'unidades',
+      'onzas': 'onzas',
+      'libras': 'libras'
+    };
+    return unitLabels[unit] || 'unidades';
   };
 
   const calculatePricePerUnit = () => {
@@ -190,7 +212,7 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
                   type="number"
                   step="0.01"
                   value={formData.quantity_purchased}
-                  onChange={(e) => setFormData({ ...formData, quantity_purchased: e.target.value })}
+                  onChange={(e) => handleQuantityPurchasedChange(e.target.value)}
                   placeholder={`Ej: 5 ${formData.unit}`}
                 />
               </div>
@@ -227,7 +249,9 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="ingredient-stock">Stock Inicial</Label>
+              <Label htmlFor="ingredient-stock">
+                Stock Inicial <span className="text-muted-foreground font-normal">(en {getUnitLabelPlural(formData.unit)})</span>
+              </Label>
               <Input
                 id="ingredient-stock"
                 type="number"
@@ -236,10 +260,15 @@ export const CreateIngredientDialog = ({ isOpen, onClose, onSuccess }: CreateIng
                 onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
                 placeholder="0"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Este es el stock que entra ahora a inventario
+              </p>
             </div>
 
             <div>
-              <Label htmlFor="ingredient-min">Stock Mínimo</Label>
+              <Label htmlFor="ingredient-min">
+                Stock Mínimo <span className="text-muted-foreground font-normal">(en {getUnitLabelPlural(formData.unit)})</span>
+              </Label>
               <Input
                 id="ingredient-min"
                 type="number"
