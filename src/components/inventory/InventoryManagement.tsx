@@ -153,6 +153,7 @@ const InventoryManagement = ({ onModuleChange }: { onModuleChange?: (module: str
         onClose={() => setIsCreateProductOpen(false)}
         onSuccess={handleCreateSuccess}
         categories={categories}
+        onCategoryCreated={loadCategories}
       />
 
       {/* Create Ingredient Dialog - Simplified */}

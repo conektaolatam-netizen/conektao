@@ -87,7 +87,6 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
     name: '',
     description: '',
     price: '',
-    sku: '',
     category_id: ''
   });
 
@@ -231,11 +230,21 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
     e.preventDefault();
     if (!user) return;
 
+    // Generate SKU if creating new product
+    let generatedSKU = '';
+    if (!editingProduct) {
+      const categoryName = categories.find(c => c.id === formData.category_id)?.name;
+      const prefix = categoryName ? categoryName.substring(0, 3).toUpperCase() : 'PRD';
+      const timestamp = Date.now().toString().slice(-6);
+      const namePrefix = formData.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+      generatedSKU = `${prefix}-${namePrefix}-${timestamp}`;
+    }
+
     const productData = {
       name: formData.name,
       description: formData.description || null,
       price: parseFloat(formData.price),
-      sku: formData.sku || null,
+      sku: editingProduct ? undefined : generatedSKU, // Only set SKU for new products
       category_id: formData.category_id || null,
       user_id: user.id,
       is_active: true
@@ -292,7 +301,6 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
       name: product.name,
       description: product.description || '',
       price: product.price.toString(),
-      sku: product.sku || '',
       category_id: product.category_id || ''
     });
     setIsDialogOpen(true);
@@ -408,7 +416,6 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
       name: '',
       description: '',
       price: '',
-      sku: '',
       category_id: ''
     });
   };
@@ -743,14 +750,11 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
                     onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                     required
                   />
-                </div>
-                <div>
-                  <Label htmlFor="sku">SKU</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                  />
+                  {!editingProduct && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      El código SKU se genera automáticamente
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="category">Categoría</Label>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIngredients } from '@/hooks/useIngredients';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Plus, Trash2, Calculator, Check, ChevronRight } from 'lucide-react';
+import { Package, Plus, Trash2, Calculator, Check, ChevronRight, FolderPlus } from 'lucide-react';
 import { CostCalculationDialog } from '@/components/CostCalculationDialog';
 
 interface CreateProductFlowProps {
@@ -19,6 +19,7 @@ interface CreateProductFlowProps {
   onClose: () => void;
   onSuccess: () => void;
   categories: Array<{ id: string; name: string }>;
+  onCategoryCreated?: () => void;
 }
 
 interface ProductIngredient {
@@ -28,7 +29,7 @@ interface ProductIngredient {
   unit?: string;
 }
 
-export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: CreateProductFlowProps) => {
+export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCategoryCreated }: CreateProductFlowProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { ingredients } = useIngredients();
@@ -36,14 +37,17 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
   // Steps: 1=basic info, 2=ingredients, 3=costing
   const [step, setStep] = useState(1);
   
-  // Product data
+  // Product data (removed sku from here)
   const [productData, setProductData] = useState({
     name: '',
     description: '',
     price: '',
-    sku: '',
     category_id: ''
   });
+  
+  // Category creation dialog
+  const [isNewCategoryDialogOpen, setIsNewCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   // Ingredients
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>([]);
@@ -60,13 +64,66 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
       name: '',
       description: '',
       price: '',
-      sku: '',
       category_id: ''
     });
     setProductIngredients([]);
     setSelectedIngredientId('');
     setQuantityNeeded('');
     setCalculatedCost(null);
+    setNewCategoryName('');
+  };
+  
+  // Generate automatic SKU
+  const generateSKU = (productName: string, categoryName?: string) => {
+    const prefix = categoryName ? categoryName.substring(0, 3).toUpperCase() : 'PRD';
+    const timestamp = Date.now().toString().slice(-6);
+    const namePrefix = productName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+    return `${prefix}-${namePrefix}-${timestamp}`;
+  };
+  
+  // Handle new category creation
+  const handleCreateCategory = async () => {
+    if (!user || !newCategoryName.trim()) {
+      toast({
+        title: "Nombre requerido",
+        description: "Ingresa un nombre para la categoría",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({
+          name: newCategoryName,
+          user_id: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "✓ Categoría creada",
+        description: `"${newCategoryName}" está lista para usar`,
+      });
+
+      setProductData(prev => ({ ...prev, category_id: data.id }));
+      setIsNewCategoryDialogOpen(false);
+      setNewCategoryName('');
+      
+      if (onCategoryCreated) {
+        onCategoryCreated();
+      }
+    } catch (error: any) {
+      console.error('Error creating category:', error);
+      toast({
+        title: "Error al crear categoría",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleClose = () => {
@@ -162,6 +219,10 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
     }
 
     try {
+      // Generate automatic SKU
+      const categoryName = categories.find(c => c.id === productData.category_id)?.name;
+      const generatedSKU = generateSKU(productData.name, categoryName);
+
       // 1. Crear el producto
       const { data: product, error: productError } = await supabase
         .from('products')
@@ -170,7 +231,7 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
           description: productData.description || null,
           price: parseFloat(productData.price),
           cost_price: calculatedCost || null,
-          sku: productData.sku || null,
+          sku: generatedSKU,
           category_id: productData.category_id || null,
           user_id: user.id,
           is_active: true
@@ -278,27 +339,30 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sku">SKU / Código</Label>
-                  <Input
-                    id="sku"
-                    value={productData.sku}
-                    onChange={(e) => setProductData({ ...productData, sku: e.target.value })}
-                    placeholder="Ej: PIZ-001"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="category">Categoría</Label>
+              <div>
+                <Label htmlFor="category">Categoría</Label>
+                <div className="flex gap-2">
                   <Select
                     value={productData.category_id}
-                    onValueChange={(value) => setProductData({ ...productData, category_id: value })}
+                    onValueChange={(value) => {
+                      if (value === '_new_') {
+                        setIsNewCategoryDialogOpen(true);
+                      } else {
+                        setProductData({ ...productData, category_id: value });
+                      }
+                    }}
                   >
-                    <SelectTrigger id="category">
+                    <SelectTrigger id="category" className="flex-1">
                       <SelectValue placeholder="Seleccionar..." />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="_new_" className="text-primary font-medium">
+                        <div className="flex items-center gap-2">
+                          <FolderPlus className="h-4 w-4" />
+                          Crear nueva categoría
+                        </div>
+                      </SelectItem>
+                      {categories.length > 0 && <div className="h-px bg-border my-1" />}
                       {categories.map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
@@ -307,6 +371,9 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
                     </SelectContent>
                   </Select>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  El código SKU se genera automáticamente
+                </p>
               </div>
 
               <div>
@@ -521,6 +588,51 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories }: Cr
         }}
         onCostCalculated={handleCostCalculated}
       />
+
+      {/* New Category Dialog */}
+      <Dialog open={isNewCategoryDialogOpen} onOpenChange={setIsNewCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Categoría</DialogTitle>
+            <DialogDescription>
+              Ingresá el nombre de la nueva categoría para tus productos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-category-name">Nombre de la Categoría *</Label>
+              <Input
+                id="new-category-name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Ej: Pizzas, Bebidas, Postres..."
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateCategory();
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewCategoryDialogOpen(false);
+                setNewCategoryName('');
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
+              <Check className="h-4 w-4 mr-2" />
+              Crear Categoría
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
