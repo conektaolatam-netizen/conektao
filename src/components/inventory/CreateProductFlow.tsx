@@ -219,6 +219,23 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
     return productIngredients.length > 0;
   };
 
+  // Auto-calculate cost if all ingredients have cost_per_unit
+  const calculateAutomaticCost = () => {
+    let totalCost = 0;
+    let hasAllCosts = true;
+
+    for (const pi of productIngredients) {
+      const ingredient = ingredients.find(i => i.id === pi.ingredient_id);
+      if (!ingredient?.cost_per_unit) {
+        hasAllCosts = false;
+        break;
+      }
+      totalCost += ingredient.cost_per_unit * pi.quantity_needed;
+    }
+
+    return hasAllCosts ? totalCost : null;
+  };
+
   const handleFinalSave = async () => {
     if (!user || !productData.name || !productData.price) {
       toast({
@@ -515,66 +532,98 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
           {/* Step 3: Costing */}
           {step === 3 && (
             <div className="space-y-4">
-              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary/20">
-                <div className="flex items-start gap-3">
-                  <Calculator className="h-5 w-5 text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold">Costeo Automático</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Calculamos el costo real de tu producto considerando ingredientes, transporte y mermas.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {(() => {
+                const autoCost = calculateAutomaticCost();
+                
+                // Auto-calculate and set cost on first render
+                if (autoCost !== null && calculatedCost === null) {
+                  setCalculatedCost(autoCost);
+                  const suggestedPrice = Math.ceil(autoCost * 1.7);
+                  setProductData(prev => ({
+                    ...prev,
+                    price: suggestedPrice.toString()
+                  }));
+                }
 
-              {calculatedCost === null ? (
-                <div className="text-center py-8">
-                  <Calculator className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Hace clic para costear este producto
-                  </p>
-                  <Button onClick={handleOpenCosting} size="lg">
-                    <Calculator className="h-4 w-4 mr-2" />
-                    Calcular Costo
-                  </Button>
-                </div>
-              ) : (
-                <Card className="p-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Check className="h-6 w-6 text-green-600" />
-                    <h3 className="text-lg font-semibold">Producto Costeado</h3>
-                  </div>
+                return (
+                  <>
+                    {autoCost !== null ? (
+                      <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg border-2 border-green-200 dark:border-green-800">
+                        <div className="flex items-start gap-3">
+                          <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-green-900 dark:text-green-100">Costo Calculado Automáticamente</h3>
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                              ✓ Este producto ya tiene costo estimado: <span className="font-bold">${calculatedCost?.toLocaleString()}</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Los ingredientes seleccionados tienen precio definido. El costo se calculó automáticamente.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary/20">
+                        <div className="flex items-start gap-3">
+                          <Calculator className="h-5 w-5 text-primary mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="font-semibold">Costeo Manual Requerido</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Algunos ingredientes no tienen precio. Calculá el costo manualmente.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Costo Unitario</Label>
-                      <p className="text-2xl font-bold">${calculatedCost.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Precio de Venta</Label>
-                      <p className="text-2xl font-bold text-primary">${parseFloat(productData.price).toLocaleString()}</p>
-                    </div>
-                  </div>
+                    {calculatedCost === null && autoCost === null ? (
+                      <div className="text-center py-8">
+                        <Calculator className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-4">
+                          Hace clic para costear este producto
+                        </p>
+                        <Button onClick={handleOpenCosting} size="lg">
+                          <Calculator className="h-4 w-4 mr-2" />
+                          Calcular Costo
+                        </Button>
+                      </div>
+                    ) : (
+                      <Card className="p-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Costo Unitario</Label>
+                            <p className="text-2xl font-bold">${calculatedCost.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Precio de Venta</Label>
+                            <p className="text-2xl font-bold text-primary">${parseFloat(productData.price).toLocaleString()}</p>
+                          </div>
+                        </div>
 
-                  <div className="bg-background p-3 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Margen de Utilidad</span>
-                      <Badge variant="secondary" className="text-lg">
-                        {((parseFloat(productData.price) - calculatedCost) / parseFloat(productData.price) * 100).toFixed(0)}%
-                      </Badge>
-                    </div>
-                  </div>
+                        <div className="bg-background p-3 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">Margen de Utilidad</span>
+                            <Badge variant="secondary" className="text-lg">
+                              {((parseFloat(productData.price) - calculatedCost) / parseFloat(productData.price) * 100).toFixed(0)}%
+                            </Badge>
+                          </div>
+                        </div>
 
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleOpenCosting}
-                    className="w-full mt-4"
-                  >
-                    Recalcular Costo
-                  </Button>
-                </Card>
-              )}
+                        {autoCost === null && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleOpenCosting}
+                            className="w-full mt-4"
+                          >
+                            Recalcular Costo
+                          </Button>
+                        )}
+                      </Card>
+                    )}
+                  </>
+                );
+              })()}
 
               <div className="border-t pt-4">
                 <Label htmlFor="final-price" className="mb-2">Ajustar Precio de Venta (opcional)</Label>
@@ -591,7 +640,7 @@ export const CreateProductFlow = ({ isOpen, onClose, onSuccess, categories, onCa
                 <Button variant="outline" onClick={() => setStep(2)}>
                   Atrás
                 </Button>
-                <Button onClick={handleFinalSave} size="lg">
+                <Button onClick={handleFinalSave} size="lg" disabled={!calculatedCost}>
                   <Check className="h-4 w-4 mr-2" />
                   Crear Producto
                 </Button>
