@@ -1889,7 +1889,7 @@ Por favor:
 
         {/* Modal para número de comensales */}
         {showGuestModal && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl opacity-80">
+            <div className="rounded-2xl max-w-md w-full p-6 shadow-2xl opacity-80 bg-stone-950">
               <div className="text-center mb-6">
                 <h2 className="text-xl font-semibold mb-2">Orden {selectedTableForGuests}</h2>
                 <p className="text-neutral-600">¿Cuántas personas van a comer?</p>
