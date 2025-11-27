@@ -302,33 +302,46 @@ serve(async (req) => {
       });
     }
 
-    // Create AI prompt with STRICT format requirements
-    const systemPrompt = `Eres un asesor de negocio objetivo y basado en datos. Tu trabajo es analizar números reales y dar recomendaciones prácticas.
+    // Create AI prompt with ULTRA-STRICT format requirements
+    const systemPrompt = `Eres un analista de negocio experto. Análisis objetivo basado ÚNICAMENTE en datos reales. Cero entusiasmo, cero felicitaciones vacías, cero lenguaje genérico.
 
-REGLAS ESTRICTAS:
-1. NUNCA uses asteriscos (*) en el texto
-2. NUNCA felicites por ventas bajas
-3. NUNCA uses lenguaje genérico ("está yendo bien", "sigue así")
-4. CADA afirmación debe estar respaldada por un dato específico
-5. Usa emojis de forma profesional, no infantil
-6. Sé directo y honesto sobre problemas
+PROHIBIDO USAR:
+❌ "¡Listos para impulsar!"
+❌ "¡Aquí el punto FLAAAZO!"
+❌ "¡Excelente!"
+❌ "Está yendo bien"
+❌ "Sigue así"
+❌ Asteriscos (*) en cualquier parte del texto
+❌ Optimismo sin fundamento
+❌ Frases motivacionales
 
-FORMATO OBLIGATORIO (sin asteriscos):
+OBLIGATORIO:
+✓ Análisis objetivo con datos concretos
+✓ Comparativas numéricas exactas
+✓ Diagnóstico directo del problema o oportunidad
+✓ Estrategia accionable con números calculados
+✓ Pasos específicos para implementar
 
-🔍 [Análisis objetivo del problema con datos específicos]
+FORMATO EXACTO (respetar estructura):
 
-Costo actual: $[número exacto]
-Precio venta actual: $[número exacto]
-Margen actual: $[número exacto] ([porcentaje]%)
+🔍 Análisis del Producto: [Nombre del Producto]
+📉 Rendimiento: [cambio]% vs [periodo comparado]
+💲 Costo: $[número] | 🏷️ Precio actual: $[número]
 
-🎯 Sugerencia de Conektao
-[Acción concreta y específica]
-➕ Nuevo margen: $[número] por unidad
+🎯 Estrategia IA Recomendada
+→ [Acción concreta con precio/descuento específico]
+→ Margen resultante: $[número]/unidad
 
-📣 Acción recomendada
-[Lista numerada de pasos específicos para implementar]
+📣 Acción sugerida
+[Pasos específicos numerados o con guiones]
+- [paso 1]
+- [paso 2]
+- [paso 3]
+- [paso 4]
 
-NO uses markdown bold ni asteriscos. Usa solo emojis y saltos de línea.`;
+Si no hay oportunidad clara, responde: "Sin acción recomendada por ahora. Continúa monitoreando."
+
+NO inventes datos. NO uses lenguaje emocional. NO trunces el texto. Sé profesional y directo.`;
 
     let userPrompt = '';
 
@@ -355,12 +368,24 @@ RENDIMIENTO:
 
 TIPO DE OPORTUNIDAD: ${topOpportunity.type}
 
-GENERA una recomendación siguiendo el formato EXACTO.
-RECUERDA: Sin asteriscos, con emojis, datos específicos, y pasos claros de acción.
+Genera un análisis profesional siguiendo el FORMATO EXACTO especificado.
 
-Si el producto está bajando ventas pero tiene buen margen, sugiere descuento calculado.
-Si está subiendo, sugiere potenciar con marketing.
-Si tiene bajo margen, sugiere ajuste de precio o combo.`;
+Usa este formato:
+🔍 Análisis del Producto: ${p.name}
+📉 Rendimiento: ${p.dailyChange >= 0 ? '+' : ''}${p.dailyChange?.toFixed(1)}% vs ayer
+💲 Costo: $${p.cost?.toFixed(0).toLocaleString()} | 🏷️ Precio actual: $${p.price?.toLocaleString()}
+
+🎯 Estrategia IA Recomendada
+→ [Tu recomendación específica con precio calculado]
+→ Margen resultante: $[calcular y mostrar]
+
+📣 Acción sugerida
+[Pasos específicos]
+- [paso 1]
+- [paso 2]
+- [paso 3]
+
+NO uses lenguaje emocional. NO felicites. SÉ OBJETIVO.`;
     } else {
       userPrompt = `DATOS GENERALES DEL DÍA:
 
@@ -375,9 +400,23 @@ ${Array.from(productPerformance.values())
   .map((p, i) => `${i+1}. ${p.name}: ${p.today_qty} uds, Margen: ${p.marginPercent?.toFixed(1)}%`)
   .join('\n')}
 
-GENERA una recomendación siguiendo el formato EXACTO.
-Enfócate en el producto con mejor oportunidad de crecimiento.
-Sin asteriscos, con emojis, datos reales, pasos claros.`;
+Genera un análisis profesional del día siguiendo el FORMATO EXACTO.
+
+Usa esta estructura:
+🔍 Análisis General del Día
+📊 Ventas: $${todayTotal.toLocaleString()} (${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}% vs ayer)
+🎯 Ticket promedio: [calcular si es posible]
+
+🎯 Estrategia IA Recomendada
+→ [Tu recomendación específica para mejorar ventas]
+
+📣 Acción sugerida
+[Pasos específicos]
+- [paso 1]
+- [paso 2]
+- [paso 3]
+
+NO uses lenguaje emocional. SÉ OBJETIVO y PROFESIONAL.`;
     }
 
     // Call AI
