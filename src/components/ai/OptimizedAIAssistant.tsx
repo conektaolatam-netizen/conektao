@@ -51,6 +51,7 @@ const OptimizedAIAssistant: React.FC = () => {
     currentConversation,
     messages: dbMessages,
     isLoading: isLoadingConversations,
+    loadRecentConversation,
     createConversation,
     selectConversation,
     saveMessage,
@@ -75,10 +76,20 @@ const OptimizedAIAssistant: React.FC = () => {
   useEffect(() => {
     loadUsageInfo();
     
-    // Only init welcome if no current conversation
-    if (!currentConversation) {
-      initWelcomeMessage();
-    }
+    // Auto-load or create conversation on mount
+    const initConversation = async () => {
+      const recent = await loadRecentConversation();
+      if (recent) {
+        await selectConversation(recent);
+      } else {
+        const newConv = await createConversation('Nueva conversación', false);
+        if (newConv) {
+          initWelcomeMessage();
+        }
+      }
+    };
+    
+    initConversation();
   }, []);
 
   const loadUsageInfo = async () => {
@@ -137,6 +148,19 @@ const OptimizedAIAssistant: React.FC = () => {
       return;
     }
 
+    // Ensure we have a conversation
+    if (!currentConversation) {
+      const newConv = await createConversation('Nueva conversación', false);
+      if (!newConv) {
+        toast({
+          title: "Error",
+          description: "No se pudo crear la conversación",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     const userMessage = currentQuestion.trim();
     setCurrentQuestion('');
     setIsTyping(true);
@@ -150,9 +174,13 @@ const OptimizedAIAssistant: React.FC = () => {
 
     setLocalConversation(prev => [...prev, newUserMessage]);
 
-    // Save to DB if conversation exists and is not temporary
+    // Auto-save to DB (always, unless temporary)
     if (currentConversation && !currentConversation.is_temporary) {
-      await saveMessage(currentConversation.id, 'user', userMessage);
+      try {
+        await saveMessage(currentConversation.id, 'user', userMessage);
+      } catch (error) {
+        console.error('Failed to save user message:', error);
+      }
     } else if (currentConversation?.is_temporary) {
       setHasUnsavedMessages(true);
     }
@@ -185,10 +213,19 @@ const OptimizedAIAssistant: React.FC = () => {
 
       setLocalConversation(prev => [...prev, aiMessage]);
       
-      // Save to DB if conversation exists and is not temporary
+      // Auto-save to DB (always, unless temporary)
       if (currentConversation && !currentConversation.is_temporary) {
-        await saveMessage(currentConversation.id, 'assistant', response);
-        setHasUnsavedMessages(false);
+        try {
+          await saveMessage(currentConversation.id, 'assistant', response);
+          setHasUnsavedMessages(false);
+        } catch (error) {
+          console.error('Failed to save AI response:', error);
+          toast({
+            title: "Advertencia",
+            description: "El mensaje no se pudo guardar automáticamente",
+            variant: "destructive"
+          });
+        }
       } else if (currentConversation?.is_temporary) {
         setHasUnsavedMessages(true);
       }
@@ -451,25 +488,76 @@ const OptimizedAIAssistant: React.FC = () => {
       </CardContent>
     </Card>
 
-      {/* Unsaved Messages Dialog */}
+      {/* Unsaved Messages Dialog with Save Options */}
       <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Cambiar de conversación?</AlertDialogTitle>
+            <AlertDialogTitle>¿Qué deseas hacer con esta conversación?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tienes mensajes sin guardar en este chat temporal. Si cambias de conversación, se perderán.
+              Tienes mensajes sin guardar. Elige una opción:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
+          <div className="flex flex-col gap-2 my-4">
+            <Button
+              variant="default"
+              onClick={async () => {
+                if (currentConversation?.is_temporary && localConversation.length > 1) {
+                  const title = `Conversación ${new Date().toLocaleDateString()}`;
+                  const newConv = await createConversation(title, false);
+                  if (newConv) {
+                    for (const msg of localConversation) {
+                      if (msg.type !== 'ai' || msg.message !== '¡Hola! Soy tu asistente IA de Conektao...') {
+                        await saveMessage(newConv.id, msg.type === 'user' ? 'user' : 'assistant', msg.message);
+                      }
+                    }
+                    toast({
+                      title: "Conversación guardada",
+                      description: "La conversación se guardó exitosamente"
+                    });
+                  }
+                }
+                setHasUnsavedMessages(false);
+                setShowUnsavedDialog(false);
+              }}
+            >
+              ✅ Guardar como nueva
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (currentConversation && !currentConversation.is_temporary && localConversation.length > 0) {
+                  for (const msg of localConversation) {
+                    if (msg.type !== 'ai' || msg.message !== '¡Hola! Soy tu asistente IA de Conektao...') {
+                      try {
+                        await saveMessage(currentConversation.id, msg.type === 'user' ? 'user' : 'assistant', msg.message);
+                      } catch (error) {
+                        console.error('Error saving message:', error);
+                      }
+                    }
+                  }
+                  toast({
+                    title: "Conversación actualizada",
+                    description: "Los mensajes se agregaron a la conversación actual"
+                  });
+                }
+                setHasUnsavedMessages(false);
+                setShowUnsavedDialog(false);
+              }}
+            >
+              ♻️ Continuar en la actual
+            </Button>
+            <Button
+              variant="destructive"
               onClick={() => {
                 setHasUnsavedMessages(false);
                 setShowUnsavedDialog(false);
               }}
             >
-              Continuar sin guardar
-            </AlertDialogAction>
+              ❌ Salir sin guardar
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
