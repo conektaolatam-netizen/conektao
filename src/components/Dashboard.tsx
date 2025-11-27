@@ -380,32 +380,32 @@ const Dashboard = ({
     }
   };
   return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">{/* Added responsive container with max-width and padding */}
-      {/* Flowing waves background - Very subtle but visible */}
+      {/* Flowing waves background - Dark blue subtle waves */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        {/* Wave Layer 1 - Orange flow */}
+        {/* Wave Layer 1 - Deep blue flow */}
         <div className="absolute inset-0" style={{
         background: `
-              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(255, 165, 0, 0.12) 0%, rgba(255, 165, 0, 0.04) 50%, transparent 85%)
+              radial-gradient(ellipse 1400px 900px at 20% 80%, rgba(30, 58, 138, 0.15) 0%, rgba(30, 58, 138, 0.06) 50%, transparent 85%)
             `,
         animation: 'wave1 22s ease-in-out infinite',
         filter: 'blur(90px)',
-        opacity: 0.75
+        opacity: 0.8
       }}></div>
         
-        {/* Wave Layer 2 - Teal flow */}
+        {/* Wave Layer 2 - Cyan blue flow */}
         <div className="absolute inset-0" style={{
         background: `
-              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(20, 184, 166, 0.12) 0%, rgba(20, 184, 166, 0.04) 50%, transparent 85%)
+              radial-gradient(ellipse 1200px 700px at 80% 20%, rgba(6, 78, 159, 0.12) 0%, rgba(6, 78, 159, 0.04) 50%, transparent 85%)
             `,
         animation: 'wave2 26s ease-in-out infinite reverse',
         filter: 'blur(100px)',
         opacity: 0.75
       }}></div>
         
-        {/* Wave Layer 3 - Orange gradient */}
+        {/* Wave Layer 3 - Navy gradient */}
         <div className="absolute inset-0" style={{
         background: `
-              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(255, 106, 0, 0.10) 0%, rgba(255, 106, 0, 0.035) 60%, transparent 90%)
+              radial-gradient(ellipse 1000px 1100px at 50% 50%, rgba(15, 23, 42, 0.18) 0%, rgba(15, 23, 42, 0.08) 60%, transparent 90%)
             `,
         animation: 'wave3 30s ease-in-out infinite',
         filter: 'blur(110px)',
@@ -615,68 +615,68 @@ const Dashboard = ({
               Ver Análisis Completo
             </Button>
           </div>
-          <div className="h-56 bg-gradient-to-br from-orange-100 to-teal-100 rounded-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-hero opacity-5 mx-0 px-[3px] py-[10px]"></div>
+          <div className="h-56 bg-gradient-to-br from-gray-900 via-blue-950 to-gray-950 rounded-2xl relative overflow-hidden border border-white/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-20 mx-0 px-[3px] py-[10px]"></div>
             
             {/* Real Sales Chart */}
             <div className="absolute inset-4">
               <div className="text-center mb-4">
-                <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-700 mb-1">Ventas Últimos 7 Días</h3>
-                <p className="text-xs sm:text-sm text-gray-500">Total del mes: {formatCurrency(realSalesData.monthlySales)}</p>
+                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mb-1">Ventas Últimos 7 Días</h3>
+                <p className="text-xs sm:text-sm text-white/70">Total del mes: {formatCurrency(realSalesData.monthlySales)}</p>
               </div>
               <div className="space-y-2">
                 {/* Mostrar datos reales de ventas por día */}
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Lun</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Lun</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-blue-400 to-indigo-500 h-4 rounded-full" style={{
                     width: realSalesData.dailySales > 0 ? '0%' : '0%'
                   }}></div>
                   </div>
-                  <span className="text-xs font-medium w-16 text-right">{formatCurrency(0)}</span>
+                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Mar</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Mar</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-4 rounded-full" style={{
                     width: '0%'
                   }}></div>
                   </div>
-                  <span className="text-xs font-medium w-16 text-right">{formatCurrency(0)}</span>
+                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Mié</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Mié</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-purple-400 to-pink-500 h-4 rounded-full" style={{
                     width: '0%'
                   }}></div>
                   </div>
-                  <span className="text-xs font-medium w-16 text-right">{formatCurrency(realSalesData.dailySales * 0.9)}</span>
+                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 0.9)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Jue</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Jue</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-yellow-400 to-orange-500 h-4 rounded-full w-[95%]"></div>
                   </div>
-                  <span className="text-xs font-medium w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.2)}</span>
+                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Vie</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Vie</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-pink-400 to-red-500 h-4 rounded-full w-full"></div>
                   </div>
-                  <span className="text-xs font-medium w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.5)}</span>
+                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.5)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-600 w-12">Hoy</span>
-                  <div className="flex-1 mx-2 bg-gray-200 rounded-full h-4">
+                  <span className="text-xs text-white/80 w-12">Hoy</span>
+                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
                     <div className="bg-gradient-to-r from-orange-400 to-red-500 h-4 rounded-full w-[30%] animate-pulse"></div>
                   </div>
-                  <span className="text-xs font-bold text-orange-600 w-16 text-right">{formatCurrency(realSalesData.dailySales)}</span>
+                  <span className="text-xs font-bold text-orange-400 w-16 text-right">{formatCurrency(realSalesData.dailySales)}</span>
                 </div>
               </div>
               <div className="mt-3 text-center">
-                <div className="text-xs text-gray-600 mb-2">
+                <div className="text-xs text-white/70 mb-2">
                   {aiRecommendations?.underperforming_product ? `Productos con menor rendimiento: ${aiRecommendations.underperforming_product}` : `Facturas hoy: ${realSalesData.dailyOrders} • Ticket promedio: ${formatCurrency(realSalesData.averageTicket)}`}
                 </div>
                 <Button onClick={() => onModuleChange('billing')} size="sm" className="bg-primary hover:bg-primary/90 text-white px-4 py-1 rounded-full text-xs">
