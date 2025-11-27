@@ -10,12 +10,25 @@ import {
   Zap, 
   Send,
   RotateCcw,
-  AlertCircle 
+  AlertCircle,
+  Menu
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { conektaoAI } from '@/lib/aiEngine';
 import { ChatInterface } from '@/components/ai/ChatInterface';
+import { useAIConversations } from '@/hooks/useAIConversations';
+import ConversationsList from '@/components/ai/ConversationsList';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Message {
   type: 'ai' | 'user';
@@ -25,14 +38,47 @@ interface Message {
 
 const OptimizedAIAssistant: React.FC = () => {
   const [currentQuestion, setCurrentQuestion] = useState('');
-  const [conversation, setConversation] = useState<Message[]>([]);
+  const [localConversation, setLocalConversation] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [usageInfo, setUsageInfo] = useState<any>(null);
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [hasUnsavedMessages, setHasUnsavedMessages] = useState(false);
   const { toast } = useToast();
+  
+  const {
+    conversations,
+    currentConversation,
+    messages: dbMessages,
+    isLoading: isLoadingConversations,
+    createConversation,
+    selectConversation,
+    saveMessage,
+    deleteConversation,
+    updateConversationTitle,
+    setMessages: setDbMessages
+  } = useAIConversations();
+
+  // Sync DB messages to local conversation
+  useEffect(() => {
+    if (currentConversation && !currentConversation.is_temporary) {
+      const formattedMessages: Message[] = dbMessages.map(msg => ({
+        type: msg.role === 'user' ? 'user' : 'ai',
+        message: msg.content,
+        timestamp: new Date(msg.created_at)
+      }));
+      setLocalConversation(formattedMessages);
+      setHasUnsavedMessages(false);
+    }
+  }, [dbMessages, currentConversation]);
 
   useEffect(() => {
     loadUsageInfo();
-    initWelcomeMessage();
+    
+    // Only init welcome if no current conversation
+    if (!currentConversation) {
+      initWelcomeMessage();
+    }
   }, []);
 
   const loadUsageInfo = async () => {
@@ -47,11 +93,35 @@ const OptimizedAIAssistant: React.FC = () => {
   };
 
   const initWelcomeMessage = () => {
-    setConversation([{
+    setLocalConversation([{
       type: 'ai',
       message: '¡Hola! Soy tu asistente IA de Conektao, optimizado y conectado a tus datos reales. Puedo ayudarte con análisis de ventas, estrategias de marketing, optimización de inventario y mucho más. ¿En qué puedo ayudarte hoy?',
       timestamp: new Date()
     }]);
+  };
+
+  const handleNewConversation = async (title: string, isTemporary: boolean) => {
+    // Check for unsaved messages
+    if (hasUnsavedMessages && currentConversation?.is_temporary) {
+      setShowUnsavedDialog(true);
+      return;
+    }
+
+    const newConv = await createConversation(title, isTemporary);
+    if (newConv) {
+      initWelcomeMessage();
+      setHasUnsavedMessages(false);
+    }
+  };
+
+  const handleSelectConversation = async (conversation: any) => {
+    // Check for unsaved messages
+    if (hasUnsavedMessages && currentConversation?.is_temporary) {
+      setShowUnsavedDialog(true);
+      return;
+    }
+
+    await selectConversation(conversation);
   };
 
   const handleSendMessage = async () => {
@@ -78,7 +148,14 @@ const OptimizedAIAssistant: React.FC = () => {
       timestamp: new Date()
     };
 
-    setConversation(prev => [...prev, newUserMessage]);
+    setLocalConversation(prev => [...prev, newUserMessage]);
+
+    // Save to DB if conversation exists and is not temporary
+    if (currentConversation && !currentConversation.is_temporary) {
+      await saveMessage(currentConversation.id, 'user', userMessage);
+    } else if (currentConversation?.is_temporary) {
+      setHasUnsavedMessages(true);
+    }
 
     try {
       // Get user context
@@ -106,7 +183,15 @@ const OptimizedAIAssistant: React.FC = () => {
         timestamp: new Date()
       };
 
-      setConversation(prev => [...prev, aiMessage]);
+      setLocalConversation(prev => [...prev, aiMessage]);
+      
+      // Save to DB if conversation exists and is not temporary
+      if (currentConversation && !currentConversation.is_temporary) {
+        await saveMessage(currentConversation.id, 'assistant', response);
+        setHasUnsavedMessages(false);
+      } else if (currentConversation?.is_temporary) {
+        setHasUnsavedMessages(true);
+      }
       
       // Reload usage info
       loadUsageInfo();
@@ -125,7 +210,7 @@ const OptimizedAIAssistant: React.FC = () => {
         timestamp: new Date()
       };
 
-      setConversation(prev => [...prev, errorMessage]);
+      setLocalConversation(prev => [...prev, errorMessage]);
       
       toast({
         title: "Error",
@@ -156,22 +241,73 @@ const OptimizedAIAssistant: React.FC = () => {
   };
 
   const clearConversation = () => {
-    setConversation([]);
+    setLocalConversation([]);
     initWelcomeMessage();
+    setHasUnsavedMessages(false);
   };
+
+  const conversation = localConversation;
 
   const isAtLimit = usageInfo?.usage_today?.remaining <= 0;
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-[hsl(var(--ai-surface))] text-[hsl(var(--ai-foreground))] border-[hsl(var(--ai-border))]">
-      <CardHeader>
+    <div className="flex gap-4 w-full max-w-7xl mx-auto h-[calc(100vh-120px)]">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block w-80 shrink-0">
+        <ConversationsList
+          conversations={conversations}
+          currentConversation={currentConversation}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={deleteConversation}
+          onUpdateTitle={updateConversationTitle}
+        />
+      </div>
+
+      {/* Mobile Sidebar */}
+      <Sheet open={showSidebarMobile} onOpenChange={setShowSidebarMobile}>
+        <SheetContent side="left" className="w-80 p-0">
+          <div className="h-full p-4">
+            <ConversationsList
+              conversations={conversations}
+              currentConversation={currentConversation}
+              onSelectConversation={(conv) => {
+                handleSelectConversation(conv);
+                setShowSidebarMobile(false);
+              }}
+              onNewConversation={(title, isTemp) => {
+                handleNewConversation(title, isTemp);
+                setShowSidebarMobile(false);
+              }}
+              onDeleteConversation={deleteConversation}
+              onUpdateTitle={updateConversationTitle}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Chat Area */}
+      <Card className="flex-1 bg-[hsl(var(--ai-surface))] text-[hsl(var(--ai-foreground))] border-[hsl(var(--ai-border))] flex flex-col">
+      <CardHeader className="shrink-0">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="ghost" size="sm">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
             <Brain className="h-6 w-6 text-primary" />
-            <span>IA Conektao - Asistente Optimizado</span>
-            <Badge variant="secondary" className="bg-green-100 text-green-700">
+            <span className="text-sm md:text-base">
+              {currentConversation?.title || 'IA Conektao'}
+            </span>
+            <Badge variant="secondary" className="bg-green-100 text-green-700 hidden md:inline-flex">
               Conectado a datos reales
             </Badge>
+            {currentConversation?.is_temporary && (
+              <Badge variant="outline" className="text-xs">
+                Temporal {hasUnsavedMessages && '• Sin guardar'}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {usageInfo && (
@@ -192,7 +328,7 @@ const OptimizedAIAssistant: React.FC = () => {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex-1 flex flex-col space-y-4 overflow-hidden">
         {isAtLimit && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center gap-2 text-red-700">
@@ -225,7 +361,7 @@ const OptimizedAIAssistant: React.FC = () => {
         )}
 
         {/* Chat Interface */}
-        <div className="min-h-[400px] max-h-[600px] overflow-y-auto border border-[hsl(var(--ai-border))] rounded-lg p-0 bg-[hsl(var(--ai-surface))]">
+        <div className="flex-1 overflow-y-auto border border-[hsl(var(--ai-border))] rounded-lg p-0 bg-[hsl(var(--ai-surface))]">
           <ChatInterface 
             conversation={conversation}
             isTyping={isTyping}
@@ -235,7 +371,7 @@ const OptimizedAIAssistant: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="space-y-2">
+        <div className="space-y-2 shrink-0">
           <Textarea
             value={currentQuestion}
             onChange={(e) => setCurrentQuestion(e.target.value)}
@@ -293,8 +429,51 @@ const OptimizedAIAssistant: React.FC = () => {
             <p className="text-xs text-muted-foreground">GPT-4o-mini para eficiencia</p>
           </div>
         </div>
+
+        {/* AI Features Info */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg shrink-0">
+          <div className="text-center">
+            <MessageCircle className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+            <h4 className="font-semibold text-sm">Chat Inteligente</h4>
+            <p className="text-xs text-muted-foreground">Conectado a tus datos de ventas</p>
+          </div>
+          <div className="text-center">
+            <Zap className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+            <h4 className="font-semibold text-sm">Análisis Rápido</h4>
+            <p className="text-xs text-muted-foreground">Respuestas optimizadas en segundos</p>
+          </div>
+          <div className="text-center">
+            <Brain className="h-8 w-8 mx-auto mb-2 text-purple-500" />
+            <h4 className="font-semibold text-sm">IA Avanzada</h4>
+            <p className="text-xs text-muted-foreground">Gemini 2.5 Flash (~$0.12/usuario)</p>
+          </div>
+        </div>
       </CardContent>
     </Card>
+
+      {/* Unsaved Messages Dialog */}
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cambiar de conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes mensajes sin guardar en este chat temporal. Si cambias de conversación, se perderán.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setHasUnsavedMessages(false);
+                setShowUnsavedDialog(false);
+              }}
+            >
+              Continuar sin guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 
