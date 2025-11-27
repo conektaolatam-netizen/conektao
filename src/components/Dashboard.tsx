@@ -483,46 +483,18 @@ const Dashboard = ({
           window.history.pushState({}, '', '/?view=marketplace&supplier=makro');
         }, 100);
       }}>
-          {/* Fondo degradado naranja/rojo */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-orange-600 to-red-600" />
-          
-          {/* Logo Makro - arriba izquierda */}
-          <div className="absolute top-3 left-4 z-10">
-            <div className="bg-white px-4 py-2 rounded-lg shadow-lg">
-              <span className="text-2xl font-black text-orange-600">MAKRO</span>
-            </div>
-          </div>
-
-          {/* Imagen de vino - derecha */}
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10">
-            <div className="text-8xl filter drop-shadow-2xl">🍷</div>
-          </div>
-
-          {/* Contenido principal - centrado */}
-          <div className="absolute left-0 right-32 top-0 bottom-0 flex flex-col justify-center items-center z-10">
-            <div className="space-y-1 text-center">
-              <div className="flex items-baseline gap-2 justify-center">
-                <span className="text-7xl font-black text-white drop-shadow-lg">60%</span>
-                <span className="text-3xl font-bold text-white drop-shadow-lg">OFF</span>
-              </div>
-              <p className="text-xl font-semibold text-white drop-shadow-md">
-                en vino francés
-              </p>
-            </div>
-          </div>
-
-          {/* Términos y condiciones */}
-          <div className="absolute bottom-3 left-4 z-10">
-            <p className="text-[10px] text-white/80 italic">
-              *aplican términos y condiciones
-            </p>
-          </div>
+          {/* Imagen de fondo */}
+          <img 
+            src="/lovable-uploads/makro-banner.jpg" 
+            alt="Makro 60% Off Vino Argentino" 
+            className="absolute inset-0 w-full h-full object-cover"
+          />
           
           {/* Overlay oscuro en hover */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 z-20" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
 
           {/* Texto informativo en hover */}
-          <div className="absolute bottom-4 right-4 text-white z-30">
+          <div className="absolute bottom-4 right-4 text-white z-10">
             <p className="text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-lg">
               Click para ver productos →
             </p>
