@@ -606,71 +606,71 @@ const Marketplace = () => {
 
         {/* Store Info */}
         <div className="relative -mt-16 mx-6">
-          <Card className="p-6 bg-white shadow-xl border-0">
+          <Card className="p-6 bg-gradient-to-br from-blue-900 via-blue-800 to-gray-900 shadow-2xl border-2 border-blue-500/30">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-lg" style={{
+                <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-lg ring-4 ring-blue-400/30" style={{
                 backgroundColor: selectedStore.primaryColor
               }}>
                   {selectedStore.logo}
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h1 className="text-3xl font-bold">{selectedStore.name}</h1>
-                    <Badge className="text-white" style={{
+                    <h1 className="text-3xl font-bold text-white">{selectedStore.name}</h1>
+                    <Badge className="text-white bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg" style={{
                     backgroundColor: selectedStore.primaryColor
                   }}>
                       {selectedStore.type === 'supermarket' ? 'Supermercado' : 'Local'}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground mt-1 text-xs line-clamp-2 leading-tight">{selectedStore.description}</p>
+                  <p className="text-gray-300 mt-1 text-xs line-clamp-2 leading-tight">{selectedStore.description}</p>
                   <div className="flex flex-wrap gap-2 mt-3 text-xs">
-                    <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-full">
-                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                      <span className="font-medium">{selectedStore.rating}</span>
+                    <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full border border-white/20">
+                      <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                      <span className="font-medium text-white">{selectedStore.rating}</span>
                     </div>
-                    <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-full">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span className="truncate max-w-20">{selectedStore.deliveryTime}</span>
+                    <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full border border-white/20">
+                      <Clock className="h-3 w-3 text-blue-300" />
+                      <span className="truncate max-w-20 text-white">{selectedStore.deliveryTime}</span>
                     </div>
-                    <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-full">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span className="truncate max-w-24">{selectedStore.location}</span>
+                    <div className="flex items-center space-x-1 bg-white/10 backdrop-blur-sm px-2 py-1 rounded-full border border-white/20">
+                      <MapPin className="h-3 w-3 text-blue-300" />
+                      <span className="truncate max-w-24 text-white">{selectedStore.location}</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                   <Heart className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4">
-              {selectedStore.specialties.map(specialty => <Badge key={specialty} variant="outline">
+              {selectedStore.specialties.map(specialty => <Badge key={specialty} variant="outline" className="bg-white/10 border-white/30 text-white">
                   {specialty}
                 </Badge>)}
             </div>
 
             <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <DollarSign className="h-5 w-5 mx-auto mb-1 text-green-600" />
-                <p className="font-medium">Pedido mínimo</p>
-                <p>{formatCurrency(selectedStore.minOrder)}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-lg border border-green-400/30 backdrop-blur-sm">
+                <DollarSign className="h-5 w-5 mx-auto mb-1 text-green-400" />
+                <p className="font-medium text-white">Pedido mínimo</p>
+                <p className="text-green-300">{formatCurrency(selectedStore.minOrder)}</p>
               </div>
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <Truck className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-                <p className="font-medium">Envío gratis desde</p>
-                <p>{formatCurrency(selectedStore.freeShipping)}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-lg border border-blue-400/30 backdrop-blur-sm">
+                <Truck className="h-5 w-5 mx-auto mb-1 text-blue-400" />
+                <p className="font-medium text-white">Envío gratis desde</p>
+                <p className="text-blue-300">{formatCurrency(selectedStore.freeShipping)}</p>
               </div>
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <Package className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                <p className="font-medium">Productos</p>
-                <p>{selectedStore.products.length}</p>
+              <div className="text-center p-3 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-lg border border-purple-400/30 backdrop-blur-sm">
+                <Package className="h-5 w-5 mx-auto mb-1 text-purple-400" />
+                <p className="font-medium text-white">Productos</p>
+                <p className="text-purple-300">{selectedStore.products.length}</p>
               </div>
             </div>
           </Card>
@@ -1582,7 +1582,7 @@ const Marketplace = () => {
 
         {/* Floating Cart Summary with Payment Gateway */}
         {cart.length > 0 && <div className="fixed bottom-6 right-6 z-50 animate-slide-in-right">
-            <Card className="p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl border-2 border-orange-500/30 max-w-sm backdrop-blur-sm">
+            <Card className="p-6 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 shadow-2xl border-2 border-blue-500/50 max-w-sm backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-lg text-white">Mi Carrito</h3>
                 <Badge className="bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg">
