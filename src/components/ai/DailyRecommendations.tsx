@@ -3,33 +3,55 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Lightbulb, 
-  TrendingUp, 
-  TrendingDown, 
-  MessageCircle, 
-  CheckCircle,
+  TrendingDown,
+  TrendingUp,
+  DollarSign,
+  Target,
+  AlertTriangle,
+  Sparkles,
   RefreshCw,
-  AlertCircle
+  ChevronDown,
+  ChevronUp,
+  MessageCircle,
+  CheckCircle,
+  Package
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+interface OpportunityProduct {
+  name: string;
+  price: number;
+  cost: number;
+  margin: number;
+  marginPercent: number;
+  today_qty: number;
+  today_revenue: number;
+  dailyChange: number;
+}
 
 interface RecommendationData {
   recommendation: string;
   priority: 'low' | 'medium' | 'high';
   data_context: {
-    dailyChange: number;
-    weeklyChange: number;
     todayTotal: number;
     yesterdayTotal: number;
+    dailyChange: number;
+    opportunity?: {
+      type: string;
+      product: OpportunityProduct;
+    };
+    topProducts?: Array<{
+      name: string;
+      quantity: number;
+      revenue: number;
+      margin: number;
+      marginPercent: number;
+    }>;
   };
-  top_product_changes: Array<{
-    name: string;
-    change: number;
-    today: number;
-    yesterday: number;
-  }>;
   recommendation_id: string;
+  is_applied?: boolean;
 }
 
 interface DailyRecommendationsProps {
@@ -40,6 +62,7 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
   const [recommendation, setRecommendation] = useState<RecommendationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -70,13 +93,12 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
         .maybeSingle();
 
       if (existingRecommendation) {
-        const dataContext = existingRecommendation.data_context as any;
         setRecommendation({
           recommendation: existingRecommendation.recommendation_text,
           priority: existingRecommendation.priority as 'low' | 'medium' | 'high',
-          data_context: dataContext,
-          top_product_changes: dataContext?.topProductChanges || dataContext?.top_product_changes || [],
-          recommendation_id: existingRecommendation.id
+          data_context: existingRecommendation.data_context as any,
+          recommendation_id: existingRecommendation.id,
+          is_applied: existingRecommendation.is_applied
         });
       }
     } catch (err) {
@@ -95,14 +117,12 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setRecommendation(data);
       toast({
-        title: "Recomendación generada",
-        description: "Se ha creado una nueva recomendación basada en tus datos de ventas",
+        title: "✨ Recomendación generada",
+        description: "Análisis completo basado en tus datos reales",
       });
 
     } catch (err: any) {
@@ -118,35 +138,34 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
     }
   };
 
-  const handleApplyStrategy = () => {
-    if (!recommendation) return;
+  const handleImplementStrategy = () => {
+    if (!recommendation || !onOpenChat) return;
 
-    const context = `Ayúdame a implementar esta recomendación específica:
+    const opp = recommendation.data_context.opportunity;
+    const context = opp ? `Ayúdame a implementar esta estrategia para ${opp.product.name}:
 
 ${recommendation.recommendation}
 
-Contexto de ventas:
-- Ventas de hoy: $${recommendation.data_context.todayTotal?.toLocaleString()} COP
-- Ventas de ayer: $${recommendation.data_context.yesterdayTotal?.toLocaleString()} COP
-- Cambio diario: ${recommendation.data_context.dailyChange >= 0 ? '+' : ''}${recommendation.data_context.dailyChange?.toFixed(1)}%
+DATOS DEL PRODUCTO:
+- Precio: $${opp.product.price?.toLocaleString()}
+- Costo: $${opp.product.cost?.toFixed(0).toLocaleString()}
+- Margen: $${opp.product.margin?.toFixed(0).toLocaleString()} (${opp.product.marginPercent?.toFixed(1)}%)
+- Ventas hoy: ${opp.product.today_qty} unidades
+- Cambio vs ayer: ${opp.product.dailyChange >= 0 ? '+' : ''}${opp.product.dailyChange?.toFixed(1)}%
 
-${recommendation.top_product_changes?.length > 0 ? 
-  `Productos con cambios significativos:\n${recommendation.top_product_changes.map(p => 
-    `- ${p.name}: ${p.change >= 0 ? '+' : ''}${p.change.toFixed(1)}% (${p.today} vs ${p.yesterday} unidades)`
-  ).join('\n')}` : ''}
+Necesito un plan detallado con:
+1. ✍️ Textos exactos para publicaciones en redes sociales
+2. 📱 Estrategia de contenido (historias, posts, reels)
+3. 🎯 Segmento de público objetivo
+4. ⏰ Horarios óptimos de publicación
+5. 📊 KPIs para medir el éxito
+6. 💰 Presupuesto (si aplica)` : `Ayúdame a implementar esta recomendación:
 
-Necesito un plan detallado de implementación que incluya:
-1. Acciones específicas paso a paso
-2. Textos o contenido para promociones
-3. Timing exacto de implementación  
-4. Métricas para medir el éxito
-5. Presupuesto estimado si aplica
+${recommendation.recommendation}
 
-¿Puedes ayudarme a desarrollar esta estrategia?`;
+Necesito un plan práctico y ejecutable.`;
 
-    if (onOpenChat) {
-      onOpenChat(context);
-    }
+    onOpenChat(context);
   };
 
   const markAsApplied = async () => {
@@ -164,7 +183,7 @@ Necesito un plan detallado de implementación que incluya:
       setRecommendation(prev => prev ? { ...prev, is_applied: true } : null);
       
       toast({
-        title: "Recomendación marcada",
+        title: "✅ Estrategia marcada",
         description: "Has marcado esta recomendación como aplicada",
       });
     } catch (err) {
@@ -172,13 +191,39 @@ Necesito un plan detallado de implementación que incluya:
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
+  const getEmotionalColor = (type?: string) => {
+    if (!type) return 'from-primary/20 to-secondary/20';
+    
+    const colorMap: Record<string, string> = {
+      'at_risk_high_margin': 'from-red-500/20 to-orange-500/20',
+      'trending_up': 'from-green-500/20 to-emerald-500/20',
+      'low_margin': 'from-yellow-500/20 to-amber-500/20',
+      'low_stock_high_demand': 'from-purple-500/20 to-pink-500/20',
+    };
+    
+    return colorMap[type] || 'from-primary/20 to-secondary/20';
+  };
+
+  const getTypeEmoji = (type?: string) => {
+    const emojiMap: Record<string, string> = {
+      'at_risk_high_margin': '📉',
+      'trending_up': '📈',
+      'low_margin': '💸',
+      'low_stock_high_demand': '⚠️',
+    };
+    
+    return emojiMap[type || ''] || '💡';
+  };
+
+  const getTypeLabel = (type?: string) => {
+    const labelMap: Record<string, string> = {
+      'at_risk_high_margin': 'Producto en Riesgo',
+      'trending_up': 'Oportunidad de Crecimiento',
+      'low_margin': 'Optimización de Margen',
+      'low_stock_high_demand': 'Alerta de Inventario',
+    };
+    
+    return labelMap[type || ''] || 'Recomendación General';
   };
 
   const formatCurrency = (amount: number) => {
@@ -189,151 +234,215 @@ Necesito un plan detallado de implementación que incluya:
     }).format(amount);
   };
 
+  if (!recommendation && !isLoading) {
+    return (
+      <Card className="w-full bg-gradient-to-br from-background via-background to-primary/5">
+        <CardContent className="pt-12 pb-12">
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="relative">
+                <Sparkles className="h-16 w-16 text-primary animate-pulse" />
+                <div className="absolute -top-1 -right-1">
+                  <div className="h-4 w-4 bg-accent rounded-full animate-ping" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold mb-2">Conektao IA - Recomendaciones</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Obtén estrategias de marketing personalizadas basadas en análisis profundo de tus productos, costos y márgenes reales
+              </p>
+            </div>
+            <Button 
+              onClick={generateNewRecommendation}
+              size="lg"
+              className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity text-lg px-8 py-6"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              Generar Recomendación IA
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="w-full">
+        <CardContent className="pt-12 pb-12">
+          <div className="text-center space-y-4">
+            <RefreshCw className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <div>
+              <h4 className="font-semibold text-lg">Analizando tu negocio...</h4>
+              <p className="text-sm text-muted-foreground">
+                Revisando productos, costos, márgenes y tendencias
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!recommendation) return null;
+
+  const opp = recommendation.data_context.opportunity;
+  const opportunityType = opp?.type;
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-yellow-500" />
-            Recomendación IA del Día
+    <Card className={`w-full bg-gradient-to-br ${getEmotionalColor(opportunityType)} border-2`}>
+      <CardHeader className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2 flex-1">
+            <div className="flex items-center gap-3">
+              <span className="text-4xl">{getTypeEmoji(opportunityType)}</span>
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {getTypeLabel(opportunityType)}
+                  {opp && `: ${opp.product.name}`}
+                </h2>
+                <Badge 
+                  variant={recommendation.priority === 'high' ? 'destructive' : 'secondary'}
+                  className="mt-1"
+                >
+                  Prioridad {recommendation.priority.toUpperCase()}
+                </Badge>
+              </div>
+            </div>
           </div>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={generateNewRecommendation}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-        </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-destructive">Error</h4>
-                <p className="text-sm text-destructive/80">{error}</p>
+
+      <CardContent className="space-y-6">
+        {/* Product Data Section */}
+        {opp && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-background/60 backdrop-blur rounded-lg p-4 border">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground font-medium">Precio Actual</p>
               </div>
+              <p className="text-xl font-bold">{formatCurrency(opp.product.price)}</p>
+            </div>
+
+            <div className="bg-background/60 backdrop-blur rounded-lg p-4 border">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground font-medium">Costo Real</p>
+              </div>
+              <p className="text-xl font-bold">{formatCurrency(opp.product.cost)}</p>
+            </div>
+
+            <div className="bg-background/60 backdrop-blur rounded-lg p-4 border">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground font-medium">Margen</p>
+              </div>
+              <p className="text-xl font-bold">{formatCurrency(opp.product.margin)}</p>
+              <p className="text-xs text-muted-foreground">{opp.product.marginPercent.toFixed(1)}%</p>
+            </div>
+
+            <div className="bg-background/60 backdrop-blur rounded-lg p-4 border">
+              <div className="flex items-center gap-2 mb-2">
+                {opp.product.dailyChange >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                )}
+                <p className="text-xs text-muted-foreground font-medium">Cambio Diario</p>
+              </div>
+              <p className={`text-xl font-bold ${opp.product.dailyChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {opp.product.dailyChange >= 0 ? '+' : ''}{opp.product.dailyChange.toFixed(1)}%
+              </p>
+              <p className="text-xs text-muted-foreground">{opp.product.today_qty} unidades hoy</p>
             </div>
           </div>
         )}
 
-        {!recommendation && !isLoading && (
-          <div className="text-center py-6">
-            <Lightbulb className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">
-              No hay recomendaciones para hoy. Genera una nueva basada en tus datos de ventas.
-            </p>
-            <Button onClick={generateNewRecommendation}>
-              Generar Recomendación
+        {/* AI Recommendation */}
+        <div className="bg-background/80 backdrop-blur rounded-lg p-6 border-2 border-primary/20">
+          <div className="prose prose-sm max-w-none">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              {recommendation.recommendation}
+            </div>
+          </div>
+        </div>
+
+        {/* Implementation CTA - Large and Prominent */}
+        <div className="space-y-3">
+          <Button
+            onClick={handleImplementStrategy}
+            size="lg"
+            className="w-full bg-gradient-to-r from-primary via-secondary to-accent hover:opacity-90 transition-opacity text-lg py-6 font-semibold"
+          >
+            <MessageCircle className="h-5 w-5 mr-2" />
+            Implementar Estrategia IA
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={markAsApplied}
+              disabled={recommendation.is_applied}
+              variant="outline"
+              size="sm"
+              className="flex-1"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {recommendation.is_applied ? 'Aplicada' : 'Marcar como aplicada'}
             </Button>
           </div>
-        )}
+        </div>
 
-        {isLoading && (
-          <div className="text-center py-6">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Analizando tus datos de ventas...</p>
-          </div>
-        )}
-
-        {recommendation && (
-          <div className="space-y-4">
-            {/* Priority and Context */}
-            <div className="flex items-center justify-between">
-              <Badge 
-                variant="secondary" 
-                className={`${getPriorityColor(recommendation.priority)} text-white`}
-              >
-                Prioridad {recommendation.priority.toUpperCase()}
-              </Badge>
-              
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {recommendation.data_context?.dailyChange !== undefined && (
-                  <div className="flex items-center gap-1">
-                    {recommendation.data_context.dailyChange >= 0 ? (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className={recommendation.data_context.dailyChange >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {recommendation.data_context.dailyChange >= 0 ? '+' : ''}{recommendation.data_context.dailyChange.toFixed(1)}%
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sales Context */}
-            {recommendation.data_context && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-secondary/10 rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground">Ventas Hoy</p>
-                  <p className="font-semibold">{formatCurrency(recommendation.data_context.todayTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ventas Ayer</p>
-                  <p className="font-semibold">{formatCurrency(recommendation.data_context.yesterdayTotal)}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Main Recommendation */}
-            <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg p-4">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-yellow-500" />
-                Recomendación
-              </h3>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {recommendation.recommendation}
-              </p>
-            </div>
-
-            {/* Product Changes */}
-            {recommendation.top_product_changes?.length > 0 && (
-              <div className="border rounded-lg p-4">
-                <h4 className="font-semibold mb-3">Productos con Cambios Significativos</h4>
-                <div className="space-y-2">
-                  {recommendation.top_product_changes.slice(0, 3).map((product, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-sm font-medium">{product.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${product.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {product.change >= 0 ? '+' : ''}{product.change.toFixed(1)}%
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({product.today} vs {product.yesterday})
-                        </span>
-                      </div>
+        {/* Collapsible Details */}
+        {recommendation.data_context.topProducts && (
+          <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full">
+                {showDetails ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                {showDetails ? 'Ocultar' : 'Ver'} productos más vendidos
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <div className="space-y-2 bg-background/40 rounded-lg p-4 border">
+                {recommendation.data_context.topProducts.slice(0, 5).map((product, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm py-2 border-b last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-muted-foreground">#{index + 1}</span>
+                      <span className="font-medium">{product.name}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>{product.quantity} uds</span>
+                      <span>{formatCurrency(product.revenue)}</span>
+                      <span className="text-green-600 font-medium">{product.marginPercent.toFixed(1)}% margen</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button 
-                onClick={handleApplyStrategy}
-                className="flex-1"
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Ver cómo aplicar estrategia
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={markAsApplied}
-                className="flex items-center gap-2"
-              >
-                <CheckCircle className="h-4 w-4" />
-                Marcar como aplicada
-              </Button>
-            </div>
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
+
+        {/* Footer with daily summary */}
+        <div className="pt-4 border-t flex justify-between items-center text-xs text-muted-foreground">
+          <div>
+            Ventas hoy: <span className="font-semibold text-foreground">
+              {formatCurrency(recommendation.data_context.todayTotal)}
+            </span>
+          </div>
+          <div className={recommendation.data_context.dailyChange >= 0 ? 'text-green-600' : 'text-red-600'}>
+            {recommendation.data_context.dailyChange >= 0 ? '+' : ''}
+            {recommendation.data_context.dailyChange.toFixed(1)}% vs ayer
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
