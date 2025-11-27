@@ -498,7 +498,8 @@ const Marketplace = () => {
     }
     toast({
       title: "Producto agregado",
-      description: `${product.name} añadido al carrito`
+      description: `${product.name} añadido al carrito`,
+      duration: 1500
     });
   };
   const updateCartQuantity = (itemIndex: number, quantity: number) => {
