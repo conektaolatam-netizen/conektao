@@ -233,66 +233,66 @@ const Layout: React.FC<LayoutProps> = ({
                   <ChefHat className="h-3 w-3 sm:h-4 sm:w-4 lg:h-6 lg:w-6 text-white" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 sm:w-64 bg-white/95 backdrop-blur-sm border-white/20 shadow-xl">
+              <DropdownMenuContent align="end" className="w-56 sm:w-64 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-sm border-2 border-blue-500/30 shadow-2xl z-[100]">
                 <DropdownMenuLabel className="text-center py-2 sm:py-3">
                   <div className="flex flex-col items-center gap-1 sm:gap-2">
-                    <div className="w-8 sm:w-10 lg:w-12 h-8 sm:h-10 lg:h-12 bg-gradient-to-br from-orange-500 to-cyan-500 rounded-full flex items-center justify-center">
+                    <div className="w-8 sm:w-10 lg:w-12 h-8 sm:h-10 lg:h-12 bg-gradient-to-br from-orange-500 to-cyan-500 rounded-full flex items-center justify-center ring-2 ring-orange-400/30">
                       <ChefHat className="h-4 sm:h-5 lg:h-6 w-4 sm:w-5 lg:w-6 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm sm:text-base truncate">{profile?.full_name || "Usuario"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{restaurant?.name || "Restaurante"}</p>
+                      <p className="font-semibold text-sm sm:text-base truncate text-white">{profile?.full_name || "Usuario"}</p>
+                      <p className="text-xs text-gray-300 truncate">{restaurant?.name || "Restaurante"}</p>
                     </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-white/10" />
                 
-                <DropdownMenuItem onClick={() => setProfileControlOpen(true)} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setProfileControlOpen(true)} className="cursor-pointer hover:bg-white/10 focus:bg-white/10">
                   <div className="flex items-center gap-2 sm:gap-3 w-full">
-                    <div className="w-6 sm:w-8 h-6 sm:h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Users className="h-3 sm:h-4 w-3 sm:w-4 text-blue-600" />
+                    <div className="w-6 sm:w-8 h-6 sm:h-8 bg-gradient-to-br from-blue-500/30 to-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0 border border-blue-400/30">
+                      <Users className="h-3 sm:h-4 w-3 sm:w-4 text-blue-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm sm:text-base">Centro de Control</p>
-                      <p className="text-xs text-muted-foreground truncate">Perfil, objetivos y configuración</p>
+                      <p className="font-medium text-sm sm:text-base text-white">Centro de Control</p>
+                      <p className="text-xs text-gray-400 truncate">Perfil, objetivos y configuración</p>
                     </div>
                   </div>
                 </DropdownMenuItem>
                 
-                <DropdownMenuItem onClick={() => setAccountOpen(true)} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setAccountOpen(true)} className="cursor-pointer hover:bg-white/10 focus:bg-white/10">
                   <div className="flex items-center gap-3 w-full">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-                      <Shield className="h-4 w-4 text-green-600" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-500/30 to-green-600/30 rounded-lg flex items-center justify-center border border-green-400/30">
+                      <Shield className="h-4 w-4 text-green-400" />
                     </div>
                     <div>
-                      <p className="font-medium">Ver Perfil</p>
-                      <p className="text-xs text-muted-foreground">Información básica</p>
+                      <p className="font-medium text-white">Ver Perfil</p>
+                      <p className="text-xs text-gray-400">Información básica</p>
                     </div>
                   </div>
                 </DropdownMenuItem>
                 
-                <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
+                <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer hover:bg-white/10 focus:bg-white/10">
                   <div className="flex items-center gap-3 w-full">
-                    <div className="w-8 h-8 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-lg flex items-center justify-center">
-                      <ArrowLeft className="h-4 w-4 text-yellow-600" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-yellow-500/30 to-yellow-600/30 rounded-lg flex items-center justify-center border border-yellow-400/30">
+                      <ArrowLeft className="h-4 w-4 text-yellow-400" />
                     </div>
                     <div>
-                      <p className="font-medium">Cambiar Usuario</p>
-                      <p className="text-xs text-muted-foreground">Iniciar con otra cuenta</p>
+                      <p className="font-medium text-white">Cambiar Usuario</p>
+                      <p className="text-xs text-gray-400">Iniciar con otra cuenta</p>
                     </div>
                   </div>
                 </DropdownMenuItem>
                 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-white/10" />
                 
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-400 cursor-pointer hover:bg-red-500/10 focus:bg-red-500/10">
                   <div className="flex items-center gap-3 w-full">
-                    <div className="w-8 h-8 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center">
-                      <X className="h-4 w-4 text-red-600" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-red-500/30 to-red-600/30 rounded-lg flex items-center justify-center border border-red-400/30">
+                      <X className="h-4 w-4 text-red-400" />
                     </div>
                     <div>
-                      <p className="font-medium">Cerrar Sesión</p>
-                      <p className="text-xs text-muted-foreground">Salir de la aplicación</p>
+                      <p className="font-medium text-red-400">Cerrar Sesión</p>
+                      <p className="text-xs text-gray-400">Salir de la aplicación</p>
                     </div>
                   </div>
                 </DropdownMenuItem>
@@ -303,16 +303,16 @@ const Layout: React.FC<LayoutProps> = ({
       </header>
 
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
-        <DialogContent>
+        <DialogContent className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-blue-500/30">
           <DialogHeader>
-            <DialogTitle>Mi cuenta</DialogTitle>
-            <DialogDescription>Información del usuario actual</DialogDescription>
+            <DialogTitle className="text-white">Mi cuenta</DialogTitle>
+            <DialogDescription className="text-gray-300">Información del usuario actual</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
-            <div><span className="font-medium">Correo: </span>{user?.email ?? '—'}</div>
-            <div><span className="font-medium">Nombre: </span>{profile?.full_name ?? '—'}</div>
-            <div><span className="font-medium">Rol: </span>{profile?.role === 'owner' ? 'Propietario' : profile?.role === 'admin' ? 'Administrador' : profile?.role === 'employee' ? 'Empleado' : '—'}</div>
-            <div><span className="font-medium">Establecimiento: </span>{restaurant?.name ?? '—'}</div>
+            <div className="text-gray-300"><span className="font-medium text-white">Correo: </span>{user?.email ?? '—'}</div>
+            <div className="text-gray-300"><span className="font-medium text-white">Nombre: </span>{profile?.full_name ?? '—'}</div>
+            <div className="text-gray-300"><span className="font-medium text-white">Rol: </span>{profile?.role === 'owner' ? 'Propietario' : profile?.role === 'admin' ? 'Administrador' : profile?.role === 'employee' ? 'Empleado' : '—'}</div>
+            <div className="text-gray-300"><span className="font-medium text-white">Establecimiento: </span>{restaurant?.name ?? '—'}</div>
           </div>
         </DialogContent>
       </Dialog>
