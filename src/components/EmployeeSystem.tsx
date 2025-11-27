@@ -10,7 +10,6 @@ import TimeTracking from "./employee/TimeTracking";
 import PayrollCalculation from "./employee/PayrollCalculation";
 import DailyPayroll from "./employee/DailyPayroll";
 import POSBilling from "./POSBilling";
-
 interface Employee {
   id: string;
   email: string;
@@ -21,57 +20,90 @@ interface Employee {
   permissions: any;
   created_at: string;
 }
-
 const EmployeeSystem = () => {
-  const { profile, restaurant } = useAuth();
-  const { dispatch } = useApp();
+  const {
+    profile,
+    restaurant
+  } = useAuth();
+  const {
+    dispatch
+  } = useApp();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState("list");
   const [showPOS, setShowPOS] = useState(false);
-
   if (!profile) {
-    return (
-      <Card>
+    return <Card>
         <CardContent className="p-6">
           <p className="text-center text-muted-foreground">
             Cargando datos del usuario...
           </p>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
 
   // Vista para empleados - mostrar herramientas según permisos + control de tiempo
   if (profile.role === 'employee') {
     const perms = profile.permissions || {};
-    
     if (showPOS) {
-      return (
-        <div className="space-y-6">
+      return <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPOS(false)}
-              className="mb-4"
-            >
+            <Button variant="outline" onClick={() => setShowPOS(false)} className="mb-4">
               ← Volver a herramientas
             </Button>
           </div>
           <POSBilling />
-        </div>
-      );
+        </div>;
     }
-    
-    const tools = [
-      perms.process_payments && { id: 'pos-billing', title: 'Facturación', desc: 'Sistema unificado de ventas', icon: ShoppingCart, action: () => setShowPOS(true) },
-      (perms.manage_cash || perms.process_payments) && { id: 'cash', title: 'Caja', desc: 'Movimientos y pagos', icon: Wallet, action: () => dispatch({ type: 'SET_ACTIVE_MODULE', payload: 'cash' }) },
-      perms.manage_inventory && { id: 'inventory', title: 'Inventario', desc: 'Gestionar stock', icon: Package, action: () => dispatch({ type: 'SET_ACTIVE_MODULE', payload: 'inventory' }) },
-      perms.view_reports && { id: 'reports', title: 'Reportes', desc: 'Ver métricas', icon: BarChart3, action: () => dispatch({ type: 'SET_ACTIVE_MODULE', payload: 'reports' }) },
-      (perms.access_kitchen || perms.manage_kitchen_orders) && { id: 'kitchen', title: 'Cocina', desc: 'Panel de comandas digitales', icon: ChefHat, action: () => dispatch({ type: 'SET_ACTIVE_MODULE', payload: 'kitchen' }) },
-    ].filter(Boolean) as Array<{ id: string; title: string; desc: string; icon: any; action: () => void }>;
-
-    return (
-      <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    const tools = [perms.process_payments && {
+      id: 'pos-billing',
+      title: 'Facturación',
+      desc: 'Sistema unificado de ventas',
+      icon: ShoppingCart,
+      action: () => setShowPOS(true)
+    }, (perms.manage_cash || perms.process_payments) && {
+      id: 'cash',
+      title: 'Caja',
+      desc: 'Movimientos y pagos',
+      icon: Wallet,
+      action: () => dispatch({
+        type: 'SET_ACTIVE_MODULE',
+        payload: 'cash'
+      })
+    }, perms.manage_inventory && {
+      id: 'inventory',
+      title: 'Inventario',
+      desc: 'Gestionar stock',
+      icon: Package,
+      action: () => dispatch({
+        type: 'SET_ACTIVE_MODULE',
+        payload: 'inventory'
+      })
+    }, perms.view_reports && {
+      id: 'reports',
+      title: 'Reportes',
+      desc: 'Ver métricas',
+      icon: BarChart3,
+      action: () => dispatch({
+        type: 'SET_ACTIVE_MODULE',
+        payload: 'reports'
+      })
+    }, (perms.access_kitchen || perms.manage_kitchen_orders) && {
+      id: 'kitchen',
+      title: 'Cocina',
+      desc: 'Panel de comandas digitales',
+      icon: ChefHat,
+      action: () => dispatch({
+        type: 'SET_ACTIVE_MODULE',
+        payload: 'kitchen'
+      })
+    }].filter(Boolean) as Array<{
+      id: string;
+      title: string;
+      desc: string;
+      icon: any;
+      action: () => void;
+    }>;
+    return <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
             <Users className="h-6 w-6 text-white" />
@@ -82,18 +114,10 @@ const EmployeeSystem = () => {
           </p>
         </div>
 
-        {tools.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {tools.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {tools.map((t, index) => {
-              const gradients = [
-                'from-orange-400 to-pink-500',
-                'from-cyan-400 to-blue-500', 
-                'from-green-400 to-emerald-500',
-                'from-purple-400 to-indigo-500',
-                'from-yellow-400 to-orange-500'
-              ];
-              return (
-                <Card key={t.id} className="group hover:shadow-2xl hover:scale-105 transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm overflow-hidden">
+          const gradients = ['from-orange-400 to-pink-500', 'from-cyan-400 to-blue-500', 'from-green-400 to-emerald-500', 'from-purple-400 to-indigo-500', 'from-yellow-400 to-orange-500'];
+          return <Card key={t.id} className="group hover:shadow-2xl hover:scale-105 transition-all duration-300 border-0 bg-white/80 backdrop-blur-sm overflow-hidden">
                   <div className={`h-2 bg-gradient-to-r ${gradients[index % gradients.length]}`} />
                   <CardHeader className="text-center space-y-3 pb-2">
                     <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-to-r ${gradients[index % gradients.length]} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
@@ -105,19 +129,13 @@ const EmployeeSystem = () => {
                   </CardHeader>
                   <CardContent className="text-center space-y-4">
                     <p className="text-slate-600 text-sm leading-relaxed">{t.desc}</p>
-                    <Button 
-                      size="lg" 
-                      className={`w-full bg-gradient-to-r ${gradients[index % gradients.length]} hover:shadow-lg hover:scale-105 transition-all duration-300 border-0 text-white font-semibold`}
-                      onClick={t.action}
-                    >
+                    <Button size="lg" className={`w-full bg-gradient-to-r ${gradients[index % gradients.length]} hover:shadow-lg hover:scale-105 transition-all duration-300 border-0 text-white font-semibold`} onClick={t.action}>
                       Abrir Herramienta
                     </Button>
                   </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                </Card>;
+        })}
+          </div>}
 
         <Card className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 text-white border-0 shadow-2xl overflow-hidden">
           {/* Gradiente de fondo sutil */}
@@ -137,14 +155,12 @@ const EmployeeSystem = () => {
             <TimeTracking viewMode="employee" />
           </CardContent>
         </Card>
-      </div>
-    );
+      </div>;
   }
 
   // Vista completa para propietarios y administradores
-  return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
-      <div className="text-center space-y-4">
+  return <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+      <div className="text-center space-y-4 bg-popover">
         <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
           <Users className="h-8 w-8 text-white" />
           <h2 className="text-3xl font-bold text-white">Sistema de Empleados</h2>
@@ -154,7 +170,7 @@ const EmployeeSystem = () => {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 bg-popover">
         <TabsList className="grid w-full grid-cols-5 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-xl p-2">
           <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-pink-500 data-[state=active]:text-white rounded-lg font-semibold transition-all duration-300">
             <Users className="h-4 w-4" />
@@ -181,7 +197,7 @@ const EmployeeSystem = () => {
         <TabsContent value="list" className="space-y-4">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-orange-500 to-pink-500" />
-            <CardHeader className="bg-gradient-to-r from-orange-50 to-pink-50">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-pink-50 bg-destructive">
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
                 Gestión de Empleados
               </CardTitle>
@@ -189,7 +205,7 @@ const EmployeeSystem = () => {
                 Administra el equipo, permisos y roles de los empleados
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-6 bg-muted">
               <EmployeeList onEmployeeSelect={setSelectedEmployee} />
             </CardContent>
           </Card>
@@ -224,10 +240,7 @@ const EmployeeSystem = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <TimeTracking 
-                viewMode="manager" 
-                selectedEmployeeId={selectedEmployee?.id}
-              />
+              <TimeTracking viewMode="manager" selectedEmployeeId={selectedEmployee?.id} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -255,8 +268,6 @@ const EmployeeSystem = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 };
-
 export default EmployeeSystem;

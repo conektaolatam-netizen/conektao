@@ -26,11 +26,20 @@ import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
 import InventoryManagement from '@/components/inventory/InventoryManagement';
 import Welcome from './Welcome';
-
 const Index = () => {
-  const { user, profile, restaurant, loading } = useAuth();
-  const { state, dispatch } = useApp();
-  const { notifications } = useNotifications();
+  const {
+    user,
+    profile,
+    restaurant,
+    loading
+  } = useAuth();
+  const {
+    state,
+    dispatch
+  } = useApp();
+  const {
+    notifications
+  } = useNotifications();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -41,7 +50,10 @@ const Index = () => {
       if (savedUserData) {
         try {
           const parsedData = JSON.parse(savedUserData);
-          dispatch({ type: 'SET_USER_DATA', payload: parsedData });
+          dispatch({
+            type: 'SET_USER_DATA',
+            payload: parsedData
+          });
         } catch (error) {
           console.log('Error parsing legacy data');
         }
@@ -55,58 +67,58 @@ const Index = () => {
   }
 
   // Show loading while checking authentication or profile
-  if (loading || (user && profile === undefined)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
+  if (loading || user && profile === undefined) {
+    return <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
 
   // Si el usuario no tiene establecimiento asignado, mostrar setup wizard
   if (user && profile && !profile.restaurant_id) {
-    return (
-      <RestaurantSetupWizard 
-        onComplete={() => window.location.reload()} 
-      />
-    );
+    return <RestaurantSetupWizard onComplete={() => window.location.reload()} />;
   }
-
   const handleOnboardingComplete = (data: any) => {
     localStorage.setItem('restaurantUserData', JSON.stringify(data));
-    dispatch({ type: 'SET_USER_DATA', payload: data });
+    dispatch({
+      type: 'SET_USER_DATA',
+      payload: data
+    });
     setShowTutorial(true);
     initializeSampleData(data);
   };
-
   const initializeSampleData = (userData: any) => {
     const sampleProducts = generateSampleProducts(userData);
     sampleProducts.forEach(product => {
-      dispatch({ type: 'ADD_PRODUCT', payload: product });
+      dispatch({
+        type: 'ADD_PRODUCT',
+        payload: product
+      });
     });
-
     const sampleEmployees = generateSampleEmployees(userData);
     sampleEmployees.forEach(employee => {
-      dispatch({ type: 'ADD_EMPLOYEE', payload: employee });
+      dispatch({
+        type: 'ADD_EMPLOYEE',
+        payload: employee
+      });
     });
   };
-
   const resetOnboarding = () => {
     localStorage.removeItem('restaurantUserData');
     localStorage.removeItem('tutorialCompleted');
     localStorage.removeItem('conektaoAppData');
     location.reload();
   };
-  
   const showTutorialManually = () => {
     setShowTutorial(true);
   };
-
   const handleModuleChange = (module: string) => {
-    dispatch({ type: 'SET_ACTIVE_MODULE', payload: module });
+    dispatch({
+      type: 'SET_ACTIVE_MODULE',
+      payload: module
+    });
   };
 
   // Check if user has permission to access a module
@@ -115,14 +127,13 @@ const Index = () => {
     if (profile?.role === 'owner' || profile?.role === 'admin') {
       return true;
     }
-    
+
     // For employees, check specific permissions
     return profile?.permissions?.[permission as keyof typeof profile.permissions] || false;
   };
 
   // Render unauthorized access message
-  const renderUnauthorized = (moduleName: string) => (
-    <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+  const renderUnauthorized = (moduleName: string) => <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
       <div className="text-center">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,16 +147,11 @@ const Index = () => {
         <p className="text-sm text-gray-500 mb-6">
           Contacta al administrador o propietario para solicitar acceso.
         </p>
-        <button
-          onClick={() => handleModuleChange('dashboard')}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
+        <button onClick={() => handleModuleChange('dashboard')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
           Volver al Dashboard
         </button>
       </div>
-    </div>
-  );
-
+    </div>;
   const renderModule = () => {
     switch (state.activeModule) {
       case 'dashboard':
@@ -161,7 +167,7 @@ const Index = () => {
         if (!hasPermission('view_employees')) {
           return renderUnauthorized('Personal');
         }
-        return <EmployeeSystem />;
+        return <EmployeeSystem className="border-primary-foreground bg-popover text-muted" />;
       case 'marketplace':
         return <Marketplace />;
       case 'inventory':
@@ -212,37 +218,17 @@ const Index = () => {
 
   // Si está en modo presentación de ingresos
   if (showIncomePresentation) {
-    return (
-      <IncomePresentation 
-        userData={state.userData} 
-        onClose={() => setShowIncomePresentation(false)} 
-      />
-    );
+    return <IncomePresentation userData={state.userData} onClose={() => setShowIncomePresentation(false)} />;
   }
-
-  return (
-    <>
-      <Layout 
-        currentModule={state.activeModule} 
-        onModuleChange={handleModuleChange}
-        onResetOnboarding={resetOnboarding}
-        onShowIncomePresentation={() => setShowIncomePresentation(true)}
-        onShowTutorial={showTutorialManually}
-      >
+  return <>
+      <Layout currentModule={state.activeModule} onModuleChange={handleModuleChange} onResetOnboarding={resetOnboarding} onShowIncomePresentation={() => setShowIncomePresentation(true)} onShowTutorial={showTutorialManually}>
         {renderModule()}
       </Layout>
       
-      {showTutorial && (
-        <TutorialGuide 
-          onClose={() => setShowTutorial(false)}
-          onGoToModule={(module) => {
-            handleModuleChange(module);
-            setShowTutorial(false);
-          }}
-        />
-      )}
-    </>
-  );
+      {showTutorial && <TutorialGuide onClose={() => setShowTutorial(false)} onGoToModule={module => {
+      handleModuleChange(module);
+      setShowTutorial(false);
+    }} />}
+    </>;
 };
-
 export default Index;
