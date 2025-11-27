@@ -408,10 +408,10 @@ Necesito un plan práctico y ejecutable.`;
           </div>
         )}
 
-        {/* AI Recommendation - Full visible content */}
+        {/* AI Recommendation - Full visible content, no truncation */}
         <div className="bg-background/80 backdrop-blur rounded-lg p-6 border-2 border-primary/20">
-          <div className="space-y-3">
-            <div className="whitespace-pre-wrap text-base leading-relaxed">
+          <div className="space-y-4">
+            <div className="whitespace-pre-wrap text-base leading-loose font-normal tracking-wide">
               {recommendation.recommendation}
             </div>
           </div>
