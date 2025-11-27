@@ -1265,71 +1265,71 @@ Por favor:
 
   // Vista de pago
   if (currentView === 'payment') {
-    return <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 p-4">
+    return <div className="min-h-screen bg-gradient-to-br from-gray-950 via-blue-950 to-gray-900 p-4">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setCurrentView('menu')} className="rounded-full">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('menu')} className="rounded-full border-white/20 text-white hover:bg-white/10">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Finalizar Pago</h1>
-              <p className="text-muted-foreground">Orden {selectedTable}</p>
+              <h1 className="text-2xl font-bold text-white">Finalizar Pago</h1>
+              <p className="text-white/60">Orden {selectedTable}</p>
             </div>
           </div>
 
           <div className="grid gap-6">
             {/* Resumen de orden */}
-            <Card>
+            <Card className="bg-gray-800/50 border-white/10">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-white">
                   <Receipt className="h-5 w-5" />
                   Resumen de la orden
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 mb-4">
-                  {selectedProducts.map(product => <div key={product.id} className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
+                  {selectedProducts.map(product => <div key={product.id} className="flex justify-between items-center p-3 bg-gray-700/30 rounded-lg">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{product.image}</span>
                         <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-white">{product.name}</p>
+                          <p className="text-sm text-white/60">
                             {product.quantity} × {formatCurrency(product.price)}
                           </p>
                         </div>
                       </div>
-                      <span className="font-bold">
+                      <span className="font-bold text-white">
                         {formatCurrency(product.price * product.quantity)}
                       </span>
                     </div>)}
                 </div>
                 
-                <Separator className="my-4" />
+                <Separator className="my-4 bg-white/10" />
                 
-                <div className="space-y-2">
+                <div className="space-y-2 text-white">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>{formatCurrency(calculateSubtotal())}</span>
                   </div>
-                  <Separator />
+                  <Separator className="bg-white/10" />
                   {tipEnabled && <div className="flex justify-between">
                       <span>Propina ({tipPercentage}%)</span>
                       <span>{formatCurrency(calculateTipAmount())}</span>
                     </div>}
-                  <Separator />
+                  <Separator className="bg-white/10" />
                   <div className="flex justify-between text-xl font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{formatCurrency(calculateTotal())}</span>
+                    <span className="text-white">Total</span>
+                    <span className="text-orange-400">{formatCurrency(calculateTotal())}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Configuración de propina */}
-            {tipEnabled && <Card>
+            {tipEnabled && <Card className="bg-gray-800/50 border-white/10">
                 <CardHeader>
-                  <CardTitle>Propina</CardTitle>
+                  <CardTitle className="text-white">Propina</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -1340,24 +1340,24 @@ Por favor:
                       setCustomTipAmount('');
                     }
                   }} className="rounded border-gray-300" />
-                      <Label htmlFor="noTip">No dio propina</Label>
+                      <Label htmlFor="noTip" className="text-white">No dio propina</Label>
                     </div>
                     
                     {!noTip && <>
                         <div className="space-y-2">
-                          <Label>Propina sugerida ({tipPercentage}%): {formatCurrency(calculateSubtotal() * tipPercentage / 100)}</Label>
+                          <Label className="text-white">Propina sugerida ({tipPercentage}%): {formatCurrency(calculateSubtotal() * tipPercentage / 100)}</Label>
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="customTip">Propina personalizada (opcional)</Label>
-                          <Input id="customTip" type="number" placeholder="Ingrese monto personalizado" value={customTipAmount} onChange={e => setCustomTipAmount(e.target.value)} min="0" />
-                          <p className="text-xs text-muted-foreground">
+                          <Label htmlFor="customTip" className="text-white">Propina personalizada (opcional)</Label>
+                          <Input id="customTip" type="number" placeholder="Ingrese monto personalizado" value={customTipAmount} onChange={e => setCustomTipAmount(e.target.value)} min="0" className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40" />
+                          <p className="text-xs text-white/60">
                             Si ingresa un monto, se usará en lugar del porcentaje sugerido
                           </p>
                         </div>
                         
-                        <div className="bg-muted p-3 rounded-lg">
-                          <p className="text-sm font-medium">
+                        <div className="bg-gray-700/30 p-3 rounded-lg">
+                          <p className="text-sm font-medium text-white">
                             Propina total: {formatCurrency(calculateTipAmount())}
                           </p>
                         </div>
@@ -1367,15 +1367,15 @@ Por favor:
               </Card>}
 
             {/* Métodos de pago */}
-            <Card>
+            <Card className="bg-gray-800/50 border-white/10">
               <CardHeader>
-                <CardTitle>Método de pago</CardTitle>
+                <CardTitle className="text-white">Método de pago</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   {paymentMethods.map(method => {
                   const IconComponent = method.icon;
-                  return <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"} className={`h-16 flex-col gap-2 ${paymentMethod === method.id ? `bg-gradient-to-r ${method.color} text-white border-none` : ""}`} onClick={() => handlePaymentMethodSelect(method.id)}>
+                  return <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"} className={`h-16 flex-col gap-2 ${paymentMethod === method.id ? `bg-gradient-to-r ${method.color} text-white border-none` : "border-white/20 text-white hover:bg-white/10"}`} onClick={() => handlePaymentMethodSelect(method.id)}>
                         <IconComponent className="h-5 w-5" />
                         <span className="text-sm">{method.name}</span>
                       </Button>;
@@ -1383,29 +1383,29 @@ Por favor:
                 </div>
 
                 {/* Campos adicionales según método de pago */}
-                {paymentMethod === 'tarjeta' && <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-                    <h4 className="font-semibold text-blue-800 flex items-center gap-2">
+                {paymentMethod === 'tarjeta' && <div className="bg-blue-900/30 p-4 rounded-lg space-y-3 border border-blue-500/30">
+                    <h4 className="font-semibold text-blue-300 flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
                       Información de Tarjeta
                     </h4>
                     <div>
-                      <Label htmlFor="voucher">Código de Voucher</Label>
-                      <Input id="voucher" placeholder="Ingrese el código del voucher" value={voucherCode} onChange={e => setVoucherCode(e.target.value)} className="border-blue-200 focus:border-blue-400" />
-                      <p className="text-xs text-blue-600 mt-1">*Opcional - Para verificación del pago</p>
+                      <Label htmlFor="voucher" className="text-white">Código de Voucher</Label>
+                      <Input id="voucher" placeholder="Ingrese el código del voucher" value={voucherCode} onChange={e => setVoucherCode(e.target.value)} className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40" />
+                      <p className="text-xs text-blue-300 mt-1">*Opcional - Para verificación del pago</p>
                     </div>
                   </div>}
 
-                {(paymentMethod === 'transferencia' || paymentMethod === 'daviplata' || paymentMethod === 'nequi') && <div className="bg-purple-50 p-4 rounded-lg space-y-4" data-scroll-target="proof">
-                    <h4 className="font-semibold text-purple-800 flex items-center gap-2">
+                {(paymentMethod === 'transferencia' || paymentMethod === 'daviplata' || paymentMethod === 'nequi') && <div className="bg-purple-900/30 p-4 rounded-lg space-y-4 border border-purple-500/30" data-scroll-target="proof">
+                    <h4 className="font-semibold text-purple-300 flex items-center gap-2">
                       <Smartphone className="h-4 w-4" />
                       Comprobante de Pago
                     </h4>
                     
                     <div className="space-y-3">
-                      <Label>Subir comprobante (Opcional)</Label>
+                      <Label className="text-white">Subir comprobante (Opcional)</Label>
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <Input type="file" accept="image/*" onChange={handleFileUpload} className="border-purple-200 focus:border-purple-400" />
+                          <Input type="file" accept="image/*" onChange={handleFileUpload} className="bg-gray-700/50 border-white/20 text-white" />
                         </div>
                         <Button type="button" variant="outline" onClick={() => {
                       // Simular tomar foto con cámara
@@ -1413,19 +1413,19 @@ Por favor:
                         title: "Función de cámara",
                         description: "En la app móvil podrás tomar foto directamente"
                       });
-                    }} className="border-purple-200 hover:border-purple-400">
+                    }} className="border-white/20 hover:bg-white/10 text-white">
                           <Camera className="h-4 w-4" />
                         </Button>
                       </div>
                       
                       {paymentProofPreview && <div className="mt-3">
-                          <Label>Vista previa del comprobante:</Label>
-                          <div className="mt-2 p-2 border border-purple-200 rounded-lg">
+                          <Label className="text-white">Vista previa del comprobante:</Label>
+                          <div className="mt-2 p-2 border border-white/20 rounded-lg">
                             <img src={paymentProofPreview} alt="Comprobante de pago" className="max-w-full h-32 object-contain mx-auto rounded" />
                           </div>
                         </div>}
                       
-                      <p className="text-xs text-purple-600">
+                      <p className="text-xs text-purple-300">
                         *Opcional - Puedes agregar el comprobante ahora o después
                       </p>
                     </div>
