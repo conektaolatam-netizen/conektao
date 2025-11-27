@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";
 import RestaurantSetup from "@/components/RestaurantSetup";
@@ -101,6 +102,16 @@ const Auth = () => {
       
       {/* Content with proper z-index */}
       <div className="relative z-10 w-full max-w-md">
+        {/* Back button - small and subtle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/welcome')}
+          className="absolute -top-12 left-0 text-white/60 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-full p-2 h-8 w-8 transition-all duration-300"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        
         {mode === 'login' ? (
           <LoginForm onSwitchToRegister={() => setMode('register')} />
         ) : mode === 'register' ? (
