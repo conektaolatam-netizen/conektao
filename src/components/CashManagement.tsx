@@ -1171,10 +1171,11 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
             <Button 
               variant="outline" 
               onClick={onBack}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="group relative overflow-hidden rounded-full border-2 border-orange-500/50 bg-gradient-to-r from-gray-800/80 to-gray-900/80 text-white hover:border-orange-400 hover:shadow-[0_0_30px_rgba(249,115,22,0.3)] transition-all duration-300 hover:scale-105 active:scale-95 backdrop-blur-sm"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a Facturación
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/10 to-orange-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <ArrowLeft className="h-4 w-4 mr-2 transition-transform duration-300 group-hover:-translate-x-1" />
+              <span className="relative z-10">Volver a Facturación</span>
             </Button>
           )}
           <div className="text-center flex-1">
