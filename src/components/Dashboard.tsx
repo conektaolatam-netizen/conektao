@@ -485,7 +485,7 @@ const Dashboard = ({
       }}>
           {/* Imagen de fondo */}
           <img 
-            src="/lovable-uploads/makro-banner.jpg" 
+            src="/lovable-uploads/makro-promo-vino.png" 
             alt="Makro 60% Off Vino Argentino" 
             className="absolute inset-0 w-full h-full object-cover"
           />
