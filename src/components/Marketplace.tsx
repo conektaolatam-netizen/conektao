@@ -1580,11 +1580,11 @@ const Marketplace = () => {
       </div>
 
         {/* Floating Cart Summary with Payment Gateway */}
-        {cart.length > 0 && <div className="fixed bottom-6 right-6 z-50">
-            <Card className="p-6 bg-white shadow-2xl border-2 border-primary/20 max-w-sm">
+        {cart.length > 0 && <div className="fixed bottom-6 right-6 z-50 animate-slide-in-right">
+            <Card className="p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl border-2 border-orange-500/30 max-w-sm backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Mi Carrito</h3>
-                <Badge className="bg-gradient-primary">
+                <h3 className="font-bold text-lg text-white">Mi Carrito</h3>
+                <Badge className="bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg">
                   {getTotalItems()} productos
                 </Badge>
               </div>
@@ -1593,31 +1593,31 @@ const Marketplace = () => {
                 {cart.slice(0, 3).map((item, index) => <div key={index} className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-2">
                       <span>{item.supplierLogo}</span>
-                      <span className="truncate max-w-32">{item.name}</span>
+                      <span className="truncate max-w-32 text-white">{item.name}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateCartQuantity(index, item.quantity - 1)}>
+                      <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-gray-700/50 border-white/20 text-white hover:bg-gray-600" onClick={() => updateCartQuantity(index, item.quantity - 1)}>
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="font-medium">{item.quantity}</span>
-                      <Button size="sm" variant="outline" className="h-6 w-6 p-0" onClick={() => updateCartQuantity(index, item.quantity + 1)}>
+                      <span className="font-medium text-white">{item.quantity}</span>
+                      <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-gray-700/50 border-white/20 text-white hover:bg-gray-600" onClick={() => updateCartQuantity(index, item.quantity + 1)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>)}
-                {cart.length > 3 && <p className="text-xs text-muted-foreground text-center">
+                {cart.length > 3 && <p className="text-xs text-gray-400 text-center">
                     y {cart.length - 3} productos más...
                   </p>}
               </div>
 
-              <div className="border-t pt-4">
+              <div className="border-t border-white/10 pt-4">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-bold text-lg">Total:</span>
-                  <span className="font-bold text-xl text-green-600">
+                  <span className="font-bold text-lg text-white">Total:</span>
+                  <span className="font-bold text-xl bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent">
                     {formatCurrency(getTotalPrice())}
                   </span>
                 </div>
-                <Button className="w-full bg-gradient-primary text-lg py-3" onClick={() => setCurrentView('payment')}>
+                <Button className="w-full bg-gradient-to-r from-orange-500 via-pink-500 to-orange-600 hover:from-orange-600 hover:via-pink-600 hover:to-orange-700 text-white text-lg py-3 shadow-lg hover:shadow-orange-500/50 transition-all duration-300" onClick={() => setCurrentView('payment')}>
                   <ShoppingCart className="h-5 w-5 mr-2" />
                   Ir a Pagar
                 </Button>
