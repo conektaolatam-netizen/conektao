@@ -112,13 +112,13 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
 
 
   return (
-    <Card className="w-full bg-white/95 backdrop-blur-xl shadow-2xl border border-white/20">
+    <Card className="w-full bg-gradient-to-br from-gray-900 via-blue-950 to-gray-900 backdrop-blur-xl shadow-2xl border-2 border-blue-500/30">
       <CardHeader className="text-center">
-        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-          <Building2 className="h-8 w-8 text-primary" />
+        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mb-4 border-2 border-blue-400/30 ring-4 ring-blue-500/10">
+          <Building2 className="h-8 w-8 text-blue-400" />
         </div>
-        <CardTitle className="text-2xl">Crear cuenta en Conektao</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl text-white">Crear cuenta en Conektao</CardTitle>
+        <CardDescription className="text-gray-300">
           Regístrate para empezar a usar la plataforma
         </CardDescription>
         
@@ -127,7 +127,7 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
             type="button"
             variant={accountType === 'restaurant' ? 'default' : 'outline'}
             onClick={() => setAccountType('restaurant')}
-            className="flex-1"
+            className={`flex-1 ${accountType === 'restaurant' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-800/50 border-white/20 text-white hover:bg-gray-700'}`}
           >
             <Building2 className="h-4 w-4 mr-2" />
             Restaurante
@@ -136,7 +136,7 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
             type="button"
             variant={accountType === 'supplier' ? 'default' : 'outline'}
             onClick={() => setAccountType('supplier')}
-            className="flex-1"
+            className={`flex-1 ${accountType === 'supplier' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-800/50 border-white/20 text-white hover:bg-gray-700'}`}
           >
             <Truck className="h-4 w-4 mr-2" />
             Proveedor
@@ -146,64 +146,69 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="full_name">Nombre completo *</Label>
+            <Label htmlFor="full_name" className="text-white">Nombre completo *</Label>
             <Input
               id="full_name"
               value={formData.full_name}
               onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
               placeholder="Tu nombre completo"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico *</Label>
+            <Label htmlFor="email" className="text-white">Correo electrónico *</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               placeholder="tu@correo.com"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
+            <Label htmlFor="phone" className="text-white">Teléfono</Label>
             <Input
               id="phone"
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               placeholder="300 123 4567"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña *</Label>
+            <Label htmlFor="password" className="text-white">Contraseña *</Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
               placeholder="Mínimo 6 caracteres"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
+            <Label htmlFor="confirmPassword" className="text-white">Confirmar contraseña *</Label>
             <Input
               id="confirmPassword"
               type="password"
               value={formData.confirmPassword}
               onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
               placeholder="Confirma tu contraseña"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 hover:from-blue-600 hover:via-cyan-600 hover:to-blue-700 text-white shadow-lg hover:shadow-blue-500/50 transition-all duration-300" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -219,7 +224,7 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
               type="button"
               variant="link"
               onClick={onSwitchToLogin}
-              className="text-sm"
+              className="text-sm text-blue-300 hover:text-blue-200"
             >
               ¿Ya tienes cuenta? Inicia sesión
             </Button>
