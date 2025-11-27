@@ -1789,7 +1789,7 @@ Por favor:
 
   // Vista de caja
   if (currentView === 'cash') {
-    return <CashManagement />;
+    return <CashManagement onBack={() => setCurrentView('tables')} />;
   }
 
   // Vista principal - selección de órdenes
