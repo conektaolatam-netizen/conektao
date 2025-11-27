@@ -135,9 +135,24 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         setConversationId(data.conversation_id);
         setExtractedData(data.data);
         
+        // Build message highlighting low confidence items
+        let enhancedMessage = data.confirmation_message;
+        if (data.data?.auto_suggestions?.inventory_updates) {
+          const lowConfItems = data.data.auto_suggestions.inventory_updates.filter(
+            (item: any) => item.confidence_score < 90
+          );
+          
+          if (lowConfItems.length > 0) {
+            enhancedMessage += '\n\n⚠️ ATENCIÓN: Los siguientes items tienen baja confianza, verifica antes de confirmar:\n';
+            lowConfItems.forEach((item: any) => {
+              enhancedMessage += `• ${item.suggestion} (confianza: ${item.confidence_score}%)\n`;
+            });
+          }
+        }
+        
         const confirmationMessage: Message = {
           type: 'ai',
-          message: data.confirmation_message,
+          message: enhancedMessage,
           timestamp: new Date()
         };
         
@@ -145,8 +160,9 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         scrollToBottom();
         
         toast({
-          title: "Confirmación requerida",
-          description: "Revisa las actualizaciones de inventario propuestas",
+          title: "⚠️ Confirmación OBLIGATORIA requerida",
+          description: "Revisa CUIDADOSAMENTE los datos extraídos antes de confirmar",
+          duration: 8000,
         });
 
         setPendingConfirmation(true);
@@ -184,13 +200,31 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         setConversationId(crypto.randomUUID());
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing receipt:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo procesar la factura. Inténtalo de nuevo.",
-        variant: "destructive"
-      });
+      
+      // Handle specific error types
+      if (error.message?.includes('RATE_LIMIT') || error.status === 429) {
+        toast({
+          title: "Sistema ocupado",
+          description: "Hay muchas facturas procesándose. Por favor intenta en unos segundos.",
+          variant: "destructive",
+          duration: 6000
+        });
+      } else if (error.message?.includes('PAYMENT_REQUIRED') || error.status === 402) {
+        toast({
+          title: "Servicio temporalmente no disponible",
+          description: "El servicio de procesamiento de facturas no está disponible. Contacta soporte.",
+          variant: "destructive",
+          duration: 8000
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo procesar la factura. Inténtalo de nuevo.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -433,27 +467,36 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
               />
               
               {pendingConfirmation && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-yellow-900">
+                      ⚠️ CONFIRMACIÓN OBLIGATORIA
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Revisa cuidadosamente los datos extraídos arriba. Los items marcados con ⚠️ tienen baja confianza y deben verificarse.
+                    </p>
+                  </div>
+                  
                   {pendingPaymentConfirmation && (
                     <div className="flex flex-wrap gap-2">
                       <Button onClick={() => handleConfirmInventory(true)} disabled={isTyping} className="bg-green-600 hover:bg-green-700">
-                        💰 Sí, pagué en EFECTIVO
+                        ✅ Confirmar y pagué en EFECTIVO
                       </Button>
                       <Button onClick={() => handleConfirmInventory(false)} disabled={isTyping} variant="outline">
-                        💳 No, pagué con otro método
+                        ✅ Confirmar - otro método de pago
                       </Button>
                     </div>
                   )}
                   {!pendingPaymentConfirmation && (
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => handleConfirmInventory(false)} disabled={isTyping}>
-                        ✅ Confirmar actualización de inventario
+                      <Button onClick={() => handleConfirmInventory(false)} disabled={isTyping} className="bg-green-600 hover:bg-green-700">
+                        ✅ He verificado - Confirmar actualización
                       </Button>
                       <Button variant="outline" onClick={() => {
                         setPendingConfirmation(false);
                         setPendingPaymentConfirmation(false);
                       }} disabled={isTyping}>
-                        Cancelar
+                        ❌ Cancelar
                       </Button>
                     </div>
                   )}

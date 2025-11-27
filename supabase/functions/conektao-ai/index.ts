@@ -7,6 +7,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function for retry with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Don't retry on 402 (payment required) or non-rate-limit errors
+      if (error.status === 402 || (error.status !== 429 && error.status)) {
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff: 1s, 2s, 4s)
+      if (i < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, i);
+        console.log(`Rate limited, retrying in ${delay}ms (attempt ${i + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,10 +54,10 @@ serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!lovableApiKey) {
+      throw new Error('Lovable AI key not configured');
     }
 
     // Initialize Supabase client using ANON key and end-user JWT so RLS applies correctly
@@ -172,9 +203,6 @@ serve(async (req) => {
     
     const underperformingProducts = productStats.slice(0, Math.ceil(productStats.length * 0.3));
 
-    // Remove external data fetching to improve security and reduce tokens
-    // No suppliers or recipes data to prevent cross-contamination
-
     // Calculate KPIs for comprehensive analysis
     const totalSales = sales?.reduce((sum, sale) => sum + sale.total_revenue, 0) || 0;
     const avgTicket = sales?.length > 0 ? totalSales / sales.length : 0;
@@ -259,39 +287,54 @@ IMPORTANT: If you calculate a cost, you MUST end your response with:
 This JSON will be used to automatically update the product in the database.`;
     }
 
-    // Send request to OpenAI
-    console.log('Sending request to OpenAI...');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: enhancedSystemPrompt },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.3,
-        max_tokens: 350
-      }),
+    // Send request to Lovable AI Gateway with retry logic
+    console.log('Sending request to Lovable AI Gateway...');
+    const aiResponse = await retryWithBackoff(async () => {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: enhancedSystemPrompt },
+            { role: 'user', content: message }
+          ],
+          max_completion_tokens: 350
+        }),
+      });
+
+      if (response.status === 429) {
+        const error: any = new Error('Rate limit exceeded');
+        error.status = 429;
+        throw error;
+      }
+
+      if (response.status === 402) {
+        const error: any = new Error('Payment required - please add credits to your Lovable AI workspace');
+        error.status = 402;
+        throw error;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Lovable AI error:', errorText);
+        throw new Error(`Lovable AI error: ${errorText}`);
+      }
+
+      return response;
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error(`OpenAI API error: ${error}`);
-    }
-
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    const data = await aiResponse.json();
+    const aiResponseText = data.choices[0].message.content;
 
     console.log('AI response generated successfully');
 
     // Check if the response contains a cost calculation
     let productUpdated = false;
-    const costCalculationMatch = aiResponse.match(/\[CALCULATED_COST\](.*?)\[\/CALCULATED_COST\]/s);
+    const costCalculationMatch = aiResponseText.match(/\[CALCULATED_COST\](.*?)\[\/CALCULATED_COST\]/s);
     
     if (costCalculationMatch) {
       try {
@@ -321,7 +364,7 @@ This JSON will be used to automatically update the product in the database.`;
     }
 
     return new Response(JSON.stringify({ 
-      response: aiResponse,
+      response: aiResponseText,
       dataUsed: apiData,
       productUpdated,
       underperforming_product: underperformingProducts.length > 0 ? underperformingProducts[0].product_name : null,
@@ -336,8 +379,30 @@ This JSON will be used to automatically update the product in the database.`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in conektao-ai function:', error);
+    
+    // Handle specific error types
+    if (error.status === 429) {
+      return new Response(JSON.stringify({ 
+        error: 'Sistema ocupado procesando muchas consultas. Por favor intenta en unos segundos.',
+        code: 'RATE_LIMIT'
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    if (error.status === 402) {
+      return new Response(JSON.stringify({ 
+        error: 'Servicio de IA temporalmente no disponible. Por favor contacta soporte.',
+        code: 'PAYMENT_REQUIRED'
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     return new Response(JSON.stringify({ 
       error: error.message,
       timestamp: new Date().toISOString()

@@ -7,9 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+
+// Helper function for retry with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Don't retry on 402 (payment required) or non-rate-limit errors
+      if (error.status === 402 || (error.status !== 429 && error.status)) {
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff: 1s, 2s, 4s)
+      if (i < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, i);
+        console.log(`Rate limited, retrying in ${delay}ms (attempt ${i + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,6 +49,10 @@ serve(async (req) => {
 
   try {
     const supabaseClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+    
+    if (!LOVABLE_API_KEY) {
+      throw new Error('Lovable AI key not configured');
+    }
     
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
@@ -35,148 +70,125 @@ serve(async (req) => {
     }
 
     // Get user profile and restaurant
-    const { data: profile, error: profileError } = await supabaseClient
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('restaurant_id')
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile?.restaurant_id) {
-      throw new Error('User profile or restaurant not found');
+    if (!profile?.restaurant_id) {
+      throw new Error('Restaurant not found');
     }
 
     const restaurantId = profile.restaurant_id;
 
-    // Get date ranges for comparison
+    // Get sales data from today, yesterday, and last week
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
     const lastWeek = new Date(today);
     lastWeek.setDate(lastWeek.getDate() - 7);
 
-    // Helper function to get day range
-    const getDayRange = (date: Date) => {
-      const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
-      return { start: start.toISOString(), end: end.toISOString() };
-    };
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const lastWeekStr = lastWeek.toISOString().split('T')[0];
 
-    const todayRange = getDayRange(today);
-    const yesterdayRange = getDayRange(yesterday);
-    const lastWeekRange = getDayRange(lastWeek);
-
-    // Fetch today's sales
+    // Fetch sales data for today
     const { data: todaySales } = await supabaseClient
-      .from('sales')
+      .from('sale_items')
       .select(`
-        total_amount,
-        sale_items (
-          quantity,
-          products (name, category)
-        )
+        quantity,
+        unit_price,
+        subtotal,
+        sales!inner(created_at, payment_method, user_id),
+        products!inner(name, price)
       `)
-      .gte('created_at', todayRange.start)
-      .lte('created_at', todayRange.end)
-      .eq('user_id', user.id);
+      .gte('sales.created_at', todayStr)
+      .lt('sales.created_at', new Date(Date.now() + 86400000).toISOString());
 
-    // Fetch yesterday's sales
+    // Fetch sales data for yesterday
     const { data: yesterdaySales } = await supabaseClient
-      .from('sales')
+      .from('sale_items')
       .select(`
-        total_amount,
-        sale_items (
-          quantity,
-          products (name, category)
-        )
+        quantity,
+        unit_price,
+        subtotal,
+        sales!inner(created_at, user_id),
+        products!inner(name)
       `)
-      .gte('created_at', yesterdayRange.start)
-      .lte('created_at', yesterdayRange.end)
-      .eq('user_id', user.id);
+      .gte('sales.created_at', yesterdayStr)
+      .lt('sales.created_at', todayStr);
 
-    // Fetch last week same day sales
+    // Fetch sales data for last week
     const { data: lastWeekSales } = await supabaseClient
-      .from('sales')
+      .from('sale_items')
       .select(`
-        total_amount,
-        sale_items (
-          quantity,
-          products (name, category)
-        )
+        quantity,
+        products!inner(name)
       `)
-      .gte('created_at', lastWeekRange.start)
-      .lte('created_at', lastWeekRange.end)
-      .eq('user_id', user.id);
+      .gte('sales.created_at', lastWeekStr)
+      .lt('sales.created_at', new Date(lastWeekStr).setDate(new Date(lastWeekStr).getDate() + 1));
 
     // Calculate metrics
-    const todayTotal = todaySales?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-    const yesterdayTotal = yesterdaySales?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-    const lastWeekTotal = lastWeekSales?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-
-    // Calculate product performance comparison
-    const getProductSales = (sales: any[]) => {
-      const productSales: { [key: string]: number } = {};
-      sales?.forEach(sale => {
-        sale.sale_items?.forEach((item: any) => {
-          const productName = item.products?.name || 'Unknown';
-          productSales[productName] = (productSales[productName] || 0) + item.quantity;
-        });
-      });
-      return productSales;
-    };
-
-    const todayProducts = getProductSales(todaySales || []);
-    const yesterdayProducts = getProductSales(yesterdaySales || []);
-    const lastWeekProducts = getProductSales(lastWeekSales || []);
-
-    // Calculate percentage changes
-    const dailyChange = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal) * 100 : 0;
-    const weeklyChange = lastWeekTotal > 0 ? ((todayTotal - lastWeekTotal) / lastWeekTotal) * 100 : 0;
-
-    // Find products with significant changes
-    const productChanges: { name: string; change: number; today: number; yesterday: number }[] = [];
+    const todayTotal = todaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
+    const yesterdayTotal = yesterdaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
     
-    Object.keys({ ...todayProducts, ...yesterdayProducts }).forEach(product => {
-      const today = todayProducts[product] || 0;
-      const yesterday = yesterdayProducts[product] || 0;
-      
-      if (yesterday > 0) {
-        const change = ((today - yesterday) / yesterday) * 100;
-        if (Math.abs(change) > 20) { // Only significant changes
-          productChanges.push({ name: product, change, today, yesterday });
-        }
+    const dailyChange = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal * 100) : 0;
+
+    // Product performance comparison
+    const productComparison = new Map();
+    
+    todaySales?.forEach(item => {
+      const name = item.products.name;
+      if (!productComparison.has(name)) {
+        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
       }
+      productComparison.get(name).today += item.quantity;
     });
 
-    // Sort by most significant changes
-    productChanges.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    yesterdaySales?.forEach(item => {
+      const name = item.products.name;
+      if (!productComparison.has(name)) {
+        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
+      }
+      productComparison.get(name).yesterday += item.quantity;
+    });
 
-    // Create data context
-    const analysisContext = {
-      todayTotal,
-      yesterdayTotal,
-      lastWeekTotal,
-      dailyChange,
-      weeklyChange,
-      topProductChanges: productChanges.slice(0, 5),
-      totalProducts: Object.keys(todayProducts).length,
-      date: today.toISOString().split('T')[0]
-    };
+    lastWeekSales?.forEach(item => {
+      const name = item.products.name;
+      if (!productComparison.has(name)) {
+        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
+      }
+      productComparison.get(name).lastWeek += item.quantity;
+    });
 
-    // Create optimized prompt for recommendations
-    const prompt = `Genera recomendaciones específicas para el restaurante basadas en el análisis de ventas:
+    // Calculate changes and find significant movements
+    const productChanges = Array.from(productComparison.entries()).map(([name, data]) => {
+      const change = data.yesterday > 0 ? ((data.today - data.yesterday) / data.yesterday * 100) : 0;
+      const weeklyChange = data.lastWeek > 0 ? ((data.today - data.lastWeek) / data.lastWeek * 100) : 0;
+      return { name, ...data, change, weeklyChange };
+    }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
 
-📈 COMPARACIÓN DE VENTAS:
+    const significantChanges = productChanges.filter(p => Math.abs(p.change) > 15).slice(0, 5);
+
+    const weeklyChange = lastWeekSales && lastWeekSales.length > 0 
+      ? ((todayTotal - (lastWeekSales.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0))) 
+         / (lastWeekSales.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0)) * 100)
+      : 0;
+
+    // Create prompt for AI
+    const systemPrompt = 'Eres un consultor de restaurantes experto en optimización de ventas. Genera recomendaciones específicas y accionables basadas en datos reales de comparación de ventas.';
+    
+    const prompt = `Análisis de ventas para generar recomendaciones:
+
+📊 VENTAS:
 - Hoy: $${todayTotal.toLocaleString()} COP
 - Ayer: $${yesterdayTotal.toLocaleString()} COP
-- Hace una semana: $${lastWeekTotal.toLocaleString()} COP
 - Cambio diario: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
 - Cambio semanal: ${weeklyChange >= 0 ? '+' : ''}${weeklyChange.toFixed(1)}%
 
-📊 CAMBIOS EN PRODUCTOS (más significativos):
-${productChanges.slice(0, 3).map(p => 
+🔄 PRODUCTOS CON CAMBIOS SIGNIFICATIVOS (>15%):
+${significantChanges.map(p => 
   `${p.name}: ${p.change >= 0 ? '+' : ''}${p.change.toFixed(1)}% (${p.today} vs ${p.yesterday} unidades)`
 ).join('\n')}
 
@@ -189,31 +201,50 @@ INSTRUCCIONES: Genera 1-2 recomendaciones específicas y accionables de máximo 
 Formato: [ACCIÓN] - [CUANDO] - [OBJETIVO]
 Sé directo y práctico.`;
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres un consultor de restaurantes experto en optimización de ventas. Genera recomendaciones específicas y accionables basadas en datos reales de comparación de ventas.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.8
-      }),
+    // Call Lovable AI Gateway with retry
+    const aiResponse = await retryWithBackoff(async () => {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_completion_tokens: 300
+        }),
+      });
+
+      if (response.status === 429) {
+        const error: any = new Error('Rate limit exceeded');
+        error.status = 429;
+        throw error;
+      }
+
+      if (response.status === 402) {
+        const error: any = new Error('Payment required');
+        error.status = 402;
+        throw error;
+      }
+
+      if (!response.ok) {
+        throw new Error(`AI Gateway error: ${response.status}`);
+      }
+
+      return response;
     });
 
-    const openaiData = await response.json();
+    const openaiData = await aiResponse.json();
     const recommendation = openaiData.choices[0].message.content;
 
     // Determine priority based on performance
@@ -229,7 +260,14 @@ Sé directo y práctico.`;
         recommendation_text: recommendation,
         recommendation_type: 'sales_optimization',
         priority,
-        data_context: analysisContext
+        date: todayStr,
+        data_context: {
+          todayTotal,
+          yesterdayTotal,
+          dailyChange,
+          weeklyChange,
+          topChanges: significantChanges
+        }
       })
       .select()
       .single();
@@ -238,28 +276,55 @@ Sé directo y práctico.`;
       console.error('Error saving recommendation:', saveError);
     }
 
-    console.log('Daily recommendation generated successfully');
-
     return new Response(JSON.stringify({
       recommendation,
       priority,
-      data_context: analysisContext,
-      recommendation_id: savedRecommendation?.id,
-      daily_change: dailyChange,
-      weekly_change: weeklyChange,
-      top_product_changes: productChanges.slice(0, 3)
+      salesContext: {
+        todayTotal,
+        yesterdayTotal,
+        dailyChange: dailyChange.toFixed(1),
+        weeklyChange: weeklyChange.toFixed(1)
+      },
+      topChanges: significantChanges,
+      saved: !saveError,
+      timestamp: new Date().toISOString()
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Error generating recommendation:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Failed to generate daily recommendation'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+  } catch (error: any) {
+    console.error('Error in ai-daily-recommendations:', error);
+    
+    // Handle specific error types
+    if (error.status === 429) {
+      return new Response(JSON.stringify({ 
+        error: 'Sistema ocupado generando recomendaciones. Por favor intenta en unos segundos.',
+        code: 'RATE_LIMIT'
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    if (error.status === 402) {
+      return new Response(JSON.stringify({ 
+        error: 'Servicio de recomendaciones IA temporalmente no disponible. Por favor contacta soporte.',
+        code: 'PAYMENT_REQUIRED'
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 });
