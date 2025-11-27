@@ -165,8 +165,7 @@ const EmployeeSystem = () => {
           <Users className="h-8 w-8 text-white" />
           <h2 className="text-3xl font-bold text-white">Sistema de Empleados</h2>
         </div>
-        <p className="text-xl text-white font-semibold max-w-3xl mx-auto drop-shadow-lg">
-          Gestión integral de empleados, tiempo y nómina de <span className="font-bold text-orange-400">{restaurant?.name}</span>
+        <p className="text-xl text-white font-semibold max-w-3xl mx-auto drop-shadow-lg">Gestión de empleados, tiempo y nómina.
         </p>
       </div>
 
