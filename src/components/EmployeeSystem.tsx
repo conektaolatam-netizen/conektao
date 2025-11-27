@@ -197,11 +197,11 @@ const EmployeeSystem = () => {
         <TabsContent value="list" className="space-y-4">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-orange-500 to-pink-500" />
-            <CardHeader className="bg-gradient-to-r from-orange-50 to-pink-50 bg-destructive">
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
+            <CardHeader className="bg-gradient-to-r from-orange-500 to-pink-500">
+              <CardTitle className="text-2xl font-bold text-white">
                 Gestión de Empleados
               </CardTitle>
-              <CardDescription className="text-slate-600 text-lg">
+              <CardDescription className="text-white/90 text-lg">
                 Administra el equipo, permisos y roles de los empleados
               </CardDescription>
             </CardHeader>
