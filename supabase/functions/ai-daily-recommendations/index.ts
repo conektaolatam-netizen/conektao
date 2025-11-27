@@ -11,7 +11,6 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
-// Helper function for retry with exponential backoff
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
@@ -25,12 +24,10 @@ async function retryWithBackoff<T>(
     } catch (error: any) {
       lastError = error;
       
-      // Don't retry on 402 (payment required) or non-rate-limit errors
       if (error.status === 402 || (error.status !== 429 && error.status)) {
         throw error;
       }
       
-      // Wait before retrying (exponential backoff: 1s, 2s, 4s)
       if (i < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, i);
         console.log(`Rate limited, retrying in ${delay}ms (attempt ${i + 1}/${maxRetries})`);
@@ -54,13 +51,11 @@ serve(async (req) => {
       throw new Error('Lovable AI key not configured');
     }
     
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
     }
 
-    // Get user data
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
@@ -69,7 +64,6 @@ serve(async (req) => {
       throw new Error('User not authenticated');
     }
 
-    // Get user profile and restaurant
     const { data: profile } = await supabaseClient
       .from('profiles')
       .select('restaurant_id')
@@ -82,7 +76,7 @@ serve(async (req) => {
 
     const restaurantId = profile.restaurant_id;
 
-    // Get sales data from today, yesterday, and last week
+    // Date ranges
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -93,115 +87,275 @@ serve(async (req) => {
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     const lastWeekStr = lastWeek.toISOString().split('T')[0];
 
-    // Fetch sales data for today
+    // Get all products with their costs and recipes
+    const { data: productsWithCosts } = await supabaseClient
+      .from('products')
+      .select(`
+        id,
+        name,
+        price,
+        cost_price,
+        category_id,
+        categories(name),
+        product_ingredients(
+          quantity_needed,
+          ingredients(
+            name,
+            cost_per_unit,
+            unit,
+            current_stock
+          )
+        )
+      `)
+      .eq('is_active', true);
+
+    // Calculate real costs for each product
+    const productCostMap = new Map();
+    productsWithCosts?.forEach(product => {
+      let calculatedCost = product.cost_price || 0;
+      
+      if (product.product_ingredients?.length > 0) {
+        calculatedCost = product.product_ingredients.reduce((sum, pi) => {
+          const ingredientCost = (pi.ingredients?.cost_per_unit || 0) * pi.quantity_needed;
+          return sum + ingredientCost;
+        }, 0);
+      }
+      
+      const margin = product.price - calculatedCost;
+      const marginPercent = product.price > 0 ? (margin / product.price) * 100 : 0;
+      
+      productCostMap.set(product.id, {
+        name: product.name,
+        price: product.price,
+        cost: calculatedCost,
+        margin: margin,
+        marginPercent: marginPercent,
+        category: product.categories?.name || 'Sin categoría',
+        hasLowStock: product.product_ingredients?.some(pi => 
+          (pi.ingredients?.current_stock || 0) < pi.quantity_needed * 10
+        ) || false
+      });
+    });
+
+    // Fetch detailed sales data with product info
     const { data: todaySales } = await supabaseClient
       .from('sale_items')
       .select(`
         quantity,
         unit_price,
         subtotal,
-        sales!inner(created_at, payment_method, user_id),
-        products!inner(name, price)
+        product_id,
+        products!inner(name, price, category_id),
+        sales!inner(created_at, payment_method, user_id, table_number)
       `)
       .gte('sales.created_at', todayStr)
       .lt('sales.created_at', new Date(Date.now() + 86400000).toISOString());
 
-    // Fetch sales data for yesterday
     const { data: yesterdaySales } = await supabaseClient
       .from('sale_items')
       .select(`
         quantity,
         unit_price,
         subtotal,
-        sales!inner(created_at, user_id),
-        products!inner(name)
+        product_id,
+        products!inner(name),
+        sales!inner(created_at, user_id)
       `)
       .gte('sales.created_at', yesterdayStr)
       .lt('sales.created_at', todayStr);
 
-    // Fetch sales data for last week
     const { data: lastWeekSales } = await supabaseClient
       .from('sale_items')
       .select(`
         quantity,
+        subtotal,
+        product_id,
         products!inner(name)
       `)
       .gte('sales.created_at', lastWeekStr)
-      .lt('sales.created_at', new Date(lastWeekStr).setDate(new Date(lastWeekStr).getDate() + 1));
+      .lt('sales.created_at', yesterdayStr);
 
-    // Calculate metrics
-    const todayTotal = todaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
-    const yesterdayTotal = yesterdaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
-    
-    const dailyChange = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal * 100) : 0;
-
-    // Product performance comparison
-    const productComparison = new Map();
+    // Analyze product performance with costs
+    const productPerformance = new Map();
     
     todaySales?.forEach(item => {
-      const name = item.products.name;
-      if (!productComparison.has(name)) {
-        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
+      const productId = item.product_id;
+      const productInfo = productCostMap.get(productId);
+      
+      if (!productPerformance.has(productId)) {
+        productPerformance.set(productId, {
+          name: item.products.name,
+          today_qty: 0,
+          today_revenue: 0,
+          yesterday_qty: 0,
+          lastweek_qty: 0,
+          ...productInfo
+        });
       }
-      productComparison.get(name).today += item.quantity;
+      
+      const perf = productPerformance.get(productId);
+      perf.today_qty += item.quantity;
+      perf.today_revenue += parseFloat(item.subtotal);
     });
 
     yesterdaySales?.forEach(item => {
-      const name = item.products.name;
-      if (!productComparison.has(name)) {
-        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
+      const productId = item.product_id;
+      if (productPerformance.has(productId)) {
+        productPerformance.get(productId).yesterday_qty += item.quantity;
+      } else if (productCostMap.has(productId)) {
+        const productInfo = productCostMap.get(productId);
+        productPerformance.set(productId, {
+          name: item.products.name,
+          today_qty: 0,
+          today_revenue: 0,
+          yesterday_qty: item.quantity,
+          lastweek_qty: 0,
+          ...productInfo
+        });
       }
-      productComparison.get(name).yesterday += item.quantity;
     });
 
     lastWeekSales?.forEach(item => {
-      const name = item.products.name;
-      if (!productComparison.has(name)) {
-        productComparison.set(name, { today: 0, yesterday: 0, lastWeek: 0 });
+      const productId = item.product_id;
+      if (productPerformance.has(productId)) {
+        productPerformance.get(productId).lastweek_qty += item.quantity;
       }
-      productComparison.get(name).lastWeek += item.quantity;
     });
 
-    // Calculate changes and find significant movements
-    const productChanges = Array.from(productComparison.entries()).map(([name, data]) => {
-      const change = data.yesterday > 0 ? ((data.today - data.yesterday) / data.yesterday * 100) : 0;
-      const weeklyChange = data.lastWeek > 0 ? ((data.today - data.lastWeek) / data.lastWeek * 100) : 0;
-      return { name, ...data, change, weeklyChange };
-    }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
-
-    const significantChanges = productChanges.filter(p => Math.abs(p.change) > 15).slice(0, 5);
-
-    const weeklyChange = lastWeekSales && lastWeekSales.length > 0 
-      ? ((todayTotal - (lastWeekSales.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0))) 
-         / (lastWeekSales.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0)) * 100)
-      : 0;
-
-    // Create prompt for AI
-    const systemPrompt = 'Eres un consultor de restaurantes experto en optimización de ventas. Genera recomendaciones específicas y accionables basadas en datos reales de comparación de ventas.';
+    // Calculate metrics and find opportunities
+    const opportunities = [];
     
-    const prompt = `Análisis de ventas para generar recomendaciones:
+    for (const [productId, data] of productPerformance.entries()) {
+      const dailyChange = data.yesterday_qty > 0 
+        ? ((data.today_qty - data.yesterday_qty) / data.yesterday_qty) * 100 
+        : 0;
+      
+      const weeklyChange = data.lastweek_qty > 0
+        ? ((data.today_qty - data.lastweek_qty) / data.lastweek_qty) * 100
+        : 0;
 
-📊 VENTAS:
-- Hoy: $${todayTotal.toLocaleString()} COP
-- Ayer: $${yesterdayTotal.toLocaleString()} COP
-- Cambio diario: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
-- Cambio semanal: ${weeklyChange >= 0 ? '+' : ''}${weeklyChange.toFixed(1)}%
+      data.dailyChange = dailyChange;
+      data.weeklyChange = weeklyChange;
+      data.totalMargin = data.margin * data.today_qty;
 
-🔄 PRODUCTOS CON CAMBIOS SIGNIFICATIVOS (>15%):
-${significantChanges.map(p => 
-  `${p.name}: ${p.change >= 0 ? '+' : ''}${p.change.toFixed(1)}% (${p.today} vs ${p.yesterday} unidades)`
-).join('\n')}
+      // Identify opportunities
+      if (dailyChange < -20 && data.marginPercent > 50) {
+        opportunities.push({
+          type: 'at_risk_high_margin',
+          severity: 'high',
+          product: data,
+          reason: 'Producto con alta rentabilidad pero ventas en caída'
+        });
+      } else if (dailyChange > 30 && data.today_qty > 5) {
+        opportunities.push({
+          type: 'trending_up',
+          severity: 'medium',
+          product: data,
+          reason: 'Producto en tendencia ascendente'
+        });
+      } else if (data.today_qty > 0 && data.marginPercent < 30) {
+        opportunities.push({
+          type: 'low_margin',
+          severity: 'medium',
+          product: data,
+          reason: 'Margen bajo, considera ajustar precio'
+        });
+      } else if (data.hasLowStock && data.today_qty > 3) {
+        opportunities.push({
+          type: 'low_stock_high_demand',
+          severity: 'high',
+          product: data,
+          reason: 'Alta demanda con inventario bajo'
+        });
+      }
+    }
 
-INSTRUCCIONES: Genera 1-2 recomendaciones específicas y accionables de máximo 200 palabras que incluyan:
-1. Una acción concreta basada en los datos (promoción, ajuste de precio, estrategia de marketing)
-2. Horario o período específico para implementarla
-3. Métrica esperada o objetivo a lograr
-4. Si hay productos con caída >20%, sugiere estrategias específicas
+    // Sort by severity and select top opportunity
+    opportunities.sort((a, b) => {
+      const severityOrder = { high: 0, medium: 1, low: 2 };
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    });
 
-Formato: [ACCIÓN] - [CUANDO] - [OBJETIVO]
-Sé directo y práctico.`;
+    const topOpportunity = opportunities[0] || null;
 
-    // Call Lovable AI Gateway with retry
+    // Calculate overall metrics
+    const todayTotal = todaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
+    const yesterdayTotal = yesterdaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
+    const dailyChange = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal * 100) : 0;
+
+    // Create AI prompt with real data
+    let systemPrompt = `Eres un consultor experto en restaurantes especializado en estrategias de marketing y optimización de ventas. 
+
+Generas recomendaciones:
+- CONCRETAS: con producto específico, acción clara
+- ACCIONABLES: que se puedan implementar en minutos
+- RENTABLES: basadas en márgenes reales
+- CREATIVAS: usando marketing digital, combos, descuentos estratégicos
+
+Formato obligatorio:
+**[EMOJI] [TIPO]: [Nombre del Producto]**
+
+**📊 Datos del Producto:**
+- [Datos clave del producto]
+
+**🧠 Análisis:**
+[Interpretación breve del rendimiento]
+
+**💡 Estrategia Concreta:**
+[Acción específica paso a paso]
+
+**🎯 Resultado Esperado:**
+[Métrica o impacto esperado]`;
+
+    let userPrompt = '';
+
+    if (topOpportunity) {
+      const p = topOpportunity.product;
+      userPrompt = `Genera UNA recomendación específica basada en este hallazgo:
+
+TIPO DE OPORTUNIDAD: ${topOpportunity.type}
+RAZÓN: ${topOpportunity.reason}
+
+PRODUCTO: ${p.name}
+CATEGORÍA: ${p.category}
+PRECIO ACTUAL: $${p.price?.toLocaleString()} COP
+COSTO REAL: $${p.cost?.toFixed(0).toLocaleString()} COP
+MARGEN: $${p.margin?.toFixed(0).toLocaleString()} COP (${p.marginPercent?.toFixed(1)}%)
+
+RENDIMIENTO:
+- Ventas hoy: ${p.today_qty} unidades → $${p.today_revenue?.toLocaleString()} COP
+- Ventas ayer: ${p.yesterday_qty} unidades
+- Cambio diario: ${p.dailyChange >= 0 ? '+' : ''}${p.dailyChange?.toFixed(1)}%
+- Tendencia semanal: ${p.weeklyChange >= 0 ? '+' : ''}${p.weeklyChange?.toFixed(1)}%
+
+CONTEXTO GENERAL:
+- Ventas totales hoy: $${todayTotal.toLocaleString()} COP
+- Cambio vs ayer: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
+
+Genera una estrategia concreta que incluya:
+1. Acción específica (descuento %, combo, promoción en redes)
+2. Timing exacto (cuando implementar)
+3. Público objetivo específico
+4. Resultado esperado con números`;
+    } else {
+      userPrompt = `Genera UNA recomendación general basada en las ventas de hoy:
+
+RESUMEN DEL DÍA:
+- Ventas totales: $${todayTotal.toLocaleString()} COP
+- Ventas ayer: $${yesterdayTotal.toLocaleString()} COP
+- Cambio: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
+
+TOP 3 PRODUCTOS MÁS VENDIDOS HOY:
+${Array.from(productPerformance.values())
+  .sort((a, b) => b.today_qty - a.today_qty)
+  .slice(0, 3)
+  .map((p, i) => `${i+1}. ${p.name}: ${p.today_qty} unidades, Margen: ${p.marginPercent?.toFixed(1)}%`)
+  .join('\n')}
+
+Genera una estrategia de crecimiento enfocada en aumentar ventas manteniendo rentabilidad.`;
+    }
+
+    // Call AI
     const aiResponse = await retryWithBackoff(async () => {
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -212,16 +366,10 @@ Sé directo y práctico.`;
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
           ],
-          max_completion_tokens: 300
+          max_completion_tokens: 500
         }),
       });
 
@@ -244,30 +392,56 @@ Sé directo y práctico.`;
       return response;
     });
 
-    const openaiData = await aiResponse.json();
-    const recommendation = openaiData.choices[0].message.content;
+    const aiData = await aiResponse.json();
+    const recommendation = aiData.choices[0].message.content;
 
-    // Determine priority based on performance
+    // Determine priority
     let priority = 'medium';
-    if (dailyChange < -15 || weeklyChange < -20) priority = 'high';
-    if (dailyChange > 15 || weeklyChange > 20) priority = 'low';
+    if (topOpportunity) {
+      priority = topOpportunity.severity === 'high' ? 'high' : 'medium';
+    } else if (dailyChange < -15) {
+      priority = 'high';
+    }
 
-    // Save recommendation to database
+    // Save to database
+    const contextData = {
+      todayTotal,
+      yesterdayTotal,
+      dailyChange,
+      opportunity: topOpportunity ? {
+        type: topOpportunity.type,
+        product: {
+          name: topOpportunity.product.name,
+          price: topOpportunity.product.price,
+          cost: topOpportunity.product.cost,
+          margin: topOpportunity.product.margin,
+          marginPercent: topOpportunity.product.marginPercent,
+          today_qty: topOpportunity.product.today_qty,
+          today_revenue: topOpportunity.product.today_revenue,
+          dailyChange: topOpportunity.product.dailyChange
+        }
+      } : null,
+      topProducts: Array.from(productPerformance.values())
+        .sort((a, b) => b.today_qty - a.today_qty)
+        .slice(0, 5)
+        .map(p => ({
+          name: p.name,
+          quantity: p.today_qty,
+          revenue: p.today_revenue,
+          margin: p.margin,
+          marginPercent: p.marginPercent
+        }))
+    };
+
     const { data: savedRecommendation, error: saveError } = await supabaseClient
       .from('ai_daily_recommendations')
       .insert({
         restaurant_id: restaurantId,
         recommendation_text: recommendation,
-        recommendation_type: 'sales_optimization',
+        recommendation_type: topOpportunity?.type || 'general_optimization',
         priority,
         date: todayStr,
-        data_context: {
-          todayTotal,
-          yesterdayTotal,
-          dailyChange,
-          weeklyChange,
-          topChanges: significantChanges
-        }
+        data_context: contextData
       })
       .select()
       .single();
@@ -279,13 +453,8 @@ Sé directo y práctico.`;
     return new Response(JSON.stringify({
       recommendation,
       priority,
-      salesContext: {
-        todayTotal,
-        yesterdayTotal,
-        dailyChange: dailyChange.toFixed(1),
-        weeklyChange: weeklyChange.toFixed(1)
-      },
-      topChanges: significantChanges,
+      data_context: contextData,
+      recommendation_id: savedRecommendation?.id,
       saved: !saveError,
       timestamp: new Date().toISOString()
     }), {
@@ -295,7 +464,6 @@ Sé directo y práctico.`;
   } catch (error: any) {
     console.error('Error in ai-daily-recommendations:', error);
     
-    // Handle specific error types
     if (error.status === 429) {
       return new Response(JSON.stringify({ 
         error: 'Sistema ocupado generando recomendaciones. Por favor intenta en unos segundos.',
@@ -308,7 +476,7 @@ Sé directo y práctico.`;
     
     if (error.status === 402) {
       return new Response(JSON.stringify({ 
-        error: 'Servicio de recomendaciones IA temporalmente no disponible. Por favor contacta soporte.',
+        error: 'Servicio de recomendaciones IA temporalmente no disponible. Contacta soporte.',
         code: 'PAYMENT_REQUIRED'
       }), {
         status: 402,
