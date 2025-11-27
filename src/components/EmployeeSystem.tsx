@@ -160,13 +160,13 @@ const EmployeeSystem = () => {
 
   // Vista completa para propietarios y administradores
   return <div className="space-y-8 p-6 bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen rounded-2xl">
-      <div className="text-center space-y-4 bg-popover">
+      <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
           <Users className="h-8 w-8 text-white" />
           <h2 className="text-3xl font-bold text-white">Sistema de Empleados</h2>
         </div>
-        <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-          Gestión integral de empleados, tiempo y nómina de <span className="font-semibold text-orange-600">{restaurant?.name}</span>
+        <p className="text-xl text-white font-semibold max-w-3xl mx-auto drop-shadow-lg">
+          Gestión integral de empleados, tiempo y nómina de <span className="font-bold text-orange-400">{restaurant?.name}</span>
         </p>
       </div>
 
