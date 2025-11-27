@@ -678,26 +678,26 @@ const Marketplace = () => {
 
         {/* Product Filters */}
         <div className="p-6">
-          <Card className="p-4">
+          <Card className="p-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-blue-500/30">
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center space-x-4 flex-1">
                 <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar productos..." className="pl-10" value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input placeholder="Buscar productos..." className="pl-10 bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 </div>
                 
-                <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="px-3 py-2 border rounded-md">
-                  {categories.map(category => <option key={category} value={category}>
+                <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="px-3 py-2 border rounded-md bg-gray-700/50 border-white/20 text-white">
+                  {categories.map(category => <option key={category} value={category} className="bg-gray-800">
                       {category === 'todos' ? 'Todas las categorías' : category}
                     </option>)}
                 </select>
               </div>
 
               <div className="flex items-center space-x-2">
-                <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}>
+                <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-700/50 border-white/20 text-white hover:bg-gray-600'}>
                   <Grid3X3 className="h-4 w-4" />
                 </Button>
-                <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')}>
+                <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-700/50 border-white/20 text-white hover:bg-gray-600'}>
                   <List className="h-4 w-4" />
                 </Button>
               </div>
@@ -802,15 +802,15 @@ const Marketplace = () => {
         </div>
 
         {/* Floating Cart Summary */}
-        {cart.length > 0 && <div className="fixed bottom-6 right-6 z-50">
-            <Card className="p-4 bg-white shadow-2xl border-2">
+        {cart.length > 0 && <div className="fixed bottom-6 right-6 z-50 animate-slide-in-right">
+            <Card className="p-4 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 shadow-2xl border-2 border-blue-500/50 backdrop-blur-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold">Carrito ({getTotalItems()})</span>
-                <span className="font-bold text-lg text-green-600">
+                <span className="font-semibold text-white">Carrito ({getTotalItems()})</span>
+                <span className="font-bold text-lg bg-gradient-to-r from-orange-400 to-pink-400 bg-clip-text text-transparent">
                   {formatCurrency(getTotalPrice())}
                 </span>
               </div>
-              <Button className="w-full bg-gradient-primary" onClick={() => setCurrentView('payment')}>
+              <Button className="w-full bg-gradient-to-r from-orange-500 via-pink-500 to-orange-600 hover:from-orange-600 hover:via-pink-600 hover:to-orange-700 text-white shadow-lg hover:shadow-orange-500/50 transition-all duration-300" onClick={() => setCurrentView('payment')}>
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Ir a Pagar
               </Button>
