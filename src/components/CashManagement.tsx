@@ -623,7 +623,7 @@ const CashManagement = () => {
       return (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Cargando datos de caja...</p>
+          <p className="mt-2 text-white/60">Cargando datos de caja...</p>
         </div>
       );
     }
@@ -690,9 +690,9 @@ const CashManagement = () => {
         )}
 
         {/* Resumen de caja */}
-        <Card className="bg-gradient-to-r from-green-50 to-blue-50">
+        <Card className="bg-gradient-to-r from-gray-800/50 to-slate-800/50 border border-white/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-white">
               <Wallet className="h-5 w-5" />
               Estado de Caja - {new Date().toLocaleDateString()}
               {cashRegister.is_closed && (
@@ -705,37 +705,37 @@ const CashManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-white rounded-lg">
-                <p className="text-sm text-muted-foreground">Base Inicial</p>
-                <p className="text-2xl font-bold">{formatCurrency(cashRegister.opening)}</p>
+              <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
+                <p className="text-sm text-white/60">Base Inicial</p>
+                <p className="text-2xl font-bold text-white">{formatCurrency(cashRegister.opening)}</p>
               </div>
-              <div className="text-center p-4 bg-white rounded-lg">
-                <p className="text-sm text-muted-foreground">
+              <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
+                <p className="text-sm text-white/60">
                   {canViewAmounts ? 'Ventas Totales' : 'Ventas'}
                 </p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-green-400">
                   {canViewAmounts ? formatCurrency(cashRegister.sales) : '***'}
                 </p>
               </div>
-              <div className="text-center p-4 bg-white rounded-lg">
-                <p className="text-sm text-muted-foreground">Gastos</p>
-                <p className="text-2xl font-bold text-red-600">
+              <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
+                <p className="text-sm text-white/60">Gastos</p>
+                <p className="text-2xl font-bold text-red-400">
                   {canViewAmounts ? formatCurrency(cashRegister.expenses) : '***'}
                 </p>
               </div>
-              <div className={`text-center p-4 rounded-lg ${
-                cashRegister.difference >= 0 ? 'bg-green-100' : 'bg-red-100'
+              <div className={`text-center p-4 rounded-lg border border-white/10 ${
+                cashRegister.difference >= 0 ? 'bg-green-900/30' : 'bg-red-900/30'
               }`}>
-                <p className="text-sm text-muted-foreground">Diferencia</p>
+                <p className="text-sm text-white/60">Diferencia</p>
                 <p className={`text-2xl font-bold ${
-                  cashRegister.difference >= 0 ? 'text-green-600' : 'text-red-600'
+                  cashRegister.difference >= 0 ? 'text-green-400' : 'text-red-400'
                 }`}>
                   {canViewAmounts 
                     ? formatCurrency(Math.abs(cashRegister.difference))
                     : '***'
                   }
                 </p>
-                <p className="text-xs">
+                <p className="text-xs text-white/70">
                   {cashRegister.difference >= 0 ? 'Sobrante' : 'Faltante'}
                 </p>
               </div>
@@ -744,21 +744,21 @@ const CashManagement = () => {
             <Separator className="my-4" />
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-center p-3 bg-blue-900/30 rounded-lg border border-blue-400/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Banknote className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">Efectivo</span>
+                  <Banknote className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-white">Efectivo</span>
                 </div>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-xl font-bold text-blue-400">
                   {canViewAmounts ? formatCurrency(cashRegister.cash) : '***'}
                 </p>
               </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <div className="text-center p-3 bg-purple-900/30 rounded-lg border border-purple-400/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <CreditCard className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium">Tarjetas</span>
+                  <CreditCard className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-white">Tarjetas</span>
                 </div>
-                <p className="text-xl font-bold text-purple-600">
+                <p className="text-xl font-bold text-purple-400">
                   {canViewAmounts ? formatCurrency(cashRegister.cards) : '***'}
                 </p>
               </div>
@@ -769,7 +769,7 @@ const CashManagement = () => {
               <>
                 <Separator className="my-6" />
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 p-0.5 shadow-2xl">
-                  <div className="relative bg-gradient-to-br from-red-50 via-pink-50 to-purple-50 rounded-2xl p-6">
+                  <div className="relative bg-gradient-to-br from-gray-800/90 via-gray-900/90 to-black/90 rounded-2xl p-6">
                     <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-pink-500/10 to-purple-600/10 rounded-2xl"></div>
                     <div className="relative z-10">
                       <div className="flex items-center gap-3 mb-4">
@@ -777,10 +777,10 @@ const CashManagement = () => {
                           <Lock className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <h4 className="text-xl font-bold bg-gradient-to-r from-red-600 to-purple-600 bg-clip-text text-transparent">
+                          <h4 className="text-xl font-bold bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent">
                             Cerrar Caja del Día
                           </h4>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-white/70">
                             Cuenta el efectivo físico para calcular la diferencia final
                           </p>
                         </div>
@@ -792,17 +792,17 @@ const CashManagement = () => {
                             name="final_cash"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-gray-700 font-semibold">Efectivo real en caja</FormLabel>
+                                <FormLabel className="text-white font-semibold">Efectivo real en caja</FormLabel>
                                 <FormControl>
                                   <div className="relative">
                                     <Input
                                       type="number"
                                       placeholder="Contar billetes y monedas físicas"
-                                      className="bg-white/70 border-2 border-purple-200 focus:border-purple-400 h-12 text-lg font-medium pr-16 rounded-xl shadow-sm"
+                                      className="bg-white/10 border-2 border-purple-400/30 focus:border-purple-400 h-12 text-lg font-medium pr-16 rounded-xl shadow-sm text-white placeholder:text-white/50"
                                       {...field}
                                       onChange={(e) => field.onChange(Number(e.target.value))}
                                     />
-                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 font-medium">
                                       COP
                                     </div>
                                   </div>
@@ -837,29 +837,29 @@ const CashManagement = () => {
       <ReceiptProcessor onProcessComplete={handleReceiptProcessed} />
 
       {/* Transacciones recientes procesadas por IA */}
-      <Card>
+      <Card className="bg-gray-800/50 border border-white/10">
         <CardHeader>
-          <CardTitle>Facturas Procesadas por IA</CardTitle>
+          <CardTitle className="text-white">Facturas Procesadas por IA</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {processedReceipts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-white/60">
                 <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No hay facturas procesadas aún</p>
                 <p className="text-sm">Sube una factura arriba para comenzar</p>
               </div>
             ) : (
               processedReceipts.map(expense => (
-                <div key={expense.id} className="border rounded-lg p-4">
+                <div key={expense.id} className="border border-white/10 rounded-lg p-4 bg-gray-700/30">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-semibold">{expense.supplier_name || 'Proveedor desconocido'}</h4>
-                      <p className="text-sm text-muted-foreground">
+                      <h4 className="font-semibold text-white">{expense.supplier_name || 'Proveedor desconocido'}</h4>
+                      <p className="text-sm text-white/60">
                         {new Date(expense.expense_date).toLocaleDateString()} • {formatCurrency(expense.total_amount)}
                       </p>
                       {expense.invoice_number && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/50">
                           Factura: {expense.invoice_number}
                         </p>
                       )}
@@ -874,12 +874,12 @@ const CashManagement = () => {
                   {expense.expense_items && expense.expense_items.length > 0 && (
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-medium mb-2">Productos detectados:</p>
+                        <p className="text-sm font-medium mb-2 text-white">Productos detectados:</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {expense.expense_items.map((item, idx) => (
-                            <div key={idx} className="bg-muted/30 rounded p-2 text-sm">
-                              <span className="font-medium">{item.description}</span>
-                              <span className="text-muted-foreground ml-2">
+                            <div key={idx} className="bg-gray-600/30 rounded p-2 text-sm border border-white/10">
+                              <span className="font-medium text-white">{item.description}</span>
+                              <span className="text-white/60 ml-2">
                                 {item.quantity} {item.unit || 'unidades'} • {formatCurrency(item.unit_price)}/unidad
                               </span>
                             </div>
@@ -900,13 +900,13 @@ const CashManagement = () => {
   const renderTransactions = () => (
     <div className="space-y-6">
       {/* Registrar nuevo ingreso */}
-      <Card>
+      <Card className="bg-gray-800/50 border border-white/10">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-600">
+          <CardTitle className="flex items-center gap-2 text-green-400">
             <ArrowUpRight className="h-5 w-5" />
             Registrar Ingreso en Efectivo
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/60">
             Agregar dinero adicional a la caja (no ventas)
           </p>
         </CardHeader>
@@ -919,11 +919,12 @@ const CashManagement = () => {
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto</FormLabel>
+                      <FormLabel className="text-white">Monto</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           placeholder="0"
+                          className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40"
                           {...field}
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />
@@ -937,9 +938,9 @@ const CashManagement = () => {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Categoría</FormLabel>
+                      <FormLabel className="text-white">Categoría</FormLabel>
                       <FormControl>
-                        <select className="w-full p-2 border rounded" {...field}>
+                        <select className="w-full p-2 border rounded bg-gray-700/50 border-white/20 text-white" {...field}>
                           <option value="efectivo">Efectivo adicional</option>
                           <option value="cambio">Cambio</option>
                           <option value="reembolso">Reembolso</option>
@@ -962,9 +963,9 @@ const CashManagement = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descripción</FormLabel>
+                    <FormLabel className="text-white">Descripción</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe el ingreso..." {...field} />
+                      <Textarea placeholder="Describe el ingreso..." className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -976,13 +977,13 @@ const CashManagement = () => {
       </Card>
 
       {/* Formulario registrar pago */}
-      <Card>
+      <Card className="bg-gray-800/50 border border-white/10">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
+          <CardTitle className="flex items-center gap-2 text-red-400">
             <Minus className="h-5 w-5" />
             Registrar Pago
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/60">
             Registra pagos y gastos de la operación diaria
           </p>
         </CardHeader>
@@ -995,11 +996,12 @@ const CashManagement = () => {
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto</FormLabel>
+                      <FormLabel className="text-white">Monto</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           placeholder="0"
+                          className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40"
                           {...field}
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />
@@ -1013,9 +1015,9 @@ const CashManagement = () => {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Categoría</FormLabel>
+                      <FormLabel className="text-white">Categoría</FormLabel>
                       <FormControl>
-                        <select className="w-full p-2 border rounded" {...field}>
+                        <select className="w-full p-2 border rounded bg-gray-700/50 border-white/20 text-white" {...field}>
                           <option value="servicios">Servicios</option>
                           <option value="proveedores">Proveedores</option>
                           <option value="nomina">Nómina</option>
@@ -1032,9 +1034,9 @@ const CashManagement = () => {
                   name="payment_method"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Método de Pago</FormLabel>
+                      <FormLabel className="text-white">Método de Pago</FormLabel>
                       <FormControl>
-                        <select className="w-full p-2 border rounded" {...field}>
+                        <select className="w-full p-2 border rounded bg-gray-700/50 border-white/20 text-white" {...field}>
                           <option value="efectivo">Efectivo</option>
                           <option value="tarjeta">Tarjeta</option>
                           <option value="transferencia">Transferencia</option>
@@ -1060,9 +1062,9 @@ const CashManagement = () => {
                   name="custom_method"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Especificar método de pago</FormLabel>
+                      <FormLabel className="text-white">Especificar método de pago</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Crypto, Efectivo USD, etc." {...field} />
+                        <Input placeholder="Ej: Crypto, Efectivo USD, etc." className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1075,9 +1077,9 @@ const CashManagement = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descripción</FormLabel>
+                    <FormLabel className="text-white">Descripción</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe el pago..." {...field} />
+                      <Textarea placeholder="Describe el pago..." className="bg-gray-700/50 border-white/20 text-white placeholder:text-white/40" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1089,13 +1091,13 @@ const CashManagement = () => {
       </Card>
 
       {/* Historial tipo banco */}
-      <Card>
+      <Card className="bg-gray-800/50 border border-white/10">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-white">
             <Receipt className="h-5 w-5" />
             Historial de Transacciones del Día
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/60">
             Registro tipo banco de todos los movimientos
           </p>
         </CardHeader>
@@ -1105,7 +1107,7 @@ const CashManagement = () => {
               ...cashPayments.map(item => ({...item, type: 'expense'}))]
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-white/60">
                 <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No hay transacciones registradas</p>
                 <p className="text-sm">Los movimientos aparecerán aquí conforme los registres</p>
@@ -1115,23 +1117,23 @@ const CashManagement = () => {
                ...cashPayments.map(item => ({...item, type: 'expense'}))]
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .map((transaction, index) => (
-                <div key={`${transaction.type}-${transaction.id}`} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div key={`${transaction.type}-${transaction.id}`} className="flex items-center justify-between p-4 border border-white/10 rounded-lg hover:bg-gray-700/30 transition-colors bg-gray-700/20">
                   <div className="flex items-center gap-4">
-                    <div className="text-sm text-muted-foreground font-mono">
+                    <div className="text-sm text-white/50 font-mono">
                       #{String(index + 1).padStart(3, '0')}
                     </div>
                     <div className={`p-2 rounded-full ${
-                      transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                      transaction.type === 'income' ? 'bg-green-900/50' : 'bg-red-900/50'
                     }`}>
                       {transaction.type === 'income' ? (
-                        <ArrowUpRight className="h-4 w-4 text-green-600" />
+                        <ArrowUpRight className="h-4 w-4 text-green-400" />
                       ) : (
-                        <Minus className="h-4 w-4 text-red-600" />
+                        <Minus className="h-4 w-4 text-red-400" />
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{transaction.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <p className="font-medium text-white">{transaction.description}</p>
+                      <div className="flex items-center gap-4 text-sm text-white/60">
                         <span>{transaction.category}</span>
                         <span>•</span>
                         <span>{transaction.payment_method}</span>
@@ -1142,7 +1144,7 @@ const CashManagement = () => {
                   </div>
                   <div className="text-right">
                     <p className={`font-bold text-lg ${
-                      transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
                     }`}>
                       {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                     </p>
@@ -1160,14 +1162,14 @@ const CashManagement = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 rounded-2xl">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
             Gestión de Caja
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-white/80 mt-2">
             Control total de ingresos, gastos e inventario con IA
           </p>
         </div>
@@ -1209,11 +1211,11 @@ const CashManagement = () => {
         {currentView === 'receipts' && renderReceiptUpload()}
         {currentView === 'transactions' && renderTransactions()}
         {currentView === 'analysis' && (
-          <Card>
+          <Card className="bg-gray-800/50 border border-white/10">
             <CardContent className="p-8 text-center">
-              <Bot className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Análisis IA en Desarrollo</h3>
-              <p className="text-muted-foreground">
+              <Bot className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2 text-white">Análisis IA en Desarrollo</h3>
+              <p className="text-white/60">
                 Próximamente: Análisis predictivo de gastos, recomendaciones de optimización y alertas automáticas.
               </p>
             </CardContent>
