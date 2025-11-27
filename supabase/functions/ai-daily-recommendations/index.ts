@@ -283,76 +283,101 @@ serve(async (req) => {
     const yesterdayTotal = yesterdaySales?.reduce((sum, item) => sum + parseFloat(item.subtotal), 0) || 0;
     const dailyChange = yesterdayTotal > 0 ? ((todayTotal - yesterdayTotal) / yesterdayTotal * 100) : 0;
 
-    // Create AI prompt with real data
-    let systemPrompt = `Eres un consultor experto en restaurantes especializado en estrategias de marketing y optimización de ventas. 
+    // Validate minimum data for recommendations
+    const hasMinimumData = todaySales && todaySales.length >= 5 && yesterdaySales && yesterdaySales.length >= 3;
+    
+    if (!hasMinimumData) {
+      return new Response(JSON.stringify({
+        error: 'INSUFFICIENT_DATA',
+        message: 'Aún no hay suficientes datos para sugerencias inteligentes. Sigue usando Conektao y pronto te daremos estrategias basadas en tu operación real.',
+        data_context: {
+          todayTotal,
+          yesterdayTotal,
+          dailyChange,
+          salesCount: todaySales?.length || 0
+        }
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-Generas recomendaciones:
-- CONCRETAS: con producto específico, acción clara
-- ACCIONABLES: que se puedan implementar en minutos
-- RENTABLES: basadas en márgenes reales
-- CREATIVAS: usando marketing digital, combos, descuentos estratégicos
+    // Create AI prompt with STRICT format requirements
+    const systemPrompt = `Eres un asesor de negocio objetivo y basado en datos. Tu trabajo es analizar números reales y dar recomendaciones prácticas.
 
-Formato obligatorio:
-**[EMOJI] [TIPO]: [Nombre del Producto]**
+REGLAS ESTRICTAS:
+1. NUNCA uses asteriscos (*) en el texto
+2. NUNCA felicites por ventas bajas
+3. NUNCA uses lenguaje genérico ("está yendo bien", "sigue así")
+4. CADA afirmación debe estar respaldada por un dato específico
+5. Usa emojis de forma profesional, no infantil
+6. Sé directo y honesto sobre problemas
 
-**📊 Datos del Producto:**
-- [Datos clave del producto]
+FORMATO OBLIGATORIO (sin asteriscos):
 
-**🧠 Análisis:**
-[Interpretación breve del rendimiento]
+🔍 [Análisis objetivo del problema con datos específicos]
 
-**💡 Estrategia Concreta:**
-[Acción específica paso a paso]
+Costo actual: $[número exacto]
+Precio venta actual: $[número exacto]
+Margen actual: $[número exacto] ([porcentaje]%)
 
-**🎯 Resultado Esperado:**
-[Métrica o impacto esperado]`;
+🎯 Sugerencia de Conektao
+[Acción concreta y específica]
+➕ Nuevo margen: $[número] por unidad
+
+📣 Acción recomendada
+[Lista numerada de pasos específicos para implementar]
+
+NO uses markdown bold ni asteriscos. Usa solo emojis y saltos de línea.`;
 
     let userPrompt = '';
 
     if (topOpportunity) {
       const p = topOpportunity.product;
-      userPrompt = `Genera UNA recomendación específica basada en este hallazgo:
+      
+      // Calculate suggested price for discount strategies
+      const suggestedDiscount = p.marginPercent > 50 ? 0.25 : 0.15;
+      const suggestedPrice = p.price * (1 - suggestedDiscount);
+      const newMargin = suggestedPrice - p.cost;
+      
+      userPrompt = `DATOS REALES DEL PRODUCTO:
 
-TIPO DE OPORTUNIDAD: ${topOpportunity.type}
-RAZÓN: ${topOpportunity.reason}
-
-PRODUCTO: ${p.name}
-CATEGORÍA: ${p.category}
-PRECIO ACTUAL: $${p.price?.toLocaleString()} COP
-COSTO REAL: $${p.cost?.toFixed(0).toLocaleString()} COP
-MARGEN: $${p.margin?.toFixed(0).toLocaleString()} COP (${p.marginPercent?.toFixed(1)}%)
+Producto: ${p.name}
+Categoría: ${p.category}
+Precio actual: $${p.price?.toLocaleString()} COP
+Costo real: $${p.cost?.toFixed(0).toLocaleString()} COP
+Margen actual: $${p.margin?.toFixed(0).toLocaleString()} COP (${p.marginPercent?.toFixed(1)}%)
 
 RENDIMIENTO:
-- Ventas hoy: ${p.today_qty} unidades → $${p.today_revenue?.toLocaleString()} COP
-- Ventas ayer: ${p.yesterday_qty} unidades
-- Cambio diario: ${p.dailyChange >= 0 ? '+' : ''}${p.dailyChange?.toFixed(1)}%
-- Tendencia semanal: ${p.weeklyChange >= 0 ? '+' : ''}${p.weeklyChange?.toFixed(1)}%
+- Hoy: ${p.today_qty} unidades vendidas
+- Ayer: ${p.yesterday_qty} unidades
+- Cambio: ${p.dailyChange >= 0 ? '+' : ''}${p.dailyChange?.toFixed(1)}%
 
-CONTEXTO GENERAL:
-- Ventas totales hoy: $${todayTotal.toLocaleString()} COP
-- Cambio vs ayer: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
+TIPO DE OPORTUNIDAD: ${topOpportunity.type}
 
-Genera una estrategia concreta que incluya:
-1. Acción específica (descuento %, combo, promoción en redes)
-2. Timing exacto (cuando implementar)
-3. Público objetivo específico
-4. Resultado esperado con números`;
+GENERA una recomendación siguiendo el formato EXACTO.
+RECUERDA: Sin asteriscos, con emojis, datos específicos, y pasos claros de acción.
+
+Si el producto está bajando ventas pero tiene buen margen, sugiere descuento calculado.
+Si está subiendo, sugiere potenciar con marketing.
+Si tiene bajo margen, sugiere ajuste de precio o combo.`;
     } else {
-      userPrompt = `Genera UNA recomendación general basada en las ventas de hoy:
+      userPrompt = `DATOS GENERALES DEL DÍA:
 
-RESUMEN DEL DÍA:
-- Ventas totales: $${todayTotal.toLocaleString()} COP
-- Ventas ayer: $${yesterdayTotal.toLocaleString()} COP
-- Cambio: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
+Ventas totales hoy: $${todayTotal.toLocaleString()} COP
+Ventas ayer: $${yesterdayTotal.toLocaleString()} COP
+Cambio: ${dailyChange >= 0 ? '+' : ''}${dailyChange.toFixed(1)}%
 
-TOP 3 PRODUCTOS MÁS VENDIDOS HOY:
+TOP 3 PRODUCTOS:
 ${Array.from(productPerformance.values())
   .sort((a, b) => b.today_qty - a.today_qty)
   .slice(0, 3)
-  .map((p, i) => `${i+1}. ${p.name}: ${p.today_qty} unidades, Margen: ${p.marginPercent?.toFixed(1)}%`)
+  .map((p, i) => `${i+1}. ${p.name}: ${p.today_qty} uds, Margen: ${p.marginPercent?.toFixed(1)}%`)
   .join('\n')}
 
-Genera una estrategia de crecimiento enfocada en aumentar ventas manteniendo rentabilidad.`;
+GENERA una recomendación siguiendo el formato EXACTO.
+Enfócate en el producto con mejor oportunidad de crecimiento.
+Sin asteriscos, con emojis, datos reales, pasos claros.`;
     }
 
     // Call AI
@@ -369,7 +394,8 @@ Genera una estrategia de crecimiento enfocada en aumentar ventas manteniendo ren
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          max_completion_tokens: 500
+          max_completion_tokens: 600,
+          temperature: 0.3
         }),
       });
 
@@ -393,7 +419,10 @@ Genera una estrategia de crecimiento enfocada en aumentar ventas manteniendo ren
     });
 
     const aiData = await aiResponse.json();
-    const recommendation = aiData.choices[0].message.content;
+    let recommendation = aiData.choices[0].message.content;
+    
+    // Clean up any remaining asterisks
+    recommendation = recommendation.replace(/\*\*/g, '').replace(/\*/g, '');
 
     // Determine priority
     let priority = 'medium';

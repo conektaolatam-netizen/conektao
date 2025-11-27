@@ -119,6 +119,17 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
 
       if (error) throw error;
 
+      // Handle insufficient data case
+      if (data.error === 'INSUFFICIENT_DATA') {
+        setError(data.message);
+        toast({
+          title: "Datos insuficientes",
+          description: data.message,
+          variant: "default",
+        });
+        return;
+      }
+
       setRecommendation(data);
       toast({
         title: "✨ Recomendación generada",
@@ -233,6 +244,35 @@ Necesito un plan práctico y ejecutable.`;
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (error && !recommendation) {
+    return (
+      <Card className="w-full bg-gradient-to-br from-background via-background to-muted/20">
+        <CardContent className="pt-12 pb-12">
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <AlertTriangle className="h-16 w-16 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold">Conektao IA - Recomendaciones</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                {error}
+              </p>
+            </div>
+            <Button 
+              onClick={generateNewRecommendation}
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 py-6"
+            >
+              <RefreshCw className="h-5 w-5 mr-2" />
+              Intentar nuevamente
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!recommendation && !isLoading) {
     return (
@@ -368,61 +408,59 @@ Necesito un plan práctico y ejecutable.`;
           </div>
         )}
 
-        {/* AI Recommendation */}
+        {/* AI Recommendation - Full visible content */}
         <div className="bg-background/80 backdrop-blur rounded-lg p-6 border-2 border-primary/20">
-          <div className="prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+          <div className="space-y-3">
+            <div className="whitespace-pre-wrap text-base leading-relaxed">
               {recommendation.recommendation}
             </div>
           </div>
         </div>
 
         {/* Implementation CTA - Large and Prominent */}
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           <Button
             onClick={handleImplementStrategy}
             size="lg"
-            className="w-full bg-gradient-to-r from-primary via-secondary to-accent hover:opacity-90 transition-opacity text-lg py-6 font-semibold"
+            className="w-full bg-gradient-to-r from-primary via-secondary to-accent hover:opacity-90 transition-opacity text-lg py-7 font-semibold shadow-lg"
           >
-            <MessageCircle className="h-5 w-5 mr-2" />
-            Implementar Estrategia IA
+            <MessageCircle className="h-6 w-6 mr-2" />
+            ✅ Implementar Estrategia IA
           </Button>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={markAsApplied}
-              disabled={recommendation.is_applied}
-              variant="outline"
-              size="sm"
-              className="flex-1"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              {recommendation.is_applied ? 'Aplicada' : 'Marcar como aplicada'}
-            </Button>
-          </div>
+          <Button
+            onClick={markAsApplied}
+            disabled={recommendation.is_applied}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {recommendation.is_applied ? 'Estrategia aplicada' : 'Marcar como aplicada'}
+          </Button>
         </div>
 
-        {/* Collapsible Details */}
-        {recommendation.data_context.topProducts && (
-          <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+        {/* Collapsible Details - Only show if there are multiple top products */}
+        {recommendation.data_context.topProducts && recommendation.data_context.topProducts.length > 1 && (
+          <Collapsible open={showDetails} onOpenChange={setShowDetails} className="border-t pt-4">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full">
+              <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
                 {showDetails ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                {showDetails ? 'Ocultar' : 'Ver'} productos más vendidos
+                {showDetails ? 'Ocultar' : 'Ver'} otros productos destacados
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
+            <CollapsibleContent className="mt-3">
               <div className="space-y-2 bg-background/40 rounded-lg p-4 border">
                 {recommendation.data_context.topProducts.slice(0, 5).map((product, index) => (
                   <div key={index} className="flex justify-between items-center text-sm py-2 border-b last:border-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-muted-foreground">#{index + 1}</span>
-                      <span className="font-medium">{product.name}</span>
+                      <span className="font-medium truncate max-w-[200px]">{product.name}</span>
                     </div>
-                    <div className="flex gap-4 text-xs text-muted-foreground">
+                    <div className="flex gap-3 text-xs text-muted-foreground">
                       <span>{product.quantity} uds</span>
-                      <span>{formatCurrency(product.revenue)}</span>
-                      <span className="text-green-600 font-medium">{product.marginPercent.toFixed(1)}% margen</span>
+                      <span className="hidden sm:inline">{formatCurrency(product.revenue)}</span>
+                      <span className="text-green-600 font-medium">{product.marginPercent.toFixed(1)}%</span>
                     </div>
                   </div>
                 ))}
