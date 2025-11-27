@@ -41,64 +41,57 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Strong gradient background with animated waves */}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+      {/* Animated waves background with Conektao colors */}
       <div className="absolute inset-0">
-        {/* Base gradient matching the image */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `
-              radial-gradient(circle at 30% 70%, rgb(204, 122, 72) 0%, rgb(139, 169, 169) 50%, rgb(45, 164, 154) 100%)
-            `
-          }}
-        ></div>
+        {/* Base black background */}
+        <div className="absolute inset-0 bg-black"></div>
         
-        {/* Animated orange waves */}
+        {/* Animated orange waves - more opaque */}
         <div 
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-70"
           style={{
             background: `
-              radial-gradient(ellipse 1200px 800px at 20% 80%, rgba(204, 122, 72, 0.8) 0%, rgba(204, 122, 72, 0.4) 35%, transparent 70%),
-              radial-gradient(ellipse 900px 600px at 80% 20%, rgba(218, 139, 89, 0.7) 0%, rgba(218, 139, 89, 0.3) 45%, transparent 80%)
+              radial-gradient(ellipse 1200px 800px at 20% 80%, rgba(255, 127, 50, 0.4) 0%, rgba(255, 100, 30, 0.2) 35%, transparent 70%),
+              radial-gradient(ellipse 900px 600px at 80% 20%, rgba(255, 140, 60, 0.35) 0%, rgba(255, 110, 40, 0.15) 45%, transparent 80%)
             `,
             animation: 'wave1 6s ease-in-out infinite',
             filter: 'blur(40px)'
           }}
         ></div>
         
-        {/* Animated teal waves */}
+        {/* Animated cyan/turquoise waves - more opaque */}
         <div 
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-70"
           style={{
             background: `
-              radial-gradient(ellipse 1000px 700px at 70% 30%, rgba(45, 164, 154, 0.8) 0%, rgba(45, 164, 154, 0.4) 40%, transparent 75%),
-              radial-gradient(ellipse 800px 1000px at 30% 70%, rgba(77, 180, 172, 0.6) 0%, rgba(77, 180, 172, 0.2) 50%, transparent 85%)
+              radial-gradient(ellipse 1000px 700px at 70% 30%, rgba(0, 180, 180, 0.4) 0%, rgba(0, 200, 200, 0.2) 40%, transparent 75%),
+              radial-gradient(ellipse 800px 1000px at 30% 70%, rgba(50, 200, 200, 0.35) 0%, rgba(0, 220, 220, 0.15) 50%, transparent 85%)
             `,
             animation: 'wave2 7s ease-in-out infinite reverse',
             filter: 'blur(50px)'
           }}
         ></div>
         
-        {/* Moving gradient overlay */}
+        {/* Moving gradient overlay with orange and cyan */}
         <div 
-          className="absolute inset-0 opacity-30"
+          className="absolute inset-0 opacity-60"
           style={{
             background: `
-              radial-gradient(ellipse 1500px 400px at 50% 60%, rgba(204, 122, 72, 0.9) 0%, rgba(139, 169, 169, 0.5) 30%, rgba(45, 164, 154, 0.7) 60%, transparent 90%)
+              radial-gradient(ellipse 1500px 400px at 50% 60%, rgba(255, 120, 40, 0.3) 0%, rgba(50, 180, 180, 0.25) 50%, transparent 90%)
             `,
             animation: 'wave3 8s ease-in-out infinite',
             filter: 'blur(60px)'
           }}
         ></div>
         
-        {/* Dynamic color shifts */}
+        {/* Dynamic color shifts between orange and turquoise */}
         <div 
-          className="absolute inset-0 opacity-25"
+          className="absolute inset-0 opacity-50"
           style={{
             background: `
-              radial-gradient(ellipse 600px 600px at 40% 40%, rgba(218, 139, 89, 0.8) 0%, rgba(77, 180, 172, 0.6) 40%, transparent 80%),
-              radial-gradient(ellipse 900px 500px at 75% 75%, rgba(45, 164, 154, 0.7) 0%, rgba(204, 122, 72, 0.4) 50%, transparent 85%)
+              radial-gradient(ellipse 600px 600px at 40% 40%, rgba(255, 130, 50, 0.35) 0%, rgba(0, 200, 200, 0.3) 50%, transparent 80%),
+              radial-gradient(ellipse 900px 500px at 75% 75%, rgba(50, 200, 200, 0.35) 0%, rgba(255, 110, 40, 0.25) 60%, transparent 85%)
             `,
             animation: 'wave4 5s ease-in-out infinite reverse',
             filter: 'blur(70px)'
@@ -115,20 +108,20 @@ const Auth = () => {
         ) : mode === 'setup' ? (
           <RestaurantSetup />
         ) : (
-          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Registro de Proveedores</h2>
-            <p className="text-muted-foreground mb-6">
+          <div className="text-center p-8 bg-gradient-to-br from-black via-gray-950 to-black rounded-lg shadow-2xl border-2 border-orange-500/20">
+            <h2 className="text-2xl font-bold mb-4 text-white">Registro de Proveedores</h2>
+            <p className="text-gray-300 mb-6">
               El registro de proveedores estará disponible próximamente. 
               Nos pondremos en contacto contigo para configurar tu cuenta.
             </p>
             <div className="space-y-3">
-              <Button onClick={() => setMode('login')} className="w-full">
+              <Button onClick={() => setMode('login')} className="w-full bg-gradient-to-r from-orange-500 to-cyan-500">
                 Volver al inicio de sesión
               </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/welcome')} 
-                className="w-full"
+                className="w-full bg-gray-900/50 border-orange-500/20 text-white hover:bg-gray-800"
               >
                 Volver a la página principal
               </Button>
