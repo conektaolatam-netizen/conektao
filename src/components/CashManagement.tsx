@@ -33,7 +33,8 @@ import {
   Target,
   Zap,
   Lock,
-  Minus
+  Minus,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -107,7 +108,7 @@ const finalCashSchema = z.object({
   final_cash: z.number().min(0, "El monto debe ser mayor o igual a 0")
 });
 
-const CashManagement = () => {
+const CashManagement = ({ onBack }: { onBack?: () => void }) => {
   const [currentView, setCurrentView] = useState<'overview' | 'transactions' | 'receipts' | 'analysis'>('overview');
   const [processedReceipts, setProcessedReceipts] = useState<any[]>([]);
   const [cashRegister, setCashRegister] = useState<CashRegister | null>(null);
@@ -1165,13 +1166,26 @@ const CashManagement = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black p-4 rounded-2xl">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
-            Gestión de Caja
-          </h1>
-          <p className="text-white/80 mt-2">
-            Control total de ingresos, gastos e inventario con IA
-          </p>
+        <div className="flex items-center justify-between">
+          {onBack && (
+            <Button 
+              variant="outline" 
+              onClick={onBack}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a Facturación
+            </Button>
+          )}
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
+              Gestión de Caja
+            </h1>
+            <p className="text-white/80 mt-2">
+              Control total de ingresos, gastos e inventario con IA
+            </p>
+          </div>
+          {onBack && <div className="w-[180px]" />} {/* Spacer para centrar el título */}
         </div>
 
         {/* Navegación */}
