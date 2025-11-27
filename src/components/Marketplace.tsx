@@ -820,15 +820,15 @@ const Marketplace = () => {
 
   // Vista de pago con métodos completos
   if (currentView === 'payment') {
-    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+    return <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-950 to-black p-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center mb-6">
-            <Button variant="outline" onClick={() => setCurrentView('marketplace')} className="mr-4">
+            <Button variant="outline" onClick={() => setCurrentView('marketplace')} className="mr-4 bg-white/10 border-white/20 text-white hover:bg-white/20">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Button>
-            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-white">
               Pasarela de Pago
             </h1>
           </div>
@@ -836,19 +836,19 @@ const Marketplace = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Payment Methods */}
             <div className="lg:col-span-2 space-y-6">
-              <Card className="p-6 bg-white shadow-xl">
-                <h2 className="text-xl font-bold mb-4">Método de Pago</h2>
+              <Card className="p-6 bg-gray-800/50 border-white/10 shadow-xl backdrop-blur-sm">
+                <h2 className="text-xl font-bold mb-4 text-white">Método de Pago</h2>
                 
                 <div className="space-y-4">
                   {/* Cash Payment */}
-                  <Card className={`p-4 cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-primary shadow-primary bg-primary/5' : 'hover:shadow-md'}`} onClick={() => setPaymentMethod('cash')}>
+                  <Card className={`p-4 cursor-pointer transition-all bg-gray-700/30 border-white/10 ${paymentMethod === 'cash' ? 'border-primary shadow-primary bg-primary/20' : 'hover:shadow-md hover:bg-gray-700/50'}`} onClick={() => setPaymentMethod('cash')}>
                     <div className="flex items-center space-x-4">
-                      <div className="p-3 bg-green-100 rounded-full">
-                        <DollarSign className="h-6 w-6 text-green-600" />
+                      <div className="p-3 bg-green-500/20 rounded-full">
+                        <DollarSign className="h-6 w-6 text-green-400" />
                       </div>
                       <div>
-                        <h3 className="font-semibold">Pago en Efectivo</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-white">Pago en Efectivo</h3>
+                        <p className="text-sm text-gray-300">
                           Paga en efectivo al recibir tu pedido
                         </p>
                       </div>
@@ -857,57 +857,57 @@ const Marketplace = () => {
                   </Card>
 
                   {/* Card Payment */}
-                  <Card className={`p-4 cursor-pointer transition-all ${paymentMethod === 'card' ? 'border-primary shadow-primary bg-primary/5' : 'hover:shadow-md'}`} onClick={() => setPaymentMethod('card')}>
+                  <Card className={`p-4 cursor-pointer transition-all bg-gray-700/30 border-white/10 ${paymentMethod === 'card' ? 'border-primary shadow-primary bg-primary/20' : 'hover:shadow-md hover:bg-gray-700/50'}`} onClick={() => setPaymentMethod('card')}>
                     <div className="flex items-center space-x-4">
-                      <div className="p-3 bg-blue-100 rounded-full">
-                        <CreditCard className="h-6 w-6 text-blue-600" />
+                      <div className="p-3 bg-blue-500/20 rounded-full">
+                        <CreditCard className="h-6 w-6 text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="font-semibold">Tarjeta de Crédito/Débito</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-white">Tarjeta de Crédito/Débito</h3>
+                        <p className="text-sm text-gray-300">
                           Pago seguro con tu tarjeta bancaria
                         </p>
                       </div>
                       {paymentMethod === 'card' && <CheckCircle className="h-5 w-5 text-primary ml-auto" />}
                     </div>
                     
-                    {paymentMethod === 'card' && <div className="mt-4 pt-4 border-t space-y-4">
+                    {paymentMethod === 'card' && <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label>Número de Tarjeta</Label>
-                            <Input placeholder="1234 5678 9012 3456" />
+                            <Label className="text-white">Número de Tarjeta</Label>
+                            <Input placeholder="1234 5678 9012 3456" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                           </div>
                           <div>
-                            <Label>Nombre en la Tarjeta</Label>
-                            <Input placeholder="JUAN PEREZ" />
+                            <Label className="text-white">Nombre en la Tarjeta</Label>
+                            <Input placeholder="JUAN PEREZ" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label>Fecha de Vencimiento</Label>
-                            <Input placeholder="MM/AA" />
+                            <Label className="text-white">Fecha de Vencimiento</Label>
+                            <Input placeholder="MM/AA" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                           </div>
                           <div>
-                            <Label>CVV</Label>
-                            <Input placeholder="123" />
+                            <Label className="text-white">CVV</Label>
+                            <Input placeholder="123" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                           </div>
                         </div>
                       </div>}
                   </Card>
 
                   {/* Microcredit */}
-                  <Card className={`p-4 cursor-pointer transition-all ${paymentMethod === 'microcredit' ? 'border-cyan-500 shadow-cyan-200 bg-gradient-to-br from-cyan-50 to-teal-50' : 'hover:shadow-md'}`} onClick={() => setPaymentMethod('microcredit')}>
+                  <Card className={`p-4 cursor-pointer transition-all bg-gray-700/30 border-white/10 ${paymentMethod === 'microcredit' ? 'border-cyan-500 shadow-cyan-500/50 bg-gradient-to-br from-cyan-900/30 to-teal-900/30' : 'hover:shadow-md hover:bg-gray-700/50'}`} onClick={() => setPaymentMethod('microcredit')}>
                     <div className="flex items-center space-x-4">
-                      <div className="p-3 bg-cyan-100 rounded-full">
-                        <Percent className="h-6 w-6 text-cyan-600" />
+                      <div className="p-3 bg-cyan-500/20 rounded-full">
+                        <Percent className="h-6 w-6 text-cyan-400" />
                       </div>
                       <div>
-                        <h3 className="font-semibold">Microcrédito Conektao</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-white">Microcrédito Conektao</h3>
+                        <p className="text-sm text-gray-300">
                           Compra ahora y paga en cuotas sin tarjeta
                         </p>
                       </div>
-                      {paymentMethod === 'microcredit' && <CheckCircle className="h-5 w-5 text-cyan-500 ml-auto" />}
+                      {paymentMethod === 'microcredit' && <CheckCircle className="h-5 w-5 text-cyan-400 ml-auto" />}
                     </div>
                     
                      {paymentMethod === 'microcredit' && <div className="mt-4 pt-4 border-t space-y-4">
@@ -989,26 +989,26 @@ const Marketplace = () => {
               </Card>
 
               {/* Delivery Address */}
-              <Card className="p-6 bg-white shadow-xl">
-                <h2 className="text-xl font-bold mb-4">Dirección de Entrega</h2>
+              <Card className="p-6 bg-gray-800/50 border-white/10 shadow-xl backdrop-blur-sm">
+                <h2 className="text-xl font-bold mb-4 text-white">Dirección de Entrega</h2>
                 <div className="space-y-4">
                   <div>
-                    <Label>Dirección completa</Label>
-                    <Input placeholder="Calle 123 #45-67" />
+                    <Label className="text-white">Dirección completa</Label>
+                    <Input placeholder="Calle 123 #45-67" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Ciudad</Label>
-                      <Input placeholder="Bogotá" />
+                      <Label className="text-white">Ciudad</Label>
+                      <Input placeholder="Bogotá" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                     </div>
                     <div>
-                      <Label>Código Postal</Label>
-                      <Input placeholder="110111" />
+                      <Label className="text-white">Código Postal</Label>
+                      <Input placeholder="110111" className="bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" />
                     </div>
                   </div>
                   <div>
-                    <Label>Instrucciones especiales</Label>
-                    <textarea className="w-full p-2 border rounded-md" rows={3} placeholder="Apartamento 401, tocar el timbre..." />
+                    <Label className="text-white">Instrucciones especiales</Label>
+                    <textarea className="w-full p-2 border rounded-md bg-gray-700/50 border-white/20 text-white placeholder:text-gray-400" rows={3} placeholder="Apartamento 401, tocar el timbre..." />
                   </div>
                 </div>
               </Card>
@@ -1016,34 +1016,34 @@ const Marketplace = () => {
 
             {/* Order Summary */}
             <div className="space-y-6">
-              <Card className="p-6 bg-white shadow-xl">
-                <h2 className="text-xl font-bold mb-4">Resumen del Pedido</h2>
+              <Card className="p-6 bg-gray-800/50 border-white/10 shadow-xl backdrop-blur-sm">
+                <h2 className="text-xl font-bold mb-4 text-white">Resumen del Pedido</h2>
                 
                 <div className="space-y-3 mb-4">
                   {cart.map((item, index) => <div key={index} className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-2">
                         <span>{item.supplierLogo}</span>
-                        <span className="truncate">{item.name}</span>
-                        <span className="text-muted-foreground">x{item.quantity}</span>
+                        <span className="truncate text-white">{item.name}</span>
+                        <span className="text-gray-400">x{item.quantity}</span>
                       </div>
-                      <span className="font-medium">
+                      <span className="font-medium text-white">
                         {formatCurrency(item.price * item.quantity)}
                       </span>
                     </div>)}
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between">
+                <div className="border-t border-white/10 pt-4 space-y-2">
+                  <div className="flex justify-between text-gray-300">
                     <span>Subtotal:</span>
-                    <span>{formatCurrency(getTotalPrice())}</span>
+                    <span className="text-white">{formatCurrency(getTotalPrice())}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-gray-300">
                     <span>Envío:</span>
-                    <span className="text-green-600">Gratis</span>
+                    <span className="text-green-400">Gratis</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg">
-                    <span>Total:</span>
-                    <span className="text-green-600">{formatCurrency(getTotalPrice())}</span>
+                    <span className="text-white">Total:</span>
+                    <span className="text-green-400">{formatCurrency(getTotalPrice())}</span>
                   </div>
                   
                   {paymentMethod === 'microcredit' && <div className="bg-gradient-to-r from-cyan-50 via-teal-50 to-cyan-100 p-3 rounded-lg mt-4 border border-cyan-200">
@@ -1056,22 +1056,22 @@ const Marketplace = () => {
                     </div>}
                 </div>
 
-                <Button className="w-full mt-6 bg-gradient-primary text-lg py-4" onClick={processOrder}>
-                  {paymentMethod === 'cash' && '💰 Confirmar Pedido (Pago en Efectivo)'}
+                <Button className="w-full mt-6 bg-gradient-primary text-lg py-4 text-white" onClick={processOrder}>
+                  {paymentMethod === 'cash' && '💰 Confirmar Pedido'}
                   {paymentMethod === 'card' && '💳 Pagar con Tarjeta'}
-                  {paymentMethod === 'microcredit' && '📊 Confirmar Microcrédito'}
+                  {paymentMethod === 'microcredit' && '📊 Confirmar Crédito'}
                 </Button>
               </Card>
 
               {/* Payment Security */}
-              <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50">
+              <Card className="p-4 bg-gradient-to-r from-green-900/30 to-blue-900/30 border-white/10">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-full">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div className="p-2 bg-green-500/20 rounded-full">
+                    <CheckCircle className="h-5 w-5 text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm">Pago 100% Seguro</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <h3 className="font-semibold text-sm text-white">Pago 100% Seguro</h3>
+                    <p className="text-xs text-gray-300">
                       Tus datos están protegidos con encriptación SSL
                     </p>
                   </div>
