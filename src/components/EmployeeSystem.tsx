@@ -170,7 +170,7 @@ const EmployeeSystem = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 bg-popover">
-        <TabsList className="grid w-full grid-cols-5 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-xl p-2">
+        <TabsList className="grid w-full grid-cols-5 border-0 shadow-lg rounded-xl p-2">
           <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-pink-500 data-[state=active]:text-white rounded-lg font-semibold transition-all duration-300">
             <Users className="h-4 w-4" />
             Empleados
