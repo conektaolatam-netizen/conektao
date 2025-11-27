@@ -61,43 +61,45 @@ const LoginForm = ({ onSwitchToRegister }: LoginFormProps) => {
   };
 
   return (
-    <Card className="w-full bg-white/95 backdrop-blur-xl shadow-2xl border border-white/20">
+    <Card className="w-full bg-gradient-to-br from-gray-900 via-blue-950 to-gray-900 backdrop-blur-xl shadow-2xl border-2 border-blue-500/30">
       <CardHeader className="text-center">
-        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-          <Building2 className="h-8 w-8 text-primary" />
+        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mb-4 border-2 border-blue-400/30 ring-4 ring-blue-500/10">
+          <Building2 className="h-8 w-8 text-blue-400" />
         </div>
-        <CardTitle className="text-2xl">Entrar a mi establecimiento</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl text-white">Entrar a mi establecimiento</CardTitle>
+        <CardDescription className="text-gray-300">
           Inicia sesión con tu cuenta de Conektao
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
+            <Label htmlFor="email" className="text-white">Correo electrónico</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               placeholder="tu@correo.com"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <Label htmlFor="password" className="text-white">Contraseña</Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
               placeholder="••••••••"
+              className="bg-gray-800/50 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400"
               required
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 hover:from-blue-600 hover:via-cyan-600 hover:to-blue-700 text-white shadow-lg hover:shadow-blue-500/50 transition-all duration-300" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -117,7 +119,7 @@ const LoginForm = ({ onSwitchToRegister }: LoginFormProps) => {
               type="button"
               variant="link"
               onClick={onSwitchToRegister}
-              className="text-sm"
+              className="text-sm text-blue-300 hover:text-blue-200"
             >
               ¿Nuevo en Conektao? Crear cuenta
             </Button>
