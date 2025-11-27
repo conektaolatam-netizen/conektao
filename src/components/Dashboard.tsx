@@ -484,11 +484,7 @@ const Dashboard = ({
         }, 100);
       }}>
           {/* Imagen de fondo */}
-          <img 
-            src="/lovable-uploads/makro-promo-vino.png" 
-            alt="Makro 60% Off Vino Argentino" 
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          <img alt="Makro 60% Off Vino Argentino" className="absolute inset-0 w-full h-full object-cover" src="/lovable-uploads/493fd1bc-4c8c-4d52-970c-52a4230b6504.png" />
           
           {/* Overlay oscuro en hover */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
