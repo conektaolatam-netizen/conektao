@@ -103,7 +103,7 @@ const EmployeeSystem = () => {
       icon: any;
       action: () => void;
     }>;
-    return <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+    return <div className="space-y-8 p-6 bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen">
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
             <Users className="h-6 w-6 text-white" />
@@ -159,7 +159,7 @@ const EmployeeSystem = () => {
   }
 
   // Vista completa para propietarios y administradores
-  return <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+  return <div className="space-y-8 p-6 bg-gradient-to-br from-gray-950 via-gray-900 to-black min-h-screen">
       <div className="text-center space-y-4 bg-popover">
         <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
           <Users className="h-8 w-8 text-white" />

@@ -167,7 +167,7 @@ const Index = () => {
         if (!hasPermission('view_employees')) {
           return renderUnauthorized('Personal');
         }
-        return <EmployeeSystem className="border-primary-foreground bg-popover text-muted" />;
+        return <EmployeeSystem />;
       case 'marketplace':
         return <Marketplace />;
       case 'inventory':
