@@ -153,28 +153,51 @@ const DailyRecommendations: React.FC<DailyRecommendationsProps> = ({ onOpenChat 
     if (!recommendation || !onOpenChat) return;
 
     const opp = recommendation.data_context.opportunity;
-    const context = opp ? `Ayúdame a implementar esta estrategia para ${opp.product.name}:
+    
+    // Create a professional, structured context for the AI chat
+    const context = opp ? `CONTEXTO DE CONSULTORÍA - CONEKTAO IA
 
+👋 Hola, soy tu consultor IA de Conektao. Detecté una oportunidad importante en tu negocio.
+
+📊 SITUACIÓN ACTUAL
+Producto: ${opp.product.name}
+📉 Alerta: ${opp.product.dailyChange >= 0 ? 'Tendencia positiva' : `Ventas ${Math.abs(opp.product.dailyChange).toFixed(1)}% por debajo del promedio`}
+💸 Costo real: ${formatCurrency(opp.product.cost)}
+🏷️ Precio actual: ${formatCurrency(opp.product.price)}
+💰 Margen actual: ${formatCurrency(opp.product.margin)} (${opp.product.marginPercent.toFixed(1)}%)
+📦 Ventas hoy: ${opp.product.today_qty} unidades
+📈 Ventas totales hoy: ${formatCurrency(recommendation.data_context.todayTotal)}
+
+🎯 RECOMENDACIÓN IA GENERADA
 ${recommendation.recommendation}
 
-DATOS DEL PRODUCTO:
-- Precio: $${opp.product.price?.toLocaleString()}
-- Costo: $${opp.product.cost?.toFixed(0).toLocaleString()}
-- Margen: $${opp.product.margin?.toFixed(0).toLocaleString()} (${opp.product.marginPercent?.toFixed(1)}%)
-- Ventas hoy: ${opp.product.today_qty} unidades
-- Cambio vs ayer: ${opp.product.dailyChange >= 0 ? '+' : ''}${opp.product.dailyChange?.toFixed(1)}%
+---
 
-Necesito un plan detallado con:
-1. ✍️ Textos exactos para publicaciones en redes sociales
-2. 📱 Estrategia de contenido (historias, posts, reels)
-3. 🎯 Segmento de público objetivo
-4. ⏰ Horarios óptimos de publicación
-5. 📊 KPIs para medir el éxito
-6. 💰 Presupuesto (si aplica)` : `Ayúdame a implementar esta recomendación:
+¿Quieres que te ayude a diseñar e implementar esta estrategia paso a paso?
 
+Puedo ayudarte con:
+1. 📱 Textos para redes sociales (Instagram, TikTok, Facebook)
+2. 🎯 Estrategia de pauta digital con presupuesto
+3. 💡 Combos y promociones para el POS
+4. 📊 Proyección de resultados y KPIs
+5. ⏰ Plan de ejecución con horarios
+
+Dime qué te gustaría hacer primero.` : `CONTEXTO DE CONSULTORÍA - CONEKTAO IA
+
+👋 Hola, soy tu consultor IA de Conektao. Analicé tus datos y tengo una recomendación para ti.
+
+📊 SITUACIÓN ACTUAL
+📈 Ventas hoy: ${formatCurrency(recommendation.data_context.todayTotal)}
+${recommendation.data_context.dailyChange >= 0 ? '✅' : '📉'} Cambio vs ayer: ${recommendation.data_context.dailyChange >= 0 ? '+' : ''}${recommendation.data_context.dailyChange.toFixed(1)}%
+
+🎯 RECOMENDACIÓN IA
 ${recommendation.recommendation}
 
-Necesito un plan práctico y ejecutable.`;
+---
+
+¿Quieres que te ayude a implementar esta estrategia?
+
+Puedo guiarte paso a paso para maximizar resultados.`;
 
     onOpenChat(context);
   };
@@ -425,7 +448,7 @@ Necesito un plan práctico y ejecutable.`;
             className="w-full bg-gradient-to-r from-primary via-secondary to-accent hover:opacity-90 transition-opacity text-lg py-7 font-semibold shadow-lg"
           >
             <MessageCircle className="h-6 w-6 mr-2" />
-            ✅ Implementar Estrategia IA
+            🧠 Chatear con la IA para diseñar e implementar estrategia
           </Button>
 
           <Button
