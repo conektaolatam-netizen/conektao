@@ -672,6 +672,60 @@ export type Database = {
           },
         ]
       }
+      ingredient_product_mappings: {
+        Row: {
+          confidence_level: number | null
+          created_at: string | null
+          created_by_ai: boolean | null
+          id: string
+          ingredient_id: string
+          notes: string | null
+          product_name: string
+          restaurant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence_level?: number | null
+          created_at?: string | null
+          created_by_ai?: boolean | null
+          id?: string
+          ingredient_id: string
+          notes?: string | null
+          product_name: string
+          restaurant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence_level?: number | null
+          created_at?: string | null
+          created_by_ai?: boolean | null
+          id?: string
+          ingredient_id?: string
+          notes?: string | null
+          product_name?: string
+          restaurant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_product_mappings_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_product_mappings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredient_recipes: {
         Row: {
           base_ingredient_id: string
