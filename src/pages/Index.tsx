@@ -210,7 +210,7 @@ const Index = () => {
         if (!hasPermission('access_kitchen')) {
           return renderUnauthorized('Cocina');
         }
-        return <KitchenDashboard />;
+        return <KitchenDashboard className="bg-card" />;
       default:
         return <DashboardPage onModuleChange={handleModuleChange} />;
     }
