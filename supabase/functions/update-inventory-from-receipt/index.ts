@@ -45,6 +45,14 @@ serve(async (req) => {
 
     const restaurantId = userProfile.restaurant_id;
 
+    // Get product-ingredient mappings for this user
+    const { data: mappings } = await supabase
+      .from('ingredient_product_mappings')
+      .select('product_name, ingredient_id')
+      .eq('user_id', userId);
+    
+    const mappingsMap = new Map(mappings?.map(m => [m.product_name.toLowerCase(), m.ingredient_id]) || []);
+
     // 1. Create expense record first
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
@@ -81,19 +89,84 @@ serve(async (req) => {
     for (const item of extractedData.items) {
       console.log(`Processing ingredient: ${item.description}`);
 
-      // Find matching ingredient (exact or similar)
-      const { data: matchingIngredients } = await supabase
-        .from('ingredients')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
-        .ilike('name', `%${item.description}%`)
-        .limit(1);
-
       let ingredientId = null;
       
-      if (matchingIngredients && matchingIngredients.length > 0) {
+      // First, check if there's a learned mapping for this product
+      const productNameOnReceipt = item.product_name_on_receipt || item.description;
+      const mappedIngredientId = mappingsMap.get(productNameOnReceipt.toLowerCase());
+      
+      if (mappedIngredientId) {
+        // Use the mapped ingredient directly
+        const { data: mappedIngredient } = await supabase
+          .from('ingredients')
+          .select('*')
+          .eq('id', mappedIngredientId)
+          .eq('is_active', true)
+          .single();
+        
+        if (mappedIngredient) {
+          console.log(`Using learned mapping: ${productNameOnReceipt} -> ${mappedIngredient.name}`);
+          ingredientId = mappedIngredient.id;
+          
+          // Update the ingredient stock with weighted average cost
+          const currentStock = mappedIngredient.current_stock || 0;
+          const currentCost = mappedIngredient.cost_per_unit || 0;
+          const newQuantity = item.quantity;
+          const newCost = item.unit_price;
+          
+          const newAvgCost = currentStock > 0 
+            ? ((currentStock * currentCost) + (newQuantity * newCost)) / (currentStock + newQuantity)
+            : newCost;
+
+          const newStock = currentStock + newQuantity;
+
+          await supabase
+            .from('ingredients')
+            .update({
+              current_stock: newStock,
+              cost_per_unit: newAvgCost,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', ingredientId);
+
+          updatedIngredients.push({
+            name: item.description,
+            previous_stock: currentStock,
+            new_stock: newStock,
+            added_quantity: newQuantity,
+            previous_cost: currentCost,
+            new_avg_cost: newAvgCost,
+            unit: mappedIngredient.unit,
+            mapped_from: productNameOnReceipt
+          });
+
+          // Create ingredient movement
+          await supabase
+            .from('ingredient_movements')
+            .insert({
+              ingredient_id: ingredientId,
+              movement_type: 'IN',
+              quantity: newQuantity,
+              reference_type: 'PURCHASE',
+              reference_id: expense.id,
+              notes: `Compra - ${productNameOnReceipt} -> ${mappedIngredient.name}`
+            });
+        }
+        }
+      }
+      
+      // If no mapping found, search by name similarity
+      if (!ingredientId) {
+        const { data: matchingIngredients } = await supabase
+          .from('ingredients')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('restaurant_id', restaurantId)
+          .eq('is_active', true)
+          .ilike('name', `%${item.description}%`)
+          .limit(1);
+        
+        if (matchingIngredients && matchingIngredients.length > 0) {
         // Ingredient exists - update with weighted average cost
         const ingredient = matchingIngredients[0];
         ingredientId = ingredient.id;
@@ -145,7 +218,7 @@ serve(async (req) => {
             batch_code: item.batch_code || null
           });
 
-      } else {
+        } else {
         // Ingredient doesn't exist - create new ingredient
         console.log(`Creating new ingredient: ${item.description}`);
         

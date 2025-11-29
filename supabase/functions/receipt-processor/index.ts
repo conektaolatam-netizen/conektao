@@ -83,6 +83,61 @@ serve(async (req) => {
         );
       }
 
+      // Check if user is trying to create a product-ingredient mapping
+      const mappingPattern = /(.+?)\s+(?:es del ingrediente|es el ingrediente|corresponde a|es)\s+(.+)/i;
+      const match = userMessage.match(mappingPattern);
+      
+      if (match) {
+        const productName = match[1].trim();
+        const ingredientName = match[2].trim();
+        
+        // Find the ingredient
+        const { data: ingredient } = await supabase
+          .from("ingredients")
+          .select("id, name")
+          .eq("user_id", userId)
+          .ilike("name", `%${ingredientName}%`)
+          .maybeSingle();
+        
+        if (ingredient) {
+          // Get restaurant_id
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("restaurant_id")
+            .eq("id", userId)
+            .single();
+          
+          // Create mapping
+          await supabase
+            .from("ingredient_product_mappings")
+            .upsert({
+              user_id: userId,
+              restaurant_id: profile.restaurant_id,
+              product_name: productName,
+              ingredient_id: ingredient.id,
+              confidence_level: 100,
+              created_by_ai: false,
+              notes: "Asociado manualmente por el usuario"
+            });
+          
+          return new Response(
+            JSON.stringify({
+              type: "mapping_created",
+              message: `✅ ¡Perfecto! He asociado "${productName}" con el ingrediente "${ingredient.name}". La próxima vez que este producto aparezca en una factura, lo reconoceré automáticamente.`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        } else {
+          return new Response(
+            JSON.stringify({
+              type: "chat_response",
+              message: `No encontré un ingrediente llamado "${ingredientName}". ¿Puedes verificar el nombre? Ingredientes disponibles: ${ingredientContext}`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+
       const chatResponse = await retryWithBackoff(async () => {
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -99,13 +154,15 @@ serve(async (req) => {
 
 CONTEXTO: El usuario está revisando una factura que ya procesé para actualizar su INVENTARIO DE INGREDIENTES.
 
+INGREDIENTES DISPONIBLES: ${ingredientContext}
+
 INSTRUCCIONES:
 1. Si pregunta por ingredientes específicos, ayúdale a identificarlos
-2. Si no logra ver algo, pregunta detalles específicos: "¿Puedes decirme qué ingrediente es el segundo de la lista y cuánto costó?"
-3. Si hay dudas sobre cantidades o precios, pide confirmación exacta
-4. Para inventario, pregunta: "¿Cuántos kg/L llegaron de [ingrediente] y cuál fue el costo unitario?"
+2. Si dice "el producto X es del ingrediente Y", confirma que entendiste y que lo recordarás
+3. Si no logra ver algo, pregunta detalles específicos
+4. Si hay dudas sobre cantidades o precios, pide confirmación exacta
 5. Mantén respuestas cortas y específicas
-6. Si confirma datos, responde: "Perfecto, actualizando inventario de ingredientes con esos datos"`,
+6. Puedes sugerir: "Si quieres que recuerde esto para futuras facturas, dime: 'el producto [nombre en factura] es del ingrediente [nombre ingrediente]'"`,
               },
               {
                 role: "user",
@@ -161,11 +218,18 @@ INSTRUCCIONES:
     // Get user's existing ingredients for context
     const { data: ingredients } = await supabase
       .from("ingredients")
-      .select("name, cost_per_unit, unit")
+      .select("id, name, cost_per_unit, unit")
       .eq("user_id", userId)
       .eq("is_active", true);
 
+    // Get existing product-ingredient mappings
+    const { data: mappings } = await supabase
+      .from("ingredient_product_mappings")
+      .select("product_name, ingredient_id, ingredients(name)")
+      .eq("user_id", userId);
+
     const ingredientContext = ingredients?.map((i) => `${i.name} (${i.unit})`).join(", ") || "No ingredients found";
+    const mappingContext = mappings?.map((m: any) => `"${m.product_name}" -> ${m.ingredients?.name}`).join(", ") || "No mappings yet";
 
     // Process image with Lovable AI Gateway with retry
     const controller = new AbortController();
@@ -187,13 +251,18 @@ INSTRUCCIONES:
 
 INGREDIENTES EXISTENTES DEL USUARIO: ${ingredientContext}
 
+ASOCIACIONES APRENDIDAS (producto de factura -> ingrediente):
+${mappingContext}
+
 INSTRUCCIONES CRÍTICAS:
 1. Extrae TODA la información visible con máxima velocidad
 2. Identifica INGREDIENTES (materias primas: carnes, vegetales, lácteos, bebidas, etc.) NO productos terminados
-3. Usa nombres de ingredientes existentes cuando sea similar
-4. Para dudas menores, haz suposiciones inteligentes y pregunta solo lo crítico
-5. Asigna automáticamente unidades lógicas (kg para carnes/vegetales, L para líquidos, unidades para items contables)
-6. CRÍTICO: Asigna un campo "confidence_score" (0-100) a cada item extraído
+3. PRIMERO revisa si el producto está en ASOCIACIONES APRENDIDAS y usa ese ingrediente
+4. Si no está en asociaciones, usa nombres de ingredientes existentes cuando sea similar
+5. Para dudas menores, haz suposiciones inteligentes y pregunta solo lo crítico
+6. Asigna automáticamente unidades lógicas (kg para carnes/vegetales, L para líquidos, unidades para items contables)
+7. CRÍTICO: Asigna un campo "confidence_score" (0-100) a cada item extraído
+8. Si detectas productos nuevos sin asociación clara, marca con "needs_mapping": true
 
 FORMATO JSON OBLIGATORIO:
 {
@@ -214,7 +283,9 @@ FORMATO JSON OBLIGATORIO:
       "unit_price": numero,
       "subtotal": numero,
       "matched_ingredient": "nombre del ingrediente existente si aplica",
-      "confidence_score": numero (0-100)
+      "confidence_score": numero (0-100),
+      "needs_mapping": boolean,
+      "product_name_on_receipt": "nombre exacto como aparece en factura"
     }
   ],
   "questions": [],

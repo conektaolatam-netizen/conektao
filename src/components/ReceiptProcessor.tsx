@@ -258,6 +258,23 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
 
       if (error) throw error;
 
+      // Check if this is a mapping creation
+      if (data.type === 'mapping_created') {
+        const successMessage: Message = {
+          type: 'ai',
+          message: data.message,
+          timestamp: new Date()
+        };
+        
+        setConversation(prev => [...prev, successMessage]);
+        toast({
+          title: "Asociación creada",
+          description: "La IA recordará esta asociación para futuras facturas",
+        });
+        
+        return;
+      }
+
       // Check if this is inventory confirmation
       if (data.type === 'inventory_confirmed') {
         // Trigger automatic inventory update
@@ -391,15 +408,18 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         <CardContent>
           {conversation.length === 0 && !isProcessing && (
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+                  <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
                 <div className="space-y-4">
                   <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                     <Camera className="h-8 w-8 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">🚀 Procesador Inteligente de Facturas</h3>
+                    <h3 className="text-lg font-semibold">🚀 Procesador Inteligente de Facturas con IA</h3>
                     <p className="text-muted-foreground">
-                      ⚡ La IA extraerá automáticamente proveedor, fecha, ingredientes, cantidades y precios de tu factura
+                      ⚡ La IA extraerá automáticamente ingredientes, cantidades y precios
+                    </p>
+                    <p className="text-sm text-primary mt-2">
+                      💡 Puedes decirle: "el producto Pulpa Açaí 500g es del ingrediente Pulpa de Açaí" y la IA lo recordará para futuras facturas
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-sm mx-auto">
