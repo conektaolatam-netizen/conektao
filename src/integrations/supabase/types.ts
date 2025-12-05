@@ -1577,6 +1577,9 @@ export type Database = {
           created_by: string | null
           email: string
           employee_type: string | null
+          face_descriptor: number[] | null
+          face_enrolled_at: string | null
+          face_photo_url: string | null
           full_name: string
           hourly_rate: number | null
           id: string
@@ -1597,6 +1600,9 @@ export type Database = {
           created_by?: string | null
           email: string
           employee_type?: string | null
+          face_descriptor?: number[] | null
+          face_enrolled_at?: string | null
+          face_photo_url?: string | null
           full_name: string
           hourly_rate?: number | null
           id: string
@@ -1617,6 +1623,9 @@ export type Database = {
           created_by?: string | null
           email?: string
           employee_type?: string | null
+          face_descriptor?: number[] | null
+          face_enrolled_at?: string | null
+          face_photo_url?: string | null
           full_name?: string
           hourly_rate?: number | null
           id?: string
@@ -2625,6 +2634,9 @@ export type Database = {
           created_at: string
           device_info: Json | null
           employee_id: string
+          face_confidence: number | null
+          face_photo_url: string | null
+          face_verified: boolean | null
           id: string
           is_valid_location: boolean | null
           latitude: number | null
@@ -2638,6 +2650,9 @@ export type Database = {
           created_at?: string
           device_info?: Json | null
           employee_id: string
+          face_confidence?: number | null
+          face_photo_url?: string | null
+          face_verified?: boolean | null
           id?: string
           is_valid_location?: boolean | null
           latitude?: number | null
@@ -2651,6 +2666,9 @@ export type Database = {
           created_at?: string
           device_info?: Json | null
           employee_id?: string
+          face_confidence?: number | null
+          face_photo_url?: string | null
+          face_verified?: boolean | null
           id?: string
           is_valid_location?: boolean | null
           latitude?: number | null
