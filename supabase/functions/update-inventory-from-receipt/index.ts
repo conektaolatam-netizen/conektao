@@ -152,7 +152,6 @@ serve(async (req) => {
               notes: `Compra - ${productNameOnReceipt} -> ${mappedIngredient.name}`
             });
         }
-        }
       }
       
       // If no mapping found, search by name similarity
@@ -266,6 +265,7 @@ serve(async (req) => {
             notes: `Ingrediente nuevo - Factura ${extractedData.invoice_number || 'N/A'}`,
             batch_code: item.batch_code || null
           });
+        }
       }
 
       // 3. Create expense item record
