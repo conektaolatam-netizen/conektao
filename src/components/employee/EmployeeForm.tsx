@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import FaceEnrollment from "./FaceEnrollment";
 
 interface Employee {
   id?: string;
@@ -21,6 +22,7 @@ interface Employee {
   is_active: boolean;
   permissions: any;
   created_at: string;
+  face_photo_url?: string | null;
 }
 
 interface EmployeeFormProps {
@@ -651,6 +653,18 @@ const EmployeeForm = ({ isOpen, onOpenChange, employee, onSuccess }: EmployeeFor
                 </div>
               )}
             </div>
+
+            {/* Face Enrollment Section - Only for existing employees */}
+            {employee?.id && (
+              <div className="pt-4 border-t">
+                <FaceEnrollment
+                  employeeId={employee.id}
+                  employeeName={employee.full_name}
+                  currentFacePhotoUrl={employee.face_photo_url}
+                  onEnrollmentComplete={onSuccess}
+                />
+              </div>
+            )}
 
           <DialogFooter>
             <Button

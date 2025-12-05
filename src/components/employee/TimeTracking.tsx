@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, Loader2, CheckCircle, AlertCircle, Timer, Calendar, User, Users } from "lucide-react";
+import { Clock, MapPin, Loader2, CheckCircle, AlertCircle, Timer, Calendar, User, Users, UserCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import FaceVerification from "./FaceVerification";
 
 interface TimeRecord {
   id: string;
@@ -35,6 +36,12 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
   const [todayRecords, setTodayRecords] = useState<TimeRecord[]>([]);
   const [workingTime, setWorkingTime] = useState<string>("00:00:00");
   const [allEmployeeRecords, setAllEmployeeRecords] = useState<TimeRecord[]>([]);
+  
+  // Face verification states
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
+  const [pendingClockAction, setPendingClockAction] = useState<'clock_in' | 'clock_out' | null>(null);
+  const [employeeFaceDescriptor, setEmployeeFaceDescriptor] = useState<number[] | null>(null);
+  const [hasFaceEnrolled, setHasFaceEnrolled] = useState(false);
 
   const targetEmployeeId = viewMode === 'manager' && selectedEmployeeId ? selectedEmployeeId : profile?.id;
 
@@ -269,7 +276,8 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
     }
   };
 
-  const handleClockAction = async (action: 'clock_in' | 'clock_out') => {
+  // Initiate clock action - may require face verification
+  const initiateClockAction = (action: 'clock_in' | 'clock_out') => {
     if (!profile?.id || !restaurant?.id || !currentLocation || !isInWorkArea) {
       toast({
         title: "Error",
@@ -278,6 +286,45 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
       });
       return;
     }
+
+    // If face is enrolled, require verification
+    if (hasFaceEnrolled && employeeFaceDescriptor) {
+      setPendingClockAction(action);
+      setShowFaceVerification(true);
+    } else {
+      // No face enrolled, proceed directly
+      executeClockAction(action, false, null, null);
+    }
+  };
+
+  // Handle face verification success
+  const handleFaceVerificationSuccess = (confidence: number, photoUrl: string | null) => {
+    if (pendingClockAction) {
+      executeClockAction(pendingClockAction, true, confidence, photoUrl);
+    }
+    setPendingClockAction(null);
+  };
+
+  // Handle face verification failed
+  const handleFaceVerificationFailed = () => {
+    toast({
+      title: "Verificación omitida",
+      description: "El registro se completará sin verificación facial",
+    });
+    if (pendingClockAction) {
+      executeClockAction(pendingClockAction, false, null, null);
+    }
+    setPendingClockAction(null);
+  };
+
+  // Execute the actual clock action
+  const executeClockAction = async (
+    action: 'clock_in' | 'clock_out', 
+    faceVerified: boolean,
+    faceConfidence: number | null,
+    facePhotoUrl: string | null
+  ) => {
+    if (!profile?.id || !restaurant?.id || !currentLocation) return;
 
     setLoading(true);
 
@@ -298,15 +345,19 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
           is_valid_location: isInWorkArea,
-          device_info: deviceInfo
+          device_info: deviceInfo,
+          face_verified: faceVerified,
+          face_confidence: faceConfidence,
+          face_photo_url: facePhotoUrl
         });
 
       if (error) throw error;
 
       const actionText = action === 'clock_in' ? 'entrada' : 'salida';
+      const verificationText = faceVerified ? ' con verificación facial' : '';
       toast({
         title: `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} registrada`,
-        description: `Tu ${actionText} ha sido registrada exitosamente`
+        description: `Tu ${actionText} ha sido registrada exitosamente${verificationText}`
       });
 
       setLastClockAction(action);
@@ -322,6 +373,33 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
       setLoading(false);
     }
   };
+
+  // Load employee face descriptor
+  useEffect(() => {
+    const loadFaceDescriptor = async () => {
+      if (!profile?.id || viewMode !== 'employee') return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('face_descriptor, face_enrolled_at')
+          .eq('id', profile.id)
+          .single();
+        
+        if (!error && data?.face_descriptor && data?.face_enrolled_at) {
+          setEmployeeFaceDescriptor(data.face_descriptor as number[]);
+          setHasFaceEnrolled(true);
+        } else {
+          setHasFaceEnrolled(false);
+          setEmployeeFaceDescriptor(null);
+        }
+      } catch (e) {
+        console.error('Error loading face descriptor:', e);
+      }
+    };
+    
+    loadFaceDescriptor();
+  }, [profile?.id, viewMode]);
 
   useEffect(() => {
     loadTodayRecords();
@@ -468,13 +546,15 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
 
           <div className="grid grid-cols-2 gap-4">
             <Button
-              onClick={() => handleClockAction('clock_in')}
+              onClick={() => initiateClockAction('clock_in')}
               disabled={loading || !isInWorkArea || lastClockAction === 'clock_in'}
               size="lg"
               className="h-16"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : hasFaceEnrolled ? (
+                <UserCheck className="h-4 w-4 mr-2" />
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
@@ -482,7 +562,7 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
             </Button>
             
             <Button
-              onClick={() => handleClockAction('clock_out')}
+              onClick={() => initiateClockAction('clock_out')}
               disabled={loading || !isInWorkArea || lastClockAction !== 'clock_in'}
               variant="outline"
               size="lg"
@@ -490,12 +570,21 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : hasFaceEnrolled ? (
+                <UserCheck className="h-4 w-4 mr-2" />
               ) : (
                 <AlertCircle className="h-4 w-4 mr-2" />
               )}
               Registrar Salida
             </Button>
           </div>
+
+          {hasFaceEnrolled && (
+            <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+              <UserCheck className="h-3 w-3" />
+              Verificación facial habilitada
+            </p>
+          )}
 
           <Button
             onClick={getCurrentLocation}
@@ -546,6 +635,19 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Face Verification Dialog */}
+      {employeeFaceDescriptor && profile && (
+        <FaceVerification
+          isOpen={showFaceVerification}
+          onOpenChange={setShowFaceVerification}
+          employeeId={profile.id}
+          employeeName={profile.full_name}
+          storedDescriptor={employeeFaceDescriptor}
+          onVerificationSuccess={handleFaceVerificationSuccess}
+          onVerificationFailed={handleFaceVerificationFailed}
+        />
       )}
     </div>
   );
