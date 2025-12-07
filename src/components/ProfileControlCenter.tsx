@@ -22,8 +22,10 @@ import {
   Percent,
   Mail,
   Phone,
-  Lock
+  Lock,
+  MapPin
 } from "lucide-react";
+import LocationPicker from "@/components/location/LocationPicker";
 
 interface ProfileControlCenterProps {
   open: boolean;
@@ -66,10 +68,14 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
   });
   
   // Estado para ubicación del restaurante (GPS y radio)
-  const [restaurantLocation, setRestaurantLocation] = useState({
-    latitude: restaurant?.latitude?.toString() || "",
-    longitude: restaurant?.longitude?.toString() || "",
-    location_radius: (restaurant?.location_radius ?? 100).toString(),
+  const [restaurantLocation, setRestaurantLocation] = useState<{
+    latitude: number | null;
+    longitude: number | null;
+    radius: number;
+  }>({
+    latitude: restaurant?.latitude || null,
+    longitude: restaurant?.longitude || null,
+    radius: restaurant?.location_radius ?? 100,
   });
   
   // Monthly targets
@@ -109,9 +115,9 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
       loadTipSettings();
       // Sincronizar ubicación actual del restaurante en el formulario
       setRestaurantLocation({
-        latitude: restaurant.latitude?.toString() || "",
-        longitude: restaurant.longitude?.toString() || "",
-        location_radius: (restaurant.location_radius ?? 100).toString(),
+        latitude: restaurant.latitude || null,
+        longitude: restaurant.longitude || null,
+        radius: restaurant.location_radius ?? 100,
       });
     }
   }, [open, user, restaurant]);
@@ -218,27 +224,20 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
      setLoading(false);
    };
  
-   // Geolocalización: usar ubicación actual del propietario como ubicación del restaurante
-   const handleUseCurrentRestaurantLocation = async () => {
-     if (!navigator.geolocation) {
-       toast.error("La geolocalización no está disponible en este dispositivo");
-       return;
-     }
-     navigator.geolocation.getCurrentPosition(
-       (position) => {
-         setRestaurantLocation((prev) => ({
-           ...prev,
-           latitude: position.coords.latitude.toString(),
-           longitude: position.coords.longitude.toString(),
-         }));
-         toast.success("Ubicación actual capturada");
-       },
-       (error) => {
-         console.error("Error obteniendo ubicación actual:", error);
-         toast.error("No se pudo obtener la ubicación. Revisa los permisos del navegador.");
-       },
-       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
-     );
+   // Handle location change from LocationPicker
+   const handleLocationPickerChange = (lat: number, lng: number) => {
+     setRestaurantLocation(prev => ({
+       ...prev,
+       latitude: lat,
+       longitude: lng,
+     }));
+   };
+
+   const handleRadiusPickerChange = (radius: number) => {
+     setRestaurantLocation(prev => ({
+       ...prev,
+       radius,
+     }));
    };
  
    // Guardar la ubicación del restaurante en la base de datos
@@ -249,9 +248,9 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
        const { error } = await supabase
          .from("restaurants")
          .update({
-           latitude: restaurantLocation.latitude ? parseFloat(restaurantLocation.latitude) : null,
-           longitude: restaurantLocation.longitude ? parseFloat(restaurantLocation.longitude) : null,
-           location_radius: restaurantLocation.location_radius ? parseInt(restaurantLocation.location_radius) : 100,
+           latitude: restaurantLocation.latitude,
+           longitude: restaurantLocation.longitude,
+           location_radius: restaurantLocation.radius,
          })
          .eq("id", restaurant.id);
        if (error) throw error;
@@ -492,56 +491,34 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
                    </CardContent>
                  </Card>
 
-                 <Card>
+                 <Card className="border-primary/20">
                    <CardHeader>
                      <CardTitle className="flex items-center gap-2">
-                       <Building className="h-5 w-5" />
+                       <MapPin className="h-5 w-5 text-primary" />
                        Ubicación del Establecimiento
                      </CardTitle>
                      <CardDescription>
-                       Define latitud, longitud y radio para el control de asistencia
+                       Define la ubicación y radio para el control de asistencia de empleados
                      </CardDescription>
                    </CardHeader>
                    <CardContent className="space-y-4">
-                     <div className="grid grid-cols-3 gap-4">
-                       <div>
-                         <Label htmlFor="rest_lat">Latitud</Label>
-                         <Input
-                           id="rest_lat"
-                           value={restaurantLocation.latitude}
-                           onChange={(e) => setRestaurantLocation(prev => ({ ...prev, latitude: e.target.value }))}
-                           placeholder="19.432608"
-                         />
-                       </div>
-                       <div>
-                         <Label htmlFor="rest_lng">Longitud</Label>
-                         <Input
-                           id="rest_lng"
-                           value={restaurantLocation.longitude}
-                           onChange={(e) => setRestaurantLocation(prev => ({ ...prev, longitude: e.target.value }))}
-                           placeholder="-99.133209"
-                         />
-                       </div>
-                       <div>
-                         <Label htmlFor="rest_radius">Radio permitido (metros)</Label>
-                         <Input
-                           id="rest_radius"
-                           type="number"
-                           value={restaurantLocation.location_radius}
-                           onChange={(e) => setRestaurantLocation(prev => ({ ...prev, location_radius: e.target.value }))}
-                           min={10}
-                           max={5000}
-                         />
-                       </div>
-                     </div>
-                     <div className="flex gap-3">
-                       <Button type="button" variant="outline" onClick={handleUseCurrentRestaurantLocation}>
-                         Usar ubicación actual
-                       </Button>
-                       <Button type="button" onClick={handleSaveRestaurantLocation} disabled={loading}>
-                         Guardar ubicación
-                       </Button>
-                     </div>
+                     <LocationPicker
+                       latitude={restaurantLocation.latitude}
+                       longitude={restaurantLocation.longitude}
+                       radius={restaurantLocation.radius}
+                       onLocationChange={handleLocationPickerChange}
+                       onRadiusChange={handleRadiusPickerChange}
+                       showRadiusSlider={true}
+                       showMap={true}
+                     />
+                     <Button 
+                       type="button" 
+                       onClick={handleSaveRestaurantLocation} 
+                       disabled={loading}
+                       className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
+                     >
+                       Guardar ubicación
+                     </Button>
                    </CardContent>
                  </Card>
                </>
