@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import LocationPicker from "@/components/location/LocationPicker";
 
 const RestaurantSetup = () => {
   const { user, refreshProfile } = useAuth();
@@ -17,10 +17,17 @@ const RestaurantSetup = () => {
   
   const [formData, setFormData] = useState({
     name: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-    location_radius: "100"
+    address: ""
+  });
+
+  const [location, setLocation] = useState<{
+    latitude: number | null;
+    longitude: number | null;
+    radius: number;
+  }>({
+    latitude: null,
+    longitude: null,
+    radius: 100
   });
 
 
@@ -55,13 +62,13 @@ const RestaurantSetup = () => {
           owner_id: user.id,
           name: formData.name,
           address: formData.address,
-          latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-          longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-          location_radius: formData.location_radius ? parseInt(formData.location_radius) : 100
+          latitude: location.latitude,
+          longitude: location.longitude,
+          location_radius: location.radius
         })
         .select()
         .single();
-      console.log(restaurant,restaurantError)
+      console.log(restaurant, restaurantError)
 
       if (restaurantError) throw restaurantError;
 
@@ -107,23 +114,29 @@ const RestaurantSetup = () => {
     }
   };
 
+  const handleLocationChange = (lat: number, lng: number, address?: string) => {
+    setLocation(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    if (address && !formData.address) {
+      setFormData(prev => ({ ...prev, address }));
+    }
+  };
+
+  const handleRadiusChange = (radius: number) => {
+    setLocation(prev => ({ ...prev, radius }));
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-2xl border-primary/20 shadow-[0_0_30px_hsl(var(--primary)/0.1)]">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Configura tu Establecimiento</CardTitle>
+          <CardTitle className="text-2xl text-center bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Configura tu Establecimiento
+          </CardTitle>
           <CardDescription className="text-center">
             Como propietario, configura tu establecimiento. La ubicación GPS es opcional y puedes agregarla luego.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              La ubicación será utilizada para verificar que los empleados registren su entrada/salida desde el lugar de trabajo.
-            </AlertDescription>
-          </Alert>
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre del Establecimiento *</Label>
@@ -133,6 +146,7 @@ const RestaurantSetup = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Ej: Establecimiento El Buen Sabor"
                 required
+                className="border-border/50 focus:border-primary"
               />
             </div>
 
@@ -143,64 +157,27 @@ const RestaurantSetup = () => {
                 value={formData.address}
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                 placeholder="Dirección completa del establecimiento"
-                rows={3}
+                rows={2}
+                className="border-border/50 focus:border-primary"
               />
             </div>
 
-            <div className="space-y-4">
-              <Label>Ubicación GPS (opcional)</Label>
-              
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Puedes agregar la ubicación ahora o más tarde en la configuración del restaurante.
-                  <br />Si deseas agregarla ahora:
-                  <br />1. Ve a Google Maps en tu navegador
-                  <br />2. Busca tu establecimiento o haz clic en la ubicación exacta
-                  <br />3. Copia las coordenadas que aparecen (ejemplo: 19.4326, -99.1332)
-                  <br />4. Ingresa los valores en los campos de abajo
-                </AlertDescription>
-              </Alert>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="latitude">Latitud</Label>
-                  <Input
-                    id="latitude"
-                    value={formData.latitude}
-                    onChange={(e) => setFormData(prev => ({ ...prev, latitude: e.target.value }))}
-                    placeholder="19.432608"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="longitude">Longitud</Label>
-                  <Input
-                    id="longitude"
-                    value={formData.longitude}
-                    onChange={(e) => setFormData(prev => ({ ...prev, longitude: e.target.value }))}
-                    placeholder="-99.133209"
-                  />
-                </div>
-              </div>
-            </div>
+            <LocationPicker
+              latitude={location.latitude}
+              longitude={location.longitude}
+              radius={location.radius}
+              address={formData.address}
+              onLocationChange={handleLocationChange}
+              onRadiusChange={handleRadiusChange}
+              showRadiusSlider={true}
+              showMap={true}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="radius">Radio permitido (metros)</Label>
-              <Input
-                id="radius"
-                type="number"
-                value={formData.location_radius}
-                onChange={(e) => setFormData(prev => ({ ...prev, location_radius: e.target.value }))}
-                placeholder="100"
-                min="10"
-                max="1000"
-              />
-              <p className="text-sm text-muted-foreground">
-                Los empleados podrán registrar entrada/salida dentro de este radio desde la ubicación establecida
-              </p>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all" 
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

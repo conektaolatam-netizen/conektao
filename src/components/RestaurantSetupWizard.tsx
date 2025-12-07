@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Building2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, Building2, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
+import LocationPicker from "@/components/location/LocationPicker";
 
 interface RestaurantSetupWizardProps {
   onComplete: () => void;
@@ -22,10 +23,17 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
   const [formData, setFormData] = useState({
     business_name: "",
     business_nit: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-    location_radius: "100"
+    address: ""
+  });
+
+  const [location, setLocation] = useState<{
+    latitude: number | null;
+    longitude: number | null;
+    radius: number;
+  }>({
+    latitude: null,
+    longitude: null,
+    radius: 100
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,9 +53,9 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
           name: formData.business_name,
           nit: formData.business_nit,
           address: formData.address,
-          latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-          longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-          location_radius: parseInt(formData.location_radius)
+          latitude: location.latitude,
+          longitude: location.longitude,
+          location_radius: location.radius
         })
         .select()
         .single();
@@ -102,22 +110,35 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
     onComplete();
   };
 
+  const handleLocationChange = (lat: number, lng: number, address?: string) => {
+    setLocation(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    if (address && !formData.address) {
+      setFormData(prev => ({ ...prev, address }));
+    }
+  };
+
+  const handleRadiusChange = (radius: number) => {
+    setLocation(prev => ({ ...prev, radius }));
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Card className="w-full max-w-2xl border-primary/20 shadow-[0_0_40px_hsl(var(--primary)/0.15)]">
         <CardHeader className="text-center">
-          <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-            <Building2 className="h-10 w-10 text-primary" />
+          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_hsl(var(--primary)/0.4)]">
+            <Building2 className="h-10 w-10 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold">¡Bienvenido a Conektao!</CardTitle>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            ¡Bienvenido a Conektao!
+          </CardTitle>
           <CardDescription className="text-lg">
             Para comenzar, configura tu establecimiento
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
+          <Alert className="border-emerald-500/30 bg-emerald-500/10">
+            <CheckCircle className="h-4 w-4 text-emerald-500" />
             <AlertDescription>
               <strong>¡Tu cuenta ya está lista!</strong> Ahora solo necesitas configurar tu establecimiento para acceder a todas las funcionalidades como gestión de empleados, inventario, ventas y más.
             </AlertDescription>
@@ -132,6 +153,7 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
                 onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))}
                 placeholder="Ej: Restaurante El Buen Sabor"
                 required
+                className="border-border/50 focus:border-primary"
               />
             </div>
 
@@ -142,6 +164,7 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
                 value={formData.business_nit}
                 onChange={(e) => setFormData(prev => ({ ...prev, business_nit: e.target.value }))}
                 placeholder="123456789-0"
+                className="border-border/50 focus:border-primary"
               />
             </div>
 
@@ -152,65 +175,28 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
                 value={formData.address}
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                 placeholder="Dirección completa del establecimiento"
-                rows={3}
+                rows={2}
+                className="border-border/50 focus:border-primary"
               />
             </div>
 
-            <div className="space-y-4">
-              <Label>Ubicación GPS (opcional pero recomendado)</Label>
-              
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Para control de asistencia:</strong> Si configuras la ubicación GPS, tus empleados podrán marcar entrada y salida solo cuando estén en el establecimiento.
-                  <br /><br />
-                  <strong>Cómo obtener coordenadas:</strong>
-                  <br />1. Ve a Google Maps
-                  <br />2. Busca tu establecimiento
-                  <br />3. Copia las coordenadas (ej: 19.4326, -99.1332)
-                </AlertDescription>
-              </Alert>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="latitude">Latitud</Label>
-                  <Input
-                    id="latitude"
-                    value={formData.latitude}
-                    onChange={(e) => setFormData(prev => ({ ...prev, latitude: e.target.value }))}
-                    placeholder="19.432608"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="longitude">Longitud</Label>
-                  <Input
-                    id="longitude"
-                    value={formData.longitude}
-                    onChange={(e) => setFormData(prev => ({ ...prev, longitude: e.target.value }))}
-                    placeholder="-99.133209"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="radius">Radio permitido (metros)</Label>
-              <Input
-                id="radius"
-                type="number"
-                value={formData.location_radius}
-                onChange={(e) => setFormData(prev => ({ ...prev, location_radius: e.target.value }))}
-                placeholder="100"
-                min="10"
-                max="1000"
-              />
-              <p className="text-sm text-muted-foreground">
-                Los empleados podrán registrar entrada/salida dentro de este radio
-              </p>
-            </div>
+            <LocationPicker
+              latitude={location.latitude}
+              longitude={location.longitude}
+              radius={location.radius}
+              address={formData.address}
+              onLocationChange={handleLocationChange}
+              onRadiusChange={handleRadiusChange}
+              showRadiusSlider={true}
+              showMap={true}
+            />
 
             <div className="flex gap-4">
-              <Button type="submit" className="flex-1" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all" 
+                disabled={loading}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -226,6 +212,7 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
                 variant="outline" 
                 onClick={handleSkip}
                 disabled={loading}
+                className="border-border/50 hover:border-primary"
               >
                 Configurar después
               </Button>
