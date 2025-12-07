@@ -41,6 +41,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocalDayRange } from '@/lib/date';
 import ReceiptProcessor from '@/components/ReceiptProcessor';
+import TipPayoutsSection from '@/components/cash/TipPayoutsSection';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -741,6 +742,14 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
                 </p>
               </div>
             </div>
+            
+            <Separator className="my-4" />
+
+            {/* Sección de propinas del día */}
+            <TipPayoutsSection 
+              cashRegisterId={cashRegister?.id} 
+              onPayoutCompleted={loadCashRegister}
+            />
             
             <Separator className="my-4" />
             

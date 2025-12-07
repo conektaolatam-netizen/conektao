@@ -1885,6 +1885,9 @@ export type Database = {
           name: string
           nit: string | null
           owner_id: string
+          tip_auto_distribute: boolean | null
+          tip_cashier_can_distribute: boolean | null
+          tip_default_distribution_type: string | null
           tip_enabled: boolean | null
           updated_at: string
         }
@@ -1900,6 +1903,9 @@ export type Database = {
           name: string
           nit?: string | null
           owner_id: string
+          tip_auto_distribute?: boolean | null
+          tip_cashier_can_distribute?: boolean | null
+          tip_default_distribution_type?: string | null
           tip_enabled?: boolean | null
           updated_at?: string
         }
@@ -1915,6 +1921,9 @@ export type Database = {
           name?: string
           nit?: string | null
           owner_id?: string
+          tip_auto_distribute?: boolean | null
+          tip_cashier_can_distribute?: boolean | null
+          tip_default_distribution_type?: string | null
           tip_enabled?: boolean | null
           updated_at?: string
         }
@@ -2690,6 +2699,142 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tip_distributions: {
+        Row: {
+          cash_register_id: string | null
+          created_at: string | null
+          distributed_at: string | null
+          distributed_by: string | null
+          distribution_type: string
+          id: string
+          notes: string | null
+          restaurant_id: string
+          sale_id: string | null
+          total_tip_amount: number
+        }
+        Insert: {
+          cash_register_id?: string | null
+          created_at?: string | null
+          distributed_at?: string | null
+          distributed_by?: string | null
+          distribution_type?: string
+          id?: string
+          notes?: string | null
+          restaurant_id: string
+          sale_id?: string | null
+          total_tip_amount: number
+        }
+        Update: {
+          cash_register_id?: string | null
+          created_at?: string | null
+          distributed_at?: string | null
+          distributed_by?: string | null
+          distribution_type?: string
+          id?: string
+          notes?: string | null
+          restaurant_id?: string
+          sale_id?: string | null
+          total_tip_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tip_distributions_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_distributions_distributed_by_fkey"
+            columns: ["distributed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_distributions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_distributions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_distributions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_with_masked_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tip_payouts: {
+        Row: {
+          amount: number
+          created_at: string | null
+          distribution_id: string
+          employee_id: string
+          hours_worked: number | null
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          percentage: number | null
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          distribution_id: string
+          employee_id: string
+          hours_worked?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          percentage?: number | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          distribution_id?: string
+          employee_id?: string
+          hours_worked?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          percentage?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tip_payouts_distribution_id_fkey"
+            columns: ["distribution_id"]
+            isOneToOne: false
+            referencedRelation: "tip_distributions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_payouts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_payouts_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

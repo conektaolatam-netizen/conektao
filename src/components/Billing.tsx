@@ -19,6 +19,7 @@ import type { Sale } from '@/context/AppContext';
 import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
+import TipDistributionModal from './billing/TipDistributionModal';
 const Billing = () => {
   const {
     state,
@@ -182,6 +183,14 @@ const Billing = () => {
   const [customTipAmount, setCustomTipAmount] = useState('');
   const [tipPercentage, setTipPercentage] = useState(10);
   const [noTip, setNoTip] = useState(false);
+  const [tipAutoDistribute, setTipAutoDistribute] = useState(false);
+  const [tipDefaultDistType, setTipDefaultDistType] = useState<'equal' | 'by_hours' | 'manual'>('equal');
+  const [tipCashierCanDistribute, setTipCashierCanDistribute] = useState(true);
+  
+  // Estado para modal de distribución de propinas
+  const [showTipDistributionModal, setShowTipDistributionModal] = useState(false);
+  const [pendingSaleIdForTip, setPendingSaleIdForTip] = useState<string | null>(null);
+  const [pendingTipAmountForDistribution, setPendingTipAmountForDistribution] = useState(0);
 
   // Usar cliente Supabase compartido tipado desde '@/integrations/supabase/client'
 
@@ -344,10 +353,13 @@ const Billing = () => {
       const {
         data,
         error
-      } = await supabase.from('restaurants').select('tip_enabled, default_tip_percentage').eq('owner_id', user?.id).single();
+      } = await supabase.from('restaurants').select('tip_enabled, default_tip_percentage, tip_auto_distribute, tip_default_distribution_type, tip_cashier_can_distribute').eq('id', profile.restaurant_id).single();
       if (!error && data) {
         setTipEnabled(data.tip_enabled || false);
         setTipPercentage(data.default_tip_percentage || 10);
+        setTipAutoDistribute(data.tip_auto_distribute || false);
+        setTipDefaultDistType((data.tip_default_distribution_type as 'equal' | 'by_hours' | 'manual') || 'equal');
+        setTipCashierCanDistribute(data.tip_cashier_can_distribute ?? true);
       }
     } catch (error) {
       console.error('Error loading tip settings:', error);
@@ -1171,23 +1183,39 @@ const Billing = () => {
 
       // 8. Recargar productos para actualizar stock
       await loadProductsFromDB();
-      setCurrentView('success');
-      toast({
-        title: "¡Venta registrada!",
-        description: `Orden ${selectedTable} - ${formatCurrency(total)} | Guardado en base de datos`
-      });
+      
+      // 9. Si hay propina y está configurada la distribución, mostrar modal
+      const currentTipAmount = calculateTipAmount();
+      const canDistribute = tipCashierCanDistribute || profile?.role === 'owner' || profile?.role === 'admin';
+      
+      if (tipEnabled && currentTipAmount > 0 && canDistribute) {
+        setPendingSaleIdForTip(saleData.id);
+        setPendingTipAmountForDistribution(currentTipAmount);
+        setShowTipDistributionModal(true);
+        // No mostrar success inmediatamente, esperar al modal
+        toast({
+          title: "¡Venta registrada!",
+          description: `Orden ${selectedTable} - ${formatCurrency(total)} | Ahora distribuye la propina`
+        });
+      } else {
+        setCurrentView('success');
+        toast({
+          title: "¡Venta registrada!",
+          description: `Orden ${selectedTable} - ${formatCurrency(total)} | Guardado en base de datos`
+        });
 
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setCurrentView('tables');
-        setSelectedTable(null);
-        setSelectedProducts([]);
-        setPaymentMethod('');
-        setCustomerEmail('');
-        setTipAmount(0);
-        setCustomTipAmount('');
-        setNoTip(false);
-      }, 3000);
+        // Reset after 3 seconds
+        setTimeout(() => {
+          setCurrentView('tables');
+          setSelectedTable(null);
+          setSelectedProducts([]);
+          setPaymentMethod('');
+          setCustomerEmail('');
+          setTipAmount(0);
+          setCustomTipAmount('');
+          setNoTip(false);
+        }, 3000);
+      }
     } catch (error) {
       console.error('Error processing payment:', error);
       toast({
@@ -1913,6 +1941,46 @@ Por favor:
               </div>
             </div>
           </div>}
+
+        {/* Modal de distribución de propinas */}
+        <TipDistributionModal
+          open={showTipDistributionModal}
+          onClose={() => {
+            setShowTipDistributionModal(false);
+            // Después de cerrar el modal, ir a success
+            setCurrentView('success');
+            setTimeout(() => {
+              setCurrentView('tables');
+              setSelectedTable(null);
+              setSelectedProducts([]);
+              setPaymentMethod('');
+              setCustomerEmail('');
+              setTipAmount(0);
+              setCustomTipAmount('');
+              setNoTip(false);
+              setPendingSaleIdForTip(null);
+              setPendingTipAmountForDistribution(0);
+            }, 3000);
+          }}
+          totalTipAmount={pendingTipAmountForDistribution}
+          saleId={pendingSaleIdForTip || ''}
+          onDistributed={() => {
+            setShowTipDistributionModal(false);
+            setCurrentView('success');
+            setTimeout(() => {
+              setCurrentView('tables');
+              setSelectedTable(null);
+              setSelectedProducts([]);
+              setPaymentMethod('');
+              setCustomerEmail('');
+              setTipAmount(0);
+              setCustomTipAmount('');
+              setNoTip(false);
+              setPendingSaleIdForTip(null);
+              setPendingTipAmountForDistribution(0);
+            }, 3000);
+          }}
+        />
     </div>;
 };
 export default Billing;
