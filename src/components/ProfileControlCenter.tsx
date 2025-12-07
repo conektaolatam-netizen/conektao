@@ -751,6 +751,7 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
                           <li>• El cliente puede dar más o menos del porcentaje sugerido</li>
                           <li>• Hay una opción "No dio propina" para casos sin propina</li>
                           <li>• La propina se suma automáticamente al total de la cuenta</li>
+                          <li>• Después del pago, aparecerá un modal para distribuir la propina entre meseros</li>
                         </ul>
                       </div>
                     </div>
