@@ -170,7 +170,6 @@ const RestaurantSetup = () => {
               onLocationChange={handleLocationChange}
               onRadiusChange={handleRadiusChange}
               showRadiusSlider={true}
-              showMap={true}
             />
 
             <Button 

@@ -509,7 +509,6 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
                        onLocationChange={handleLocationPickerChange}
                        onRadiusChange={handleRadiusPickerChange}
                        showRadiusSlider={true}
-                       showMap={true}
                      />
                      <Button 
                        type="button" 

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Map, Loader2, Check, AlertCircle } from 'lucide-react';
+import { MapPin, Navigation, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import LocationMap from './LocationMap';
+import { toast } from 'sonner';
 
 interface LocationPickerProps {
   latitude?: number | null;
@@ -15,8 +13,6 @@ interface LocationPickerProps {
   onLocationChange: (lat: number, lng: number, address?: string) => void;
   onRadiusChange?: (radius: number) => void;
   showRadiusSlider?: boolean;
-  showMap?: boolean;
-  mapboxToken?: string;
   className?: string;
 }
 
@@ -28,221 +24,200 @@ const LocationPicker = ({
   onLocationChange,
   onRadiusChange,
   showRadiusSlider = true,
-  showMap = true,
-  mapboxToken,
-  className
+  className,
 }: LocationPickerProps) => {
   const [isLocating, setIsLocating] = useState(false);
-  const [showMapView, setShowMapView] = useState(false);
-  const [currentAddress, setCurrentAddress] = useState(address || '');
-  const [localRadius, setLocalRadius] = useState(radius);
-  const [locationConfirmed, setLocationConfirmed] = useState(!!latitude && !!longitude);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState(address || '');
+  const [error, setError] = useState<string | null>(null);
+
+  const hasLocation = latitude !== null && longitude !== null && latitude !== undefined && longitude !== undefined;
 
   useEffect(() => {
-    setLocalRadius(radius);
-  }, [radius]);
-
-  useEffect(() => {
-    setLocationConfirmed(!!latitude && !!longitude);
-  }, [latitude, longitude]);
-
-  // Reverse geocoding to get address from coordinates
-  const reverseGeocode = async (lat: number, lng: number) => {
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken || 'pk.placeholder'}&language=es`
-      );
-      const data = await response.json();
-      if (data.features && data.features.length > 0) {
-        return data.features[0].place_name;
-      }
-    } catch (error) {
-      console.error('Error in reverse geocoding:', error);
+    if (address) {
+      setResolvedAddress(address);
     }
-    return null;
+  }, [address]);
+
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      setIsGeocoding(true);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            'Accept-Language': 'es',
+          },
+        }
+      );
+      
+      if (!response.ok) throw new Error('Geocoding failed');
+      
+      const data = await response.json();
+      return data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } catch (err) {
+      console.error('Reverse geocoding error:', err);
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } finally {
+      setIsGeocoding(false);
+    }
   };
 
-  const handleUseCurrentLocation = async () => {
+  const handleGetCurrentLocation = async () => {
     if (!navigator.geolocation) {
-      alert('La geolocalización no está disponible en este dispositivo');
+      setError('Tu navegador no soporta geolocalización');
+      toast.error('Tu navegador no soporta geolocalización');
       return;
     }
 
     setIsLocating(true);
+    setError(null);
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
         
-        let addr = '';
-        if (mapboxToken) {
-          addr = await reverseGeocode(lat, lng) || '';
-          setCurrentAddress(addr);
+        const addr = await reverseGeocode(lat, lng);
+        setResolvedAddress(addr);
+        onLocationChange(lat, lng, addr);
+        
+        setIsLocating(false);
+        toast.success('Ubicación capturada correctamente');
+      },
+      (err) => {
+        setIsLocating(false);
+        let errorMessage = 'No se pudo obtener tu ubicación';
+        
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            errorMessage = 'Permiso de ubicación denegado. Habilítalo en tu navegador.';
+            break;
+          case err.POSITION_UNAVAILABLE:
+            errorMessage = 'Ubicación no disponible. Intenta de nuevo.';
+            break;
+          case err.TIMEOUT:
+            errorMessage = 'Tiempo de espera agotado. Intenta de nuevo.';
+            break;
         }
         
-        onLocationChange(lat, lng, addr);
-        setLocationConfirmed(true);
-        setIsLocating(false);
+        setError(errorMessage);
+        toast.error(errorMessage);
       },
-      (error) => {
-        console.error('Error getting location:', error);
-        setIsLocating(false);
-        alert('No se pudo obtener la ubicación. Verifica los permisos del navegador.');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
     );
   };
 
-  const handleMapLocationChange = (lat: number, lng: number) => {
-    onLocationChange(lat, lng, currentAddress);
-    setLocationConfirmed(true);
-  };
-
-  const handleRadiusChange = (value: number[]) => {
-    const newRadius = value[0];
-    setLocalRadius(newRadius);
-    onRadiusChange?.(newRadius);
-  };
-
-  const formatRadius = (r: number) => {
-    if (r >= 1000) return `${(r / 1000).toFixed(1)} km`;
-    return `${r} m`;
-  };
-
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Header */}
       <div className="flex items-center gap-2">
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
           <MapPin className="h-4 w-4 text-primary-foreground" />
         </div>
-        <Label className="text-base font-semibold">Ubicación del Establecimiento</Label>
+        <span className="text-base font-semibold">Ubicación del Establecimiento</span>
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid gap-3">
-        {/* Use Current Location Button */}
-        <Button
-          type="button"
-          onClick={handleUseCurrentLocation}
-          disabled={isLocating}
-          className={cn(
-            "relative w-full h-14 overflow-hidden transition-all duration-300",
-            "bg-gradient-to-r from-primary via-primary to-secondary",
-            "hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]",
-            "border-0 text-primary-foreground font-medium"
-          )}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-          {isLocating ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Obteniendo ubicación...
-            </>
-          ) : (
-            <>
-              <Navigation className="h-5 w-5 mr-2" />
-              Usar mi ubicación actual
-            </>
-          )}
-        </Button>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          <span className="text-xs text-muted-foreground uppercase tracking-wider">o</span>
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-        </div>
-
-        {/* Open Map Button */}
-        {showMap && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowMapView(!showMapView)}
-            className={cn(
-              "w-full h-14 transition-all duration-300",
-              "border-2 border-dashed hover:border-solid",
-              "hover:border-secondary hover:bg-secondary/10",
-              showMapView && "border-secondary bg-secondary/10"
-            )}
-          >
-            <Map className="h-5 w-5 mr-2" />
-            {showMapView ? 'Ocultar mapa' : 'Seleccionar en el mapa'}
-          </Button>
+      {/* Main Location Button */}
+      <Button
+        type="button"
+        onClick={handleGetCurrentLocation}
+        disabled={isLocating}
+        className={cn(
+          'relative w-full h-14 text-base font-medium transition-all duration-300 overflow-hidden',
+          'bg-gradient-to-r from-primary via-primary to-secondary',
+          'hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]',
+          'border-0 text-primary-foreground',
+          hasLocation && 'ring-2 ring-primary/50'
         )}
-      </div>
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+        {isLocating ? (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Obteniendo ubicación...
+          </>
+        ) : (
+          <>
+            <Navigation className="w-5 h-5 mr-2" />
+            {hasLocation ? 'Actualizar mi ubicación' : 'Usar mi ubicación actual'}
+          </>
+        )}
+      </Button>
 
-      {/* Map View */}
-      {showMap && showMapView && (
-        <div className="relative rounded-xl overflow-hidden border-2 border-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.2)]">
-          <LocationMap
-            latitude={latitude || 4.7110}
-            longitude={longitude || -74.0721}
-            radius={localRadius}
-            onLocationChange={handleMapLocationChange}
-            mapboxToken={mapboxToken}
-          />
-        </div>
-      )}
-
-      {/* Radius Slider */}
-      {showRadiusSlider && (
-        <div className="space-y-3 p-4 rounded-xl bg-card/50 border border-border/50 backdrop-blur-sm">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Radio de cobertura</Label>
-            <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-              {formatRadius(localRadius)}
-            </span>
-          </div>
-          <div className="relative pt-2">
-            <Slider
-              value={[localRadius]}
-              onValueChange={handleRadiusChange}
-              min={10}
-              max={500}
-              step={10}
-              className="cursor-pointer"
-            />
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>10m</span>
-              <span>250m</span>
-              <span>500m</span>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Los empleados podrán registrar entrada/salida dentro de este radio
-          </p>
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Location Confirmation */}
-      {locationConfirmed && latitude && longitude && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30">
-          <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-            <Check className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-emerald-500">Ubicación capturada</p>
-            {currentAddress && (
-              <p className="text-sm text-muted-foreground truncate">{currentAddress}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Lat: {latitude.toFixed(6)}, Lng: {longitude.toFixed(6)}
-            </p>
+      {hasLocation && (
+        <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-full bg-primary/10">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground mb-1">
+                Ubicación capturada
+              </p>
+              {isGeocoding ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Obteniendo dirección...
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {resolvedAddress || `${latitude?.toFixed(6)}, ${longitude?.toFixed(6)}`}
+                </p>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <MapPin className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs font-mono text-muted-foreground">
+                  {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* No Mapbox Token Warning */}
-      {showMap && !mapboxToken && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-          <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-amber-500">Mapa no disponible</p>
-            <p className="text-muted-foreground mt-1">
-              Para usar el mapa interactivo, configura tu token de Mapbox en los secretos del proyecto.
-            </p>
+      {/* Radius Slider */}
+      {showRadiusSlider && hasLocation && onRadiusChange && (
+        <div className="space-y-3 p-4 rounded-xl bg-card/50 border border-border/50">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-foreground">
+              Radio de cobertura
+            </label>
+            <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+              {radius}m
+            </span>
           </div>
+          
+          <Slider
+            value={[radius]}
+            onValueChange={(value) => onRadiusChange(value[0])}
+            min={50}
+            max={500}
+            step={10}
+            className="w-full cursor-pointer"
+          />
+          
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>50m</span>
+            <span>250m</span>
+            <span>500m</span>
+          </div>
+          
+          <p className="text-xs text-muted-foreground">
+            Los empleados podrán registrar entrada/salida dentro de este radio
+          </p>
         </div>
       )}
     </div>
