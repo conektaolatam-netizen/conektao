@@ -245,7 +245,7 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
       description: formData.description || null,
       price: parseFloat(formData.price),
       sku: editingProduct ? undefined : generatedSKU, // Only set SKU for new products
-      category_id: formData.category_id || null,
+      category_id: formData.category_id && formData.category_id !== 'none' ? formData.category_id : null,
       user_id: user.id,
       is_active: true
     };
@@ -766,7 +766,7 @@ const ProductManager = ({ onModuleChange }: { onModuleChange?: (module: string) 
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin categoría</SelectItem>
+                      <SelectItem value="none">Sin categoría</SelectItem>
                       {categories.map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                       ))}
