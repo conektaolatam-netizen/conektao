@@ -16,10 +16,16 @@ interface LocationPickerProps {
   className?: string;
 }
 
+const RADIUS_OPTIONS = [
+  { value: 2, label: '2m', description: 'Muy preciso - Solo dentro del local' },
+  { value: 5, label: '5m', description: 'Preciso - Entrada principal' },
+  { value: 10, label: '10m', description: 'Flexible - Área cercana' },
+];
+
 const LocationPicker = ({
   latitude,
   longitude,
-  radius = 100,
+  radius = 2,
   address,
   onLocationChange,
   onRadiusChange,
@@ -113,12 +119,22 @@ const LocationPicker = ({
 
   return (
     <div className={cn('space-y-4', className)}>
+      {/* Explanation */}
+      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          <span className="font-medium text-foreground">📍 ¿Para qué se usa esta ubicación?</span>
+          <br />
+          Se utilizará para el <strong>registro de horas trabajadas</strong> de los empleados. 
+          Solo podrán marcar entrada y salida cuando estén dentro del radio máximo que configures desde tu establecimiento.
+        </p>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-2">
         <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
           <MapPin className="h-4 w-4 text-primary-foreground" />
         </div>
-        <span className="text-base font-semibold">Ubicación del Establecimiento</span>
+        <span className="text-base font-semibold">Capturar Ubicación</span>
       </div>
 
       {/* Main Location Button */}
@@ -188,36 +204,39 @@ const LocationPicker = ({
         </div>
       )}
 
-      {/* Radius Slider */}
+      {/* Radius Selection */}
       {showRadiusSlider && hasLocation && onRadiusChange && (
         <div className="space-y-3 p-4 rounded-xl bg-card/50 border border-border/50">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">
-              Radio de cobertura
-            </label>
-            <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-              {radius}m
-            </span>
+          <label className="text-sm font-medium text-foreground">
+            Radio máximo de registro
+          </label>
+          
+          <div className="grid grid-cols-3 gap-2">
+            {RADIUS_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onRadiusChange(option.value)}
+                className={cn(
+                  'p-3 rounded-lg border-2 transition-all duration-200 text-center',
+                  radius === option.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/50 hover:border-primary/50 hover:bg-primary/5'
+                )}
+              >
+                <span className="text-lg font-bold block">{option.label}</span>
+                <span className="text-[10px] text-muted-foreground leading-tight block mt-1">
+                  {option.description}
+                </span>
+              </button>
+            ))}
           </div>
           
-          <Slider
-            value={[radius]}
-            onValueChange={(value) => onRadiusChange(value[0])}
-            min={50}
-            max={500}
-            step={10}
-            className="w-full cursor-pointer"
-          />
-          
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>50m</span>
-            <span>250m</span>
-            <span>500m</span>
+          <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20">
+            <p className="text-xs text-muted-foreground">
+              <strong className="text-foreground">📌 Basado en estas coordenadas:</strong> Los empleados podrán registrar su entrada/salida solo si están a máximo <strong className="text-primary">{radius} metros</strong> de este punto.
+            </p>
           </div>
-          
-          <p className="text-xs text-muted-foreground">
-            Los empleados podrán registrar entrada/salida dentro de este radio
-          </p>
         </div>
       )}
     </div>
