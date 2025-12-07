@@ -188,7 +188,6 @@ const RestaurantSetupWizard = ({ onComplete }: RestaurantSetupWizardProps) => {
               onLocationChange={handleLocationChange}
               onRadiusChange={handleRadiusChange}
               showRadiusSlider={true}
-              showMap={true}
             />
 
             <div className="flex gap-4">
