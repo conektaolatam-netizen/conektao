@@ -319,92 +319,103 @@ serve(async (req) => {
     }
     console.log('✅ Recetas creadas');
 
-    // 9. Create 60 days of sales
-    const paymentMethods = ['efectivo', 'tarjeta', 'transferencia'];
+    // 9. Create 60 days of sales using BATCH INSERTS for speed
     const productNames = Object.keys(productIds);
     const now = new Date();
-    let totalSalesGenerated = 0;
-
+    
+    // Pre-generate all sales data
+    const allSales: any[] = [];
+    const allSaleItemsData: { saleIndex: number; productId: string; quantity: number; unitPrice: number }[] = [];
+    
     for (let daysAgo = 59; daysAgo >= 0; daysAgo--) {
-      const saleDate = new Date(now);
-      saleDate.setDate(saleDate.getDate() - daysAgo);
+      const baseDate = new Date(now);
+      baseDate.setDate(baseDate.getDate() - daysAgo);
       
-      // Weekend bonus
-      const dayOfWeek = saleDate.getDay();
+      const dayOfWeek = baseDate.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6;
-      const baseTransactions = isWeekend ? 28 : 18;
-      const numTransactions = baseTransactions + Math.floor(Math.random() * 8);
+      const numTransactions = isWeekend ? 25 : 15; // Reduced for speed
       
       for (let t = 0; t < numTransactions; t++) {
-        // Random time between 11:00 and 22:00
-        const hour = 11 + Math.floor(Math.random() * 11);
-        const minute = Math.floor(Math.random() * 60);
-        saleDate.setHours(hour, minute, 0, 0);
+        const saleDate = new Date(baseDate);
+        saleDate.setHours(11 + Math.floor(Math.random() * 11), Math.floor(Math.random() * 60), 0, 0);
         
-        // Random items (1-4 per sale)
-        const numItems = 1 + Math.floor(Math.random() * 4);
-        const saleItems: { productName: string; quantity: number; price: number }[] = [];
+        const numItems = 1 + Math.floor(Math.random() * 3);
         let subtotal = 0;
+        const itemsForThisSale: typeof allSaleItemsData = [];
         
         for (let i = 0; i < numItems; i++) {
           const productName = productNames[Math.floor(Math.random() * productNames.length)];
           const product = productsData.find(p => p.name === productName)!;
-          const quantity = productName.includes('Cerveza') ? (1 + Math.floor(Math.random() * 3)) : 1;
+          const quantity = productName.includes('Cerveza') ? (1 + Math.floor(Math.random() * 2)) : 1;
           
-          saleItems.push({
-            productName,
+          itemsForThisSale.push({
+            saleIndex: allSales.length,
+            productId: productIds[productName],
             quantity,
-            price: product.price
+            unitPrice: product.price
           });
           subtotal += product.price * quantity;
         }
         
-        // Random tip (30% chance)
+        // Random tip (30% chance) - add to total
         const hasTip = Math.random() < 0.3;
         const tipAmount = hasTip ? Math.round(subtotal * 0.1) : 0;
-        const totalAmount = subtotal + tipAmount;
-        
-        // Payment method distribution
         const pmRand = Math.random();
-        const paymentMethod = pmRand < 0.4 ? 'efectivo' : pmRand < 0.75 ? 'tarjeta' : 'transferencia';
         
-        // Table number
-        const tableNumber = 1 + Math.floor(Math.random() * 15);
+        allSales.push({
+          user_id: userId,
+          total_amount: subtotal + tipAmount,
+          payment_method: pmRand < 0.4 ? 'efectivo' : pmRand < 0.75 ? 'tarjeta' : 'transferencia',
+          status: 'completed',
+          table_number: 1 + Math.floor(Math.random() * 15),
+          created_at: saleDate.toISOString()
+        });
         
-        // Create sale
-        const { data: sale } = await supabase
-          .from('sales')
-          .insert({
-            user_id: userId,
-            total_amount: totalAmount,
-            subtotal: subtotal,
-            tip_amount: tipAmount,
-            payment_method: paymentMethod,
-            status: 'completed',
-            table_number: tableNumber,
-            created_at: saleDate.toISOString()
-          })
-          .select()
-          .single();
-        
-        if (sale) {
-          totalSalesGenerated++;
-          // Create sale items
-          for (const item of saleItems) {
-            await supabase.from('sale_items').insert({
-              sale_id: sale.id,
-              product_id: productIds[item.productName],
-              quantity: item.quantity,
-              unit_price: item.price,
-              subtotal: item.price * item.quantity
-            });
-          }
-        }
+        allSaleItemsData.push(...itemsForThisSale);
       }
     }
-    console.log('✅ Ventas creadas:', totalSalesGenerated);
+    
+    console.log(`📊 Generando ${allSales.length} ventas en lotes...`);
+    
+    // Insert sales in batches of 50
+    const BATCH_SIZE = 50;
+    const createdSaleIds: string[] = [];
+    
+    for (let i = 0; i < allSales.length; i += BATCH_SIZE) {
+      const batch = allSales.slice(i, i + BATCH_SIZE);
+      const { data: insertedSales, error } = await supabase
+        .from('sales')
+        .insert(batch)
+        .select('id');
+      
+      if (error) {
+        console.error('Error inserting sales batch:', error);
+        continue;
+      }
+      if (insertedSales) {
+        createdSaleIds.push(...insertedSales.map(s => s.id));
+      }
+    }
+    
+    console.log(`✅ Ventas insertadas: ${createdSaleIds.length}`);
+    
+    // Now insert sale items in batches
+    const allSaleItems = allSaleItemsData.map(item => ({
+      sale_id: createdSaleIds[item.saleIndex],
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      subtotal: item.unitPrice * item.quantity
+    })).filter(item => item.sale_id); // Filter out any with missing sale_id
+    
+    for (let i = 0; i < allSaleItems.length; i += BATCH_SIZE) {
+      const batch = allSaleItems.slice(i, i + BATCH_SIZE);
+      await supabase.from('sale_items').insert(batch);
+    }
+    
+    console.log(`✅ Items de venta insertados: ${allSaleItems.length}`);
 
-    // 10. Create employees
+    // 10. Create employees (simplified - no time clock history for speed)
     const employees = [
       { full_name: 'Carlos Mendoza', email: 'carlos.chef@marisqueria.com', role: 'employee', employee_type: 'fixed', hourly_rate: 18000 },
       { full_name: 'María Rodríguez', email: 'maria.mesera@marisqueria.com', role: 'employee', employee_type: 'fixed', hourly_rate: 10000 },
@@ -413,18 +424,29 @@ serve(async (req) => {
       { full_name: 'Pedro Sánchez', email: 'pedro.ayudante@marisqueria.com', role: 'employee', employee_type: 'hourly', hourly_rate: 8500 },
     ];
 
+    let employeesCreated = 0;
     for (const emp of employees) {
-      // Create auth user for employee
-      const { data: empUser } = await supabase.auth.admin.createUser({
-        email: emp.email,
-        password: 'Empleado2024!',
-        email_confirm: true,
-        user_metadata: { full_name: emp.full_name }
-      });
+      try {
+        // Check if user already exists
+        const { data: existingUsers } = await supabase.auth.admin.listUsers();
+        const existingEmp = existingUsers?.users?.find(u => u.email === emp.email);
+        
+        let empUserId: string;
+        if (existingEmp) {
+          empUserId = existingEmp.id;
+        } else {
+          const { data: empUser, error: empError } = await supabase.auth.admin.createUser({
+            email: emp.email,
+            password: 'Empleado2024!',
+            email_confirm: true,
+            user_metadata: { full_name: emp.full_name }
+          });
+          if (empError || !empUser?.user) continue;
+          empUserId = empUser.user.id;
+        }
 
-      if (empUser?.user) {
         await supabase.from('profiles').upsert({
-          id: empUser.user.id,
+          id: empUserId,
           email: emp.email,
           full_name: emp.full_name,
           role: emp.role as any,
@@ -438,52 +460,13 @@ serve(async (req) => {
           work_address: 'Carrera 15 #93-75, Chapinero, Bogotá',
           created_by: userId
         }, { onConflict: 'id' });
-
-        // Create time clock records for last 60 days
-        for (let daysAgo = 59; daysAgo >= 0; daysAgo--) {
-          const workDate = new Date(now);
-          workDate.setDate(workDate.getDate() - daysAgo);
-          
-          // Skip some random days (simulate days off)
-          if (Math.random() < 0.15) continue;
-          
-          // Clock in around 10-11 AM
-          const clockInHour = 10 + Math.floor(Math.random() * 2);
-          const clockInMinute = Math.floor(Math.random() * 60);
-          workDate.setHours(clockInHour, clockInMinute, 0, 0);
-          
-          await supabase.from('time_clock_records').insert({
-            user_id: empUser.user.id,
-            restaurant_id: restaurantId,
-            clock_type: 'clock_in',
-            clock_time: workDate.toISOString(),
-            latitude: 4.6761 + (Math.random() - 0.5) * 0.0001,
-            longitude: -74.0486 + (Math.random() - 0.5) * 0.0001,
-            location_valid: true,
-            face_verified: true,
-            face_confidence: 0.85 + Math.random() * 0.1
-          });
-          
-          // Clock out around 6-8 PM
-          const clockOutHour = 18 + Math.floor(Math.random() * 3);
-          const clockOutMinute = Math.floor(Math.random() * 60);
-          workDate.setHours(clockOutHour, clockOutMinute, 0, 0);
-          
-          await supabase.from('time_clock_records').insert({
-            user_id: empUser.user.id,
-            restaurant_id: restaurantId,
-            clock_type: 'clock_out',
-            clock_time: workDate.toISOString(),
-            latitude: 4.6761 + (Math.random() - 0.5) * 0.0001,
-            longitude: -74.0486 + (Math.random() - 0.5) * 0.0001,
-            location_valid: true,
-            face_verified: true,
-            face_confidence: 0.85 + Math.random() * 0.1
-          });
-        }
+        
+        employeesCreated++;
+      } catch (e) {
+        console.log(`Error con empleado ${emp.email}:`, e);
       }
     }
-    console.log('✅ Empleados creados con registros de tiempo');
+    console.log('✅ Empleados creados:', employeesCreated);
 
     // 11. Setup AI daily limits
     await supabase.from('ai_daily_limits').upsert({
@@ -549,8 +532,8 @@ serve(async (req) => {
       stats: {
         products: Object.keys(productIds).length,
         ingredients: Object.keys(ingredientIds).length,
-        sales: totalSalesGenerated,
-        employees: employees.length,
+        sales: createdSaleIds.length,
+        employees: employeesCreated,
         monthly_sales: `$${thisMonth.toLocaleString('es-CO')} COP`,
         avg_ticket: `$${avgTicket.toLocaleString('es-CO')} COP`
       }
