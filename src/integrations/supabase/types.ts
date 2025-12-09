@@ -1422,6 +1422,54 @@ export type Database = {
           },
         ]
       }
+      prelaunch_registrations: {
+        Row: {
+          branches: string
+          business_name: string
+          city: string
+          created_at: string
+          email: string
+          free_trial_interest: string
+          id: string
+          improvements_wanted: string[]
+          main_business_type: string
+          name: string
+          phone: string
+          pos_name: string | null
+          pos_uses: boolean
+        }
+        Insert: {
+          branches: string
+          business_name: string
+          city: string
+          created_at?: string
+          email: string
+          free_trial_interest: string
+          id?: string
+          improvements_wanted?: string[]
+          main_business_type: string
+          name: string
+          phone: string
+          pos_name?: string | null
+          pos_uses?: boolean
+        }
+        Update: {
+          branches?: string
+          business_name?: string
+          city?: string
+          created_at?: string
+          email?: string
+          free_trial_interest?: string
+          id?: string
+          improvements_wanted?: string[]
+          main_business_type?: string
+          name?: string
+          phone?: string
+          pos_name?: string | null
+          pos_uses?: boolean
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string | null

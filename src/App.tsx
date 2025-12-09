@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import SupplierDashboardPage from "./pages/SupplierDashboard";
 import SupportPage from "./pages/SupportPage";
 import SupplierMarketplacePage from "./pages/SupplierMarketplacePage";
+import PreRegistro from "./pages/PreRegistro";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/supplier-dashboard" element={<SupplierDashboardPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/marketplace" element={<SupplierMarketplacePage />} />
+              <Route path="/pre-registro-conektao" element={<PreRegistro />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
