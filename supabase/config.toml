@@ -59,3 +59,18 @@ verify_jwt = true
 
 [functions.update-inventory-from-receipt]
 verify_jwt = true
+
+[functions.seed-seafood-demo]
+verify_jwt = false
+
+[functions.register-user]
+verify_jwt = false
+
+[functions.admin-ai-analytics]
+verify_jwt = true
+
+[functions.validate-payment-voucher]
+verify_jwt = true
+
+[functions.generate-makro-banner]
+verify_jwt = false
