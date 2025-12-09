@@ -74,3 +74,6 @@ verify_jwt = true
 
 [functions.generate-makro-banner]
 verify_jwt = false
+
+[functions.send-prelaunch-notification]
+verify_jwt = false
