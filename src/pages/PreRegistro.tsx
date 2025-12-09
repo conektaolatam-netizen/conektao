@@ -512,11 +512,11 @@ export default function PreRegistro() {
       
       {/* Header with logo */}
       <header className="relative z-10 p-4 pt-6">
-        <img 
-          src="/lovable-uploads/293afd18-69c7-4094-a709-ad04bdf68eb7.png" 
-          alt="Conektao" 
-          className="h-8 mx-auto brightness-0 invert"
-        />
+        <h1 className="text-2xl font-bold text-center text-white tracking-wide">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-teal-400">
+            Conektao
+          </span>
+        </h1>
       </header>
 
       {/* Main content */}
@@ -624,65 +624,112 @@ export default function PreRegistro() {
 function AnimatedBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Wave 1 - Orange */}
+      {/* Wave 1 - Orange - slow moving */}
       <motion.div
-        className="absolute w-[200%] h-[200%] -top-1/2 -left-1/2"
+        className="absolute w-[150%] h-[150%] -top-1/4 -left-1/4"
         animate={{
-          rotate: [0, 360],
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-      >
-        <div 
-          className="absolute top-1/2 left-1/2 w-[800px] h-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.04]"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(249, 115, 22, 0.4) 0%, transparent 70%)",
-            filter: "blur(100px)",
-          }}
-        />
-      </motion.div>
-      
-      {/* Wave 2 - Teal */}
-      <motion.div
-        className="absolute w-[200%] h-[200%] -bottom-1/2 -right-1/2"
-        animate={{
-          rotate: [360, 0],
+          x: ["-10%", "10%", "-10%"],
+          y: ["-5%", "5%", "-5%"],
         }}
         transition={{
           duration: 25,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-      >
-        <div 
-          className="absolute top-1/2 left-1/2 w-[600px] h-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.04]"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(20, 184, 166, 0.4) 0%, transparent 70%)",
-            filter: "blur(100px)",
-          }}
-        />
-      </motion.div>
-
-      {/* Wave 3 - Combined gradient */}
-      <motion.div
-        className="absolute w-full h-full"
-        animate={{
-          opacity: [0.02, 0.05, 0.02],
-        }}
-        transition={{
-          duration: 8,
           repeat: Infinity,
           ease: "easeInOut",
         }}
       >
         <div 
-          className="absolute top-1/4 right-1/4 w-[500px] h-[500px] rounded-full"
+          className="absolute top-1/3 left-1/4 w-[600px] h-[400px] rounded-full"
           style={{
-            background: "linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(20, 184, 166, 0.3))",
-            filter: "blur(120px)",
+            background: "radial-gradient(ellipse at center, rgba(249, 115, 22, 0.35) 0%, rgba(249, 115, 22, 0.1) 40%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
+        />
+      </motion.div>
+      
+      {/* Wave 2 - Teal - opposite movement */}
+      <motion.div
+        className="absolute w-[150%] h-[150%] -bottom-1/4 -right-1/4"
+        animate={{
+          x: ["10%", "-10%", "10%"],
+          y: ["5%", "-5%", "5%"],
+        }}
+        transition={{
+          duration: 30,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <div 
+          className="absolute bottom-1/3 right-1/4 w-[500px] h-[350px] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(20, 184, 166, 0.35) 0%, rgba(20, 184, 166, 0.1) 40%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
+        />
+      </motion.div>
+
+      {/* Wave 3 - Mixed gradient flowing */}
+      <motion.div
+        className="absolute w-full h-full"
+        animate={{
+          scale: [1, 1.1, 1],
+          opacity: [0.15, 0.25, 0.15],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full"
+          style={{
+            background: "linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(20, 184, 166, 0.2) 100%)",
+            filter: "blur(100px)",
+          }}
+        />
+      </motion.div>
+
+      {/* Wave 4 - Additional orange accent top-right */}
+      <motion.div
+        className="absolute w-[300px] h-[300px] top-0 right-0"
+        animate={{
+          x: ["0%", "-20%", "0%"],
+          y: ["0%", "20%", "0%"],
+        }}
+        transition={{
+          duration: 22,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <div 
+          className="w-full h-full rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(249, 115, 22, 0.25) 0%, transparent 60%)",
+            filter: "blur(60px)",
+          }}
+        />
+      </motion.div>
+
+      {/* Wave 5 - Additional teal accent bottom-left */}
+      <motion.div
+        className="absolute w-[350px] h-[350px] bottom-0 left-0"
+        animate={{
+          x: ["0%", "15%", "0%"],
+          y: ["0%", "-15%", "0%"],
+        }}
+        transition={{
+          duration: 28,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <div 
+          className="w-full h-full rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(20, 184, 166, 0.25) 0%, transparent 60%)",
+            filter: "blur(60px)",
           }}
         />
       </motion.div>
