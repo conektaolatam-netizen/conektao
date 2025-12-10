@@ -30,19 +30,22 @@ const businessTypeOptions = [
 
 const stepMotivation = [
   {
-    emoji: "👋",
-    title: "¡Hola! Queremos conocerte",
-    subtitle: "Tu negocio merece la mejor tecnología",
+    emoji: "🤖",
+    title: "¡Hola! Soy tu futuro asistente IA",
+    subtitle: "Estoy a punto de transformar tu negocio",
+    encouragement: "Paso 1 de 3 • Solo te tomará 30 segundos",
   },
   {
-    emoji: "🏪",
-    title: "Cuéntanos sobre tu negocio",
-    subtitle: "Cada negocio es único, el tuyo también",
+    emoji: "✨",
+    title: "Excelente elección, emprendedor",
+    subtitle: "Tu tipo de negocio define cómo te ayudaré",
+    encouragement: "Paso 2 de 3 • Ya casi llegamos",
   },
   {
-    emoji: "📱",
-    title: "¡Último paso!",
-    subtitle: "Te contactaremos para activar tu prueba gratis",
+    emoji: "🚀",
+    title: "¡Un paso del futuro de tu negocio!",
+    subtitle: "Con tu contacto, activaré tu prueba gratis de 2 meses",
+    encouragement: "Paso 3 de 3 • ¡Último dato!",
   },
 ];
 
@@ -153,17 +156,25 @@ export default function PreRegistro() {
         className="space-y-6"
       >
         {/* Motivation Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.1, type: "spring" }}
-            className="text-5xl mb-4"
+            className="text-5xl mb-3"
           >
             {motivation.emoji}
           </motion.div>
           <h2 className="text-2xl font-bold text-white mb-2">{motivation.title}</h2>
-          <p className="text-gray-400">{motivation.subtitle}</p>
+          <p className="text-gray-400 mb-2">{motivation.subtitle}</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-xs text-orange-400/80 font-medium"
+          >
+            {motivation.encouragement}
+          </motion.p>
         </div>
 
         {/* Step Content */}
@@ -354,11 +365,19 @@ export default function PreRegistro() {
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 w-full max-w-md"
       >
-        {/* Logo */}
+        {/* Logo & Intro */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent mb-3">
             Conektao
           </h1>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed"
+          >
+            <span className="text-orange-400">Solo 3 preguntas rápidas</span> para conectarte con el futuro de tu negocio impulsado por IA
+          </motion.p>
         </div>
 
         {/* Main Card */}
@@ -437,23 +456,69 @@ export default function PreRegistro() {
   );
 }
 
-// Animated Background Component
+// Animated Background Component with more visible waves
 function AnimatedBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
-      {/* Wave 1 - Orange large */}
+      {/* Wave 1 - Orange large - MORE VISIBLE */}
       <motion.div
-        className="absolute w-[800px] h-[800px] rounded-full opacity-[0.08]"
+        className="absolute w-[900px] h-[900px] rounded-full"
         style={{
-          background: "radial-gradient(circle, hsl(25, 95%, 53%) 0%, transparent 70%)",
-          filter: "blur(80px)",
-          left: "-20%",
-          top: "-30%",
+          background: "radial-gradient(circle, hsl(25, 95%, 53%) 0%, transparent 60%)",
+          filter: "blur(60px)",
+          left: "-25%",
+          top: "-35%",
+          opacity: 0.15,
         }}
         animate={{
-          x: [0, 150, 0],
-          y: [0, 100, 0],
-          scale: [1, 1.2, 1],
+          x: [0, 200, 50, 0],
+          y: [0, 150, -50, 0],
+          scale: [1, 1.3, 0.9, 1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+      
+      {/* Wave 2 - Teal - MORE VISIBLE */}
+      <motion.div
+        className="absolute w-[700px] h-[700px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, hsl(174, 72%, 45%) 0%, transparent 60%)",
+          filter: "blur(70px)",
+          right: "-15%",
+          bottom: "-25%",
+          opacity: 0.12,
+        }}
+        animate={{
+          x: [0, -150, 50, 0],
+          y: [0, -120, 80, 0],
+          scale: [1.1, 0.8, 1.2, 1.1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+      
+      {/* Wave 3 - Mixed gradient accent - MOVING */}
+      <motion.div
+        className="absolute w-[500px] h-[500px] rounded-full"
+        style={{
+          background: "linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(174, 72%, 40%) 100%)",
+          filter: "blur(50px)",
+          left: "30%",
+          top: "20%",
+          opacity: 0.1,
+        }}
+        animate={{
+          x: [0, 120, -80, 0],
+          y: [0, -100, 60, 0],
+          rotate: [0, 90, 180, 270, 360],
+          scale: [1, 1.2, 0.8, 1],
         }}
         transition={{
           duration: 12,
@@ -461,46 +526,48 @@ function AnimatedBackground() {
           ease: "easeInOut",
         }}
       />
-      
-      {/* Wave 2 - Teal */}
+
+      {/* Wave 4 - Orange small floating */}
       <motion.div
-        className="absolute w-[600px] h-[600px] rounded-full opacity-[0.06]"
+        className="absolute w-[300px] h-[300px] rounded-full"
         style={{
-          background: "radial-gradient(circle, hsl(174, 72%, 40%) 0%, transparent 70%)",
-          filter: "blur(100px)",
-          right: "-10%",
-          bottom: "-20%",
+          background: "radial-gradient(circle, hsl(30, 100%, 55%) 0%, transparent 70%)",
+          filter: "blur(40px)",
+          right: "10%",
+          top: "10%",
+          opacity: 0.18,
         }}
         animate={{
-          x: [0, -100, 0],
-          y: [0, -80, 0],
-          scale: [1.1, 0.9, 1.1],
+          x: [0, -80, 60, 0],
+          y: [0, 100, -40, 0],
+          scale: [0.8, 1.3, 0.9, 0.8],
         }}
         transition={{
-          duration: 15,
+          duration: 7,
           repeat: Infinity,
           ease: "easeInOut",
         }}
       />
-      
-      {/* Wave 3 - Orange small accent */}
+
+      {/* Wave 5 - Teal accent bottom left */}
       <motion.div
-        className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05]"
+        className="absolute w-[400px] h-[400px] rounded-full"
         style={{
-          background: "linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(174, 72%, 40%) 100%)",
-          filter: "blur(60px)",
-          right: "20%",
-          top: "30%",
+          background: "radial-gradient(circle, hsl(180, 60%, 45%) 0%, transparent 65%)",
+          filter: "blur(50px)",
+          left: "5%",
+          bottom: "10%",
+          opacity: 0.14,
         }}
         animate={{
-          x: [0, 80, -50, 0],
-          y: [0, -60, 40, 0],
-          rotate: [0, 180, 360],
+          x: [0, 100, -60, 0],
+          y: [0, -80, 50, 0],
+          scale: [1, 0.7, 1.2, 1],
         }}
         transition={{
-          duration: 20,
+          duration: 9,
           repeat: Infinity,
-          ease: "linear",
+          ease: "easeInOut",
         }}
       />
     </div>
