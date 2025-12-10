@@ -30,21 +30,21 @@ const businessTypeOptions = [
 
 const stepMotivation = [
   {
-    emoji: "🤖",
-    title: "¡Hola! Soy tu futuro asistente IA",
-    subtitle: "Estoy a punto de transformar tu negocio",
+    emoji: "📝",
+    title: "Regístrate al prelanzamiento",
+    subtitle: "Te enviaremos información exclusiva sobre Conektao",
     encouragement: "Paso 1 de 3 • Solo te tomará 30 segundos",
   },
   {
     emoji: "✨",
     title: "Excelente elección, emprendedor",
-    subtitle: "Tu tipo de negocio define cómo te ayudaré",
+    subtitle: "Tu tipo de negocio nos ayuda a personalizar la información",
     encouragement: "Paso 2 de 3 • Ya casi llegamos",
   },
   {
     emoji: "🚀",
     title: "¡Un paso del futuro de tu negocio!",
-    subtitle: "Con tu contacto, activaré tu prueba gratis de 2 meses",
+    subtitle: "Te contactaremos con novedades del prelanzamiento",
     encouragement: "Paso 3 de 3 • ¡Último dato!",
   },
 ];
@@ -327,7 +327,7 @@ export default function PreRegistro() {
               transition={{ delay: 0.4 }}
               className="text-gray-400 mb-6"
             >
-              Estás en la lista de prioridad. Te contactaremos pronto para activar tu prueba gratuita de 2 meses.
+              Estás en nuestra lista de prioridad. Te contactaremos pronto con información exclusiva sobre el prelanzamiento de Conektao.
             </motion.p>
 
             <motion.div 
@@ -376,7 +376,7 @@ export default function PreRegistro() {
             transition={{ delay: 0.2 }}
             className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed"
           >
-            <span className="text-orange-400">Solo 3 preguntas rápidas</span> para conectarte con el futuro de tu negocio impulsado por IA
+            <span className="text-orange-400">Solo 3 preguntas rápidas</span> para registrarte y recibir información exclusiva de nuestro prelanzamiento
           </motion.p>
         </div>
 
