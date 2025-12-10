@@ -435,7 +435,7 @@ export default function PreRegistro() {
               ) : currentStep === 2 ? (
                 <>
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Unirme a Conektao
+                  Enviar antes de que se acaben los cupos
                 </>
               ) : (
                 <>
