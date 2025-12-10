@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Sparkles, 
   Zap, 
@@ -29,13 +30,15 @@ import {
   Globe,
   CreditCard,
   Building,
-  ShoppingCart
+  ShoppingCart,
+  Loader2
 } from "lucide-react";
 
 const Welcome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [contactForm, setContactForm] = useState({ name: "", phone: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [logoAnimated, setLogoAnimated] = useState(false);
@@ -77,7 +80,7 @@ const Welcome = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleContact = () => {
+  const handleContact = async () => {
     if (!contactForm.name || !contactForm.phone) {
       toast({
         title: "Campos requeridos",
@@ -87,12 +90,42 @@ const Welcome = () => {
       return;
     }
     
-    toast({
-      title: "¡Gracias por tu interés!",
-      description: "Nos pondremos en contacto contigo muy pronto",
-    });
+    setIsSubmitting(true);
     
-    setContactForm({ name: "", phone: "" });
+    try {
+      const { error } = await supabase
+        .from('prelaunch_registrations')
+        .insert({
+          name: contactForm.name,
+          phone: contactForm.phone,
+          business_name: 'Contacto Welcome',
+          city: 'No especificada',
+          email: `${contactForm.phone}@contacto.welcome`,
+          main_business_type: 'contacto_welcome',
+          branches: '1',
+          free_trial_interest: 'si',
+          improvements_wanted: ['contacto_general'],
+          pos_uses: false
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Gracias por tu interés!",
+        description: "Nos pondremos en contacto contigo muy pronto",
+      });
+      
+      setContactForm({ name: "", phone: "" });
+    } catch (error) {
+      console.error('Error al guardar contacto:', error);
+      toast({
+        title: "Error",
+        description: "No pudimos guardar tu información. Intenta de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const features = [
@@ -931,10 +964,20 @@ const Welcome = () => {
                 />
                 <Button
                   onClick={handleContact}
-                  className="w-full bg-gradient-to-r from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600 text-white shadow-lg hover:shadow-orange-500/20 transition-all duration-300"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600 text-white shadow-lg hover:shadow-orange-500/20 transition-all duration-300 disabled:opacity-50"
                 >
-                  Contactarme
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      Contactarme
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
 
