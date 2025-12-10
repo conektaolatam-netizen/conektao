@@ -424,19 +424,19 @@ export default function PreRegistro() {
             <Button
               onClick={handleNext}
               disabled={isSubmitting}
-              className={`${currentStep === 0 ? "w-full" : "flex-1"} h-12 bg-gradient-to-r ${
+              className={`${currentStep === 0 ? "w-full" : "flex-1"} h-14 px-4 bg-gradient-to-r ${
                 currentStep === 2 
-                  ? "from-teal-500 to-orange-500 hover:from-teal-600 hover:to-orange-600" 
-                  : "from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600"
-              } text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20`}
+                  ? "from-teal-500 via-orange-500 to-teal-500 hover:from-teal-400 hover:via-orange-400 hover:to-teal-400 animate-pulse shadow-[0_0_30px_rgba(249,115,22,0.6),0_0_60px_rgba(20,184,166,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.8),0_0_80px_rgba(20,184,166,0.6)]" 
+                  : "from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600 shadow-lg shadow-orange-500/20"
+              } text-white font-bold rounded-xl transition-all duration-300 text-sm sm:text-base`}
             >
               {isSubmitting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : currentStep === 2 ? (
-                <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Enviar antes de que se acaben los cupos
-                </>
+                <span className="flex items-center justify-center gap-2 text-center leading-tight">
+                  <Sparkles className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                  <span className="text-xs sm:text-sm">¡Enviar antes de que se acaben los cupos!</span>
+                </span>
               ) : (
                 <>
                   Continuar
