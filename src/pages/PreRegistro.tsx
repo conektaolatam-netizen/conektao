@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Check, Loader2, Sparkles, Store, Phone, User } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Store, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -254,7 +254,7 @@ export default function PreRegistro() {
         )}
 
         {currentStep === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-[420px] mx-auto w-full">
             <div className="relative">
               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
               <Input
@@ -262,7 +262,7 @@ export default function PreRegistro() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="Tu WhatsApp o celular"
-                className="pl-12 bg-[#1a1a1a]/80 border-[#333] text-white placeholder:text-gray-500 h-14 text-lg rounded-2xl focus:border-teal-500 focus:ring-teal-500/20"
+                className="pl-12 bg-[#1a1a1a]/80 border-[#333] text-white placeholder:text-gray-500 h-14 text-lg rounded-2xl focus:border-teal-500 focus:ring-teal-500/20 w-full"
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleNext()}
               />
@@ -272,9 +272,9 @@ export default function PreRegistro() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="flex items-center gap-2 text-gray-500 text-sm justify-center"
+              className="flex items-center gap-2 text-gray-500 text-sm justify-center px-2 text-center"
             >
-              <Sparkles className="w-4 h-4 text-orange-400" />
+              <Sparkles className="w-4 h-4 text-orange-400 flex-shrink-0" />
               <span>Prometemos no enviarte spam, solo cosas buenas</span>
             </motion.div>
             
@@ -282,7 +282,7 @@ export default function PreRegistro() {
               <motion.p 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-red-400 text-sm"
+                className="text-red-400 text-sm text-center"
               >
                 {errors.phone}
               </motion.p>
@@ -407,26 +407,28 @@ export default function PreRegistro() {
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="mt-8 flex gap-3">
+          <div className="mt-8 max-w-[420px] mx-auto w-full space-y-4">
+            {/* Back link - only show on steps > 0 */}
             {currentStep > 0 && (
-              <Button
-                variant="ghost"
+              <button
                 onClick={() => {
                   setCurrentStep(currentStep - 1);
                   setErrors({});
                 }}
-                className="flex-1 h-12 text-gray-400 hover:text-white border border-[#333] rounded-xl"
+                className="flex items-center gap-1 text-gray-400 hover:text-teal-400 transition-colors text-sm mx-auto"
               >
-                Atrás
-              </Button>
+                <ArrowLeft className="w-4 h-4" />
+                <span>Atrás</span>
+              </button>
             )}
             
+            {/* Main CTA Button */}
             <Button
               onClick={handleNext}
               disabled={isSubmitting}
-              className={`${currentStep === 0 ? "w-full" : "flex-1"} h-14 px-4 bg-gradient-to-r ${
+              className={`w-full h-14 px-4 bg-gradient-to-r ${
                 currentStep === 2 
-                  ? "from-teal-500 via-orange-500 to-teal-500 hover:from-teal-400 hover:via-orange-400 hover:to-teal-400 animate-pulse shadow-[0_0_30px_rgba(249,115,22,0.6),0_0_60px_rgba(20,184,166,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.8),0_0_80px_rgba(20,184,166,0.6)]" 
+                  ? "from-teal-500 via-orange-500 to-teal-500 hover:from-teal-400 hover:via-orange-400 hover:to-teal-400 shadow-[0_0_25px_rgba(249,115,22,0.5),0_0_50px_rgba(20,184,166,0.3)] hover:shadow-[0_0_35px_rgba(249,115,22,0.7),0_0_70px_rgba(20,184,166,0.5)] active:scale-[0.98]" 
                   : "from-orange-500 to-teal-500 hover:from-orange-600 hover:to-teal-600 shadow-lg shadow-orange-500/20"
               } text-white font-bold rounded-xl transition-all duration-300 text-sm sm:text-base`}
             >
@@ -434,7 +436,7 @@ export default function PreRegistro() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : currentStep === 2 ? (
                 <span className="flex items-center justify-center gap-2 text-center leading-tight">
-                  <Sparkles className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                  <Sparkles className="w-5 h-5 flex-shrink-0" />
                   <span className="text-xs sm:text-sm">¡Enviar antes de que se acaben los cupos!</span>
                 </span>
               ) : (
