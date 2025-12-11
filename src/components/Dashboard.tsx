@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2 } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/integrations/supabase/client';
@@ -570,6 +570,36 @@ const Dashboard = ({
               </div>
             </button>)}
         </div>
+
+        {/* auditorIA Quick Access - Only for owner/admin */}
+        {(profile?.role === 'owner' || profile?.role === 'admin') && (
+          <button 
+            className="group relative w-full h-16 p-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-orange-500 text-white shadow-xl hover:shadow-2xl hover:shadow-cyan-500/30 transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 border-0 overflow-hidden"
+            onClick={() => onModuleChange('documents')}
+          >
+            {/* Efectos */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            
+            <div className="relative z-10 flex items-center justify-between h-full">
+              <div className="flex items-center space-x-4">
+                <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-all">
+                  <Eye className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="text-base font-bold">
+                    👁 <span className="text-white">auditor</span>
+                    <span className="bg-gradient-to-r from-cyan-200 to-orange-200 bg-clip-text text-transparent">IA</span>
+                    <span className="text-white/80 ml-2 text-sm font-normal">– Auditoría del negocio</span>
+                  </h4>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 bg-white/20 rounded-full text-xs font-semibold">Hunter</span>
+                <span className="text-xl">🛡️</span>
+              </div>
+            </div>
+          </button>
+        )}
       </div>
 
 
