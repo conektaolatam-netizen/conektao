@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import DailySalesView from './DailySalesView';
 import InvoiceEditor from './InvoiceEditor';
+import AuditorIA from './AuditorIA';
 import { 
   FileText,
   TrendingUp,
@@ -33,7 +34,8 @@ import {
   CreditCard,
   Calculator,
   Camera,
-  Smartphone
+  Smartphone,
+  Shield
 } from 'lucide-react';
 
 interface BusinessDocument {
@@ -57,11 +59,18 @@ const Documents = () => {
   const [showTransferPhotos, setShowTransferPhotos] = useState(false);
   const [transferPhotos, setTransferPhotos] = useState<any[]>([]);
   const [transferLoading, setTransferLoading] = useState(false);
+  const [showAuditorIA, setShowAuditorIA] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorSale, setEditorSale] = useState<any>(null);
   const [editorLoading, setEditorLoading] = useState(false);
+
+  // Check if user has audit permissions
+  const hasAuditPermission = 
+    profile?.role === 'owner' || 
+    profile?.role === 'admin' || 
+    (profile?.permissions as any)?.view_audit_ia;
 
   const localToday = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
     .toISOString()
@@ -555,6 +564,10 @@ const Documents = () => {
     </Card>
   );
 
+  if (showAuditorIA) {
+    return <AuditorIA onClose={() => setShowAuditorIA(false)} />;
+  }
+
   if (showDailySales) {
     return <DailySalesView onClose={() => setShowDailySales(false)} />;
   }
@@ -787,6 +800,28 @@ const Documents = () => {
             <div className="text-sm opacity-90">Fotos Transferencias</div>
           </div>
         </Card>
+
+        {/* auditorIA Card - Only show if user has permission */}
+        {hasAuditPermission && (
+          <Card 
+            className="relative overflow-hidden bg-gradient-to-br from-cyan-500 via-teal-500 to-orange-500 p-6 text-white border-0 shadow-xl hover:shadow-2xl hover:shadow-cyan-500/25 transition-all duration-300 cursor-pointer col-span-1 md:col-span-2 lg:col-span-1"
+            onClick={() => setShowAuditorIA(true)}
+          >
+            <div className="absolute top-0 right-0 h-20 w-20 bg-white/10 rounded-bl-full" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <Eye className="h-8 w-8" />
+                <Badge className="bg-white/20 text-white border border-white/30">Hunter</Badge>
+              </div>
+              <div className="text-2xl font-bold mb-1">
+                <span className="text-white">auditor</span>
+                <span className="bg-gradient-to-r from-cyan-200 to-orange-200 bg-clip-text text-transparent">IA</span>
+              </div>
+              <div className="text-sm opacity-90">Auditoría del negocio</div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Documents Grid */}
