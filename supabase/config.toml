@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.send-prelaunch-notification]
 verify_jwt = false
+
+[functions.auditor-ia]
+verify_jwt = true
