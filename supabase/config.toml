@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.auditor-ia]
 verify_jwt = true
+
+[functions.menu-onboarding-parse]
+verify_jwt = true
