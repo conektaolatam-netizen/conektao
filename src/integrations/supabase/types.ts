@@ -1230,6 +1230,59 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_import_sessions: {
+        Row: {
+          categories_created: number | null
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          extracted_data: Json | null
+          final_data: Json | null
+          id: string
+          original_images: string[] | null
+          products_created: number | null
+          restaurant_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          categories_created?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          final_data?: Json | null
+          id?: string
+          original_images?: string[] | null
+          products_created?: number | null
+          restaurant_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          categories_created?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          final_data?: Json | null
+          id?: string
+          original_images?: string[] | null
+          products_created?: number | null
+          restaurant_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_import_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_sales_targets: {
         Row: {
           created_at: string
