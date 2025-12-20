@@ -3064,6 +3064,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_onboarding: {
+        Row: {
+          created_at: string
+          id: string
+          tour_completed: boolean
+          tour_completed_at: string | null
+          tour_started_at: string | null
+          tour_step: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tour_completed?: boolean
+          tour_completed_at?: string | null
+          tour_started_at?: string | null
+          tour_step?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tour_completed?: boolean
+          tour_completed_at?: string | null
+          tour_started_at?: string | null
+          tour_step?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
