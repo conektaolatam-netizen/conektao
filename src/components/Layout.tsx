@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import RestaurantManagement from './RestaurantManagement';
 import ProfileControlCenter from './ProfileControlCenter';
+import { OwnerAlertsPanel } from './OwnerAlertsPanel';
+import { useUserRoles } from '@/hooks/useUserRoles';
 interface LayoutProps {
   children?: React.ReactNode;
   currentModule?: string;
@@ -36,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({
     restaurant,
     signOut
   } = useAuth();
+  const { isOwner } = useUserRoles();
   const [accountOpen, setAccountOpen] = useState(false);
   const [profileControlOpen, setProfileControlOpen] = useState(false);
   const handleSwitchAccount = async () => {
@@ -220,12 +223,8 @@ const Layout: React.FC<LayoutProps> = ({
               <span className="hidden xl:inline">Reiniciar</span>
             </Button>
             
-            <Button variant="outline" size="icon" className="relative h-8 w-8 sm:h-10 sm:w-10">
-              <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="absolute -top-1 -right-1 h-2 w-2 sm:h-3 sm:w-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                <span className="hidden sm:inline">3</span>
-              </span>
-            </Button>
+            {/* Panel de alertas para propietarios */}
+            {isOwner() && <OwnerAlertsPanel />}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

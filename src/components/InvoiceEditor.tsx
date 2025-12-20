@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuditLog } from '@/hooks/useAuditLog';
 import { 
   Trash2, 
   Plus, 
@@ -69,6 +70,7 @@ const InvoiceEditor = ({ sale, isOpen, onClose, onSaleUpdated }: InvoiceEditorPr
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
+  const { logDeleteSale } = useAuditLog();
 
   const isOwner = profile?.role === 'owner';
 
@@ -252,6 +254,15 @@ const InvoiceEditor = ({ sale, isOpen, onClose, onSaleUpdated }: InvoiceEditorPr
     
     setLoading(true);
     try {
+      // Registrar la acción ANTES de eliminar (para tener los datos)
+      await logDeleteSale(sale.id, {
+        total_amount: sale.total_amount,
+        payment_method: sale.payment_method,
+        table_number: sale.table_number,
+        items_count: sale.sale_items.length,
+        reason: deleteReason,
+      });
+
       // Update cash register if payment was cash
       if (sale.payment_method === 'efectivo') {
         await updateCashRegister(sale.total_amount, 0);
@@ -272,9 +283,6 @@ const InvoiceEditor = ({ sale, isOpen, onClose, onSaleUpdated }: InvoiceEditorPr
         .eq('id', sale.id);
 
       if (saleError) throw saleError;
-
-      // Log deletion reason
-      console.log(`Sale ${sale.id} deleted by ${profile?.full_name}. Reason: ${deleteReason}`);
 
       toast({
         title: "🗑️ Factura eliminada",

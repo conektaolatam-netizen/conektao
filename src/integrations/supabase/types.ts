@@ -235,35 +235,61 @@ export type Database = {
       audit_logs: {
         Row: {
           action: string
+          alert_generated: boolean | null
           created_at: string | null
           id: string
+          ip_address: string | null
+          is_sensitive: boolean | null
           new_values: Json | null
           old_values: Json | null
           record_id: string | null
+          restaurant_id: string | null
           table_name: string
           user_id: string | null
+          user_name: string | null
+          user_role: string | null
         }
         Insert: {
           action: string
+          alert_generated?: boolean | null
           created_at?: string | null
           id?: string
+          ip_address?: string | null
+          is_sensitive?: boolean | null
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
+          restaurant_id?: string | null
           table_name: string
           user_id?: string | null
+          user_name?: string | null
+          user_role?: string | null
         }
         Update: {
           action?: string
+          alert_generated?: boolean | null
           created_at?: string | null
           id?: string
+          ip_address?: string | null
+          is_sensitive?: boolean | null
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
+          restaurant_id?: string | null
           table_name?: string
           user_id?: string | null
+          user_name?: string | null
+          user_role?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_documents: {
         Row: {
@@ -1348,6 +1374,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      owner_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_read: boolean | null
+          metadata: Json | null
+          owner_id: string
+          read_at: string | null
+          related_record_id: string | null
+          related_table: string | null
+          restaurant_id: string
+          severity: string
+          title: string
+          triggered_by: string | null
+          triggered_by_name: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_read?: boolean | null
+          metadata?: Json | null
+          owner_id: string
+          read_at?: string | null
+          related_record_id?: string | null
+          related_table?: string | null
+          restaurant_id: string
+          severity?: string
+          title: string
+          triggered_by?: string | null
+          triggered_by_name?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_read?: boolean | null
+          metadata?: Json | null
+          owner_id?: string
+          read_at?: string | null
+          related_record_id?: string | null
+          related_table?: string | null
+          restaurant_id?: string
+          severity?: string
+          title?: string
+          triggered_by?: string | null
+          triggered_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_alerts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_transactions: {
         Row: {
@@ -2976,6 +3064,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          is_active: boolean | null
+          restaurant_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          restaurant_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          restaurant_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       sales_with_masked_emails: {
@@ -3043,9 +3169,38 @@ export type Database = {
         Returns: string
       }
       get_current_user_role: { Args: never; Returns: string }
+      get_restaurant_owner: {
+        Args: { _restaurant_id: string }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _restaurant_id?: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_owner_or_admin: {
         Args: { target_restaurant_id: string; user_id: string }
         Returns: boolean
+      }
+      is_restaurant_owner: {
+        Args: { _restaurant_id: string; _user_id: string }
+        Returns: boolean
+      }
+      log_action_with_alert: {
+        Args: {
+          p_action: string
+          p_is_sensitive?: boolean
+          p_new_values?: Json
+          p_old_values?: Json
+          p_record_id: string
+          p_restaurant_id: string
+          p_table_name: string
+          p_user_id: string
+        }
+        Returns: string
       }
       mask_customer_email: { Args: { email: string }; Returns: string }
       reset_daily_ai_usage: { Args: never; Returns: undefined }
@@ -3065,6 +3220,14 @@ export type Database = {
     }
     Enums: {
       account_type: "restaurant" | "supplier"
+      app_role:
+        | "owner"
+        | "admin"
+        | "manager"
+        | "cashier"
+        | "waiter"
+        | "kitchen"
+        | "employee"
       clock_type: "clock_in" | "clock_out"
       order_status:
         | "pending"
@@ -3209,6 +3372,15 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["restaurant", "supplier"],
+      app_role: [
+        "owner",
+        "admin",
+        "manager",
+        "cashier",
+        "waiter",
+        "kitchen",
+        "employee",
+      ],
       clock_type: ["clock_in", "clock_out"],
       order_status: [
         "pending",
