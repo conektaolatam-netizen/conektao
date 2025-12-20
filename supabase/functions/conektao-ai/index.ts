@@ -108,6 +108,54 @@ serve(async (req) => {
       .eq("is_active", true)
       .in("user_id", teamUserIds);
 
+    // Get today's cash register data
+    const today = new Date().toISOString().split("T")[0];
+    const { data: cashRegister } = restaurantId
+      ? await supabase
+          .from("cash_registers")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .eq("date", today)
+          .maybeSingle()
+      : { data: null };
+
+    // Get today's cash payments (expenses and incomes)
+    const { data: cashPayments } = cashRegister?.id
+      ? await supabase
+          .from("cash_payments")
+          .select("*")
+          .eq("cash_register_id", cashRegister.id)
+          .order("created_at", { ascending: false })
+      : { data: [] };
+
+    // Get employees/team members info
+    const { data: employees } = restaurantId
+      ? await supabase
+          .from("profiles")
+          .select("id, full_name, role, employee_type, hourly_rate, is_active")
+          .eq("restaurant_id", restaurantId)
+      : { data: [] };
+
+    // Get today's kitchen orders
+    const { data: kitchenOrders } = restaurantId
+      ? await supabase
+          .from("kitchen_orders")
+          .select("*, kitchen_order_items(*)")
+          .eq("restaurant_id", restaurantId)
+          .gte("created_at", `${today}T00:00:00`)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : { data: [] };
+
+    // Get ingredients/inventory alerts
+    const { data: ingredientAlerts } = restaurantId
+      ? await supabase
+          .from("ingredients")
+          .select("name, current_stock, min_stock, unit, cost_per_unit")
+          .eq("restaurant_id", restaurantId)
+          .eq("is_active", true)
+      : { data: [] };
+
     // Get recent sales data with intelligent fallback
     let salesData = null;
     let analysisWindow = "7 días";
@@ -123,7 +171,7 @@ serve(async (req) => {
         quantity,
         unit_price,
         subtotal,
-        sales!inner(created_at, payment_method, table_number, user_id),
+        sales!inner(created_at, payment_method, table_number, user_id, total_amount, tip_amount),
         products!inner(name, price, cost_price)
       `,
       )
@@ -143,7 +191,7 @@ serve(async (req) => {
           quantity,
           unit_price,
           subtotal,
-          sales!inner(created_at, payment_method, table_number, user_id),
+          sales!inner(created_at, payment_method, table_number, user_id, total_amount, tip_amount),
           products!inner(name, price, cost_price)
         `,
         )
@@ -157,9 +205,9 @@ serve(async (req) => {
     }
 
     // Process and analyze sales performance by product
-    const productPerformance = {};
+    const productPerformance: Record<string, any> = {};
     const sales =
-      salesData?.map((item) => {
+      salesData?.map((item: any) => {
         const productName = item.products.name;
         const revenue = parseFloat(item.subtotal);
         const quantity = item.quantity;
@@ -192,26 +240,62 @@ serve(async (req) => {
           margin_percentage: margin,
           payment_method: item.sales.payment_method,
           table_number: item.sales.table_number,
+          tip_amount: item.sales.tip_amount || 0,
         };
       }) || [];
 
     // Identify underperforming products (bottom 30% by sales volume and frequency)
     const productStats = Object.entries(productPerformance)
-      .map(([name, stats]) => ({
+      .map(([name, stats]: [string, any]) => ({
         product_name: name,
         ...stats,
       }))
-      .sort((a, b) => a.total_units_sold - b.total_units_sold);
+      .sort((a: any, b: any) => a.total_units_sold - b.total_units_sold);
 
     const underperformingProducts = productStats.slice(0, Math.ceil(productStats.length * 0.3));
 
     // Calculate KPIs for comprehensive analysis
-    const totalSales = sales?.reduce((sum, sale) => sum + sale.total_revenue, 0) || 0;
+    const totalSales = sales?.reduce((sum: number, sale: any) => sum + sale.total_revenue, 0) || 0;
+    const totalTips = sales?.reduce((sum: number, sale: any) => sum + (sale.tip_amount || 0), 0) || 0;
     const avgTicket = sales?.length > 0 ? totalSales / sales.length : 0;
-    const topProducts = productStats?.slice(0, 5) || [];
+    const topProducts = productStats?.slice(-5).reverse() || [];
     const lowStock =
-      inventory?.filter((item) => (item.inventory?.[0]?.current_stock || 0) <= (item.inventory?.[0]?.min_stock || 0)) ||
+      inventory?.filter((item: any) => (item.inventory?.[0]?.current_stock || 0) <= (item.inventory?.[0]?.min_stock || 0)) ||
       [];
+
+    // Ingredient alerts
+    const lowIngredients = (ingredientAlerts || []).filter(
+      (ing: any) => ing.current_stock <= ing.min_stock
+    );
+
+    // Cash register summary
+    const cashSummary = cashRegister
+      ? {
+          opening_balance: cashRegister.opening_balance,
+          current_cash: cashRegister.current_cash,
+          is_closed: cashRegister.is_closed,
+          final_cash: cashRegister.final_cash,
+          difference: cashRegister.cash_difference,
+        }
+      : null;
+
+    // Kitchen orders summary
+    const kitchenSummary = {
+      total_orders_today: kitchenOrders?.length || 0,
+      pending: kitchenOrders?.filter((o: any) => o.status === "pending").length || 0,
+      in_progress: kitchenOrders?.filter((o: any) => o.status === "in_progress").length || 0,
+      completed: kitchenOrders?.filter((o: any) => o.status === "completed").length || 0,
+    };
+
+    // Team summary
+    const teamSummary = {
+      total_employees: employees?.length || 0,
+      active: employees?.filter((e: any) => e.is_active).length || 0,
+      by_role: employees?.reduce((acc: Record<string, number>, e: any) => {
+        acc[e.role] = (acc[e.role] || 0) + 1;
+        return acc;
+      }, {}),
+    };
 
     // Format comprehensive data for AI analysis
     const apiData = {
@@ -220,12 +304,20 @@ serve(async (req) => {
       team_size: teamUserIds.length,
       kpis: {
         total_sales: totalSales,
+        total_tips: totalTips,
         avg_ticket: avgTicket,
         total_transactions: sales?.length || 0,
         products_count: inventory?.length || 0,
         low_stock_alerts: lowStock.length,
+        low_ingredient_alerts: lowIngredients.length,
       },
-      inventory: (inventory?.slice(0, 30) || []).map((item) => ({
+      cash_register: cashSummary,
+      kitchen: kitchenSummary,
+      team: teamSummary,
+      expenses_today: (cashPayments || [])
+        .filter((p: any) => p.amount < 0 || p.category !== "ingreso")
+        .slice(0, 10),
+      inventory: (inventory?.slice(0, 30) || []).map((item: any) => ({
         product: item.name,
         price: item.price,
         cost: item.cost_price,
@@ -240,37 +332,56 @@ serve(async (req) => {
       recent_sales: sales?.slice(0, 15) || [],
       top_products: topProducts,
       low_performers: underperformingProducts?.slice(0, 3) || [],
-      critical_stock: lowStock.map((item) => item.name),
+      critical_stock: lowStock.map((item: any) => item.name),
+      critical_ingredients: lowIngredients.map((i: any) => `${i.name} (${i.current_stock}/${i.min_stock} ${i.unit})`),
     };
 
     console.log("Secure restaurant data fetched");
 
     // Enhanced system prompt for comprehensive analysis (token-optimized)
-    const summaryForAI = `KPIs: total_sales=${totalSales.toFixed(2)}, avg_ticket=${avgTicket.toFixed(2)}, tx=${sales?.length || 0}, products=${inventory?.length || 0}, low_stock_alerts=${lowStock.length}. Top: ${(
-      topProducts || []
-    )
-      .map((p: any) => p.product_name || p.product)
-      .slice(0, 3)
-      .join(", ")}. Low: ${(underperformingProducts || [])
-      .map((p: any) => p.product_name)
-      .slice(0, 3)
-      .join(", ")}. Critical stock: ${lowStock
-      .map((i: any) => i.name)
-      .slice(0, 5)
-      .join(", ")}`;
-    const systemPrompt = `Eres Conektao AI Pro, asesor de alto nivel para restaurantes. 
-    Responde con emojis al inicio. Usa un tono claro, directo y profesional, pero cálido. 
-    Evita responder de forma genérica, se específico basado en los datos del negocio.
-    Mezcla datos internos del negocio (ventas, costos, nómina, inventario, etc.) 
-    con análisis y estrategias externas (marketing, tendencias, competencia, fechas clave). 
-    Nada de párrafos largos, a menos que sea necesario. Evita tablas, usalas solo de ser necesario. 
-    Cada respuesta debe poder inspirar acción rápida y entendible para el dueño.
+    const cashInfo = cashSummary
+      ? `Caja: apertura=${cashSummary.opening_balance}, actual=${cashSummary.current_cash || "N/A"}, cerrada=${cashSummary.is_closed}`
+      : "Caja: sin abrir hoy";
 
-RESUMEN DE DATOS:
+    const kitchenInfo = `Cocina hoy: ${kitchenSummary.total_orders_today} órdenes (${kitchenSummary.pending} pendientes, ${kitchenSummary.in_progress} en progreso, ${kitchenSummary.completed} completadas)`;
+
+    const teamInfo = `Equipo: ${teamSummary.total_employees} empleados (${teamSummary.active} activos)`;
+
+    const ingredientInfo = lowIngredients.length > 0
+      ? `Ingredientes críticos: ${lowIngredients.slice(0, 5).map((i: any) => i.name).join(", ")}`
+      : "Ingredientes: OK";
+
+    const summaryForAI = `
+KPIs (${analysisWindow}): ventas_totales=$${totalSales.toFixed(0)}, propinas=$${totalTips.toFixed(0)}, ticket_promedio=$${avgTicket.toFixed(0)}, transacciones=${sales?.length || 0}, productos=${inventory?.length || 0}
+${cashInfo}
+${kitchenInfo}
+${teamInfo}
+${ingredientInfo}
+Top productos: ${(topProducts || []).map((p: any) => p.product_name || p.product).slice(0, 5).join(", ")}
+Bajo rendimiento: ${(underperformingProducts || []).map((p: any) => p.product_name).slice(0, 3).join(", ")}
+Stock crítico: ${lowStock.map((i: any) => i.name).slice(0, 5).join(", ") || "Ninguno"}`;
+
+    const systemPrompt = `Eres Conektao AI Pro, asesor experto para restaurantes colombianos. 
+Responde con emojis al inicio. Tono claro, directo y profesional, pero cálido.
+Evita respuestas genéricas - SÉ ESPECÍFICO basándote en los datos reales del negocio.
+
+TIENES ACCESO A:
+- Ventas en tiempo real (productos, montos, métodos de pago, mesas, propinas)
+- Estado de caja del día (apertura, movimientos, cierre)
+- Comandas de cocina (pendientes, en progreso, completadas)
+- Inventario y stock de productos e ingredientes
+- Información del equipo de empleados
+- Gastos y egresos del día
+
+DATOS ACTUALES DEL NEGOCIO:
 ${summaryForAI}
 
-Si faltan datos, da mejores prácticas del sector con foco en ROI.
-Período: ${analysisWindow} | Equipo: ${teamUserIds.length} personas`;
+INSTRUCCIONES:
+- Respuestas concisas y accionables
+- Si preguntan por ventas/caja/cocina del día, usa los datos reales
+- Si faltan datos, da mejores prácticas del sector gastronómico colombiano
+- Evita tablas largas, usa listas cuando sea necesario
+- Cada respuesta debe inspirar acción inmediata para el dueño`;
 
     // Check if this is a cost calculation request
     const isCostCalculationRequest =
