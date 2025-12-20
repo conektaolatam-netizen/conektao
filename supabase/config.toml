@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.menu-onboarding-parse]
 verify_jwt = true
+
+[functions.elevenlabs-conversation-token]
+verify_jwt = true

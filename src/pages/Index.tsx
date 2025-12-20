@@ -26,6 +26,8 @@ import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
 import InventoryManagement from '@/components/inventory/InventoryManagement';
 import Welcome from './Welcome';
+import AliciaTour from '@/components/onboarding/AliciaTour';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 const Index = () => {
   const {
     user,
@@ -40,6 +42,7 @@ const Index = () => {
   const {
     notifications
   } = useNotifications();
+  const { showTour, completeTour, skipTour, restartTour, isLoading: tourLoading } = useOnboardingTour();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -229,6 +232,14 @@ const Index = () => {
       handleModuleChange(module);
       setShowTutorial(false);
     }} />}
+
+      {/* Tour de AliciIA para usuarios nuevos */}
+      {showTour && !tourLoading && (
+        <AliciaTour 
+          onComplete={completeTour} 
+          onSkip={skipTour} 
+        />
+      )}
     </>;
 };
 export default Index;
