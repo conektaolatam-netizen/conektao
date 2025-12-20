@@ -67,6 +67,12 @@ interface SelectedProduct extends Product {
 const POSBilling = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  
+  // Verificar permisos del empleado
+  const permissions = profile?.permissions || {};
+  const canAddToOrder = profile?.role === 'owner' || permissions.add_products_to_order || permissions.process_payments;
+  const canProcessPayments = profile?.role === 'owner' || permissions.process_payments;
+  const isWaiterOnly = permissions.add_products_to_order && !permissions.process_payments && profile?.role === 'employee';
   const { checkAvailability } = useProductAvailability();
   
   // Estados principales
@@ -900,76 +906,88 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                   Enviar a Cocina
                 </Button>
 
-                {/* Opciones de pago */}
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <Button
-                      variant={paymentMode === 'single' ? 'default' : 'outline'}
-                      onClick={() => {
-                        setPaymentMode('single');
-                        setSelectedPaymentMethod('');
-                      }}
-                      className="flex-1 h-12"
-                    >
-                      Pago Simple
-                    </Button>
-                    <Button
-                      variant={paymentMode === 'split' ? 'default' : 'outline'}
-                      onClick={() => {
-                        setPaymentMode('split');
-                        setSelectedPaymentMethod('');
-                      }}
-                      className="flex-1 h-12"
-                    >
-                      <Split className="h-4 w-4 mr-2" />
-                      Dividir
-                    </Button>
-                  </div>
+                {/* Opciones de pago - Solo visible para cajeros/propietarios */}
+                {canProcessPayments && (
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <Button
+                        variant={paymentMode === 'single' ? 'default' : 'outline'}
+                        onClick={() => {
+                          setPaymentMode('single');
+                          setSelectedPaymentMethod('');
+                        }}
+                        className="flex-1 h-12"
+                      >
+                        Pago Simple
+                      </Button>
+                      <Button
+                        variant={paymentMode === 'split' ? 'default' : 'outline'}
+                        onClick={() => {
+                          setPaymentMode('split');
+                          setSelectedPaymentMethod('');
+                        }}
+                        className="flex-1 h-12"
+                      >
+                        <Split className="h-4 w-4 mr-2" />
+                        Dividir
+                      </Button>
+                    </div>
 
-                  {/* Métodos de pago */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant={selectedPaymentMethod === 'efectivo' ? 'default' : 'outline'}
-                      onClick={() => setSelectedPaymentMethod('efectivo')}
-                      className="h-16"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <Banknote className="h-6 w-6" />
-                        <span>Efectivo</span>
-                      </div>
-                    </Button>
-                    <Button
-                      variant={selectedPaymentMethod === 'tarjeta' ? 'default' : 'outline'}
-                      onClick={() => setSelectedPaymentMethod('tarjeta')}
-                      className="h-16"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <CreditCard className="h-6 w-6" />
-                        <span>Tarjeta</span>
-                      </div>
-                    </Button>
-                  </div>
+                    {/* Métodos de pago */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant={selectedPaymentMethod === 'efectivo' ? 'default' : 'outline'}
+                        onClick={() => setSelectedPaymentMethod('efectivo')}
+                        className="h-16"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <Banknote className="h-6 w-6" />
+                          <span>Efectivo</span>
+                        </div>
+                      </Button>
+                      <Button
+                        variant={selectedPaymentMethod === 'tarjeta' ? 'default' : 'outline'}
+                        onClick={() => setSelectedPaymentMethod('tarjeta')}
+                        className="h-16"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <CreditCard className="h-6 w-6" />
+                          <span>Tarjeta</span>
+                        </div>
+                      </Button>
+                    </div>
 
-                  {selectedPaymentMethod && (
-                    <Button
-                      onClick={handlePayment}
-                      disabled={isProcessing || selectedProducts.length === 0}
-                      className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-lg"
-                    >
-                      {isProcessing ? (
-                        <div className="flex items-center gap-3">
-                          <RefreshCw className="h-5 w-5 animate-spin" />
-                          Procesando...
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Receipt className="h-5 w-5" />
-                          Procesar Pago - {formatCurrency(orderTotal)}
-                        </div>
-                      )}
-                    </Button>
-                  )}
-                </div>
+                    {selectedPaymentMethod && (
+                      <Button
+                        onClick={handlePayment}
+                        disabled={isProcessing || selectedProducts.length === 0}
+                        className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-lg"
+                      >
+                        {isProcessing ? (
+                          <div className="flex items-center gap-3">
+                            <RefreshCw className="h-5 w-5 animate-spin" />
+                            Procesando...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <Receipt className="h-5 w-5" />
+                            Procesar Pago - {formatCurrency(orderTotal)}
+                          </div>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
+                {/* Mensaje para meseros */}
+                {isWaiterOnly && selectedProducts.length > 0 && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-700 text-center">
+                      <Clock className="h-4 w-4 inline mr-2" />
+                      Envía la comanda a cocina. El cajero procesará el pago.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

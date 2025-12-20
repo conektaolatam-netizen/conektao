@@ -20,6 +20,7 @@ import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
 import TipDistributionModal from './billing/TipDistributionModal';
+import { useAuditLog } from '@/hooks/useAuditLog';
 const Billing = () => {
   const {
     state,
@@ -28,6 +29,7 @@ const Billing = () => {
   const {
     checkAvailability
   } = useProductAvailability();
+  const { logAction } = useAuditLog();
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -1183,6 +1185,24 @@ const Billing = () => {
 
       // 8. Recargar productos para actualizar stock
       await loadProductsFromDB();
+      
+      // 8.1 Log de auditoría - registrar la venta completada
+      try {
+        await logAction({
+          action: 'sale_completed',
+          tableName: 'sales',
+          recordId: saleData.id,
+          newValues: {
+            total_amount: total,
+            table_number: selectedTable,
+            payment_method: paymentMethods.find(m => m.id === paymentMethod)?.name,
+            items_count: selectedProducts.length,
+            tip_amount: calculateTipAmount()
+          }
+        });
+      } catch (auditError) {
+        console.error('Error logging sale:', auditError);
+      }
       
       // 9. Si hay propina y está configurada la distribución, mostrar modal
       const currentTipAmount = calculateTipAmount();

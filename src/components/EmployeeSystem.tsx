@@ -54,49 +54,64 @@ const EmployeeSystem = () => {
           <POSBilling />
         </div>;
     }
-    const tools = [perms.process_payments && {
-      id: 'pos-billing',
-      title: 'Facturación',
-      desc: 'Sistema unificado de ventas',
-      icon: ShoppingCart,
-      action: () => setShowPOS(true)
-    }, (perms.manage_cash || perms.process_payments) && {
-      id: 'cash',
-      title: 'Caja',
-      desc: 'Movimientos y pagos',
-      icon: Wallet,
-      action: () => dispatch({
-        type: 'SET_ACTIVE_MODULE',
-        payload: 'cash'
-      })
-    }, perms.manage_inventory && {
-      id: 'inventory',
-      title: 'Inventario',
-      desc: 'Gestionar stock',
-      icon: Package,
-      action: () => dispatch({
-        type: 'SET_ACTIVE_MODULE',
-        payload: 'inventory'
-      })
-    }, perms.view_reports && {
-      id: 'reports',
-      title: 'Reportes',
-      desc: 'Ver métricas',
-      icon: BarChart3,
-      action: () => dispatch({
-        type: 'SET_ACTIVE_MODULE',
-        payload: 'reports'
-      })
-    }, (perms.access_kitchen || perms.manage_kitchen_orders) && {
-      id: 'kitchen',
-      title: 'Cocina',
-      desc: 'Panel de comandas digitales',
-      icon: ChefHat,
-      action: () => dispatch({
-        type: 'SET_ACTIVE_MODULE',
-        payload: 'kitchen'
-      })
-    }].filter(Boolean) as Array<{
+    const tools = [
+      // Comandar (solo agregar productos, sin facturar)
+      perms.add_products_to_order && !perms.process_payments && {
+        id: 'pos-waiter',
+        title: 'Comandar',
+        desc: 'Agregar productos y enviar a cocina',
+        icon: ChefHat,
+        action: () => setShowPOS(true)
+      },
+      // Facturación completa (para cajeros)
+      perms.process_payments && {
+        id: 'pos-billing',
+        title: 'Facturación',
+        desc: 'Sistema unificado de ventas',
+        icon: ShoppingCart,
+        action: () => setShowPOS(true)
+      }, 
+      (perms.manage_cash || perms.process_payments) && {
+        id: 'cash',
+        title: 'Caja',
+        desc: 'Movimientos y pagos',
+        icon: Wallet,
+        action: () => dispatch({
+          type: 'SET_ACTIVE_MODULE',
+          payload: 'cash'
+        })
+      }, 
+      (perms.view_inventory || perms.edit_inventory) && {
+        id: 'inventory',
+        title: 'Inventario',
+        desc: 'Gestionar stock',
+        icon: Package,
+        action: () => dispatch({
+          type: 'SET_ACTIVE_MODULE',
+          payload: 'inventory'
+        })
+      }, 
+      perms.view_reports && {
+        id: 'reports',
+        title: 'Reportes',
+        desc: 'Ver métricas',
+        icon: BarChart3,
+        action: () => dispatch({
+          type: 'SET_ACTIVE_MODULE',
+          payload: 'reports'
+        })
+      }, 
+      (perms.access_kitchen || perms.manage_kitchen_orders) && {
+        id: 'kitchen',
+        title: 'Cocina',
+        desc: 'Panel de comandas digitales',
+        icon: ChefHat,
+        action: () => dispatch({
+          type: 'SET_ACTIVE_MODULE',
+          payload: 'kitchen'
+        })
+      }
+    ].filter(Boolean) as Array<{
       id: string;
       title: string;
       desc: string;
