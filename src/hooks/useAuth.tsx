@@ -123,11 +123,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     let isMounted = true;
+    let isInitialized = false;
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (!isMounted) return;
+        
+        console.log('Auth state change:', event);
+        
+        // Handle token refresh errors - clean up corrupted sessions
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.warn('Token refresh failed - clearing session');
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRestaurant(null);
+          setLoading(false);
+          return;
+        }
+
+        // Handle sign out or session expiration
+        if (event === 'SIGNED_OUT' || (!session && isInitialized)) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRestaurant(null);
+          setLoading(false);
+          return;
+        }
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -172,43 +196,75 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
+    const initializeSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+        
+        // Handle invalid/corrupted session
+        if (error) {
+          console.warn('Session error - signing out:', error.message);
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRestaurant(null);
+          setLoading(false);
+          isInitialized = true;
+          return;
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        try {
-          const profileData = await fetchProfile(session.user.id);
-          if (isMounted) {
-            setProfile(profileData);
-            
-            if (profileData?.restaurant_id) {
-              const restaurantData = await fetchRestaurant(profileData.restaurant_id);
-              if (isMounted) {
-                setRestaurant(restaurantData);
+        if (session?.user) {
+          try {
+            const profileData = await fetchProfile(session.user.id);
+            if (isMounted) {
+              setProfile(profileData);
+              
+              if (profileData?.restaurant_id) {
+                const restaurantData = await fetchRestaurant(profileData.restaurant_id);
+                if (isMounted) {
+                  setRestaurant(restaurantData);
+                }
+              } else {
+                setRestaurant(null);
               }
-            } else {
+            }
+          } catch (error) {
+            console.warn('Profile fetch failed during session check:', error);
+            if (isMounted) {
+              setProfile(null);
               setRestaurant(null);
             }
           }
-        } catch (error) {
-          console.warn('Profile fetch failed during session check:', error);
-          if (isMounted) {
-            setProfile(null);
-            setRestaurant(null);
-          }
+        } else {
+          setProfile(null);
+          setRestaurant(null);
         }
-      } else {
-        setProfile(null);
-        setRestaurant(null);
-      }
 
-      if (isMounted) {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          isInitialized = true;
+        }
+      } catch (error) {
+        console.error('Session initialization error:', error);
+        if (isMounted) {
+          // On any error, clean up and stop loading
+          await supabase.auth.signOut().catch(() => {});
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRestaurant(null);
+          setLoading(false);
+          isInitialized = true;
+        }
       }
-    });
+    };
+
+    initializeSession();
 
     return () => {
       isMounted = false;
