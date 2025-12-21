@@ -1632,6 +1632,76 @@ export type Database = {
           },
         ]
       }
+      pos_suspicious_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          has_items: boolean | null
+          id: string
+          items_count: number | null
+          metadata: Json | null
+          order_id: string | null
+          order_total: number | null
+          restaurant_id: string
+          sale_id: string | null
+          table_number: number | null
+          user_id: string
+          user_role: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          has_items?: boolean | null
+          id?: string
+          items_count?: number | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_total?: number | null
+          restaurant_id: string
+          sale_id?: string | null
+          table_number?: number | null
+          user_id: string
+          user_role?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          has_items?: boolean | null
+          id?: string
+          items_count?: number | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_total?: number | null
+          restaurant_id?: string
+          sale_id?: string | null
+          table_number?: number | null
+          user_id?: string
+          user_role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_suspicious_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_suspicious_events_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_suspicious_events_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_with_masked_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prelaunch_registrations: {
         Row: {
           branches: string
@@ -2868,6 +2938,7 @@ export type Database = {
           current_order: Json
           guest_count: number
           id: string
+          kitchen_order_sent: boolean | null
           order_total: number
           pending_command_reminder: boolean | null
           restaurant_id: string
@@ -2880,6 +2951,7 @@ export type Database = {
           current_order?: Json
           guest_count?: number
           id?: string
+          kitchen_order_sent?: boolean | null
           order_total?: number
           pending_command_reminder?: boolean | null
           restaurant_id: string
@@ -2892,6 +2964,7 @@ export type Database = {
           current_order?: Json
           guest_count?: number
           id?: string
+          kitchen_order_sent?: boolean | null
           order_total?: number
           pending_command_reminder?: boolean | null
           restaurant_id?: string
