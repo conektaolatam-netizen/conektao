@@ -897,14 +897,37 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                 </div>
 
                 {/* Botón de Enviar a Cocina - SIEMPRE VISIBLE */}
-                <Button
-                  onClick={() => setIsKitchenModalOpen(true)}
-                  disabled={selectedProducts.length === 0}
-                  className="w-full h-14 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChefHat className="h-5 w-5 mr-2" />
-                  Enviar a Cocina
-                </Button>
+                {/* Botón ENVIAR A COCINA - Super visible y animado */}
+                <div className="relative">
+                  {selectedProducts.length > 0 && (
+                    <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-xl blur-sm opacity-75 animate-pulse" />
+                  )}
+                  <Button
+                    onClick={() => setIsKitchenModalOpen(true)}
+                    disabled={selectedProducts.length === 0 || kitchenLoading}
+                    className="relative w-full h-16 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold text-xl shadow-2xl hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all duration-300 hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed border-2 border-orange-300/50"
+                  >
+                    <div className="flex items-center justify-center gap-3">
+                      <ChefHat className="h-7 w-7" />
+                      <span>🔥 ENVIAR A COCINA</span>
+                      {selectedProducts.length > 0 && (
+                        <Badge className="bg-white/20 text-white border-white/30 ml-2">
+                          {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} items
+                        </Badge>
+                      )}
+                    </div>
+                  </Button>
+                </div>
+
+                {/* Recordatorio visual si hay productos sin enviar */}
+                {selectedProducts.length > 0 && showCommandReminder && (
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    <p className="text-sm text-amber-700 font-medium">
+                      ¡Recuerda enviar la comanda a cocina!
+                    </p>
+                  </div>
+                )}
 
                 {/* Opciones de pago - Solo visible para cajeros/propietarios */}
                 {canProcessPayments && (

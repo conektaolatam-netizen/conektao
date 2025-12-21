@@ -19,12 +19,15 @@ import {
   Utensils,
   History,
   XCircle,
-  Flame
+  Flame,
+  Save,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import KitchenOrderCard from './KitchenOrderCard';
 import KitchenCancelModal from './KitchenCancelModal';
 import KitchenHistorySection from './KitchenHistorySection';
+import { saveDailyKitchenReportToDocuments } from '@/lib/kitchenReports';
 
 interface KitchenOrder {
   id: string;
@@ -73,6 +76,7 @@ const KitchenDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [animatingOutIds, setAnimatingOutIds] = useState<Set<string>>(new Set());
+  const [isSavingReport, setIsSavingReport] = useState(false);
   
   // Modal de anulación
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -82,6 +86,39 @@ const KitchenDashboard = () => {
   const canCancelOrders = profile?.role === 'owner' || 
     profile?.role === 'admin' || 
     (profile?.permissions as any)?.can_cancel_kitchen_order;
+
+  // Guardar historial del día en documentos
+  const handleSaveDailyReport = async () => {
+    if (!profile?.restaurant_id || !user?.id) return;
+    
+    setIsSavingReport(true);
+    try {
+      const docId = await saveDailyKitchenReportToDocuments(
+        profile.restaurant_id,
+        user.id,
+        new Date()
+      );
+      
+      if (docId) {
+        toast({
+          title: "📄 Historial guardado",
+          description: "El historial del día se guardó en Documentos → Comandas",
+          className: "bg-emerald-900/90 border-emerald-600 text-white"
+        });
+      } else {
+        throw new Error('No se pudo guardar');
+      }
+    } catch (error) {
+      console.error('Error saving daily report:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el historial",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
 
   // Cargar comandas
   const loadOrders = async () => {
@@ -669,19 +706,55 @@ const KitchenDashboard = () => {
         <TabsContent value="history">
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg text-slate-200 flex items-center gap-2">
-                <History className="h-5 w-5 text-slate-400" />
-                Historial del Día
-              </CardTitle>
-              <p className="text-sm text-slate-400">
-                Comandas completadas y anuladas de hoy
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg text-slate-200 flex items-center gap-2">
+                    <History className="h-5 w-5 text-slate-400" />
+                    Historial del Día
+                  </CardTitle>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Comandas completadas y anuladas de hoy
+                  </p>
+                </div>
+                
+                {/* Botón para guardar historial en documentos */}
+                <Button
+                  onClick={handleSaveDailyReport}
+                  disabled={isSavingReport || (completedOrders.length === 0 && cancelledOrders.length === 0)}
+                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white"
+                >
+                  {isSavingReport ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Guardar en Documentos
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <KitchenHistorySection 
                 completedOrders={completedOrders}
                 cancelledOrders={cancelledOrders}
               />
+              
+              {/* Info de dónde se guarda */}
+              {(completedOrders.length > 0 || cancelledOrders.length > 0) && (
+                <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <FileText className="h-4 w-4" />
+                    <span>
+                      El historial se guarda en <strong className="text-slate-300">Documentos → Comandas</strong>, 
+                      organizado por mes y día para consultas futuras y análisis de IA.
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
