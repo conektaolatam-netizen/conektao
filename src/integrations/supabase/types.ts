@@ -2065,6 +2065,7 @@ export type Database = {
         Row: {
           address: string | null
           allow_sales_without_stock: boolean | null
+          allow_tip_edit: boolean | null
           created_at: string
           default_tip_percentage: number | null
           id: string
@@ -2074,6 +2075,7 @@ export type Database = {
           name: string
           nit: string | null
           owner_id: string
+          require_reason_if_decrease: boolean | null
           tip_auto_distribute: boolean | null
           tip_cashier_can_distribute: boolean | null
           tip_default_distribution_type: string | null
@@ -2083,6 +2085,7 @@ export type Database = {
         Insert: {
           address?: string | null
           allow_sales_without_stock?: boolean | null
+          allow_tip_edit?: boolean | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string
@@ -2092,6 +2095,7 @@ export type Database = {
           name: string
           nit?: string | null
           owner_id: string
+          require_reason_if_decrease?: boolean | null
           tip_auto_distribute?: boolean | null
           tip_cashier_can_distribute?: boolean | null
           tip_default_distribution_type?: string | null
@@ -2101,6 +2105,7 @@ export type Database = {
         Update: {
           address?: string | null
           allow_sales_without_stock?: boolean | null
+          allow_tip_edit?: boolean | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string
@@ -2110,6 +2115,7 @@ export type Database = {
           name?: string
           nit?: string | null
           owner_id?: string
+          require_reason_if_decrease?: boolean | null
           tip_auto_distribute?: boolean | null
           tip_cashier_can_distribute?: boolean | null
           tip_default_distribution_type?: string | null
@@ -2888,6 +2894,76 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tip_adjustments: {
+        Row: {
+          cashier_id: string | null
+          created_at: string
+          default_tip_percent: number
+          final_tip_percent: number
+          id: string
+          new_tip_amount: number
+          previous_tip_amount: number
+          reason_comment: string | null
+          reason_type: string
+          restaurant_id: string
+          sale_id: string | null
+          suggested_tip_amount: number
+          waiter_id: string | null
+        }
+        Insert: {
+          cashier_id?: string | null
+          created_at?: string
+          default_tip_percent?: number
+          final_tip_percent?: number
+          id?: string
+          new_tip_amount?: number
+          previous_tip_amount?: number
+          reason_comment?: string | null
+          reason_type: string
+          restaurant_id: string
+          sale_id?: string | null
+          suggested_tip_amount?: number
+          waiter_id?: string | null
+        }
+        Update: {
+          cashier_id?: string | null
+          created_at?: string
+          default_tip_percent?: number
+          final_tip_percent?: number
+          id?: string
+          new_tip_amount?: number
+          previous_tip_amount?: number
+          reason_comment?: string | null
+          reason_type?: string
+          restaurant_id?: string
+          sale_id?: string | null
+          suggested_tip_amount?: number
+          waiter_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tip_adjustments_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_adjustments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tip_adjustments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_with_masked_emails"
             referencedColumns: ["id"]
           },
         ]

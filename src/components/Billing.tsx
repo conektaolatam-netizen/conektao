@@ -20,6 +20,8 @@ import ProductCreatorNew from './ProductCreatorNew';
 import POSSystem from './POSSystem';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
 import TipDistributionModal from './billing/TipDistributionModal';
+import TipAdjustmentModal from './billing/TipAdjustmentModal';
+import TipSelector from './billing/TipSelector';
 import { useAuditLog } from '@/hooks/useAuditLog';
 const Billing = () => {
   const {
@@ -188,11 +190,18 @@ const Billing = () => {
   const [tipAutoDistribute, setTipAutoDistribute] = useState(false);
   const [tipDefaultDistType, setTipDefaultDistType] = useState<'equal' | 'by_hours' | 'manual'>('equal');
   const [tipCashierCanDistribute, setTipCashierCanDistribute] = useState(true);
+  const [allowTipEdit, setAllowTipEdit] = useState(true);
+  const [requireReasonIfDecrease, setRequireReasonIfDecrease] = useState(true);
   
   // Estado para modal de distribución de propinas
   const [showTipDistributionModal, setShowTipDistributionModal] = useState(false);
   const [pendingSaleIdForTip, setPendingSaleIdForTip] = useState<string | null>(null);
   const [pendingTipAmountForDistribution, setPendingTipAmountForDistribution] = useState(0);
+  
+  // Estado para modal de ajuste de propinas (cuando baja o se elimina)
+  const [showTipAdjustmentModal, setShowTipAdjustmentModal] = useState(false);
+  const [pendingPaymentCallback, setPendingPaymentCallback] = useState<(() => void) | null>(null);
+  const [initialSuggestedTip, setInitialSuggestedTip] = useState(0);
 
   // Usar cliente Supabase compartido tipado desde '@/integrations/supabase/client'
 
@@ -355,13 +364,15 @@ const Billing = () => {
       const {
         data,
         error
-      } = await supabase.from('restaurants').select('tip_enabled, default_tip_percentage, tip_auto_distribute, tip_default_distribution_type, tip_cashier_can_distribute').eq('id', profile.restaurant_id).single();
+      } = await supabase.from('restaurants').select('tip_enabled, default_tip_percentage, tip_auto_distribute, tip_default_distribution_type, tip_cashier_can_distribute, allow_tip_edit, require_reason_if_decrease').eq('id', profile.restaurant_id).single();
       if (!error && data) {
         setTipEnabled(data.tip_enabled || false);
         setTipPercentage(data.default_tip_percentage || 10);
         setTipAutoDistribute(data.tip_auto_distribute || false);
         setTipDefaultDistType((data.tip_default_distribution_type as 'equal' | 'by_hours' | 'manual') || 'equal');
         setTipCashierCanDistribute(data.tip_cashier_can_distribute ?? true);
+        setAllowTipEdit(data.allow_tip_edit ?? true);
+        setRequireReasonIfDecrease(data.require_reason_if_decrease ?? true);
       }
     } catch (error) {
       console.error('Error loading tip settings:', error);
@@ -802,8 +813,72 @@ const Billing = () => {
     return 0;
   };
   const calculateTotal = () => calculateSubtotal() + calculateTipAmount();
+  
+  // Calcular propina sugerida (para comparación)
+  const getSuggestedTipAmount = () => {
+    if (!tipEnabled) return 0;
+    return calculateSubtotal() * tipPercentage / 100;
+  };
+  
+  // Verificar si la propina ha sido reducida
+  const isTipReduced = () => {
+    const suggested = getSuggestedTipAmount();
+    const current = calculateTipAmount();
+    return current < suggested;
+  };
+  
+  // Registrar ajuste de propina en la BD
+  const saveTipAdjustment = async (saleId: string, reasonType: string, reasonComment: string) => {
+    if (!profile?.restaurant_id) return;
+    
+    try {
+      const suggested = getSuggestedTipAmount();
+      const current = calculateTipAmount();
+      const finalPercent = calculateSubtotal() > 0 ? (current / calculateSubtotal()) * 100 : 0;
+      
+      await supabase.from('tip_adjustments').insert({
+        restaurant_id: profile.restaurant_id,
+        sale_id: saleId,
+        cashier_id: user?.id,
+        waiter_id: null, // TODO: Agregar si hay mesero asociado
+        default_tip_percent: tipPercentage,
+        suggested_tip_amount: suggested,
+        previous_tip_amount: suggested,
+        new_tip_amount: current,
+        final_tip_percent: finalPercent,
+        reason_type: reasonType,
+        reason_comment: reasonComment || null
+      });
+    } catch (error) {
+      console.error('Error saving tip adjustment:', error);
+    }
+  };
+  
+  // Handler para confirmar ajuste de propina desde el modal
+  const handleTipAdjustmentConfirm = (reasonType: string, reasonComment: string) => {
+    setShowTipAdjustmentModal(false);
+    // Guardar los datos del motivo para usar después de la venta
+    localStorage.setItem('pending_tip_adjustment', JSON.stringify({ reasonType, reasonComment }));
+    // Continuar con el pago
+    if (pendingPaymentCallback) {
+      pendingPaymentCallback();
+      setPendingPaymentCallback(null);
+    }
+  };
+  
+  // Handler para cancelar ajuste (restaurar propina sugerida)
+  const handleTipAdjustmentCancel = () => {
+    setShowTipAdjustmentModal(false);
+    setPendingPaymentCallback(null);
+    // Restaurar propina sugerida
+    setNoTip(false);
+    setCustomTipAmount('');
+    toast({
+      title: "Propina restaurada",
+      description: `Se ha restaurado la propina sugerida del ${tipPercentage}%`
+    });
+  };
 
-  // Función para manejar la subida de comprobante de pago
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -1010,9 +1085,18 @@ const Billing = () => {
     setGuestCount('');
     setSelectedTableForGuests(null);
   };
-  const handlePayment = async () => {
+  // Función interna para procesar el pago real
+  const processPaymentInternal = async () => {
     const total = calculateTotal();
     try {
+      // Verificar si hay ajuste de propina pendiente
+      const pendingAdjustment = localStorage.getItem('pending_tip_adjustment');
+      let tipAdjustmentData: { reasonType: string; reasonComment: string } | null = null;
+      if (pendingAdjustment) {
+        tipAdjustmentData = JSON.parse(pendingAdjustment);
+        localStorage.removeItem('pending_tip_adjustment');
+      }
+      
       // 1. Guardar la venta en Supabase
       const {
         data: saleData,
@@ -1204,6 +1288,11 @@ const Billing = () => {
         console.error('Error logging sale:', auditError);
       }
       
+      // 8.2 Si hubo ajuste de propina, guardarlo
+      if (tipAdjustmentData && isTipReduced()) {
+        await saveTipAdjustment(saleData.id, tipAdjustmentData.reasonType, tipAdjustmentData.reasonComment);
+      }
+      
       // 9. Si hay propina y está configurada la distribución, mostrar modal
       const currentTipAmount = calculateTipAmount();
       const canDistribute = tipCashierCanDistribute || profile?.role === 'owner' || profile?.role === 'admin';
@@ -1244,6 +1333,20 @@ const Billing = () => {
         variant: "destructive"
       });
     }
+  };
+  
+  // Función principal de pago - verifica si necesita mostrar modal de ajuste de propina
+  const handlePayment = async () => {
+    // Si está habilitada la verificación de motivo y la propina ha bajado
+    if (tipEnabled && requireReasonIfDecrease && isTipReduced()) {
+      setInitialSuggestedTip(getSuggestedTipAmount());
+      setPendingPaymentCallback(() => processPaymentInternal);
+      setShowTipAdjustmentModal(true);
+      return;
+    }
+    
+    // Si no hay reducción de propina, procesar directamente
+    await processPaymentInternal();
   };
   const handleProductCreated = () => {
     loadProductsFromDB();
@@ -2000,6 +2103,18 @@ Por favor:
               setPendingTipAmountForDistribution(0);
             }, 3000);
           }}
+        />
+        
+        {/* Modal de ajuste de propina */}
+        <TipAdjustmentModal
+          open={showTipAdjustmentModal}
+          onOpenChange={setShowTipAdjustmentModal}
+          suggestedTipAmount={initialSuggestedTip}
+          newTipAmount={calculateTipAmount()}
+          subtotal={calculateSubtotal()}
+          defaultTipPercent={tipPercentage}
+          onConfirm={handleTipAdjustmentConfirm}
+          onCancel={handleTipAdjustmentCancel}
         />
     </div>;
 };
