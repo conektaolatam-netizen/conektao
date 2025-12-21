@@ -23,6 +23,8 @@ import TipDistributionModal from './billing/TipDistributionModal';
 import TipAdjustmentModal from './billing/TipAdjustmentModal';
 import TipSelector from './billing/TipSelector';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import { useTipConfig } from '@/context/TipConfigContext';
+
 const Billing = () => {
   const {
     state,
@@ -32,6 +34,9 @@ const Billing = () => {
     checkAvailability
   } = useProductAvailability();
   const { logAction } = useAuditLog();
+  
+  // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
+  const tipConfig = useTipConfig();
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -181,17 +186,11 @@ const Billing = () => {
     dineInOrders: 0
   });
 
-  // Estados para propinas
-  const [tipEnabled, setTipEnabled] = useState(false);
+  // Estados para propinas - valores de la orden actual (pueden diferir del default global)
   const [tipAmount, setTipAmount] = useState(0);
   const [customTipAmount, setCustomTipAmount] = useState('');
-  const [tipPercentage, setTipPercentage] = useState(10);
   const [noTip, setNoTip] = useState(false);
-  const [tipAutoDistribute, setTipAutoDistribute] = useState(false);
-  const [tipDefaultDistType, setTipDefaultDistType] = useState<'equal' | 'by_hours' | 'manual'>('equal');
-  const [tipCashierCanDistribute, setTipCashierCanDistribute] = useState(true);
-  const [allowTipEdit, setAllowTipEdit] = useState(true);
-  const [requireReasonIfDecrease, setRequireReasonIfDecrease] = useState(true);
+  const [tipOverridden, setTipOverridden] = useState(false); // Marca si el cajero editó la propina
   
   // Estado para modal de distribución de propinas
   const [showTipDistributionModal, setShowTipDistributionModal] = useState(false);
@@ -209,8 +208,18 @@ const Billing = () => {
   useEffect(() => {
     loadProductsFromDB();
     loadTodaysSales();
-    loadTipSettings();
   }, [user, profile?.restaurant_id]);
+
+  // Sincronizar propina inicial desde el contexto global cuando cambie
+  useEffect(() => {
+    if (tipConfig.tipEnabled && !tipConfig.isLoading && !tipOverridden) {
+      // Recalcular propina sugerida cuando el default global cambie
+      const subtotal = calculateSubtotal();
+      const suggestedTip = (subtotal * tipConfig.defaultTipPercentage) / 100;
+      setTipAmount(suggestedTip);
+      setInitialSuggestedTip(suggestedTip);
+    }
+  }, [tipConfig.defaultTipPercentage, tipConfig.tipEnabled, tipConfig.isLoading]);
   useEffect(() => {
     if (user && profile?.restaurant_id) {
       loadCategoriesFromDB();
@@ -358,26 +367,8 @@ const Billing = () => {
     setProductsAvailability(availabilityMap);
     setProducts(updatedProducts);
   };
-  const loadTipSettings = async () => {
-    try {
-      if (!profile?.restaurant_id) return;
-      const {
-        data,
-        error
-      } = await supabase.from('restaurants').select('tip_enabled, default_tip_percentage, tip_auto_distribute, tip_default_distribution_type, tip_cashier_can_distribute, allow_tip_edit, require_reason_if_decrease').eq('id', profile.restaurant_id).single();
-      if (!error && data) {
-        setTipEnabled(data.tip_enabled || false);
-        setTipPercentage(data.default_tip_percentage || 10);
-        setTipAutoDistribute(data.tip_auto_distribute || false);
-        setTipDefaultDistType((data.tip_default_distribution_type as 'equal' | 'by_hours' | 'manual') || 'equal');
-        setTipCashierCanDistribute(data.tip_cashier_can_distribute ?? true);
-        setAllowTipEdit(data.allow_tip_edit ?? true);
-        setRequireReasonIfDecrease(data.require_reason_if_decrease ?? true);
-      }
-    } catch (error) {
-      console.error('Error loading tip settings:', error);
-    }
-  };
+  // La configuración de propinas ahora viene del contexto global (tipConfig)
+  // Ya no se necesita loadTipSettings - el contexto se sincroniza automáticamente
   const loadTodaysSales = async () => {
     try {
       if (!profile?.restaurant_id) return;
@@ -807,8 +798,8 @@ const Billing = () => {
     if (customTipAmount && parseFloat(customTipAmount) > 0) {
       return parseFloat(customTipAmount);
     }
-    if (tipEnabled && !noTip) {
-      return calculateSubtotal() * tipPercentage / 100;
+    if (tipConfig.tipEnabled && !noTip) {
+      return calculateSubtotal() * tipConfig.defaultTipPercentage / 100;
     }
     return 0;
   };
@@ -816,8 +807,8 @@ const Billing = () => {
   
   // Calcular propina sugerida (para comparación)
   const getSuggestedTipAmount = () => {
-    if (!tipEnabled) return 0;
-    return calculateSubtotal() * tipPercentage / 100;
+    if (!tipConfig.tipEnabled) return 0;
+    return calculateSubtotal() * tipConfig.defaultTipPercentage / 100;
   };
   
   // Verificar si la propina ha sido reducida
@@ -841,7 +832,7 @@ const Billing = () => {
         sale_id: saleId,
         cashier_id: user?.id,
         waiter_id: null, // TODO: Agregar si hay mesero asociado
-        default_tip_percent: tipPercentage,
+        default_tip_percent: tipConfig.defaultTipPercentage,
         suggested_tip_amount: suggested,
         previous_tip_amount: suggested,
         new_tip_amount: current,
@@ -873,9 +864,10 @@ const Billing = () => {
     // Restaurar propina sugerida
     setNoTip(false);
     setCustomTipAmount('');
+    setTipOverridden(false);
     toast({
       title: "Propina restaurada",
-      description: `Se ha restaurado la propina sugerida del ${tipPercentage}%`
+      description: `Se ha restaurado la propina sugerida del ${tipConfig.defaultTipPercentage}%`
     });
   };
 
@@ -1295,9 +1287,9 @@ const Billing = () => {
       
       // 9. Si hay propina y está configurada la distribución, mostrar modal
       const currentTipAmount = calculateTipAmount();
-      const canDistribute = tipCashierCanDistribute || profile?.role === 'owner' || profile?.role === 'admin';
+      const canDistribute = tipConfig.tipCashierCanDistribute || profile?.role === 'owner' || profile?.role === 'admin';
       
-      if (tipEnabled && currentTipAmount > 0 && canDistribute) {
+      if (tipConfig.tipEnabled && currentTipAmount > 0 && canDistribute) {
         setPendingSaleIdForTip(saleData.id);
         setPendingTipAmountForDistribution(currentTipAmount);
         setShowTipDistributionModal(true);
@@ -1338,7 +1330,7 @@ const Billing = () => {
   // Función principal de pago - verifica si necesita mostrar modal de ajuste de propina
   const handlePayment = async () => {
     // Si está habilitada la verificación de motivo y la propina ha bajado
-    if (tipEnabled && requireReasonIfDecrease && isTipReduced()) {
+    if (tipConfig.tipEnabled && tipConfig.requireReasonIfDecrease && isTipReduced()) {
       setInitialSuggestedTip(getSuggestedTipAmount());
       setPendingPaymentCallback(() => processPaymentInternal);
       setShowTipAdjustmentModal(true);
@@ -1464,8 +1456,8 @@ Por favor:
                     <span>{formatCurrency(calculateSubtotal())}</span>
                   </div>
                   <Separator className="bg-white/10" />
-                  {tipEnabled && <div className="flex justify-between">
-                      <span>Propina ({tipPercentage}%)</span>
+                  {tipConfig.tipEnabled && <div className="flex justify-between">
+                      <span>Propina ({tipConfig.defaultTipPercentage}%)</span>
                       <span>{formatCurrency(calculateTipAmount())}</span>
                     </div>}
                   <Separator className="bg-white/10" />
@@ -1478,7 +1470,7 @@ Por favor:
             </Card>
 
             {/* Configuración de propina */}
-            {tipEnabled && <Card className="bg-gray-800/50 border-white/10">
+            {tipConfig.tipEnabled && <Card className="bg-gray-800/50 border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white">Propina</CardTitle>
                 </CardHeader>
@@ -1496,7 +1488,7 @@ Por favor:
                     
                     {!noTip && <>
                         <div className="space-y-2">
-                          <Label className="text-white">Propina sugerida ({tipPercentage}%): {formatCurrency(calculateSubtotal() * tipPercentage / 100)}</Label>
+                          <Label className="text-white">Propina sugerida ({tipConfig.defaultTipPercentage}%): {formatCurrency(calculateSubtotal() * tipConfig.defaultTipPercentage / 100)}</Label>
                         </div>
                         
                         <div className="space-y-2">
@@ -1882,7 +1874,7 @@ Por favor:
                         <span>Subtotal</span>
                         <span>{formatCurrency(calculateSubtotal())}</span>
                       </div>
-                      {tipEnabled && <div className="flex justify-between">
+                      {tipConfig.tipEnabled && <div className="flex justify-between">
                           <span>Propina</span>
                           <span>{formatCurrency(calculateTipAmount())}</span>
                         </div>}
@@ -2112,7 +2104,7 @@ Por favor:
           suggestedTipAmount={initialSuggestedTip}
           newTipAmount={calculateTipAmount()}
           subtotal={calculateSubtotal()}
-          defaultTipPercent={tipPercentage}
+          defaultTipPercent={tipConfig.defaultTipPercentage}
           onConfirm={handleTipAdjustmentConfirm}
           onCancel={handleTipAdjustmentCancel}
         />

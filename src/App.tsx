@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/hooks/useAuth";
+import { TipConfigProvider } from "@/context/TipConfigContext";
 import Index from "./pages/Index";
 import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
@@ -23,25 +24,27 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <AppProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/welcome" element={<Welcome />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/invitation" element={<InvitationAccept />} />
-              <Route path="/supplier-dashboard" element={<SupplierDashboardPage />} />
-              <Route path="/support" element={<SupportPage />} />
-              <Route path="/marketplace" element={<SupplierMarketplacePage />} />
-              <Route path="/pre-registro-conektao" element={<PreRegistro />} />
-              <Route path="/menu-onboarding-test" element={<MenuOnboardingTest />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <TipConfigProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/welcome" element={<Welcome />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/invitation" element={<InvitationAccept />} />
+                <Route path="/supplier-dashboard" element={<SupplierDashboardPage />} />
+                <Route path="/support" element={<SupportPage />} />
+                <Route path="/marketplace" element={<SupplierMarketplacePage />} />
+                <Route path="/pre-registro-conektao" element={<PreRegistro />} />
+                <Route path="/menu-onboarding-test" element={<MenuOnboardingTest />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </TipConfigProvider>
       </AppProvider>
     </AuthProvider>
   </QueryClientProvider>
