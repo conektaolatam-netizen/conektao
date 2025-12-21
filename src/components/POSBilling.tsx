@@ -876,6 +876,133 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
       {/* Vista del Menú */}
       {currentView === 'menu' && (orderType === 'dine-in' ? selectedTable : true) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* BARRA DE ACCIONES PRINCIPALES - Visible en parte superior */}
+          <div className="lg:col-span-3">
+            <Card className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-0 shadow-2xl">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Info de la orden */}
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleBackNavigation(orderType === 'dine-in' ? 'tables' : 'customer-info')}
+                      className="text-white hover:bg-white/10"
+                    >
+                      <ArrowLeft className="h-5 w-5 mr-2" />
+                      Volver
+                    </Button>
+                    <div className="h-8 w-px bg-white/20" />
+                    <div className="text-white">
+                      <span className="text-sm text-white/70">
+                        {orderType === 'dine-in' ? `Mesa ${selectedTable?.number}` : 'Domicilio'}
+                      </span>
+                      <span className="mx-2 text-white/50">•</span>
+                      <span className="font-bold text-lg text-green-400">{formatCurrency(orderTotal)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* BOTONES DE ACCIÓN: Enviar comanda → Ver cuenta → Cobrar */}
+                  <div className="flex items-center gap-3">
+                    {/* 1. ENVIAR COMANDA A COCINA */}
+                    {canSendKitchenOrder && (
+                      kitchenOrderSent ? (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/50 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-green-400" />
+                          <span className="text-green-400 font-medium text-sm">Comanda enviada</span>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          {selectedProducts.length > 0 && (
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-lg blur-sm opacity-75 animate-pulse" />
+                          )}
+                          <Button
+                            onClick={() => setIsKitchenModalOpen(true)}
+                            disabled={selectedProducts.length === 0 || kitchenLoading}
+                            className="relative bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 border border-orange-300/30"
+                          >
+                            <ChefHat className="h-5 w-5 mr-2" />
+                            Enviar comanda
+                            {selectedProducts.length > 0 && (
+                              <Badge className="bg-white/20 text-white border-white/30 ml-2 text-xs">
+                                {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)}
+                              </Badge>
+                            )}
+                          </Button>
+                        </div>
+                      )
+                    )}
+
+                    {/* 2. VER CUENTA */}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Mostrar modal con resumen de cuenta
+                        toast({
+                          title: "📋 Cuenta - " + (orderType === 'dine-in' ? `Mesa ${selectedTable?.number}` : 'Domicilio'),
+                          description: (
+                            <div className="space-y-2 mt-2">
+                              {selectedProducts.map(p => (
+                                <div key={p.id} className="flex justify-between text-sm">
+                                  <span>{p.quantity}x {p.name}</span>
+                                  <span>{formatCurrency(p.price * p.quantity)}</span>
+                                </div>
+                              ))}
+                              <div className="border-t pt-2 font-bold flex justify-between">
+                                <span>Total:</span>
+                                <span>{formatCurrency(orderTotal)}</span>
+                              </div>
+                            </div>
+                          ),
+                          duration: 10000
+                        });
+                      }}
+                      disabled={selectedProducts.length === 0}
+                      className="border-white/30 text-white hover:bg-white/10 hover:text-white"
+                    >
+                      <Receipt className="h-5 w-5 mr-2" />
+                      Ver cuenta
+                    </Button>
+
+                    {/* 3. COBRAR */}
+                    {canProcessPayments && (
+                      <Button
+                        onClick={async () => {
+                          if (selectedProducts.length === 0) {
+                            toast({
+                              title: "Sin productos",
+                              description: "Agrega productos a la orden para poder cobrar",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          const canProceed = await checkKitchenOrderBeforePayment();
+                          if (canProceed) {
+                            setCurrentView('payment');
+                          }
+                        }}
+                        disabled={selectedProducts.length === 0}
+                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300"
+                      >
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Cobrar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Alerta visual si hay productos sin enviar */}
+                {selectedProducts.length > 0 && !kitchenOrderSent && canSendKitchenOrder && (
+                  <div className="mt-3 flex items-center justify-center gap-2 p-2 bg-amber-500/20 border border-amber-500/30 rounded-lg animate-pulse">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <p className="text-sm text-amber-300 font-medium">
+                      ¡Envía la comanda a cocina antes de cobrar!
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Lista de productos */}
           <div className="lg:col-span-2">
             <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
@@ -887,14 +1014,6 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                   </span>
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleBackNavigation(orderType === 'dine-in' ? 'tables' : 'customer-info')}
-                    className="px-4"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Volver
-                  </Button>
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
@@ -1039,127 +1158,37 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                   <span className="text-green-600">{formatCurrency(orderTotal)}</span>
                 </div>
 
-                {/* Botón ENVIAR A COCINA - Visible para todos con permisos */}
-                {canSendKitchenOrder && (
-                  <>
-                    {kitchenOrderSent ? (
-                      // Estado: Comanda ya enviada
-                      <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
-                        <div className="flex items-center justify-center gap-3 text-green-700">
-                          <CheckCircle className="h-6 w-6" />
-                          <span className="font-bold text-lg">✅ Comanda enviada a cocina</span>
-                        </div>
-                        <p className="text-sm text-green-600 text-center mt-2">
-                          Puedes proceder al cobro
-                        </p>
-                      </div>
-                    ) : (
-                      // Botón para enviar comanda
-                      <div className="relative">
-                        {selectedProducts.length > 0 && (
-                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-xl blur-sm opacity-75 animate-pulse" />
-                        )}
-                        <Button
-                          onClick={() => setIsKitchenModalOpen(true)}
-                          disabled={selectedProducts.length === 0 || kitchenLoading}
-                          className="relative w-full h-16 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold text-xl shadow-2xl hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all duration-300 hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed border-2 border-orange-300/50"
-                        >
-                          <div className="flex items-center justify-center gap-3">
-                            <ChefHat className="h-7 w-7" />
-                            <span>🔥 ENVIAR A COCINA</span>
-                            {selectedProducts.length > 0 && (
-                              <Badge className="bg-white/20 text-white border-white/30 ml-2">
-                                {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} items
-                              </Badge>
-                            )}
-                          </div>
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Recordatorio visual si hay productos sin enviar */}
-                    {selectedProducts.length > 0 && !kitchenOrderSent && (
-                      <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
-                        <AlertTriangle className="h-5 w-5 text-amber-600" />
-                        <p className="text-sm text-amber-700 font-medium">
-                          ¡Debes enviar la comanda antes de cobrar!
-                        </p>
-                      </div>
-                    )}
-                  </>
+                {/* Estado de comanda en carrito */}
+                {canSendKitchenOrder && kitchenOrderSent && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center justify-center gap-2 text-green-700">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Comanda enviada a cocina</span>
+                    </div>
+                  </div>
                 )}
 
-                {/* Opciones de pago - Solo visible para cajeros/propietarios */}
-                {canProcessPayments && (
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
-                      <Button
-                        variant={paymentMode === 'single' ? 'default' : 'outline'}
-                        onClick={() => {
-                          setPaymentMode('single');
-                          setSelectedPaymentMethod('');
-                        }}
-                        className="flex-1 h-12"
-                      >
-                        Pago Simple
-                      </Button>
-                      <Button
-                        variant={paymentMode === 'split' ? 'default' : 'outline'}
-                        onClick={() => {
-                          setPaymentMode('split');
-                          setSelectedPaymentMethod('');
-                        }}
-                        className="flex-1 h-12"
-                      >
-                        <Split className="h-4 w-4 mr-2" />
-                        Dividir
-                      </Button>
+                {/* Recordatorio si hay productos sin enviar */}
+                {selectedProducts.length > 0 && !kitchenOrderSent && canSendKitchenOrder && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-700">
+                      <AlertTriangle className="h-5 w-5" />
+                      <p className="text-sm font-medium">
+                        Recuerda enviar la comanda a cocina
+                      </p>
                     </div>
-
-                    {/* Métodos de pago */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant={selectedPaymentMethod === 'efectivo' ? 'default' : 'outline'}
-                        onClick={() => setSelectedPaymentMethod('efectivo')}
-                        className="h-16"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <Banknote className="h-6 w-6" />
-                          <span>Efectivo</span>
-                        </div>
-                      </Button>
-                      <Button
-                        variant={selectedPaymentMethod === 'tarjeta' ? 'default' : 'outline'}
-                        onClick={() => setSelectedPaymentMethod('tarjeta')}
-                        className="h-16"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <CreditCard className="h-6 w-6" />
-                          <span>Tarjeta</span>
-                        </div>
-                      </Button>
-                    </div>
-
-                    {selectedPaymentMethod && (
-                      <Button
-                        onClick={handlePayment}
-                        disabled={isProcessing || selectedProducts.length === 0}
-                        className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-lg"
-                      >
-                        {isProcessing ? (
-                          <div className="flex items-center gap-3">
-                            <RefreshCw className="h-5 w-5 animate-spin" />
-                            Procesando...
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-3">
-                            <Receipt className="h-5 w-5" />
-                            Procesar Pago - {formatCurrency(orderTotal)}
-                          </div>
-                        )}
-                      </Button>
-                    )}
                   </div>
+                )}
+
+                {/* Botón rápido para ir a cobrar desde carrito */}
+                {canProcessPayments && selectedProducts.length > 0 && kitchenOrderSent && (
+                  <Button
+                    onClick={() => setCurrentView('payment')}
+                    className="w-full h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold"
+                  >
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    Ir a cobrar - {formatCurrency(orderTotal)}
+                  </Button>
                 )}
                 
                 {/* Mensaje para meseros */}
@@ -1175,6 +1204,146 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
             </Card>
           </div>
         </div>
+      )}
+
+      {/* Vista de Pago */}
+      {currentView === 'payment' && (
+        <Card className="max-w-2xl mx-auto bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-3 text-2xl font-bold text-green-700">
+                <CreditCard className="h-6 w-6" />
+                Procesar Cobro
+              </CardTitle>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentView('menu')}
+                className="px-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al menú
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {/* Resumen de la orden */}
+            <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+              <h3 className="font-bold text-lg text-slate-700 flex items-center gap-2">
+                <Receipt className="h-5 w-5" />
+                Resumen de cuenta
+              </h3>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {selectedProducts.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span>{item.quantity}x {item.name}</span>
+                    <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-xl text-green-700">
+                <span>Total a cobrar:</span>
+                <span>{formatCurrency(orderTotal)}</span>
+              </div>
+            </div>
+
+            {/* Modo de pago */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-slate-700">Modo de pago</h3>
+              <div className="flex gap-3">
+                <Button
+                  variant={paymentMode === 'single' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setPaymentMode('single');
+                    setSelectedPaymentMethod('');
+                  }}
+                  className="flex-1 h-12"
+                >
+                  Pago Simple
+                </Button>
+                <Button
+                  variant={paymentMode === 'split' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setPaymentMode('split');
+                    setSelectedPaymentMethod('');
+                  }}
+                  className="flex-1 h-12"
+                >
+                  <Split className="h-4 w-4 mr-2" />
+                  Dividir cuenta
+                </Button>
+              </div>
+            </div>
+
+            {/* Métodos de pago */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-slate-700">Método de pago</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  variant={selectedPaymentMethod === 'efectivo' ? 'default' : 'outline'}
+                  onClick={() => setSelectedPaymentMethod('efectivo')}
+                  className="h-20"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Banknote className="h-8 w-8" />
+                    <span className="font-medium">Efectivo</span>
+                  </div>
+                </Button>
+                <Button
+                  variant={selectedPaymentMethod === 'tarjeta' ? 'default' : 'outline'}
+                  onClick={() => setSelectedPaymentMethod('tarjeta')}
+                  className="h-20"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <CreditCard className="h-8 w-8" />
+                    <span className="font-medium">Tarjeta</span>
+                  </div>
+                </Button>
+                <Button
+                  variant={selectedPaymentMethod === 'transferencia' ? 'default' : 'outline'}
+                  onClick={() => setSelectedPaymentMethod('transferencia')}
+                  className="h-20"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Smartphone className="h-8 w-8" />
+                    <span className="font-medium">Transferencia</span>
+                  </div>
+                </Button>
+                <Button
+                  variant={selectedPaymentMethod === 'mixto' ? 'default' : 'outline'}
+                  onClick={() => setSelectedPaymentMethod('mixto')}
+                  className="h-20"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Split className="h-8 w-8" />
+                    <span className="font-medium">Mixto</span>
+                  </div>
+                </Button>
+              </div>
+            </div>
+
+            {/* Botón de procesar pago */}
+            {selectedPaymentMethod && (
+              <Button
+                onClick={handlePayment}
+                disabled={isProcessing}
+                className="w-full h-16 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="h-6 w-6 animate-spin" />
+                    Procesando pago...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-6 w-6" />
+                    Confirmar cobro - {formatCurrency(orderTotal)}
+                  </div>
+                )}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Vista de éxito */}
@@ -1199,6 +1368,7 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                 setCustomerInfo({ name: '', phone: '', address: '' });
                 setSelectedPaymentMethod('');
                 setPaymentMode('single');
+                setKitchenOrderSent(false);
               }}
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
