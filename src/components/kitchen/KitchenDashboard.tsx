@@ -4,10 +4,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { ChefHat, Clock, CheckCircle, AlertCircle, Eye, Bell, RefreshCw, Timer, Users, Utensils } from 'lucide-react';
+import { 
+  ChefHat, 
+  Clock, 
+  CheckCircle, 
+  Bell, 
+  RefreshCw, 
+  Timer, 
+  Users, 
+  Utensils,
+  History,
+  XCircle,
+  Flame
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import KitchenOrderCard from './KitchenOrderCard';
+import KitchenCancelModal from './KitchenCancelModal';
+import KitchenHistorySection from './KitchenHistorySection';
+
 interface KitchenOrder {
   id: string;
   order_number: string;
@@ -19,11 +37,15 @@ interface KitchenOrder {
   sent_at: string;
   started_at: string | null;
   completed_at: string | null;
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
   notes: string | null;
   user_id: string;
+  waiter_id?: string | null;
   restaurant_id: string;
   items: KitchenOrderItem[];
 }
+
 interface KitchenOrderItem {
   id: string;
   product_name: string;
@@ -31,6 +53,7 @@ interface KitchenOrderItem {
   special_instructions: string | null;
   status: 'pending' | 'preparing' | 'ready';
 }
+
 interface KitchenNotification {
   id: string;
   kitchen_order_id: string;
@@ -39,40 +62,51 @@ interface KitchenNotification {
   is_read: boolean;
   created_at: string;
 }
+
 const KitchenDashboard = () => {
-  const {
-    user,
-    profile
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [notifications, setNotifications] = useState<KitchenNotification[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<KitchenOrder | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [animatingOutIds, setAnimatingOutIds] = useState<Set<string>>(new Set());
+  
+  // Modal de anulación
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<KitchenOrder | null>(null);
+  
+  // Verificar permisos de anulación
+  const canCancelOrders = profile?.role === 'owner' || 
+    profile?.role === 'admin' || 
+    (profile?.permissions as any)?.can_cancel_kitchen_order;
 
   // Cargar comandas
   const loadOrders = async () => {
     if (!profile?.restaurant_id) return;
     try {
-      const {
-        data: ordersData,
-        error: ordersError
-      } = await supabase.from('kitchen_orders').select(`
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('kitchen_orders')
+        .select(`
           *,
           kitchen_order_items (*)
-        `).eq('restaurant_id', profile.restaurant_id).order('sent_at', {
-        ascending: false
-      });
+        `)
+        .eq('restaurant_id', profile.restaurant_id)
+        .gte('created_at', today.toISOString())
+        .order('sent_at', { ascending: false });
+
       if (ordersError) throw ordersError;
+      
       setOrders(ordersData?.map(order => ({
         ...order,
         status: order.status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
         priority: order.priority as 'normal' | 'high' | 'urgent',
-        items: order.kitchen_order_items?.map(item => ({
+        items: order.kitchen_order_items?.map((item: any) => ({
           ...item,
           status: item.status as 'pending' | 'preparing' | 'ready'
         })) || []
@@ -91,12 +125,13 @@ const KitchenDashboard = () => {
   const loadNotifications = async () => {
     if (!profile?.restaurant_id) return;
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('kitchen_notifications').select('*').eq('restaurant_id', profile.restaurant_id).order('created_at', {
-        ascending: false
-      }).limit(50);
+      const { data, error } = await supabase
+        .from('kitchen_notifications')
+        .select('*')
+        .eq('restaurant_id', profile.restaurant_id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
       if (error) throw error;
       setNotifications(data || []);
       setUnreadCount(data?.filter(n => !n.is_read).length || 0);
@@ -105,20 +140,90 @@ const KitchenDashboard = () => {
     }
   };
 
+  // Registrar evento de cocina
+  const logKitchenEvent = async (
+    kitchenOrderId: string, 
+    previousStatus: string | null, 
+    newStatus: string,
+    reasonType?: string,
+    reasonComment?: string
+  ) => {
+    if (!profile?.restaurant_id || !user) return;
+    
+    try {
+      await supabase.from('kitchen_order_events').insert({
+        restaurant_id: profile.restaurant_id,
+        kitchen_order_id: kitchenOrderId,
+        previous_status: previousStatus,
+        new_status: newStatus,
+        changed_by_user_id: user.id,
+        changed_by_name: profile.full_name || profile.email,
+        reason_type: reasonType || null,
+        reason_comment: reasonComment || null
+      });
+    } catch (error) {
+      console.error('Error logging kitchen event:', error);
+    }
+  };
+
+  // Notificar al mesero
+  const notifyWaiter = async (order: KitchenOrder, message: string) => {
+    if (!profile?.restaurant_id) return;
+    
+    try {
+      // Crear notificación en kitchen_notifications
+      await supabase.from('kitchen_notifications').insert({
+        restaurant_id: profile.restaurant_id,
+        kitchen_order_id: order.id,
+        type: 'ORDER_READY',
+        message,
+        is_read: false
+      });
+
+      // También crear una notificación general si hay waiter_id
+      if (order.waiter_id) {
+        await supabase.from('notifications').insert({
+          user_id: order.waiter_id,
+          type: 'KITCHEN_ORDER_READY',
+          title: '🍽️ ¡Comanda lista!',
+          message: `Orden #${order.order_number} está lista para entregar`,
+          data: { 
+            order_id: order.id, 
+            order_number: order.order_number,
+            table_number: order.table_number 
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error notifying waiter:', error);
+    }
+  };
+
   // Marcar como iniciado
   const startOrder = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    
     try {
-      const {
-        error
-      } = await supabase.from('kitchen_orders').update({
-        status: 'in_progress',
-        started_at: new Date().toISOString()
-      }).eq('id', orderId);
+      const { error } = await supabase
+        .from('kitchen_orders')
+        .update({
+          status: 'in_progress',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
       if (error) throw error;
+      
+      // Registrar evento
+      await logKitchenEvent(orderId, order.status, 'in_progress');
+      
       await loadOrders();
+      
       toast({
-        title: "Orden iniciada",
-        description: "La preparación ha comenzado"
+        title: "🍳 Preparación iniciada",
+        description: `Orden #${order.order_number} en cocina`,
+        className: "bg-cyan-900/90 border-cyan-600 text-white"
       });
     } catch (error) {
       console.error('Error starting order:', error);
@@ -130,35 +235,64 @@ const KitchenDashboard = () => {
     }
   };
 
-  // Marcar como completado
+  // Marcar como completado con animación
   const completeOrder = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    // Añadir a animación de salida
+    setAnimatingOutIds(prev => new Set(prev).add(orderId));
+    
     try {
-      const {
-        error
-      } = await supabase.from('kitchen_orders').update({
-        status: 'completed',
-        completed_at: new Date().toISOString()
-      }).eq('id', orderId);
+      const { error } = await supabase
+        .from('kitchen_orders')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
       if (error) throw error;
-      await loadOrders();
+      
+      // Registrar evento
+      await logKitchenEvent(orderId, order.status, 'completed');
+      
+      // Notificar al mesero
+      await notifyWaiter(order, `¡Orden #${order.order_number} está lista para entregar!`);
 
       // Efectos visuales y sonoros
       if ('vibrate' in navigator) {
         navigator.vibrate([200, 100, 200]);
       }
 
-      // Sonido de completado (se puede agregar un audio)
+      // Sonido de completado
       try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMapVP');
-        audio.play().catch(() => {}); // Silenciar errores de audio
+        audio.play().catch(() => {});
       } catch (e) {}
+
+      // Esperar animación y recargar
+      setTimeout(async () => {
+        await loadOrders();
+        setAnimatingOutIds(prev => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }, 400);
+      
       toast({
-        title: "¡Orden completada!",
-        description: "La comanda ha sido marcada como lista",
-        className: "bg-green-50 border-green-200"
+        title: "✅ ¡Orden completada!",
+        description: `Orden #${order.order_number} lista. Mesero notificado.`,
+        className: "bg-emerald-900/90 border-emerald-600 text-white"
       });
     } catch (error) {
       console.error('Error completing order:', error);
+      setAnimatingOutIds(prev => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
       toast({
         title: "Error",
         description: "No se pudo completar la orden",
@@ -167,16 +301,108 @@ const KitchenDashboard = () => {
     }
   };
 
+  // Abrir modal de anulación
+  const handleCancelClick = (order: KitchenOrder) => {
+    setOrderToCancel(order);
+    setCancelModalOpen(true);
+  };
+
+  // Confirmar anulación
+  const handleCancelConfirm = async (reasonType: string, reasonComment: string) => {
+    if (!orderToCancel) return;
+    
+    const order = orderToCancel;
+    
+    // Animación de salida
+    setAnimatingOutIds(prev => new Set(prev).add(order.id));
+    
+    try {
+      const { error } = await supabase
+        .from('kitchen_orders')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: user?.id,
+          cancellation_reason: reasonType
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+      
+      // Registrar evento con motivo
+      await logKitchenEvent(order.id, order.status, 'cancelled', reasonType, reasonComment);
+      
+      // Crear alerta para el dueño
+      if (profile?.restaurant_id) {
+        const { data: restaurant } = await supabase
+          .from('restaurants')
+          .select('owner_id')
+          .eq('id', profile.restaurant_id)
+          .single();
+        
+        if (restaurant?.owner_id) {
+          await supabase.from('owner_alerts').insert({
+            owner_id: restaurant.owner_id,
+            restaurant_id: profile.restaurant_id,
+            alert_type: 'KITCHEN_ORDER_CANCELLED',
+            severity: 'medium',
+            title: `Comanda #${order.order_number} anulada`,
+            description: `Motivo: ${reasonType}${reasonComment ? ` - ${reasonComment}` : ''}`,
+            triggered_by: user?.id,
+            triggered_by_name: profile.full_name || profile.email,
+            metadata: {
+              order_id: order.id,
+              order_number: order.order_number,
+              table_number: order.table_number,
+              reason_type: reasonType,
+              reason_comment: reasonComment
+            }
+          });
+        }
+      }
+
+      // Cerrar modal y esperar animación
+      setCancelModalOpen(false);
+      setOrderToCancel(null);
+      
+      setTimeout(async () => {
+        await loadOrders();
+        setAnimatingOutIds(prev => {
+          const next = new Set(prev);
+          next.delete(order.id);
+          return next;
+        });
+      }, 400);
+      
+      toast({
+        title: "❌ Comanda anulada",
+        description: `Orden #${order.order_number} ha sido anulada. Motivo registrado.`,
+        className: "bg-red-900/90 border-red-600 text-white"
+      });
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      setAnimatingOutIds(prev => {
+        const next = new Set(prev);
+        next.delete(order.id);
+        return next;
+      });
+      throw error;
+    }
+  };
+
   // Marcar notificaciones como leídas
   const markNotificationsAsRead = async () => {
     if (!profile?.restaurant_id || unreadCount === 0) return;
     try {
-      const {
-        error
-      } = await supabase.from('kitchen_notifications').update({
-        is_read: true,
-        read_at: new Date().toISOString()
-      }).eq('restaurant_id', profile.restaurant_id).eq('is_read', false);
+      const { error } = await supabase
+        .from('kitchen_notifications')
+        .update({
+          is_read: true,
+          read_at: new Date().toISOString()
+        })
+        .eq('restaurant_id', profile.restaurant_id)
+        .eq('is_read', false);
+
       if (error) throw error;
       setUnreadCount(0);
       await loadNotifications();
@@ -188,137 +414,153 @@ const KitchenDashboard = () => {
   // Configurar tiempo real
   useEffect(() => {
     if (!profile?.restaurant_id) return;
+    
     loadOrders();
     loadNotifications();
     setLoading(false);
 
     // Suscribirse a nuevas comandas
-    const ordersChannel = supabase.channel('kitchen-orders-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'kitchen_orders',
-      filter: `restaurant_id=eq.${profile.restaurant_id}`
-    }, payload => {
-      console.log('Order change:', payload);
-      loadOrders();
-      if (payload.eventType === 'INSERT') {
-        // Nueva comanda - efectos visuales/sonoros
-        if ('vibrate' in navigator) {
-          navigator.vibrate([500, 200, 500, 200, 500]);
+    const ordersChannel = supabase
+      .channel('kitchen-orders-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'kitchen_orders',
+        filter: `restaurant_id=eq.${profile.restaurant_id}`
+      }, payload => {
+        console.log('Order change:', payload);
+        loadOrders();
+        
+        if (payload.eventType === 'INSERT') {
+          // Nueva comanda - efectos visuales/sonoros
+          if ('vibrate' in navigator) {
+            navigator.vibrate([500, 200, 500, 200, 500]);
+          }
+          
+          // Sonido de nueva orden
+          try {
+            const audio = new Audio('data:audio/wav;base64,UklGRl9vT19teleWQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ==');
+            audio.play().catch(() => {});
+          } catch (e) {}
+          
+          toast({
+            title: "🔔 ¡Nueva comanda!",
+            description: `Comanda #${(payload.new as any).order_number} recibida`,
+            className: "bg-orange-900/90 border-orange-500 text-white animate-pulse"
+          });
         }
-        toast({
-          title: "¡Nueva comanda!",
-          description: `Comanda #${payload.new.order_number} recibida`,
-          className: "bg-orange-50 border-orange-200 animate-pulse"
-        });
-      }
-    }).subscribe();
+      })
+      .subscribe();
 
     // Suscribirse a notificaciones
-    const notificationsChannel = supabase.channel('kitchen-notifications-changes').on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'kitchen_notifications',
-      filter: `restaurant_id=eq.${profile.restaurant_id}`
-    }, payload => {
-      console.log('New notification:', payload);
-      loadNotifications();
-    }).subscribe();
+    const notificationsChannel = supabase
+      .channel('kitchen-notifications-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'kitchen_notifications',
+        filter: `restaurant_id=eq.${profile.restaurant_id}`
+      }, () => {
+        loadNotifications();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(notificationsChannel);
     };
   }, [profile?.restaurant_id]);
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'high':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pendiente';
-      case 'in_progress':
-        return 'En Preparación';
-      case 'completed':
-        return 'Completado';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return status;
-    }
-  };
+
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
-  const getElapsedTime = (sentAt: string) => {
-    const now = new Date();
-    const sent = new Date(sentAt);
-    const diffMs = now.getTime() - sent.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) {
-      return `${diffMins} min`;
-    } else {
-      const hours = Math.floor(diffMins / 60);
-      const minutes = diffMins % 60;
-      return `${hours}h ${minutes}m`;
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-amber-500/20 text-amber-300 border-amber-500/50';
+      case 'in_progress': return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50';
+      case 'completed': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
+      case 'cancelled': return 'bg-red-500/20 text-red-300 border-red-500/50';
+      default: return 'bg-slate-500/20 text-slate-300 border-slate-500/50';
     }
   };
-  const activeOrders = orders.filter(order => order.status !== 'completed' && order.status !== 'cancelled');
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'in_progress': return 'En Preparación';
+      case 'completed': return 'Completado';
+      case 'cancelled': return 'Anulado';
+      default: return status;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500/20 text-red-300 border-red-500/50';
+      case 'high': return 'bg-orange-500/20 text-orange-300 border-orange-500/50';
+      default: return 'bg-slate-500/20 text-slate-300 border-slate-500/50';
+    }
+  };
+
+  const activeOrders = orders.filter(order => 
+    order.status !== 'completed' && order.status !== 'cancelled'
+  );
   const completedOrders = orders.filter(order => order.status === 'completed');
+  const cancelledOrders = orders.filter(order => order.status === 'cancelled');
+
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground">Cargando comandas...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
+          <p className="text-sm text-slate-400">Cargando comandas...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-gray-50 p-2 sm:p-4 space-y-4">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-2 sm:p-4 space-y-4">
       {/* Header */}
-      <div className="rounded-lg shadow-sm p-4 bg-popover">
+      <div className="rounded-xl shadow-xl p-4 bg-gradient-to-r from-slate-800 to-slate-800/80 border border-slate-700">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <ChefHat className="h-6 w-6 text-orange-600" />
+            <div className="p-2 bg-gradient-to-br from-orange-500 to-cyan-500 rounded-xl shadow-lg">
+              <ChefHat className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-primary">Panel de Cocina</h1>
-              <p className="text-sm text-gray-500">Gestión de comandas en tiempo real</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent">
+                Panel de Cocina
+              </h1>
+              <p className="text-sm text-slate-400">Comandas en tiempo real</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {unreadCount > 0 && <Button variant="outline" size="sm" onClick={markNotificationsAsRead} className="relative">
-                <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={markNotificationsAsRead} 
+                className="relative bg-slate-800 border-slate-600 hover:bg-slate-700"
+              >
+                <Bell className="h-4 w-4 text-slate-300" />
                 <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
                   {unreadCount}
                 </Badge>
-              </Button>}
+              </Button>
+            )}
             
-            <Button variant="outline" size="sm" onClick={loadOrders} className="gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadOrders} 
+              className="gap-2 bg-slate-800 border-slate-600 hover:bg-slate-700 text-slate-300"
+            >
               <RefreshCw className="h-4 w-4" />
               Actualizar
             </Button>
@@ -326,231 +568,248 @@ const KitchenDashboard = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm font-medium text-yellow-800">Pendientes</span>
+              <Clock className="h-4 w-4 text-amber-400" />
+              <span className="text-sm font-medium text-amber-300">Pendientes</span>
             </div>
-            <p className="text-lg font-semibold text-yellow-900">
+            <p className="text-2xl font-bold text-amber-400 mt-1">
               {activeOrders.filter(o => o.status === 'pending').length}
             </p>
           </div>
           
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30">
             <div className="flex items-center gap-2">
-              <Timer className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">En Proceso</span>
+              <Flame className="h-4 w-4 text-cyan-400" />
+              <span className="text-sm font-medium text-cyan-300">En Proceso</span>
             </div>
-            <p className="text-lg font-semibold text-blue-900">
+            <p className="text-2xl font-bold text-cyan-400 mt-1">
               {activeOrders.filter(o => o.status === 'in_progress').length}
             </p>
           </div>
           
-          <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Completadas</span>
+              <CheckCircle className="h-4 w-4 text-emerald-400" />
+              <span className="text-sm font-medium text-emerald-300">Completadas</span>
             </div>
-            <p className="text-lg font-semibold text-green-900">
+            <p className="text-2xl font-bold text-emerald-400 mt-1">
               {completedOrders.length}
             </p>
           </div>
           
-          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-slate-500/20 to-slate-600/10 border border-slate-500/30">
             <div className="flex items-center gap-2">
-              <Utensils className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-800">Total Items</span>
+              <Utensils className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-medium text-slate-300">Total Items</span>
             </div>
-            <p className="text-lg font-semibold text-gray-900">
+            <p className="text-2xl font-bold text-slate-300 mt-1">
               {activeOrders.reduce((sum, order) => sum + order.total_items, 0)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Comandas Activas */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-secondary-hover">Comandas Activas</h2>
-        
-        {activeOrders.length === 0 ? <Card>
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <ChefHat className="h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 text-center">No hay comandas activas</p>
-              <p className="text-sm text-gray-400 text-center mt-1">
-                Las nuevas comandas aparecerán aquí automáticamente
+      {/* Tabs: Activas / Historial */}
+      <Tabs defaultValue="active" className="space-y-4">
+        <TabsList className="bg-slate-800 border border-slate-700">
+          <TabsTrigger 
+            value="active" 
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white text-slate-400"
+          >
+            <Flame className="h-4 w-4 mr-2" />
+            Comandas Activas ({activeOrders.length})
+          </TabsTrigger>
+          <TabsTrigger 
+            value="history"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white text-slate-400"
+          >
+            <History className="h-4 w-4 mr-2" />
+            Historial del Día
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-4">
+          {activeOrders.length === 0 ? (
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="p-4 rounded-full bg-slate-700/50 mb-4">
+                  <ChefHat className="h-12 w-12 text-slate-500" />
+                </div>
+                <p className="text-slate-400 text-center text-lg">No hay comandas activas</p>
+                <p className="text-sm text-slate-500 text-center mt-1">
+                  Las nuevas comandas aparecerán aquí automáticamente
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <AnimatePresence mode="popLayout">
+                {activeOrders.map(order => (
+                  <KitchenOrderCard
+                    key={order.id}
+                    order={order}
+                    onStart={startOrder}
+                    onComplete={completeOrder}
+                    onViewDetails={(o) => {
+                      setSelectedOrder(o);
+                      setIsDetailOpen(true);
+                    }}
+                    onCancel={handleCancelClick}
+                    canCancel={canCancelOrders}
+                    isAnimatingOut={animatingOutIds.has(order.id)}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-slate-200 flex items-center gap-2">
+                <History className="h-5 w-5 text-slate-400" />
+                Historial del Día
+              </CardTitle>
+              <p className="text-sm text-slate-400">
+                Comandas completadas y anuladas de hoy
               </p>
+            </CardHeader>
+            <CardContent>
+              <KitchenHistorySection 
+                completedOrders={completedOrders}
+                cancelledOrders={cancelledOrders}
+              />
             </CardContent>
-          </Card> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {activeOrders.map(order => <Card key={order.id} className={`border-l-4 ${order.priority === 'urgent' ? 'border-l-red-500' : order.priority === 'high' ? 'border-l-orange-500' : 'border-l-gray-300'} transition-all hover:shadow-md`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg font-semibold">
-                        #{order.order_number}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        {order.table_number && <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3 text-gray-500" />
-                            <span className="text-sm text-gray-600">Mesa {order.table_number}</span>
-                          </div>}
-                        <Badge className={getPriorityColor(order.priority)}>
-                          {order.priority === 'urgent' ? 'Urgente' : order.priority === 'high' ? 'Alta' : 'Normal'}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Badge className={getStatusColor(order.status)}>
-                      {getStatusText(order.status)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Recibido:</span>
-                    <span className="font-medium">{formatTime(order.sent_at)}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Tiempo transcurrido:</span>
-                    <span className="font-medium text-orange-600">
-                      {getElapsedTime(order.sent_at)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Items:</span>
-                    <span className="font-medium">{order.total_items}</span>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-900">Productos:</h4>
-                    {order.items.slice(0, 3).map((item, index) => <div key={index} className="flex justify-between items-center text-sm">
-                        <span className="text-gray-700">
-                          {item.quantity}x {item.product_name}
-                        </span>
-                        {item.special_instructions && <Badge variant="outline" className="text-xs">
-                            Con observaciones
-                          </Badge>}
-                      </div>)}
-                    {order.items.length > 3 && <p className="text-xs text-gray-500">
-                        +{order.items.length - 3} productos más
-                      </p>}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => {
-                setSelectedOrder(order);
-                setIsDetailOpen(true);
-              }} className="flex-1">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalles
-                    </Button>
-                    
-                    {order.status === 'pending' ? <Button onClick={() => startOrder(order.id)} size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
-                        <Timer className="h-4 w-4 mr-2" />
-                        Iniciar
-                      </Button> : <Button onClick={() => completeOrder(order.id)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Completar
-                      </Button>}
-                  </div>
-                </CardContent>
-              </Card>)}
-          </div>}
-      </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog de detalles */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ChefHat className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <ChefHat className="h-5 w-5 text-orange-400" />
               Detalles de Comanda #{selectedOrder?.order_number}
             </DialogTitle>
           </DialogHeader>
           
-          {selectedOrder && <div className="space-y-4">
+          {selectedOrder && (
+            <div className="space-y-4">
               {/* Información general */}
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+              <div className="bg-slate-800 rounded-lg p-3 space-y-2 border border-slate-700">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Mesa:</span>
-                  <span className="font-medium">
+                  <span className="text-sm text-slate-400">Mesa:</span>
+                  <span className="font-medium text-slate-200">
                     {selectedOrder.table_number ? `Mesa ${selectedOrder.table_number}` : 'Domicilio'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Estado:</span>
+                  <span className="text-sm text-slate-400">Estado:</span>
                   <Badge className={getStatusColor(selectedOrder.status)}>
                     {getStatusText(selectedOrder.status)}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Prioridad:</span>
+                  <span className="text-sm text-slate-400">Prioridad:</span>
                   <Badge className={getPriorityColor(selectedOrder.priority)}>
-                    {selectedOrder.priority === 'urgent' ? 'Urgente' : selectedOrder.priority === 'high' ? 'Alta' : 'Normal'}
+                    {selectedOrder.priority === 'urgent' ? '🔥 Urgente' : 
+                     selectedOrder.priority === 'high' ? '⚡ Alta' : 'Normal'}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Hora recibido:</span>
-                  <span className="font-medium">{formatTime(selectedOrder.sent_at)}</span>
+                  <span className="text-sm text-slate-400">Hora recibido:</span>
+                  <span className="font-medium text-slate-200">{formatTime(selectedOrder.sent_at)}</span>
                 </div>
-                {selectedOrder.started_at && <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Hora iniciado:</span>
-                    <span className="font-medium">{formatTime(selectedOrder.started_at)}</span>
-                  </div>}
+                {selectedOrder.started_at && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-400">Hora iniciado:</span>
+                    <span className="font-medium text-slate-200">{formatTime(selectedOrder.started_at)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Lista de productos */}
               <div className="space-y-3">
-                <h4 className="font-medium text-gray-900">Productos pedidos:</h4>
-                {selectedOrder.items.map((item, index) => <div key={index} className="border rounded-lg p-3 space-y-2">
+                <h4 className="font-medium text-slate-200">Productos pedidos:</h4>
+                {selectedOrder.items.map((item, index) => (
+                  <div key={index} className="border border-slate-700 rounded-lg p-3 space-y-2 bg-slate-800/50">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{item.product_name}</p>
-                        <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                        <p className="font-medium text-slate-200">{item.product_name}</p>
+                        <p className="text-sm text-slate-400">Cantidad: {item.quantity}</p>
                       </div>
                       <Badge variant="outline" className={getStatusColor(item.status)}>
                         {getStatusText(item.status)}
                       </Badge>
                     </div>
-                    {item.special_instructions && <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
-                        <p className="text-sm text-yellow-800">
-                          <strong>Observaciones:</strong> {item.special_instructions}
+                    {item.special_instructions && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-2">
+                        <p className="text-sm text-yellow-300">
+                          <strong>📝 Observaciones:</strong> {item.special_instructions}
                         </p>
-                      </div>}
-                  </div>)}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
               {/* Notas generales */}
-              {selectedOrder.notes && <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <h4 className="font-medium text-blue-900 mb-2">Notas de la comanda:</h4>
-                  <p className="text-sm text-blue-800">{selectedOrder.notes}</p>
-                </div>}
+              {selectedOrder.notes && (
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3">
+                  <h4 className="font-medium text-cyan-300 mb-2">Notas de la comanda:</h4>
+                  <p className="text-sm text-cyan-200">{selectedOrder.notes}</p>
+                </div>
+              )}
 
               {/* Acciones */}
               <div className="flex gap-2">
-                {selectedOrder.status === 'pending' && <Button onClick={() => {
-              startOrder(selectedOrder.id);
-              setIsDetailOpen(false);
-            }} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                    <Timer className="h-4 w-4 mr-2" />
+                {selectedOrder.status === 'pending' && (
+                  <Button 
+                    onClick={() => {
+                      startOrder(selectedOrder.id);
+                      setIsDetailOpen(false);
+                    }} 
+                    className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                  >
+                    <Flame className="h-4 w-4 mr-2" />
                     Iniciar Preparación
-                  </Button>}
+                  </Button>
+                )}
                 
-                {selectedOrder.status === 'in_progress' && <Button onClick={() => {
-              completeOrder(selectedOrder.id);
-              setIsDetailOpen(false);
-            }} className="flex-1 bg-green-600 hover:bg-green-700">
+                {selectedOrder.status === 'in_progress' && (
+                  <Button 
+                    onClick={() => {
+                      completeOrder(selectedOrder.id);
+                      setIsDetailOpen(false);
+                    }} 
+                    className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500"
+                  >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Marcar como Listo
-                  </Button>}
+                    Marcar como Lista
+                  </Button>
+                )}
               </div>
-            </div>}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-    </div>;
+
+      {/* Modal de anulación */}
+      <KitchenCancelModal
+        isOpen={cancelModalOpen}
+        onClose={() => {
+          setCancelModalOpen(false);
+          setOrderToCancel(null);
+        }}
+        onConfirm={handleCancelConfirm}
+        orderNumber={orderToCancel?.order_number || ''}
+      />
+    </div>
+  );
 };
+
 export default KitchenDashboard;
