@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -66,45 +66,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+    let attempts = 0;
+    
+    while (attempts < maxRetries) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching profile:", error);
+        if (error) {
+          console.error(`Error fetching profile (attempt ${attempts + 1}):`, error);
+          attempts++;
+          if (attempts < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+            continue;
+          }
+          return null;
+        }
+
+        return data;
+      } catch (error) {
+        console.error(`Error fetching profile (attempt ${attempts + 1}):`, error);
+        attempts++;
+        if (attempts < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          continue;
+        }
         return null;
       }
-
-      return data;
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      return null;
     }
+    return null;
   };
 
   const fetchRestaurant = async (restaurantId: string): Promise<Restaurant | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('id', restaurantId)
-        .maybeSingle();
+    let attempts = 0;
+    
+    while (attempts < maxRetries) {
+      try {
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('id', restaurantId)
+          .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching restaurant:", error);
+        if (error) {
+          console.error(`Error fetching restaurant (attempt ${attempts + 1}):`, error);
+          attempts++;
+          if (attempts < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+            continue;
+          }
+          return null;
+        }
+
+        return data;
+      } catch (error) {
+        console.error(`Error fetching restaurant (attempt ${attempts + 1}):`, error);
+        attempts++;
+        if (attempts < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          continue;
+        }
         return null;
       }
-
-      return data;
-    } catch (error) {
-      console.error("Error fetching restaurant:", error);
-      return null;
     }
+    return null;
   };
 
   const refreshProfile = async () => {

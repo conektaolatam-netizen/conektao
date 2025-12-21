@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/context/AppContext';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -28,6 +27,9 @@ import InventoryManagement from '@/components/inventory/InventoryManagement';
 import Welcome from './Welcome';
 import AliciaTour from '@/components/onboarding/AliciaTour';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+import { LoadingState, ErrorState } from '@/components/LoadingState';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
 const Index = () => {
   const {
     user,
@@ -45,21 +47,33 @@ const Index = () => {
   const { showTour, completeTour, skipTour, restartTour, isLoading: tourLoading } = useOnboardingTour();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [hasInitError, setHasInitError] = useState(false);
+
+  // Manejar errores de inicialización
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn('Loading timeout - forcing state check');
+      }
+    }, 10000); // 10 segundos timeout
+
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Solo para limpiar datos legacy si es necesario
   useEffect(() => {
     if (profile && restaurant) {
-      const savedUserData = localStorage.getItem('restaurantUserData');
-      if (savedUserData) {
-        try {
+      try {
+        const savedUserData = localStorage.getItem('restaurantUserData');
+        if (savedUserData) {
           const parsedData = JSON.parse(savedUserData);
           dispatch({
             type: 'SET_USER_DATA',
             payload: parsedData
           });
-        } catch (error) {
-          console.log('Error parsing legacy data');
         }
+      } catch (error) {
+        console.warn('Error parsing legacy data - ignoring');
       }
     }
   }, [profile, restaurant, dispatch]);
@@ -70,13 +84,20 @@ const Index = () => {
   }
 
   // Show loading while checking authentication or profile
-  if (loading || user && profile === undefined) {
-    return <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Cargando...</p>
-        </div>
-      </div>;
+  if (loading) {
+    return <LoadingState message="Cargando tu cuenta..." fullScreen />;
+  }
+
+  // Error state para profile que no carga
+  if (user && !profile && !loading) {
+    return (
+      <ErrorState 
+        title="Error al cargar perfil"
+        message="No se pudo cargar tu perfil. Por favor, intenta refrescar la página."
+        onRetry={() => window.location.reload()}
+        fullScreen
+      />
+    );
   }
 
   // Si el usuario no tiene establecimiento asignado, mostrar setup wizard
