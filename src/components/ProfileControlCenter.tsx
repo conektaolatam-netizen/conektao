@@ -26,6 +26,7 @@ import {
   MapPin
 } from "lucide-react";
 import LocationPicker from "@/components/location/LocationPicker";
+import { useTipConfig } from "@/context/TipConfigContext";
 
 interface ProfileControlCenterProps {
   open: boolean;
@@ -50,6 +51,7 @@ interface SubscriptionSettings {
 
 const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps) => {
   const { user, profile, restaurant, refreshProfile } = useAuth();
+  const { tipEnabled, defaultTipPercentage, updateTipConfig, refreshTipConfig } = useTipConfig();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   
@@ -95,11 +97,19 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
     service_charge_percentage: 0,
   });
 
-  // Tip settings
+  // Tip settings - usa el contexto global pero mantiene estado local para edición
   const [tipSettings, setTipSettings] = useState({
-    tip_enabled: false,
-    default_tip_percentage: 10.00
+    tip_enabled: tipEnabled,
+    default_tip_percentage: defaultTipPercentage
   });
+
+  // Sincronizar estado local con contexto global cuando cambie
+  useEffect(() => {
+    setTipSettings({
+      tip_enabled: tipEnabled,
+      default_tip_percentage: defaultTipPercentage
+    });
+  }, [tipEnabled, defaultTipPercentage]);
   
   // Password change
   const [passwordData, setPasswordData] = useState({
@@ -338,16 +348,18 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
     
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("restaurants")
-        .update({
-          tip_enabled: tipSettings.tip_enabled,
-          default_tip_percentage: tipSettings.default_tip_percentage,
-        })
-        .eq("id", restaurant?.id);
+      // Usar el contexto global para actualizar (garantiza consistencia en toda la app)
+      const success = await updateTipConfig({
+        tipEnabled: tipSettings.tip_enabled,
+        defaultTipPercentage: tipSettings.default_tip_percentage,
+      });
 
-      if (error) throw error;
-      toast.success("Configuración de propinas actualizada");
+      if (!success) throw new Error("No se pudo actualizar");
+      
+      // Refrescar el contexto global para que todas las pantallas se actualicen
+      await refreshTipConfig();
+      
+      toast.success("✅ Configuración de propinas actualizada globalmente");
     } catch (error: any) {
       toast.error("Error al actualizar propinas: " + error.message);
     }
