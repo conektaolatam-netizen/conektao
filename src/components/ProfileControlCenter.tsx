@@ -320,6 +320,9 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
         .upsert({
           restaurant_id: restaurant?.id,
           ...subscriptionSettings,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'restaurant_id'
         });
 
       if (error) throw error;
