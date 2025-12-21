@@ -37,8 +37,11 @@ import {
   Clock
 } from 'lucide-react';
 import KitchenOrderModal from '@/components/kitchen/KitchenOrderModal';
+import KitchenOrderWarningModal from '@/components/billing/KitchenOrderWarningModal';
+import PaymentBlockedModal from '@/components/billing/PaymentBlockedModal';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
+import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
 
 interface Table {
   number: number;
@@ -46,6 +49,7 @@ interface Table {
   guestCount: number;
   currentOrder: any[];
   orderTotal: number;
+  kitchenOrderSent?: boolean;
 }
 
 interface Product {
@@ -68,12 +72,14 @@ const POSBilling = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   
-  // Verificar permisos del empleado
+  // Verificar permisos del empleado - TODOS con permiso de facturar pueden enviar comandas
   const permissions = profile?.permissions || {};
-  const canAddToOrder = profile?.role === 'owner' || permissions.add_products_to_order || permissions.process_payments;
-  const canProcessPayments = profile?.role === 'owner' || permissions.process_payments;
+  const canAddToOrder = profile?.role === 'owner' || profile?.role === 'admin' || permissions.add_products_to_order || permissions.process_payments;
+  const canProcessPayments = profile?.role === 'owner' || profile?.role === 'admin' || permissions.process_payments;
+  const canSendKitchenOrder = profile?.role === 'owner' || profile?.role === 'admin' || permissions.process_payments || permissions.add_products_to_order;
   const isWaiterOnly = permissions.add_products_to_order && !permissions.process_payments && profile?.role === 'employee';
   const { checkAvailability } = useProductAvailability();
+  const { logSuspiciousEvent } = useSuspiciousEvents();
   
   // Estados principales
   const [currentView, setCurrentView] = useState<'order-type' | 'tables' | 'guests' | 'customer-info' | 'menu' | 'payment' | 'success' | 'cash'>('order-type');
@@ -93,7 +99,13 @@ const POSBilling = () => {
   // Estados para comandas
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [showCommandReminder, setShowCommandReminder] = useState(false);
+  const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
   const { sendToKitchen, checkPendingCommand, setPendingCommandReminder, isLoading: kitchenLoading } = useKitchenOrders();
+  
+  // Estados para modales de advertencia
+  const [showExitWarningModal, setShowExitWarningModal] = useState(false);
+  const [showPaymentBlockedModal, setShowPaymentBlockedModal] = useState(false);
+  const [pendingNavigationTarget, setPendingNavigationTarget] = useState<string | null>(null);
   
   // Estado de mesas con sincronización con base de datos
   const [tables, setTables] = useState<Table[]>([]);
@@ -125,13 +137,98 @@ const POSBilling = () => {
         status: state.status as 'libre' | 'ocupada',
         guestCount: state.guest_count || 0,
         currentOrder: Array.isArray(state.current_order) ? state.current_order : [],
-        orderTotal: state.order_total || 0
+        orderTotal: state.order_total || 0,
+        kitchenOrderSent: state.kitchen_order_sent || false
       }));
 
       setTables(formattedTables);
     } catch (error) {
       console.error('Error loading table states:', error);
     }
+  };
+
+  // Verificar si hay items sin enviar a cocina antes de salir
+  const checkAndHandleExit = (targetView: string) => {
+    if (selectedProducts.length > 0 && !kitchenOrderSent) {
+      setPendingNavigationTarget(targetView);
+      setShowExitWarningModal(true);
+      return true;
+    }
+    return false;
+  };
+
+  // Manejar envío de comanda desde modal de advertencia
+  const handleSendFromWarningModal = async () => {
+    setIsKitchenModalOpen(true);
+    setShowExitWarningModal(false);
+  };
+
+  // Manejar salida sin enviar comanda (registra evento sospechoso)
+  const handleExitWithoutSending = async () => {
+    // Registrar evento sospechoso para auditorIA
+    await logSuspiciousEvent({
+      eventType: 'EXIT_ORDER_WITHOUT_SENDING_KITCHEN_ORDER',
+      tableNumber: selectedTable?.number,
+      hasItems: selectedProducts.length > 0,
+      itemsCount: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
+      orderTotal: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+      metadata: {
+        products: selectedProducts.map(p => ({ name: p.name, qty: p.quantity })),
+        exitTarget: pendingNavigationTarget
+      }
+    });
+
+    toast({
+      title: "Saliendo sin enviar comanda",
+      description: "Este evento ha sido registrado para auditoría.",
+      variant: "default"
+    });
+
+    // Navegar al destino pendiente
+    if (pendingNavigationTarget) {
+      if (pendingNavigationTarget === 'tables') {
+        setCurrentView('tables');
+        setSelectedProducts([]);
+        setSelectedTable(null);
+        setKitchenOrderSent(false);
+      } else if (pendingNavigationTarget === 'order-type') {
+        setCurrentView('order-type');
+        setSelectedProducts([]);
+        setSelectedTable(null);
+        setKitchenOrderSent(false);
+      }
+    }
+
+    setShowExitWarningModal(false);
+    setPendingNavigationTarget(null);
+  };
+
+  // Verificar antes de procesar pago
+  const checkKitchenOrderBeforePayment = async () => {
+    if (selectedProducts.length > 0 && !kitchenOrderSent) {
+      // Registrar intento de pago sin comanda
+      await logSuspiciousEvent({
+        eventType: 'PAYMENT_ATTEMPT_WITHOUT_KITCHEN_ORDER',
+        tableNumber: selectedTable?.number,
+        hasItems: true,
+        itemsCount: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
+        orderTotal: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+        metadata: {
+          products: selectedProducts.map(p => ({ name: p.name, qty: p.quantity })),
+          paymentMethod: selectedPaymentMethod
+        }
+      });
+
+      setShowPaymentBlockedModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  // Manejar envío desde modal de pago bloqueado
+  const handleSendAndContinuePayment = async () => {
+    setShowPaymentBlockedModal(false);
+    setIsKitchenModalOpen(true);
   };
 
   // Función para actualizar estado de mesa en base de datos
@@ -316,19 +413,34 @@ const POSBilling = () => {
     try {
       await sendToKitchen(items, selectedTable?.number);
       
-      // Limpiar carrito después de enviar a cocina
-      setSelectedProducts([]);
-      if (selectedTable) {
-        await updateTableOrder(selectedTable.number, [], 0);
+      // Marcar que la comanda fue enviada
+      setKitchenOrderSent(true);
+      
+      // Actualizar estado de mesa en BD
+      if (selectedTable && profile?.restaurant_id) {
+        await supabase
+          .from('table_states')
+          .update({ 
+            kitchen_order_sent: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('restaurant_id', profile.restaurant_id)
+          .eq('table_number', selectedTable.number);
       }
       
+      // NO limpiar carrito - mantener productos para poder cobrar
       setIsKitchenModalOpen(false);
       
       toast({
         title: "¡Comanda enviada!",
-        description: "La comanda se ha enviado exitosamente a cocina",
+        description: "La comanda se ha enviado exitosamente a cocina. Puedes proceder al cobro.",
         className: "bg-green-50 border-green-200"
       });
+
+      // Si venía de modal de navegación pendiente, continuar
+      if (pendingNavigationTarget) {
+        setPendingNavigationTarget(null);
+      }
     } catch (error) {
       console.error('Error sending to kitchen:', error);
     }
@@ -461,17 +573,33 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
   };
 
   const handlePayment = async () => {
+    // Verificar que la comanda fue enviada antes de permitir pago
+    const canProceed = await checkKitchenOrderBeforePayment();
+    if (!canProceed) return;
+
     setIsProcessing(true);
     try {
       // Simular procesamiento de pago
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Liberar mesa si es dine-in
-      if (selectedTable && orderType === 'dine-in') {
-        await updateTableState(selectedTable.number, 'libre', 0, [], 0);
+      // Liberar mesa y resetear estado si es dine-in
+      if (selectedTable && orderType === 'dine-in' && profile?.restaurant_id) {
+        await supabase
+          .from('table_states')
+          .update({
+            status: 'libre',
+            guest_count: 0,
+            current_order: [],
+            order_total: 0,
+            kitchen_order_sent: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('restaurant_id', profile.restaurant_id)
+          .eq('table_number', selectedTable.number);
       }
       
       setCurrentView('success');
+      setKitchenOrderSent(false);
     } catch (error) {
       console.error('Error processing payment:', error);
       toast({
@@ -481,6 +609,21 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Función para manejar navegación con verificación
+  const handleBackNavigation = (targetView: 'tables' | 'order-type' | 'guests' | 'customer-info') => {
+    if (selectedProducts.length > 0 && !kitchenOrderSent) {
+      setPendingNavigationTarget(targetView);
+      setShowExitWarningModal(true);
+    } else {
+      if (targetView === 'tables' || targetView === 'order-type') {
+        setSelectedProducts([]);
+        setSelectedTable(null);
+        setKitchenOrderSent(false);
+      }
+      setCurrentView(targetView);
     }
   };
 
@@ -746,7 +889,7 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                 <div className="flex items-center gap-4 mt-4">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentView(orderType === 'dine-in' ? 'guests' : 'customer-info')}
+                    onClick={() => handleBackNavigation(orderType === 'dine-in' ? 'tables' : 'customer-info')}
                     className="px-4"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
@@ -896,37 +1039,54 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                   <span className="text-green-600">{formatCurrency(orderTotal)}</span>
                 </div>
 
-                {/* Botón de Enviar a Cocina - SIEMPRE VISIBLE */}
-                {/* Botón ENVIAR A COCINA - Super visible y animado */}
-                <div className="relative">
-                  {selectedProducts.length > 0 && (
-                    <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-xl blur-sm opacity-75 animate-pulse" />
-                  )}
-                  <Button
-                    onClick={() => setIsKitchenModalOpen(true)}
-                    disabled={selectedProducts.length === 0 || kitchenLoading}
-                    className="relative w-full h-16 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold text-xl shadow-2xl hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all duration-300 hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed border-2 border-orange-300/50"
-                  >
-                    <div className="flex items-center justify-center gap-3">
-                      <ChefHat className="h-7 w-7" />
-                      <span>🔥 ENVIAR A COCINA</span>
-                      {selectedProducts.length > 0 && (
-                        <Badge className="bg-white/20 text-white border-white/30 ml-2">
-                          {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} items
-                        </Badge>
-                      )}
-                    </div>
-                  </Button>
-                </div>
+                {/* Botón ENVIAR A COCINA - Visible para todos con permisos */}
+                {canSendKitchenOrder && (
+                  <>
+                    {kitchenOrderSent ? (
+                      // Estado: Comanda ya enviada
+                      <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
+                        <div className="flex items-center justify-center gap-3 text-green-700">
+                          <CheckCircle className="h-6 w-6" />
+                          <span className="font-bold text-lg">✅ Comanda enviada a cocina</span>
+                        </div>
+                        <p className="text-sm text-green-600 text-center mt-2">
+                          Puedes proceder al cobro
+                        </p>
+                      </div>
+                    ) : (
+                      // Botón para enviar comanda
+                      <div className="relative">
+                        {selectedProducts.length > 0 && (
+                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-xl blur-sm opacity-75 animate-pulse" />
+                        )}
+                        <Button
+                          onClick={() => setIsKitchenModalOpen(true)}
+                          disabled={selectedProducts.length === 0 || kitchenLoading}
+                          className="relative w-full h-16 bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold text-xl shadow-2xl hover:shadow-[0_0_30px_rgba(249,115,22,0.5)] transition-all duration-300 hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed border-2 border-orange-300/50"
+                        >
+                          <div className="flex items-center justify-center gap-3">
+                            <ChefHat className="h-7 w-7" />
+                            <span>🔥 ENVIAR A COCINA</span>
+                            {selectedProducts.length > 0 && (
+                              <Badge className="bg-white/20 text-white border-white/30 ml-2">
+                                {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} items
+                              </Badge>
+                            )}
+                          </div>
+                        </Button>
+                      </div>
+                    )}
 
-                {/* Recordatorio visual si hay productos sin enviar */}
-                {selectedProducts.length > 0 && showCommandReminder && (
-                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
-                    <p className="text-sm text-amber-700 font-medium">
-                      ¡Recuerda enviar la comanda a cocina!
-                    </p>
-                  </div>
+                    {/* Recordatorio visual si hay productos sin enviar */}
+                    {selectedProducts.length > 0 && !kitchenOrderSent && (
+                      <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        <p className="text-sm text-amber-700 font-medium">
+                          ¡Debes enviar la comanda antes de cobrar!
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Opciones de pago - Solo visible para cajeros/propietarios */}
@@ -1057,6 +1217,25 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
         tableNumber={selectedTable?.number}
         orderType={orderType}
         customerInfo={orderType === 'delivery' ? customerInfo : undefined}
+      />
+
+      {/* Modal de advertencia al salir sin enviar comanda */}
+      <KitchenOrderWarningModal
+        isOpen={showExitWarningModal}
+        onClose={() => setShowExitWarningModal(false)}
+        onSendToKitchen={handleSendFromWarningModal}
+        onExitWithoutSending={handleExitWithoutSending}
+        itemsCount={selectedProducts.reduce((sum, p) => sum + p.quantity, 0)}
+        tableNumber={selectedTable?.number}
+        isLoading={kitchenLoading}
+      />
+
+      {/* Modal de pago bloqueado sin comanda */}
+      <PaymentBlockedModal
+        isOpen={showPaymentBlockedModal}
+        onClose={() => setShowPaymentBlockedModal(false)}
+        onSendToKitchenAndContinue={handleSendAndContinuePayment}
+        isLoading={kitchenLoading}
       />
     </div>
   );
