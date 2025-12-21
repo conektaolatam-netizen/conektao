@@ -1158,6 +1158,63 @@ export type Database = {
           },
         ]
       }
+      kitchen_order_events: {
+        Row: {
+          changed_by_name: string | null
+          changed_by_user_id: string | null
+          created_at: string
+          id: string
+          kitchen_order_id: string
+          new_status: string
+          order_id: string | null
+          previous_status: string | null
+          reason_comment: string | null
+          reason_type: string | null
+          restaurant_id: string
+        }
+        Insert: {
+          changed_by_name?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          kitchen_order_id: string
+          new_status: string
+          order_id?: string | null
+          previous_status?: string | null
+          reason_comment?: string | null
+          reason_type?: string | null
+          restaurant_id: string
+        }
+        Update: {
+          changed_by_name?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          kitchen_order_id?: string
+          new_status?: string
+          order_id?: string | null
+          previous_status?: string | null
+          reason_comment?: string | null
+          reason_type?: string | null
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kitchen_order_events_kitchen_order_id_fkey"
+            columns: ["kitchen_order_id"]
+            isOneToOne: false
+            referencedRelation: "kitchen_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kitchen_order_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitchen_order_items: {
         Row: {
           created_at: string
@@ -1204,6 +1261,9 @@ export type Database = {
       }
       kitchen_orders: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           completed_at: string | null
           created_at: string
           estimated_time: number | null
@@ -1219,8 +1279,12 @@ export type Database = {
           total_items: number
           updated_at: string
           user_id: string
+          waiter_id: string | null
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
           created_at?: string
           estimated_time?: number | null
@@ -1236,8 +1300,12 @@ export type Database = {
           total_items?: number
           updated_at?: string
           user_id: string
+          waiter_id?: string | null
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
           created_at?: string
           estimated_time?: number | null
@@ -1253,6 +1321,7 @@ export type Database = {
           total_items?: number
           updated_at?: string
           user_id?: string
+          waiter_id?: string | null
         }
         Relationships: []
       }
