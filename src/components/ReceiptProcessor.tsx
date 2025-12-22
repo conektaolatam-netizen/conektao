@@ -11,11 +11,23 @@ import {
   AlertCircle, 
   MessageCircle,
   Send,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatInterface } from '@/components/ai/ChatInterface';
+import PaymentMethodFlow, { PaymentInfo } from '@/components/billing/PaymentMethodFlow';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Message {
   type: 'ai' | 'user';
@@ -36,7 +48,9 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
   const [extractedData, setExtractedData] = useState<any>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
-  const [pendingPaymentConfirmation, setPendingPaymentConfirmation] = useState(false);
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false);
+  const [showExitWarning, setShowExitWarning] = useState(false);
+  const [inventoryUpdated, setInventoryUpdated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -166,10 +180,6 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         });
 
         setPendingConfirmation(true);
-        // Si incluye información de pago, también activamos esa confirmación
-        if (data.payment_required) {
-          setPendingPaymentConfirmation(true);
-        }
 
       } else if (data.type === 'success') {
         // Processing successful
@@ -336,26 +346,28 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     }
   };
 
-  const triggerInventoryUpdate = async (paidWithCash: boolean = false) => {
+  const triggerInventoryUpdate = async (paymentInfo?: PaymentInfo) => {
     if (!extractedData) return;
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Call backend to process inventory updates
+      // Call backend to process inventory updates with full payment info
       const { data, error } = await supabase.functions.invoke('update-inventory-from-receipt', {
         body: {
           extractedData,
           userId: user.id,
           receiptUrl,
-          paidWithCash
+          paymentInfo: paymentInfo || null
         }
       });
 
       if (error) throw error;
       
       console.log('Inventory updated successfully:', data);
+      setInventoryUpdated(true);
+      return data;
     } catch (error) {
       console.error('Error updating inventory:', error);
       toast({
@@ -363,29 +375,116 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         description: "No se pudo actualizar el inventario automáticamente",
         variant: "destructive"
       });
+      return null;
     }
   };
 
-  const handleConfirmInventory = async (paidWithCash: boolean = false) => {
-    await triggerInventoryUpdate(paidWithCash);
+  const handleConfirmInventory = async () => {
+    // First update inventory without payment
+    await triggerInventoryUpdate();
     setPendingConfirmation(false);
-    setPendingPaymentConfirmation(false);
-
-    const successMessage: Message = {
+    
+    // Now show payment flow - MANDATORY
+    setShowPaymentFlow(true);
+    
+    const paymentMessage: Message = {
       type: 'ai',
-      message: `🎉 ¡Inventario actualizado automáticamente! Todos los productos y cantidades han sido registrados.${paidWithCash ? '\n\n💰 Pago en efectivo registrado en la caja.' : ''}`,
+      message: '📦 ¡Inventario actualizado! Ahora necesito saber cómo pagaste esta factura para mantener tus finanzas al día.',
       timestamp: new Date()
     };
+    
+    setConversation(prev => [...prev, paymentMessage]);
+  };
 
-    setConversation(prev => [...prev, successMessage]);
-    toast({
-      title: "¡Inventario actualizado!",
-      description: paidWithCash ? "Inventario y pago en efectivo registrados" : "Todos los productos han sido registrados automáticamente",
-    });
+  const handlePaymentComplete = async (paymentInfo: PaymentInfo) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    setTimeout(() => {
-      onProcessComplete?.({ type: 'success', data: extractedData });
-    }, 1500);
+      // Call backend to register the payment
+      const { data, error } = await supabase.functions.invoke('update-inventory-from-receipt', {
+        body: {
+          extractedData,
+          userId: user.id,
+          receiptUrl,
+          paymentInfo,
+          paymentOnly: true // Flag to only process payment, not inventory again
+        }
+      });
+
+      if (error) throw error;
+
+      setShowPaymentFlow(false);
+      
+      let paymentMessage = '';
+      switch (paymentInfo.method) {
+        case 'cash_register':
+          paymentMessage = '💰 Pago en efectivo registrado en la caja del día.';
+          break;
+        case 'cash_petty':
+          paymentMessage = '💵 Pago desde caja menor registrado.';
+          break;
+        case 'transfer':
+          paymentMessage = '📱 Pago por transferencia registrado.';
+          break;
+        case 'card':
+          paymentMessage = '💳 Pago con tarjeta registrado.';
+          break;
+        case 'credit':
+          paymentMessage = `📝 Cuenta por pagar creada. Vence el ${paymentInfo.creditDueDate?.toLocaleDateString('es-ES')}.`;
+          break;
+        case 'split':
+          paymentMessage = '🔄 Pago dividido registrado correctamente.';
+          break;
+      }
+
+      const successMessage: Message = {
+        type: 'ai',
+        message: `🎉 ¡Proceso completado!\n\n${paymentMessage}\n\nTodo registrado: inventario, gasto y método de pago.`,
+        timestamp: new Date()
+      };
+
+      setConversation(prev => [...prev, successMessage]);
+      
+      toast({
+        title: "¡Factura procesada completamente!",
+        description: "Inventario y pago registrados correctamente",
+      });
+
+      setTimeout(() => {
+        onProcessComplete?.({ type: 'success', data: extractedData, paymentInfo });
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error registering payment:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo registrar el pago",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCancelWithWarning = () => {
+    if (inventoryUpdated && !showPaymentFlow) {
+      // Inventory was updated but payment not registered - show warning
+      setShowExitWarning(true);
+    } else if (showPaymentFlow) {
+      // User is in payment flow - show warning
+      setShowExitWarning(true);
+    } else {
+      // No data processed yet, safe to cancel
+      resetState();
+    }
+  };
+
+  const resetState = () => {
+    setConversation([]);
+    setConversationId(null);
+    setExtractedData(null);
+    setShowPaymentFlow(false);
+    setInventoryUpdated(false);
+    setPendingConfirmation(false);
   };
 
   const openCamera = () => {
@@ -486,7 +585,16 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
                 messagesEndRef={messagesEndRef}
               />
               
-              {pendingConfirmation && (
+              {showPaymentFlow && extractedData && (
+                <PaymentMethodFlow
+                  totalAmount={extractedData.total || 0}
+                  supplierName={extractedData.supplier_name || 'Proveedor'}
+                  onComplete={handlePaymentComplete}
+                  onCancel={handleCancelWithWarning}
+                />
+              )}
+              
+              {pendingConfirmation && !showPaymentFlow && (
                 <div className="space-y-4">
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm font-medium text-yellow-900">
@@ -497,29 +605,14 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
                     </p>
                   </div>
                   
-                  {pendingPaymentConfirmation && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => handleConfirmInventory(true)} disabled={isTyping} className="bg-green-600 hover:bg-green-700">
-                        ✅ Confirmar y pagué en EFECTIVO
-                      </Button>
-                      <Button onClick={() => handleConfirmInventory(false)} disabled={isTyping} variant="outline">
-                        ✅ Confirmar - otro método de pago
-                      </Button>
-                    </div>
-                  )}
-                  {!pendingPaymentConfirmation && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => handleConfirmInventory(false)} disabled={isTyping} className="bg-green-600 hover:bg-green-700">
-                        ✅ He verificado - Confirmar actualización
-                      </Button>
-                      <Button variant="outline" onClick={() => {
-                        setPendingConfirmation(false);
-                        setPendingPaymentConfirmation(false);
-                      }} disabled={isTyping}>
-                        ❌ Cancelar
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => handleConfirmInventory()} disabled={isTyping} className="bg-green-600 hover:bg-green-700">
+                      ✅ He verificado - Actualizar inventario
+                    </Button>
+                    <Button variant="outline" onClick={handleCancelWithWarning} disabled={isTyping}>
+                      ❌ Cancelar
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -542,18 +635,16 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
                 </div>
               )}
 
-              <div className="flex justify-center">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setConversation([]);
-                    setConversationId(null);
-                    setExtractedData(null);
-                  }}
-                >
-                  Procesar Nueva Factura
-                </Button>
-              </div>
+              {!showPaymentFlow && (
+                <div className="flex justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCancelWithWarning}
+                  >
+                    Procesar Nueva Factura
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -586,6 +677,31 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
           </CardContent>
         </Card>
       )}
+
+      {/* Exit Warning Dialog */}
+      <AlertDialog open={showExitWarning} onOpenChange={setShowExitWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              ¿Salir sin completar el pago?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ya actualizaste el inventario, pero no registraste cómo pagaste esta factura. 
+              Si sales ahora, tus números de caja y cuentas por pagar no estarán correctos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver y registrar pago</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={resetState}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Salir sin registrar pago
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
