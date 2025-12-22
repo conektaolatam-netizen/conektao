@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts_payable: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          expense_id: string | null
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          payment_reference: string | null
+          restaurant_id: string
+          status: string
+          supplier_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          expense_id?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          restaurant_id: string
+          status?: string
+          supplier_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          expense_id?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          restaurant_id?: string
+          status?: string
+          supplier_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_payable_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_payable_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversation_messages: {
         Row: {
           content: string
@@ -611,7 +680,11 @@ export type Database = {
           expense_date: string
           id: string
           invoice_number: string | null
+          payment_details: Json | null
+          payment_method: string | null
+          payment_status: string | null
           receipt_url: string | null
+          restaurant_id: string | null
           status: string | null
           subtotal: number
           supplier_name: string | null
@@ -626,7 +699,11 @@ export type Database = {
           expense_date?: string
           id?: string
           invoice_number?: string | null
+          payment_details?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
           receipt_url?: string | null
+          restaurant_id?: string | null
           status?: string | null
           subtotal?: number
           supplier_name?: string | null
@@ -641,7 +718,11 @@ export type Database = {
           expense_date?: string
           id?: string
           invoice_number?: string | null
+          payment_details?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
           receipt_url?: string | null
+          restaurant_id?: string | null
           status?: string | null
           subtotal?: number
           supplier_name?: string | null
@@ -649,7 +730,15 @@ export type Database = {
           total_amount?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ingredient_movements: {
         Row: {
