@@ -185,17 +185,18 @@ const EmployeeList = ({ onEmployeeSelect }: EmployeeListProps) => {
       <WaiterTipRating />
       
       <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Gestión de Personal</h3>
-          <p className="text-sm text-muted-foreground">
-            {employees.length} empleado{employees.length !== 1 ? 's' : ''} activo{employees.length !== 1 ? 's' : ''}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Gestión de Personal</h3>
+            <p className="text-sm text-muted-foreground">
+              {employees.length} empleado{employees.length !== 1 ? 's' : ''} activo{employees.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Agregar Empleado
+          </Button>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Agregar Empleado
-        </Button>
-      </div>
 
       {loading ? (
         <Card>
