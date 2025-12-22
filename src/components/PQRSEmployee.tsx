@@ -1,83 +1,70 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Switch } from '@/components/ui/switch';
+import { Camera, MapPin, Send, Loader2 } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
-import {
-  MessageSquare,
-  Send,
-  Shield,
-  MapPin,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  User,
-  Camera as CameraIcon,
-  FileText,
-  Star,
-  Calendar,
-  Filter,
-  Search,
-  Eye,
-  MoreHorizontal
-} from 'lucide-react';
+import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { toast } from 'sonner';
+
+type PQRSType = 'peticion' | 'queja' | 'reclamo' | 'sugerencia';
+type Priority = 'baja' | 'media' | 'alta';
 
 interface PQRS {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  type: 'peticion' | 'queja' | 'reclamo' | 'sugerencia';
+  id?: string;
+  type: PQRSType;
   title: string;
   description: string;
-  anonymous: boolean;
-  status: 'pending' | 'in_review' | 'resolved' | 'closed';
-  priority: 'low' | 'medium' | 'high';
-  createdAt: Date;
-  updatedAt: Date;
-  branch: string;
-  location?: {
-    lat: number;
-    lng: number;
-    verified: boolean;
-    address?: string;
-  };
+  priority: Priority;
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  is_anonymous: boolean;
+  employee_id?: string;
+  employee_name?: string;
+  branch_id?: string;
+  branch_name?: string;
+  location_latitude?: number;
+  location_longitude?: number;
+  location_address?: string;
   attachments?: string[];
-  response?: string;
-  rating?: number;
+  created_at?: string;
 }
 
 interface PQRSEmployeeProps {
   employeeId: string;
   employeeName: string;
-  branch: string;
-  onSubmit: (pqrs: Partial<PQRS>) => void;
+  branchId: string;
+  branchName: string;
+  onSubmit: (pqrs: PQRS) => Promise<void>;
 }
 
-const PQRSEmployee = ({ employeeId, employeeName, branch, onSubmit }: PQRSEmployeeProps) => {
-  const [formData, setFormData] = useState({
-    type: '' as PQRS['type'],
-    title: '',
-    description: '',
-    anonymous: false,
-    priority: 'medium' as PQRS['priority']
-  });
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+export const PQRSEmployee: React.FC<PQRSEmployeeProps> = ({
+  employeeId,
+  employeeName,
+  branchId,
+  branchName,
+  onSubmit
+}) => {
+  const [type, setType] = useState<PQRSType>('sugerencia');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<Priority>('media');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
-  const { toast } = useToast();
+  
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  useEffect(() => {
-    // Obtener ubicación automáticamente al cargar
-    getCurrentLocation();
-  }, []);
-
-  const getCurrentLocation = async () => {
+  const fetchLocation = async () => {
+    setIsLoadingLocation(true);
     try {
       const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
@@ -85,344 +72,275 @@ const PQRSEmployee = ({ employeeId, employeeName, branch, onSubmit }: PQRSEmploy
       });
       
       setLocation({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        address: `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`
       });
-      
-      toast({
-        title: "Ubicación Verificada",
-        description: "Tu ubicación ha sido registrada para verificación",
-      });
+      toast.success('Ubicación obtenida correctamente');
     } catch (error) {
-      toast({
-        title: "Error de Ubicación",
-        description: "No se pudo obtener tu ubicación. Asegúrate de estar en el establecimiento.",
-        variant: "destructive"
-      });
+      console.error('Error getting location:', error);
+      toast.error('No se pudo obtener la ubicación');
+    } finally {
+      setIsLoadingLocation(false);
     }
   };
 
   const takePhoto = async () => {
     try {
-      const image = await Camera.getPhoto({
+      const image = await CapCamera.getPhoto({
         quality: 80,
         allowEditing: false,
-        resultType: CameraResultType.DataUrl,
+        resultType: CameraResultType.Base64,
         source: CameraSource.Camera
       });
-
-      if (image.dataUrl) {
-        setAttachments([...attachments, image.dataUrl]);
-        toast({
-          title: "Foto Agregada",
-          description: "La imagen ha sido adjuntada a tu reporte",
-        });
+      
+      if (image.base64String) {
+        setAttachments(prev => [...prev, `data:image/jpeg;base64,${image.base64String}`]);
+        toast.success('Foto agregada');
       }
     } catch (error) {
-      toast({
-        title: "Error de Cámara",
-        description: "No se pudo tomar la foto",
-        variant: "destructive"
-      });
+      console.error('Error taking photo:', error);
+      toast.error('No se pudo tomar la foto');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.type || !formData.title || !formData.description) {
-      toast({
-        title: "Campos Requeridos",
-        description: "Por favor completa todos los campos obligatorios",
-        variant: "destructive"
-      });
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      toast.error('El título es requerido');
       return;
     }
-
-    if (!location) {
-      toast({
-        title: "Ubicación Requerida",
-        description: "Se necesita verificar tu ubicación para enviar el reporte",
-        variant: "destructive"
-      });
+    if (!description.trim()) {
+      toast.error('La descripción es requerida');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
-      const pqrsData: Partial<PQRS> = {
-        employeeId: formData.anonymous ? 'anonymous' : employeeId,
-        employeeName: formData.anonymous ? 'Anónimo' : employeeName,
-        type: formData.type,
-        title: formData.title,
-        description: formData.description,
-        anonymous: formData.anonymous,
-        priority: formData.priority,
-        branch,
-        location: {
-          lat: location.lat,
-          lng: location.lng,
-          verified: true
-        },
-        attachments: attachments.length > 0 ? attachments : undefined,
+      const pqrs: PQRS = {
+        type,
+        title: title.trim(),
+        description: description.trim(),
+        priority,
         status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        is_anonymous: isAnonymous,
+        employee_id: isAnonymous ? undefined : employeeId,
+        employee_name: isAnonymous ? undefined : employeeName,
+        branch_id: branchId,
+        branch_name: branchName,
+        location_latitude: location?.latitude,
+        location_longitude: location?.longitude,
+        location_address: location?.address,
+        attachments: attachments.length > 0 ? attachments : undefined
       };
 
-      onSubmit(pqrsData);
+      await onSubmit(pqrs);
       
       // Reset form
-      setFormData({
-        type: '' as PQRS['type'],
-        title: '',
-        description: '',
-        anonymous: false,
-        priority: 'medium'
-      });
+      setTitle('');
+      setDescription('');
+      setType('sugerencia');
+      setPriority('media');
+      setIsAnonymous(false);
       setAttachments([]);
       
-      toast({
-        title: "PQRS Enviado",
-        description: "Tu reporte ha sido enviado exitosamente",
-      });
+      toast.success('PQRS enviado correctamente');
     } catch (error) {
-      toast({
-        title: "Error al Enviar",
-        description: "Hubo un problema al enviar tu reporte",
-        variant: "destructive"
-      });
+      console.error('Error submitting PQRS:', error);
+      toast.error('Error al enviar el PQRS');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  useEffect(() => {
+    fetchLocation();
+  }, []);
+
+  const typeLabels: Record<PQRSType, string> = {
+    peticion: 'Petición',
+    queja: 'Queja',
+    reclamo: 'Reclamo',
+    sugerencia: 'Sugerencia'
+  };
+
+  const priorityLabels: Record<Priority, string> = {
+    baja: 'Baja',
+    media: 'Media',
+    alta: 'Alta'
+  };
+
   return (
-    <Card className="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-sm border-gray-200/50">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5" />
-          Sistema PQRS - Empleados
+          <Send className="h-5 w-5" />
+          Enviar PQRS
         </CardTitle>
-        <p className="text-sm text-gray-600">
-          Peticiones, Quejas, Reclamos y Sugerencias con verificación de ubicación
-        </p>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tipo de PQRS */}
-          <div>
-            <Label htmlFor="type">Tipo de Reporte *</Label>
-            <Select 
-              value={formData.type} 
-              onValueChange={(value: PQRS['type']) => setFormData({...formData, type: value})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el tipo de reporte" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="peticion">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-500" />
-                    Petición
-                  </div>
+      <CardContent className="space-y-6">
+        {/* Type Selection */}
+        <div className="space-y-2">
+          <Label>Tipo de reporte</Label>
+          <Select value={type} onValueChange={(v) => setType(v as PQRSType)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(typeLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
                 </SelectItem>
-                <SelectItem value="queja">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    Queja
-                  </div>
-                </SelectItem>
-                <SelectItem value="reclamo">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-red-500" />
-                    Reclamo
-                  </div>
-                </SelectItem>
-                <SelectItem value="sugerencia">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-green-500" />
-                    Sugerencia
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-          {/* Título */}
-          <div>
-            <Label htmlFor="title">Título *</Label>
+        {/* Title */}
+        <div className="space-y-2">
+          <Label htmlFor="title">Título</Label>
+          <Input
+            id="title"
+            placeholder="Resumen breve del reporte"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="description">Descripción</Label>
+          <Textarea
+            id="description"
+            placeholder="Describe detalladamente tu reporte..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
+        </div>
+
+        {/* Priority */}
+        <div className="space-y-2">
+          <Label>Prioridad</Label>
+          <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(priorityLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Anonymous Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Enviar de forma anónima</Label>
+            <p className="text-sm text-muted-foreground">
+              Tu identidad no será visible para los administradores
+            </p>
+          </div>
+          <Switch
+            checked={isAnonymous}
+            onCheckedChange={setIsAnonymous}
+          />
+        </div>
+
+        {/* Location */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Ubicación
+          </Label>
+          <div className="flex items-center gap-2">
             <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              placeholder="Describe brevemente tu reporte"
-              required
+              value={location?.address || 'No disponible'}
+              disabled
+              className="flex-1"
             />
-          </div>
-
-          {/* Descripción */}
-          <div>
-            <Label htmlFor="description">Descripción Detallada *</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Explica detalladamente tu petición, queja, reclamo o sugerencia"
-              rows={4}
-              required
-            />
-          </div>
-
-          {/* Prioridad */}
-          <div>
-            <Label htmlFor="priority">Prioridad</Label>
-            <Select 
-              value={formData.priority} 
-              onValueChange={(value: PQRS['priority']) => setFormData({...formData, priority: value})}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={fetchLocation}
+              disabled={isLoadingLocation}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                    Baja
-                  </div>
-                </SelectItem>
-                <SelectItem value="medium">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    Media
-                  </div>
-                </SelectItem>
-                <SelectItem value="high">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                    Alta
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Opciones adicionales */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="anonymous"
-                checked={formData.anonymous}
-                onChange={(e) => setFormData({...formData, anonymous: e.target.checked})}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="anonymous" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Enviar de forma anónima
-              </Label>
-            </div>
-
-            {/* Estado de ubicación */}
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <MapPin className="h-4 w-4 text-blue-500" />
-              <span className="text-sm">
-                {location ? (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Ubicación verificada
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    Verificando ubicación...
-                  </div>
-                )}
-              </span>
-              <Button 
-                type="button" 
-                size="sm" 
-                variant="outline" 
-                onClick={getCurrentLocation}
-                className="ml-auto"
-              >
-                Actualizar
-              </Button>
-            </div>
-
-            {/* Adjuntar fotos */}
-            <div className="space-y-2">
-              <Label>Adjuntos (Opcional)</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={takePhoto}
-                  className="flex items-center gap-2"
-                >
-                  <CameraIcon className="h-4 w-4" />
-                  Tomar Foto
-                </Button>
-                {attachments.length > 0 && (
-                  <Badge className="bg-green-100 text-green-700">
-                    {attachments.length} foto(s) adjunta(s)
-                  </Badge>
-                )}
-              </div>
-              
-              {/* Preview de imágenes */}
-              {attachments.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {attachments.map((attachment, index) => (
-                    <div key={index} className="relative">
-                      <img 
-                        src={attachment} 
-                        alt={`Adjunto ${index + 1}`}
-                        className="w-full h-20 object-cover rounded border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              {isLoadingLocation ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4" />
               )}
-            </div>
+            </Button>
           </div>
+        </div>
 
-          {/* Información del empleado (si no es anónimo) */}
-          {!formData.anonymous && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Enviado por:</strong> {employeeName} | <strong>Sucursal:</strong> {branch}
-              </p>
-            </div>
+        {/* Photo Attachments */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            Adjuntos ({attachments.length})
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((att, idx) => (
+              <div key={idx} className="relative">
+                <img
+                  src={att}
+                  alt={`Adjunto ${idx + 1}`}
+                  className="w-20 h-20 object-cover rounded-lg border"
+                />
+                <button
+                  type="button"
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs"
+                  onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-20 h-20"
+              onClick={takePhoto}
+            >
+              <Camera className="h-6 w-6" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Employee Info (if not anonymous) */}
+        {!isAnonymous && (
+          <div className="p-4 bg-muted rounded-lg space-y-1">
+            <p className="text-sm">
+              <span className="font-medium">Empleado:</span> {employeeName}
+            </p>
+            <p className="text-sm">
+              <span className="font-medium">Sucursal:</span> {branchName}
+            </p>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={isSubmitting || !title.trim() || !description.trim()}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Enviando...
+            </>
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              Enviar PQRS
+            </>
           )}
-
-          {/* Botón de envío */}
-          <Button 
-            type="submit" 
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-            disabled={isSubmitting || !location}
-          >
-            {isSubmitting ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Enviando...
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                Enviar Reporte
-              </div>
-            )}
-          </Button>
-        </form>
+        </Button>
       </CardContent>
     </Card>
   );
