@@ -34,7 +34,8 @@ import {
   RefreshCw,
   ChefHat,
   AlertTriangle,
-  Clock
+  Clock,
+  LogIn
 } from 'lucide-react';
 import KitchenOrderModal from '@/components/kitchen/KitchenOrderModal';
 import KitchenOrderWarningModal from '@/components/billing/KitchenOrderWarningModal';
@@ -42,6 +43,8 @@ import PaymentBlockedModal from '@/components/billing/PaymentBlockedModal';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
 import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
+import { useActiveShift } from '@/hooks/useActiveShift';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface Table {
   number: number;
@@ -71,6 +74,11 @@ interface SelectedProduct extends Product {
 const POSBilling = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  
+  // ✅ SHIFT-BASED BILLING: Check if employee has active shift
+  // GPS is NOT used here - only attendance records (clock_in/clock_out)
+  const { hasActiveShift, isLoading: isLoadingShift, refresh: refreshShift } = useActiveShift();
+  const [showNoShiftModal, setShowNoShiftModal] = useState(false);
   
   // Verificar permisos del empleado - TODOS con permiso de facturar pueden enviar comandas
   const permissions = profile?.permissions || {};
@@ -118,6 +126,13 @@ const POSBilling = () => {
   
   // Estado para configuración de ventas sin stock
   const [allowSalesWithoutStock, setAllowSalesWithoutStock] = useState(false);
+
+  // ✅ Check shift status when component loads - show modal if no active shift
+  useEffect(() => {
+    if (!isLoadingShift && !hasActiveShift && profile?.role === 'employee') {
+      setShowNoShiftModal(true);
+    }
+  }, [isLoadingShift, hasActiveShift, profile?.role]);
 
   // Cargar estado de mesas desde la base de datos
   const loadTableStates = async () => {
@@ -573,6 +588,12 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
   };
 
   const handlePayment = async () => {
+    // ✅ SHIFT-BASED CHECK: Block payment if employee has no active shift
+    if (profile?.role === 'employee' && !hasActiveShift) {
+      setShowNoShiftModal(true);
+      return;
+    }
+
     // Verificar que la comanda fue enviada antes de permitir pago
     const canProceed = await checkKitchenOrderBeforePayment();
     if (!canProceed) return;
@@ -629,6 +650,48 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
+      {/* ✅ MODAL: No Active Shift - GPS is NOT required, only shift status */}
+      <Dialog open={showNoShiftModal} onOpenChange={setShowNoShiftModal}>
+        <DialogContent className="sm:max-w-md bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                <Clock className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-xl font-bold text-amber-800">
+              No puedes facturar ahora
+            </DialogTitle>
+            <DialogDescription className="text-center text-amber-700 text-base mt-2">
+              Debes tener un turno activo para procesar ventas.
+              <br />
+              <span className="font-medium">Registra tu entrada primero.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            <Button
+              onClick={() => {
+                setShowNoShiftModal(false);
+                // Navigate back to employee tools to register entry
+                window.history.back();
+              }}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+            >
+              <LogIn className="h-4 w-4 mr-2" />
+              Registrar entrada
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => refreshShift()}
+              className="w-full text-amber-700 hover:bg-amber-100"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Ya registré mi entrada
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="text-center space-y-4 mb-8">
         <div className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-cyan-500 rounded-full shadow-lg">
@@ -638,6 +701,28 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
         <p className="text-lg text-slate-600">
           Sistema unificado de ventas para <span className="font-semibold text-orange-600">{profile?.restaurant_id}</span>
         </p>
+        
+        {/* ✅ Show shift status indicator for employees */}
+        {profile?.role === 'employee' && (
+          <div className="flex justify-center">
+            {isLoadingShift ? (
+              <Badge variant="outline" className="animate-pulse">
+                <Clock className="h-3 w-3 mr-1" />
+                Verificando turno...
+              </Badge>
+            ) : hasActiveShift ? (
+              <Badge className="bg-green-500 text-white">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Turno activo
+              </Badge>
+            ) : (
+              <Badge variant="destructive" className="cursor-pointer" onClick={() => setShowNoShiftModal(true)}>
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Sin turno activo
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Vista de Tipo de Orden */}
