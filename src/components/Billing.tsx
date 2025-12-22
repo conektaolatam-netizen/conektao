@@ -11,7 +11,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck } from 'lucide-react';
+import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle } from 'lucide-react';
+import { useKitchenOrders } from '@/hooks/useKitchenOrders';
+import KitchenOrderModal from './kitchen/KitchenOrderModal';
 import CashManagement from './CashManagement';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/context/AppContext';
@@ -34,6 +36,11 @@ const Billing = () => {
     checkAvailability
   } = useProductAvailability();
   const { logAction } = useAuditLog();
+  const { sendToKitchen, isLoading: kitchenLoading } = useKitchenOrders();
+  
+  // Estado para cocina
+  const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
+  const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
   
   // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
   const tipConfig = useTipConfig();
@@ -1677,40 +1684,104 @@ Por favor:
                   </div>
                 </div>
               </div>
-              {selectedProducts.length > 0 && <div className="flex gap-2">
+              {/* BOTONES DE ACCIÓN */}
+              <div className="flex flex-wrap gap-2">
+                {/* ENVIAR COMANDA A COCINA */}
+                {selectedProducts.length > 0 && (
+                  kitchenOrderSent ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-green-100 border border-green-300 rounded-lg">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-green-700 font-medium text-sm">Comanda enviada</span>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => setIsKitchenModalOpen(true)}
+                      disabled={kitchenLoading}
+                      className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg"
+                    >
+                      <ChefHat className="h-4 w-4 mr-2" />
+                      Enviar comanda
+                      <Badge className="bg-white/20 text-white border-white/30 ml-2 text-xs">
+                        {selectedProducts.length}
+                      </Badge>
+                    </Button>
+                  )
+                )}
+
+                {/* LIMPIAR MESA */}
+                {selectedProducts.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedProducts([]);
+                      setKitchenOrderSent(false);
+                      // Actualizar estado de la mesa
+                      setTables(prev => prev.map(t => 
+                        t.number === selectedTable 
+                          ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0 }
+                          : t
+                      ));
+                      toast({
+                        title: "Mesa limpiada",
+                        description: `Mesa ${selectedTable} está lista para nuevos clientes`
+                      });
+                    }}
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Limpiar mesa
+                  </Button>
+                )}
+
+                {/* IMPRIMIR CUENTA */}
+                {selectedProducts.length > 0 && (
                   <Button onClick={() => {
-                // Función para imprimir cuenta
-                const printContent = `
-                        Orden ${selectedTable}
-                        ${new Date().toLocaleString()}
-                        
-                        ${selectedProducts.map(p => `${p.name} - $${p.price.toLocaleString()}`).join('\n')}
-                        
-                        Total: $${selectedProducts.reduce((sum, p) => sum + p.price, 0).toLocaleString()}
-                      `;
-                const printWindow = window.open('', '_blank');
-                if (printWindow) {
-                  printWindow.document.write(`
-                          <html>
-                            <head><title>Cuenta Orden ${selectedTable}</title></head>
-                            <body style="font-family: monospace; padding: 20px; white-space: pre-line;">
-                              ${printContent}
-                            </body>
-                          </html>
-                        `);
-                  printWindow.document.close();
-                  printWindow.print();
-                  printWindow.close();
-                }
-              }} variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
+                    const printContent = `
+                      Orden ${selectedTable}
+                      ${new Date().toLocaleString()}
+                      
+                      ${selectedProducts.map(p => `${p.name} - $${p.price.toLocaleString()}`).join('\n')}
+                      
+                      Total: $${selectedProducts.reduce((sum, p) => sum + p.price, 0).toLocaleString()}
+                    `;
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head><title>Cuenta Orden ${selectedTable}</title></head>
+                          <body style="font-family: monospace; padding: 20px; white-space: pre-line;">
+                            ${printContent}
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                      printWindow.print();
+                      printWindow.close();
+                    }
+                  }} variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
                     <Printer className="h-4 w-4 mr-2" />
                     Cuenta
                   </Button>
+                )}
+
+                {/* COBRAR */}
+                {selectedProducts.length > 0 && (
                   <Button onClick={() => setCurrentView('payment')} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
                     <Receipt className="h-4 w-4 mr-2" />
                     Cobrar ({selectedProducts.length})
                   </Button>
-                </div>}
+                )}
+              </div>
+
+              {/* Alerta si hay productos sin enviar */}
+              {selectedProducts.length > 0 && !kitchenOrderSent && (
+                <div className="mt-3 flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <p className="text-sm text-amber-700 font-medium">
+                    Recuerda enviar la comanda a cocina antes de cobrar
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Buscador */}
@@ -2107,6 +2178,33 @@ Por favor:
           defaultTipPercent={tipConfig.defaultTipPercentage}
           onConfirm={handleTipAdjustmentConfirm}
           onCancel={handleTipAdjustmentCancel}
+        />
+
+        {/* Modal de cocina */}
+        <KitchenOrderModal
+          isOpen={isKitchenModalOpen}
+          onClose={() => setIsKitchenModalOpen(false)}
+          onConfirmOrder={async (items, notes, priority, estimatedTime) => {
+            try {
+              await sendToKitchen(items, selectedTable || undefined, notes, priority as 'normal' | 'high' | 'urgent', estimatedTime);
+              setKitchenOrderSent(true);
+              setIsKitchenModalOpen(false);
+              toast({
+                title: "✅ Comanda enviada",
+                description: `La orden de la mesa ${selectedTable} fue enviada a cocina`
+              });
+            } catch (error) {
+              console.error('Error sending to kitchen:', error);
+              toast({
+                title: "Error",
+                description: "No se pudo enviar la comanda a cocina",
+                variant: "destructive"
+              });
+            }
+          }}
+          selectedProducts={selectedProducts.map(product => ({ product, quantity: product.quantity || 1 }))}
+          tableNumber={selectedTable || undefined}
+          orderType="dine-in"
         />
     </div>;
 };
