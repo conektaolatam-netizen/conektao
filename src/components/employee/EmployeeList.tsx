@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import EmployeeForm from "./EmployeeForm";
 import EmployeeLocationDialog from "./EmployeeLocationDialog";
+import WaiterTipRating from "./WaiterTipRating";
 
 interface Employee {
   id: string;
@@ -179,8 +180,11 @@ const EmployeeList = ({ onEmployeeSelect }: EmployeeListProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Waiter Tip Performance */}
+      <WaiterTipRating />
+      
+      <div className="space-y-4">
         <div>
           <h3 className="text-lg font-semibold">Gestión de Personal</h3>
           <p className="text-sm text-muted-foreground">
@@ -321,6 +325,7 @@ const EmployeeList = ({ onEmployeeSelect }: EmployeeListProps) => {
         onOpenChange={setIsLocationDialogOpen}
         onSuccess={loadEmployees}
       />
+      </div>
     </div>
   );
 };

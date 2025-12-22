@@ -25,6 +25,7 @@ import {
   FileText,
   DollarSign,
 } from 'lucide-react';
+import SuspiciousEventsPanel from './audit/SuspiciousEventsPanel';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -377,6 +378,9 @@ const AuditorIA = ({ onClose }: AuditorIAProps) => {
                   </div>
                 </Card>
               )}
+
+              {/* Suspicious Events from POS */}
+              <SuspiciousEventsPanel />
             </>
           )}
         </div>
