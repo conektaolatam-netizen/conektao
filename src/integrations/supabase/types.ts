@@ -897,6 +897,7 @@ export type Database = {
           description: string | null
           expiry_date: string | null
           id: string
+          inventory_type: string | null
           is_active: boolean | null
           is_compound: boolean | null
           min_stock: number
@@ -913,6 +914,7 @@ export type Database = {
           description?: string | null
           expiry_date?: string | null
           id?: string
+          inventory_type?: string | null
           is_active?: boolean | null
           is_compound?: boolean | null
           min_stock?: number
@@ -929,6 +931,7 @@ export type Database = {
           description?: string | null
           expiry_date?: string | null
           id?: string
+          inventory_type?: string | null
           is_active?: boolean | null
           is_compound?: boolean | null
           min_stock?: number
@@ -1413,6 +1416,81 @@ export type Database = {
           waiter_id?: string | null
         }
         Relationships: []
+      }
+      manual_receipts: {
+        Row: {
+          created_at: string
+          document_date: string | null
+          expense_id: string | null
+          fallback_reason: string | null
+          id: string
+          items: Json
+          notes: string | null
+          payment_details: Json | null
+          payment_method: string | null
+          payment_status: string | null
+          receipt_url: string | null
+          restaurant_id: string | null
+          status: string | null
+          supplier_name: string | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_date?: string | null
+          expense_id?: string | null
+          fallback_reason?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          payment_details?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
+          receipt_url?: string | null
+          restaurant_id?: string | null
+          status?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_date?: string | null
+          expense_id?: string | null
+          fallback_reason?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          payment_details?: Json | null
+          payment_method?: string | null
+          payment_status?: string | null
+          receipt_url?: string | null
+          restaurant_id?: string | null
+          status?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_receipts_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_receipts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       menu_import_sessions: {
         Row: {
@@ -2187,6 +2265,84 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipt_audit_events: {
+        Row: {
+          change_percentage: number | null
+          confidence_score: number | null
+          created_at: string
+          event_type: string
+          expense_id: string | null
+          id: string
+          is_reviewed: boolean | null
+          item_modified_name: string | null
+          item_original_name: string | null
+          modified_value: Json | null
+          notes: string | null
+          original_value: Json | null
+          receipt_url: string | null
+          restaurant_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          change_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          event_type: string
+          expense_id?: string | null
+          id?: string
+          is_reviewed?: boolean | null
+          item_modified_name?: string | null
+          item_original_name?: string | null
+          modified_value?: Json | null
+          notes?: string | null
+          original_value?: Json | null
+          receipt_url?: string | null
+          restaurant_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          change_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          event_type?: string
+          expense_id?: string | null
+          id?: string
+          is_reviewed?: boolean | null
+          item_modified_name?: string | null
+          item_original_name?: string | null
+          modified_value?: Json | null
+          notes?: string | null
+          original_value?: Json | null
+          receipt_url?: string | null
+          restaurant_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_audit_events_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipt_audit_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
