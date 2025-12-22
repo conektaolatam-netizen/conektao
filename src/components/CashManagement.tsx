@@ -34,7 +34,9 @@ import {
   Zap,
   Lock,
   Minus,
-  ArrowLeft
+  ArrowLeft,
+  Edit3,
+  AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,6 +48,17 @@ import GuidedCashClose from '@/components/cash/GuidedCashClose';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 interface Transaction {
   id: string;
@@ -68,15 +81,16 @@ interface Transaction {
 interface CashRegister {
   id?: string;
   opening: number;
-  sales: number;
-  expenses: number;
-  cash: number;
-  cards: number;
-  expected: number;
-  difference: number;
+  cashSales: number;        // Ventas en efectivo
+  cardSales: number;        // Ventas en tarjeta/transfer
+  cashDeposits: number;     // Ingresos manuales en efectivo
+  cashWithdrawals: number;  // Retiros/pagos en efectivo
+  cashExpenses: number;     // Gastos pagados en efectivo
+  currentCash: number;      // Saldo actual calculado
   is_closed: boolean;
-  can_edit_opening: boolean;
+  hasOpeningSet: boolean;   // Ya tiene base configurada?
   final_cash?: number;
+  difference?: number;
 }
 
 interface CashPayment {
@@ -89,7 +103,12 @@ interface CashPayment {
 }
 
 const openingBalanceSchema = z.object({
-  opening_balance: z.number().min(0, "El monto debe ser mayor a 0")
+  opening_balance: z.number().min(0, "El monto debe ser mayor o igual a 0")
+});
+
+const editOpeningSchema = z.object({
+  new_opening: z.number().min(0, "El monto debe ser mayor o igual a 0"),
+  reason: z.string().min(5, "La razón debe tener al menos 5 caracteres")
 });
 
 const cashPaymentSchema = z.object({
@@ -116,17 +135,22 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
   const [cashRegister, setCashRegister] = useState<CashRegister | null>(null);
   const [cashPayments, setCashPayments] = useState<CashPayment[]>([]);
   const [cashIncomes, setCashIncomes] = useState<CashPayment[]>([]);
-  const [dailySales, setDailySales] = useState(0);
-  const [dailyExpenses, setDailyExpenses] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showGuidedClose, setShowGuidedClose] = useState(false);
+  const [showEditOpeningDialog, setShowEditOpeningDialog] = useState(false);
 
   const { toast } = useToast();
   const { profile, restaurant } = useAuth();
+  const { logAction } = useAuditLog();
 
   const openingForm = useForm({
     resolver: zodResolver(openingBalanceSchema),
     defaultValues: { opening_balance: 0 }
+  });
+
+  const editOpeningForm = useForm({
+    resolver: zodResolver(editOpeningSchema),
+    defaultValues: { new_opening: 0, reason: '' }
   });
 
   const paymentForm = useForm({
@@ -153,46 +177,36 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
   const isOwnerOrAdmin = profile?.role === 'owner' || profile?.role === 'admin';
   const canViewAmounts = isOwnerOrAdmin;
 
-  const loadCashRegister = async () => {
-    if (!restaurant?.id) return;
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Cargar todos los datos de caja del día
+  const loadCashData = async () => {
+    if (!restaurant?.id || !profile?.id) return;
 
     try {
+      setLoading(true);
       const today = new Date().toISOString().split('T')[0];
-      
-      // Get or create today's cash register
-      const { data: existingRegister } = await supabase
+      const { startISO, endISO } = getLocalDayRange();
+
+      // Obtener o crear registro de caja de hoy
+      let { data: existingRegister } = await supabase
         .from('cash_registers')
         .select('*')
         .eq('restaurant_id', restaurant.id)
         .eq('date', today)
         .maybeSingle();
 
-      if (existingRegister) {
-        const canEditOpening = existingRegister.opening_balance === 0 && !existingRegister.is_closed;
-        const cashPaymentsTotal = cashPayments.reduce((sum, p) => sum + p.amount, 0);
-        const expectedCash = existingRegister.opening_balance + dailySales - dailyExpenses - cashPaymentsTotal;
-        const difference = existingRegister.final_cash 
-          ? existingRegister.final_cash - expectedCash
-          : 0;
-        
-        setCashRegister({
-          ...existingRegister,
-          opening: existingRegister.opening_balance,
-          sales: dailySales,
-          expenses: dailyExpenses,
-          cash: expectedCash,
-          cards: 0, // TODO: Get from actual card sales
-          expected: expectedCash,
-          difference,
-          can_edit_opening: canEditOpening || isOwnerOrAdmin,
-          is_closed: existingRegister.is_closed
-        });
-      } else {
-        // Create new register for today
+      if (!existingRegister) {
         const { data: newRegister, error } = await supabase
           .from('cash_registers')
           .insert({
-            user_id: profile?.id,
+            user_id: profile.id,
             restaurant_id: restaurant.id,
             date: today,
             opening_balance: 0
@@ -201,107 +215,85 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
           .single();
 
         if (error) throw error;
-
-        setCashRegister({
-          id: newRegister.id,
-          opening: 0,
-          sales: dailySales,
-          expenses: dailyExpenses,
-          cash: 0,
-          cards: 0,
-          expected: 0,
-          difference: 0,
-          can_edit_opening: true,
-          is_closed: false
-        });
+        existingRegister = newRegister;
       }
-    } catch (error) {
-      console.error('Error loading cash register:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar el registro de caja",
-        variant: "destructive"
-      });
-    }
-  };
 
-  const loadDailySales = async () => {
-    if (!restaurant?.id) return;
-
-    try {
-      const { startISO, endISO } = getLocalDayRange();
-      
-      const { data, error } = await supabase
+      // Cargar ventas del día - separar por método de pago
+      const { data: salesData } = await supabase
         .from('sales')
-        .select('total_amount')
+        .select('total_amount, payment_method')
         .gte('created_at', startISO)
         .lt('created_at', endISO)
         .eq('status', 'completed');
 
-      if (error) throw error;
+      const cashSales = salesData?.filter(s => 
+        s.payment_method?.toLowerCase() === 'efectivo' || 
+        s.payment_method?.toLowerCase() === 'cash'
+      ).reduce((sum, s) => sum + Number(s.total_amount), 0) || 0;
 
-      const total = data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-      setDailySales(total);
-    } catch (error) {
-      console.error('Error loading daily sales:', error);
-    }
-  };
+      const cardSales = salesData?.filter(s => 
+        s.payment_method?.toLowerCase() !== 'efectivo' && 
+        s.payment_method?.toLowerCase() !== 'cash'
+      ).reduce((sum, s) => sum + Number(s.total_amount), 0) || 0;
 
-  const loadDailyExpenses = async () => {
-    if (!restaurant?.id) return;
-
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('total_amount')
-        .gte('expense_date', `${today}T00:00:00`)
-        .lt('expense_date', `${today}T23:59:59`);
-
-      if (error) throw error;
-
-      const total = data?.reduce((sum, expense) => sum + Number(expense.total_amount), 0) || 0;
-      setDailyExpenses(total);
-    } catch (error) {
-      console.error('Error loading daily expenses:', error);
-    }
-  };
-
-  const loadCashPayments = async () => {
-    if (!cashRegister?.id) return;
-
-    try {
-      const { data, error } = await supabase
+      // Cargar movimientos de caja del día
+      const { data: paymentsData } = await supabase
         .from('cash_payments')
         .select('*')
-        .eq('cash_register_id', cashRegister.id)
+        .eq('cash_register_id', existingRegister.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      // Separar pagos e ingresos
-      const payments = data?.filter(item => item.category !== 'ingreso_efectivo') || [];
-      const incomes = data?.filter(item => item.category === 'ingreso_efectivo') || [];
-      
-      setCashPayments(payments);
+      // Separar ingresos y egresos en efectivo
+      const incomes = paymentsData?.filter(p => p.amount > 0 && p.payment_method === 'efectivo') || [];
+      const cashWithdrawals = paymentsData?.filter(p => 
+        p.amount < 0 && p.payment_method === 'efectivo'
+      ) || [];
+
+      const totalCashDeposits = incomes.reduce((sum, p) => sum + Number(p.amount), 0);
+      const totalCashWithdrawals = Math.abs(cashWithdrawals.reduce((sum, p) => sum + Number(p.amount), 0));
+
+      // Cargar gastos del día pagados en efectivo
+      const { data: expensesData } = await supabase
+        .from('expenses')
+        .select('total_amount, payment_method')
+        .gte('expense_date', `${today}T00:00:00`)
+        .lt('expense_date', `${today}T23:59:59`)
+        .eq('payment_method', 'efectivo');
+
+      const cashExpenses = expensesData?.reduce((sum, e) => sum + Number(e.total_amount), 0) || 0;
+
+      // Calcular saldo actual de efectivo
+      const openingBalance = Number(existingRegister.opening_balance) || 0;
+      const currentCash = openingBalance + cashSales + totalCashDeposits - totalCashWithdrawals - cashExpenses;
+
+      setCashRegister({
+        id: existingRegister.id,
+        opening: openingBalance,
+        cashSales,
+        cardSales,
+        cashDeposits: totalCashDeposits,
+        cashWithdrawals: totalCashWithdrawals,
+        cashExpenses,
+        currentCash,
+        is_closed: existingRegister.is_closed,
+        hasOpeningSet: openingBalance > 0,
+        final_cash: existingRegister.final_cash,
+        difference: existingRegister.cash_difference
+      });
+
+      setCashPayments(cashWithdrawals);
       setCashIncomes(incomes);
+
     } catch (error) {
-      console.error('Error loading cash payments:', error);
+      console.error('Error loading cash data:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el estado de caja",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const categories = {
-    expense: ['Proveedores', 'Servicios', 'Nómina', 'Mantenimiento', 'Marketing', 'Otros'],
-    income: ['Ventas', 'Servicios adicionales', 'Otros ingresos']
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(amount);
   };
 
   const loadProcessedReceipts = async () => {
@@ -338,38 +330,23 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([
-        loadDailySales(),
-        loadDailyExpenses(),
-        loadProcessedReceipts()
-      ]);
-      await loadCashRegister();
-      setLoading(false);
-    };
-
     if (restaurant?.id && profile?.id) {
-      loadData();
+      loadCashData();
+      loadProcessedReceipts();
     }
   }, [restaurant?.id, profile?.id]);
-
-  useEffect(() => {
-    if (cashRegister?.id) {
-      loadCashPayments();
-    }
-  }, [cashRegister?.id]);
 
   const handleReceiptProcessed = useCallback((data: any) => {
     console.log('Receipt processed:', data);
     loadProcessedReceipts();
-    loadDailyExpenses();
+    loadCashData(); // Recargar para reflejar gastos
     toast({
       title: "¡Factura procesada exitosamente!",
       description: "Los productos se han agregado al inventario automáticamente",
     });
   }, [toast]);
 
+  // Establecer base inicial (solo si no hay base)
   const handleSetOpeningBalance = async (values: { opening_balance: number }) => {
     if (!cashRegister?.id) return;
 
@@ -381,13 +358,62 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
 
       if (error) throw error;
 
-      setCashRegister(prev => prev ? { ...prev, opening: values.opening_balance, can_edit_opening: false } : null);
+      await logAction({
+        tableName: 'cash_registers',
+        action: 'BASE_INICIAL_ESTABLECIDA',
+        recordId: cashRegister.id,
+        newValues: { opening_balance: values.opening_balance }
+      });
+
+      loadCashData();
       toast({
-        title: "Base inicial actualizada",
-        description: `Base de caja establecida en ${formatCurrency(values.opening_balance)}`
+        title: "Base inicial establecida",
+        description: `Base de caja: ${formatCurrency(values.opening_balance)}`
       });
     } catch (error) {
-      console.error('Error updating opening balance:', error);
+      console.error('Error setting opening balance:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo establecer la base inicial",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Editar base inicial (con razón obligatoria)
+  const handleEditOpeningBalance = async (values: { new_opening: number; reason: string }) => {
+    if (!cashRegister?.id) return;
+
+    try {
+      const oldOpening = cashRegister.opening;
+
+      const { error } = await supabase
+        .from('cash_registers')
+        .update({ opening_balance: values.new_opening })
+        .eq('id', cashRegister.id);
+
+      if (error) throw error;
+
+      // Registrar en auditoría
+      await logAction({
+        tableName: 'cash_registers',
+        action: 'BASE_INICIAL_EDITADA',
+        recordId: cashRegister.id,
+        oldValues: { opening_balance: oldOpening },
+        newValues: { opening_balance: values.new_opening, reason: values.reason },
+        isSensitive: true
+      });
+
+      setShowEditOpeningDialog(false);
+      editOpeningForm.reset();
+      loadCashData();
+      
+      toast({
+        title: "Base inicial actualizada",
+        description: `Cambio de ${formatCurrency(oldOpening)} a ${formatCurrency(values.new_opening)}`
+      });
+    } catch (error) {
+      console.error('Error editing opening balance:', error);
       toast({
         title: "Error",
         description: "No se pudo actualizar la base inicial",
@@ -424,8 +450,7 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
       if (error) throw error;
 
       paymentForm.reset();
-      loadCashPayments();
-      loadCashRegister();
+      loadCashData();
       
       const message = values.payment_method === 'efectivo' 
         ? `Se descontaron ${formatCurrency(values.amount)} del efectivo`
@@ -463,8 +488,7 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
       if (error) throw error;
 
       incomeForm.reset();
-      loadCashPayments();
-      loadCashRegister();
+      loadCashData();
       toast({
         title: "Ingreso registrado",
         description: `Se agregaron ${formatCurrency(values.amount)} al efectivo`
@@ -483,7 +507,7 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
     if (!cashRegister?.id || !profile?.id) return;
 
     try {
-      const expectedCash = cashRegister.opening + cashRegister.sales - cashRegister.expenses;
+      const expectedCash = cashRegister.currentCash;
       const difference = values.final_cash - expectedCash;
       
       const { error } = await supabase
@@ -540,9 +564,9 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
             final_cash: values.final_cash,
             expected_cash: expectedCash,
             difference: difference,
-            total_sales: cashRegister.sales,
-            total_expenses: cashRegister.expenses,
-            cards_total: cashRegister.cards || 0,
+            total_cash_sales: cashRegister.cashSales,
+            total_cash_expenses: cashRegister.cashExpenses,
+            cards_total: cashRegister.cardSales,
             transfers_total: 0 // TODO: implementar transferencias
           },
           sales_data: salesResult.data || [],
@@ -632,10 +656,14 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
       );
     }
 
+    const totalSales = cashRegister.cashSales + cashRegister.cardSales;
+    const totalEntradas = cashRegister.cashSales + cashRegister.cashDeposits;
+    const totalSalidas = cashRegister.cashWithdrawals + cashRegister.cashExpenses;
+
     return (
       <div className="space-y-6">
-        {/* Configurar base inicial */}
-        {cashRegister.can_edit_opening && (
+        {/* Si NO tiene base configurada - mostrar formulario */}
+        {!cashRegister.hasOpeningSet && !cashRegister.is_closed && (
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 backdrop-blur-sm"></div>
             <CardHeader className="relative z-10">
@@ -693,55 +721,114 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
           </Card>
         )}
 
-        {/* Resumen de caja */}
+        {/* SALDO ACTUAL EN EFECTIVO - PROTAGONISTA */}
+        <Card className="bg-gradient-to-br from-emerald-900/60 to-green-900/40 border border-emerald-500/30">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-emerald-300/80 text-sm font-medium mb-1">Saldo Actual en Caja (Efectivo)</p>
+              <p className="text-5xl font-bold text-emerald-400">
+                {canViewAmounts ? formatCurrency(cashRegister.currentCash) : '***'}
+              </p>
+              <p className="text-emerald-300/60 text-xs mt-2">
+                Actualizado en tiempo real
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Desglose de movimientos */}
         <Card className="bg-gradient-to-r from-gray-800/50 to-slate-800/50 border border-white/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Wallet className="h-5 w-5" />
-              Estado de Caja - {new Date().toLocaleDateString()}
-              {cashRegister.is_closed && (
-                <Badge variant="secondary" className="ml-2">
-                  <Lock className="h-3 w-3 mr-1" />
-                  Cerrada
-                </Badge>
-              )}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Wallet className="h-5 w-5" />
+                Desglose de Caja - {new Date().toLocaleDateString()}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {cashRegister.is_closed && (
+                  <Badge variant="secondary">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Cerrada
+                  </Badge>
+                )}
+                {cashRegister.hasOpeningSet && !cashRegister.is_closed && isOwnerOrAdmin && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      editOpeningForm.setValue('new_opening', cashRegister.opening);
+                      setShowEditOpeningDialog(true);
+                    }}
+                    className="text-yellow-400 border-yellow-400/50 hover:bg-yellow-400/10"
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" />
+                    Editar base
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Fórmula clara */}
+            <div className="bg-gray-900/50 rounded-lg p-4 mb-6 border border-white/5">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-white/70">Base inicial</span>
+                  <span className="font-semibold text-white">{formatCurrency(cashRegister.opening)}</span>
+                </div>
+                <div className="flex justify-between items-center text-green-400">
+                  <span className="flex items-center gap-2">
+                    <ArrowUpRight className="h-4 w-4" />
+                    Ventas en efectivo
+                  </span>
+                  <span className="font-semibold">+{formatCurrency(cashRegister.cashSales)}</span>
+                </div>
+                <div className="flex justify-between items-center text-green-400">
+                  <span className="flex items-center gap-2">
+                    <ArrowUpRight className="h-4 w-4" />
+                    Otros ingresos efectivo
+                  </span>
+                  <span className="font-semibold">+{formatCurrency(cashRegister.cashDeposits)}</span>
+                </div>
+                <div className="flex justify-between items-center text-red-400">
+                  <span className="flex items-center gap-2">
+                    <ArrowDownRight className="h-4 w-4" />
+                    Retiros/Pagos efectivo
+                  </span>
+                  <span className="font-semibold">-{formatCurrency(cashRegister.cashWithdrawals)}</span>
+                </div>
+                <div className="flex justify-between items-center text-red-400">
+                  <span className="flex items-center gap-2">
+                    <ArrowDownRight className="h-4 w-4" />
+                    Gastos en efectivo
+                  </span>
+                  <span className="font-semibold">-{formatCurrency(cashRegister.cashExpenses)}</span>
+                </div>
+                <Separator className="bg-white/10" />
+                <div className="flex justify-between items-center text-lg">
+                  <span className="font-bold text-white">= Saldo actual efectivo</span>
+                  <span className="font-bold text-emerald-400">{formatCurrency(cashRegister.currentCash)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen rápido */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
                 <p className="text-sm text-white/60">Base Inicial</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(cashRegister.opening)}</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(cashRegister.opening)}</p>
               </div>
-              <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
-                <p className="text-sm text-white/60">
-                  {canViewAmounts ? 'Ventas Totales' : 'Ventas'}
-                </p>
-                <p className="text-2xl font-bold text-green-400">
-                  {canViewAmounts ? formatCurrency(cashRegister.sales) : '***'}
-                </p>
+              <div className="text-center p-4 bg-green-900/30 rounded-lg border border-green-400/20">
+                <p className="text-sm text-green-300/80">Entradas Efectivo</p>
+                <p className="text-xl font-bold text-green-400">+{formatCurrency(totalEntradas)}</p>
               </div>
-              <div className="text-center p-4 bg-gray-700/30 rounded-lg border border-white/10">
-                <p className="text-sm text-white/60">Gastos</p>
-                <p className="text-2xl font-bold text-red-400">
-                  {canViewAmounts ? formatCurrency(cashRegister.expenses) : '***'}
-                </p>
+              <div className="text-center p-4 bg-red-900/30 rounded-lg border border-red-400/20">
+                <p className="text-sm text-red-300/80">Salidas Efectivo</p>
+                <p className="text-xl font-bold text-red-400">-{formatCurrency(totalSalidas)}</p>
               </div>
-              <div className={`text-center p-4 rounded-lg border border-white/10 ${
-                cashRegister.difference >= 0 ? 'bg-green-900/30' : 'bg-red-900/30'
-              }`}>
-                <p className="text-sm text-white/60">Diferencia</p>
-                <p className={`text-2xl font-bold ${
-                  cashRegister.difference >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {canViewAmounts 
-                    ? formatCurrency(Math.abs(cashRegister.difference))
-                    : '***'
-                  }
-                </p>
-                <p className="text-xs text-white/70">
-                  {cashRegister.difference >= 0 ? 'Sobrante' : 'Faltante'}
-                </p>
+              <div className="text-center p-4 bg-purple-900/30 rounded-lg border border-purple-400/20">
+                <p className="text-sm text-purple-300/80">Ventas Tarjeta/Transfer</p>
+                <p className="text-xl font-bold text-purple-400">{formatCurrency(cashRegister.cardSales)}</p>
               </div>
             </div>
             
@@ -750,7 +837,7 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
             {/* Sección de propinas del día */}
             <TipPayoutsSection 
               cashRegisterId={cashRegister?.id} 
-              onPayoutCompleted={loadCashRegister}
+              onPayoutCompleted={loadCashData}
             />
             
             <Separator className="my-4" />
@@ -759,19 +846,19 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
               <div className="text-center p-3 bg-blue-900/30 rounded-lg border border-blue-400/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Banknote className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium text-white">Efectivo</span>
+                  <span className="text-sm font-medium text-white">Efectivo Actual</span>
                 </div>
                 <p className="text-xl font-bold text-blue-400">
-                  {canViewAmounts ? formatCurrency(cashRegister.cash) : '***'}
+                  {canViewAmounts ? formatCurrency(cashRegister.currentCash) : '***'}
                 </p>
               </div>
               <div className="text-center p-3 bg-purple-900/30 rounded-lg border border-purple-400/20">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <CreditCard className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-white">Tarjetas</span>
+                  <span className="text-sm font-medium text-white">Ventas Digitales</span>
                 </div>
                 <p className="text-xl font-bold text-purple-400">
-                  {canViewAmounts ? formatCurrency(cashRegister.cards) : '***'}
+                  {canViewAmounts ? formatCurrency(cashRegister.cardSales) : '***'}
                 </p>
               </div>
             </div>
@@ -784,14 +871,14 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
                   <GuidedCashClose
                     cashRegisterId={cashRegister.id || ''}
                     openingBalance={cashRegister.opening}
-                    totalSales={dailySales}
-                    totalExpenses={dailyExpenses}
-                    cashPayments={Math.abs(cashPayments.reduce((sum, p) => sum + p.amount, 0))}
-                    cashIncomes={cashIncomes.reduce((sum, p) => sum + p.amount, 0)}
+                    totalSales={cashRegister.cashSales}
+                    totalExpenses={cashRegister.cashExpenses}
+                    cashPayments={cashRegister.cashWithdrawals}
+                    cashIncomes={cashRegister.cashDeposits}
                     onClose={() => setShowGuidedClose(false)}
                     onSuccess={() => {
                       setShowGuidedClose(false);
-                      loadCashRegister();
+                      loadCashData();
                     }}
                   />
                 ) : (
@@ -808,6 +895,68 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
           </CardContent>
         </Card>
 
+        {/* Dialog para editar base inicial */}
+        <AlertDialog open={showEditOpeningDialog} onOpenChange={setShowEditOpeningDialog}>
+          <AlertDialogContent className="bg-gray-900 border-white/10">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-400" />
+                Editar Base Inicial
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-white/70">
+                Ya existe una base inicial de <strong className="text-white">{formatCurrency(cashRegister.opening)}</strong>. 
+                Cambiarla quedará registrado para auditoría.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Form {...editOpeningForm}>
+              <form onSubmit={editOpeningForm.handleSubmit(handleEditOpeningBalance)} className="space-y-4">
+                <FormField
+                  control={editOpeningForm.control}
+                  name="new_opening"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Nueva base inicial</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          className="bg-gray-800 border-white/20 text-white"
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editOpeningForm.control}
+                  name="reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Razón del cambio (obligatorio)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Ej: Error de digitación, faltó contar un sobre..."
+                          className="bg-gray-800 border-white/20 text-white placeholder:text-white/40"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-gray-700 text-white hover:bg-gray-600">
+                    Cancelar
+                  </AlertDialogCancel>
+                  <Button type="submit" className="bg-yellow-600 hover:bg-yellow-700">
+                    Guardar cambio
+                  </Button>
+                </AlertDialogFooter>
+              </form>
+            </Form>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   };
