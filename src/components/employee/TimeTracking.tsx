@@ -527,19 +527,28 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
             </div>
           </div>
 
-          <Alert className={`mb-6 ${isInWorkArea ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-            <MapPin className={`h-4 w-4 ${isInWorkArea ? 'text-green-600' : 'text-red-600'}`} />
-            <AlertDescription className={isInWorkArea ? 'text-green-800' : 'text-red-800'}>
+          {/* GPS status - ONLY affects attendance registration, NOT billing */}
+          <Alert className={`mb-6 ${isInWorkArea ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+            <MapPin className={`h-4 w-4 ${isInWorkArea ? 'text-green-600' : 'text-amber-600'}`} />
+            <AlertDescription className={isInWorkArea ? 'text-green-800' : 'text-amber-800'}>
               {locationLoading ? (
-                "Verificando ubicación..."
+                "Verificando ubicación para asistencia..."
               ) : currentLocation ? (
                 isInWorkArea ? (
-                  "✓ Estás en el área de trabajo autorizada"
+                  "✓ Ubicación válida para registrar entrada/salida"
                 ) : (
-                  "✗ Fuera del área de trabajo. Acércate al restaurante para registrar."
+                  <>
+                    <span className="font-medium">Solo para asistencia:</span> Acércate al restaurante para registrar entrada/salida.
+                    <br />
+                    <span className="text-xs opacity-75">Esto NO afecta tu acceso a facturación.</span>
+                  </>
                 )
               ) : (
-                "Ubicación no disponible. Permite el acceso a la ubicación."
+                <>
+                  Ubicación no disponible para asistencia.
+                  <br />
+                  <span className="text-xs opacity-75">Permite el acceso a ubicación para registrar entrada/salida.</span>
+                </>
               )}
             </AlertDescription>
           </Alert>
