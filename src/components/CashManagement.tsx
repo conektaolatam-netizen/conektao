@@ -42,6 +42,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getLocalDayRange } from '@/lib/date';
 import ReceiptProcessor from '@/components/ReceiptProcessor';
 import TipPayoutsSection from '@/components/cash/TipPayoutsSection';
+import GuidedCashClose from '@/components/cash/GuidedCashClose';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -110,7 +111,7 @@ const finalCashSchema = z.object({
 });
 
 const CashManagement = ({ onBack }: { onBack?: () => void }) => {
-  const [currentView, setCurrentView] = useState<'overview' | 'transactions' | 'receipts' | 'analysis'>('overview');
+  const [currentView, setCurrentView] = useState<'overview' | 'transactions' | 'receipts' | 'analysis' | 'guided_close'>('overview');
   const [processedReceipts, setProcessedReceipts] = useState<any[]>([]);
   const [cashRegister, setCashRegister] = useState<CashRegister | null>(null);
   const [cashPayments, setCashPayments] = useState<CashPayment[]>([]);
@@ -118,6 +119,7 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
   const [dailySales, setDailySales] = useState(0);
   const [dailyExpenses, setDailyExpenses] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showGuidedClose, setShowGuidedClose] = useState(false);
 
   const { toast } = useToast();
   const { profile, restaurant } = useAuth();
@@ -774,65 +776,33 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
               </div>
             </div>
 
-            {/* Cerrar caja */}
+            {/* Cerrar caja - Guided Flow */}
             {!cashRegister.is_closed && isOwnerOrAdmin && (
               <>
                 <Separator className="my-6" />
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 p-0.5 shadow-2xl">
-                  <div className="relative bg-gradient-to-br from-gray-800/90 via-gray-900/90 to-black/90 rounded-2xl p-6">
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-pink-500/10 to-purple-600/10 rounded-2xl"></div>
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-lg">
-                          <Lock className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="text-xl font-bold bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent">
-                            Cerrar Caja del Día
-                          </h4>
-                          <p className="text-sm text-white/70">
-                            Cuenta el efectivo físico para calcular la diferencia final
-                          </p>
-                        </div>
-                      </div>
-                      <Form {...finalCashForm}>
-                        <form onSubmit={finalCashForm.handleSubmit(handleCloseCashRegister)} className="space-y-4">
-                          <FormField
-                            control={finalCashForm.control}
-                            name="final_cash"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-white font-semibold">Efectivo real en caja</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Input
-                                      type="number"
-                                      placeholder="Contar billetes y monedas físicas"
-                                      className="bg-white/10 border-2 border-purple-400/30 focus:border-purple-400 h-12 text-lg font-medium pr-16 rounded-xl shadow-sm text-white placeholder:text-white/50"
-                                      {...field}
-                                      onChange={(e) => field.onChange(Number(e.target.value))}
-                                    />
-                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 font-medium">
-                                      COP
-                                    </div>
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <Button 
-                            type="submit" 
-                            className="w-full bg-gradient-to-r from-red-500 via-pink-500 to-purple-600 hover:from-red-600 hover:via-pink-600 hover:to-purple-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                          >
-                            <Lock className="h-5 w-5 mr-2" />
-                            Cerrar Caja Definitivamente
-                          </Button>
-                        </form>
-                      </Form>
-                    </div>
-                  </div>
-                </div>
+                {showGuidedClose ? (
+                  <GuidedCashClose
+                    cashRegisterId={cashRegister.id || ''}
+                    openingBalance={cashRegister.opening}
+                    totalSales={dailySales}
+                    totalExpenses={dailyExpenses}
+                    cashPayments={Math.abs(cashPayments.reduce((sum, p) => sum + p.amount, 0))}
+                    cashIncomes={cashIncomes.reduce((sum, p) => sum + p.amount, 0)}
+                    onClose={() => setShowGuidedClose(false)}
+                    onSuccess={() => {
+                      setShowGuidedClose(false);
+                      loadCashRegister();
+                    }}
+                  />
+                ) : (
+                  <Button 
+                    onClick={() => setShowGuidedClose(true)}
+                    className="w-full bg-gradient-to-r from-red-500 via-pink-500 to-purple-600 hover:from-red-600 hover:via-pink-600 hover:to-purple-700 text-white font-bold py-4 rounded-xl shadow-lg"
+                  >
+                    <Lock className="h-5 w-5 mr-2" />
+                    Cerrar Caja del Día
+                  </Button>
+                )}
               </>
             )}
           </CardContent>
