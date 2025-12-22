@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import KitchenOrderModal from './kitchen/KitchenOrderModal';
+import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
 import CashManagement from './CashManagement';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/context/AppContext';
@@ -37,10 +38,12 @@ const Billing = () => {
   } = useProductAvailability();
   const { logAction } = useAuditLog();
   const { sendToKitchen, isLoading: kitchenLoading } = useKitchenOrders();
+  const { logSuspiciousEvent } = useSuspiciousEvents();
   
   // Estado para cocina
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
+  const [showNoKitchenWarning, setShowNoKitchenWarning] = useState(false);
   
   // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
   const tipConfig = useTipConfig();
@@ -1766,7 +1769,16 @@ Por favor:
 
                 {/* COBRAR */}
                 {selectedProducts.length > 0 && (
-                  <Button onClick={() => setCurrentView('payment')} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+                  <Button 
+                    onClick={() => {
+                      if (!kitchenOrderSent) {
+                        setShowNoKitchenWarning(true);
+                      } else {
+                        setCurrentView('payment');
+                      }
+                    }} 
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  >
                     <Receipt className="h-4 w-4 mr-2" />
                     Cobrar ({selectedProducts.length})
                   </Button>
@@ -2206,6 +2218,63 @@ Por favor:
           tableNumber={selectedTable || undefined}
           orderType="dine-in"
         />
+
+        {/* Modal de advertencia: Cobrar sin enviar comanda */}
+        <AlertDialog open={showNoKitchenWarning} onOpenChange={setShowNoKitchenWarning}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-amber-600" />
+                </div>
+                <AlertDialogTitle className="text-xl">¡No enviaste la comanda!</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-base">
+                Vas a cobrar sin haber enviado la orden a cocina. Esto quedará registrado para auditoría.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4 p-4 bg-muted/50 rounded-lg border">
+              <p className="text-sm text-muted-foreground">
+                <strong>Orden {selectedTable}</strong> • {selectedProducts.length} productos • {formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}
+              </p>
+            </div>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="default"
+                onClick={() => {
+                  setShowNoKitchenWarning(false);
+                  setIsKitchenModalOpen(true);
+                }}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 w-full sm:w-auto"
+              >
+                <ChefHat className="h-4 w-4 mr-2" />
+                Enviar comanda primero
+              </Button>
+              <AlertDialogAction
+                onClick={async () => {
+                  // Registrar evento sospechoso
+                  await logSuspiciousEvent({
+                    eventType: 'PAYMENT_ATTEMPT_WITHOUT_KITCHEN_ORDER',
+                    tableNumber: selectedTable || undefined,
+                    hasItems: true,
+                    itemsCount: selectedProducts.length,
+                    orderTotal: selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0),
+                    metadata: {
+                      products: selectedProducts.map(p => ({ name: p.name, price: p.price, quantity: p.quantity || 1 })),
+                      timestamp: new Date().toISOString()
+                    }
+                  });
+                  
+                  setShowNoKitchenWarning(false);
+                  setCurrentView('payment');
+                }}
+                className="bg-muted hover:bg-muted/80 text-foreground w-full sm:w-auto"
+              >
+                Continuar sin enviar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>;
 };
 export default Billing;
