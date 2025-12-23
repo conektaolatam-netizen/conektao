@@ -115,6 +115,11 @@ const Billing = () => {
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  
+  // Estado para modal de limpiar mesa
+  const [showClearTableModal, setShowClearTableModal] = useState(false);
+  const [clearTableReason, setClearTableReason] = useState('');
+  const [isClearingTable, setIsClearingTable] = useState(false);
   const openEditProduct = (product: any) => {
     // Abrir el ProductCreator con el producto existente para edición completa
     setEditingProductWithAI({
@@ -806,6 +811,64 @@ const Billing = () => {
         variant: "destructive"
       });
       return false;
+    }
+  };
+  
+  // Función para limpiar mesa usando RPC atómico
+  const handleClearTable = async () => {
+    if (!profile?.restaurant_id || !selectedTable || !user) return;
+    
+    setIsClearingTable(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('clear_table_order', {
+        p_table_number: selectedTable,
+        p_restaurant_id: profile.restaurant_id,
+        p_user_id: user.id,
+        p_user_name: profile?.full_name || 'Usuario',
+        p_reason: clearTableReason || null
+      });
+      
+      if (error) throw error;
+      
+      const result = data as { success: boolean; message: string };
+      
+      if (!result?.success) {
+        throw new Error(result?.message || 'Error desconocido');
+      }
+      
+      // SOLO si la DB confirmó, actualizar UI
+      setSelectedProducts([]);
+      setKitchenOrderSent(false);
+      
+      // Actualizar estado local de la mesa
+      setTables(prev => prev.map(t => 
+        t.number === selectedTable 
+          ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0 }
+          : t
+      ));
+      
+      toast({
+        title: "✅ Mesa limpiada",
+        description: `Mesa ${selectedTable} está lista para nuevos clientes`
+      });
+      
+      // Cerrar modal y resetear estado
+      setShowClearTableModal(false);
+      setClearTableReason('');
+      
+      // Forzar recarga desde DB
+      await loadTodaysSales();
+      
+    } catch (error) {
+      console.error('Error limpiando mesa:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo limpiar la mesa. Reintenta.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsClearingTable(false);
     }
   };
   
@@ -1829,20 +1892,7 @@ Por favor:
                 {selectedProducts.length > 0 && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setSelectedProducts([]);
-                      setKitchenOrderSent(false);
-                      // Actualizar estado de la mesa
-                      setTables(prev => prev.map(t => 
-                        t.number === selectedTable 
-                          ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0 }
-                          : t
-                      ));
-                      toast({
-                        title: "Mesa limpiada",
-                        description: `Mesa ${selectedTable} está lista para nuevos clientes`
-                      });
-                    }}
+                    onClick={() => setShowClearTableModal(true)}
                     className="border-red-300 text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -2386,6 +2436,69 @@ Por favor:
               >
                 Continuar sin enviar
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Modal de confirmación para limpiar mesa */}
+        <AlertDialog open={showClearTableModal} onOpenChange={setShowClearTableModal}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <AlertDialogTitle className="text-xl">¿Limpiar mesa {selectedTable}?</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-base">
+                Esta acción eliminará todos los productos de la mesa. Se guardará un registro de auditoría.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="my-4 space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Mesa {selectedTable}</strong> • {selectedProducts.length} productos • {formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clearReason">Motivo (obligatorio si hay productos)</Label>
+                <Textarea
+                  id="clearReason"
+                  placeholder="Ej: Cliente canceló, error en la orden, etc."
+                  value={clearTableReason}
+                  onChange={(e) => setClearTableReason(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+            </div>
+            
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel 
+                disabled={isClearingTable}
+                className="w-full sm:w-auto"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                onClick={handleClearTable}
+                disabled={isClearingTable || (selectedProducts.length > 0 && !clearTableReason.trim())}
+                className="w-full sm:w-auto"
+              >
+                {isClearingTable ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Limpiando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Confirmar limpieza
+                  </>
+                )}
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
