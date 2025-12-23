@@ -379,7 +379,7 @@ const Dashboard = ({
       navigateToView('monthly-sales');
     }
   };
-  return <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">{/* Added responsive container with max-width and padding */}
+  return <div className="space-y-4 sm:space-y-6 lg:space-y-8 max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 relative no-overflow-x">{/* Mobile-optimized responsive container */}
       {/* Flowing waves background - Dark blue subtle waves */}
       <div className="fixed inset-0 pointer-events-none z-0">
         {/* Wave Layer 1 - Deep blue flow */}
@@ -414,70 +414,69 @@ const Dashboard = ({
       </div>
       
       {/* Stats Grid - Moved to top */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full relative z-10">
+      {/* Stats Grid - Mobile optimized */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full relative z-10">
         {stats.map((stat, index) => {
         const isMainStat = stat.size === 'large';
         const isTicketPromedio = stat.title === 'Ticket Promedio';
-        return <Card key={index} className={`group p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-[0_8px_30px_rgb(0,0,0,0.6),0_2px_10px_rgb(0,0,0,0.4)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.7),0_4px_15px_rgba(255,106,0,0.3)] transition-all duration-300 hover:-translate-y-2 rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 hover:ring-primary/60 shadow-primary/20' : ''} ${isTicketPromedio ? 'hidden md:block' : ''}`} onClick={() => handleStatsClick(stat.title)} style={{
-          boxShadow: isMainStat ? '0 10px 40px rgba(0,0,0,0.7), 0 2px 15px rgba(255,106,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)' : '0 8px 30px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)'
-        }}>
+        return <Card key={index} className={`group p-2 sm:p-3 lg:p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 col-span-2 sm:col-span-1' : ''} ${isTicketPromedio ? 'hidden sm:block' : ''}`} onClick={() => handleStatsClick(stat.title)}>
               {/* 3D effect overlay */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none"></div>
+              <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none"></div>
               
-              <div className="flex items-center justify-between relative z-10">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
+              <div className="flex items-center justify-between relative z-10 gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                    <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">
                       {stat.title}
                     </p>
-                    {isMainStat && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>}
+                    {isMainStat && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>}
                   </div>
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold mb-1">
+                  <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate">
                     {stat.value}
                   </p>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={`bg-gradient-to-r ${stat.gradient} text-primary-foreground px-3 py-1 rounded-full text-xs ${isMainStat ? 'ring-1 ring-primary shadow-lg' : ''}`}>
+                  <div className="flex items-center">
+                    <Badge className={`bg-gradient-to-r ${stat.gradient} text-primary-foreground px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs ${isMainStat ? 'ring-1 ring-primary shadow-lg' : ''}`}>
                       {stat.change}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">{stat.description}</p>
+                  <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">{stat.description}</p>
                 </div>
-                <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.gradient} text-primary-foreground shadow-lg group-hover:scale-110 transition-transform ${isMainStat ? 'shadow-primary/30 ring-2 ring-primary/20' : ''}`}>
-                  <stat.icon className="h-8 w-8" />
+                <div className={`p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br ${stat.gradient} text-primary-foreground shadow-lg group-hover:scale-110 transition-transform flex-shrink-0 ${isMainStat ? 'shadow-primary/30 ring-2 ring-primary/20' : ''}`}>
+                  <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
                 </div>
               </div>
             </Card>;
       })}
       </div>
 
-      {/* Marketplace Section - Mercado de Proveedores y Makro lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative z-10">
-        {/* Mercado de Proveedores - Mitad del ancho */}
-        <button className="group relative p-6 rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-primary-foreground shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 border-0 overflow-hidden" onClick={() => onModuleChange(marketplaceAction.module)}>
+      {/* Marketplace Section - Mobile optimized */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 lg:gap-4 relative z-10">
+        {/* Mercado de Proveedores */}
+        <button className="group relative p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-primary-foreground shadow-xl hover:shadow-orange-500/30 transition-all duration-300 lg:hover:scale-105 active:scale-95 border-0 overflow-hidden min-h-[100px] sm:min-h-[120px]" onClick={() => onModuleChange(marketplaceAction.module)}>
           {/* Efectos de fondo */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
           <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           
           {/* Badge HOT */}
-          <div className="absolute top-3 right-3 px-2 py-1 bg-foreground/20 backdrop-blur-sm rounded-full text-xs font-bold animate-pulse hidden lg:block">
-            🔥 {marketplaceAction.badge}
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-foreground/20 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-bold animate-pulse">
+            🔥 HOT
           </div>
           
           <div className="relative z-10">
-            <div className="flex items-center space-x-4 mb-3">
-              <div className="p-3 rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <marketplaceAction.icon className="h-8 w-8" />
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              <div className="p-2 sm:p-2.5 lg:p-3 rounded-lg sm:rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-transform flex-shrink-0">
+                <marketplaceAction.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
               </div>
-              <div className="text-left">
-                <h3 className="text-sm sm:text-lg md:text-xl font-bold">{marketplaceAction.title}</h3>
-                <p className="text-xs sm:text-sm opacity-90">{marketplaceAction.description}</p>
+              <div className="text-left min-w-0">
+                <h3 className="text-xs sm:text-sm lg:text-xl font-bold truncate">{marketplaceAction.title}</h3>
+                <p className="text-[10px] sm:text-xs lg:text-sm opacity-90 truncate">{marketplaceAction.description}</p>
               </div>
             </div>
           </div>
         </button>
 
         {/* Makro promo */}
-        <div className="relative overflow-hidden rounded-2xl shadow-xl cursor-pointer hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[180px] group" onClick={() => {
+        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-xl cursor-pointer lg:hover:scale-105 active:scale-95 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[120px] sm:h-[140px] lg:h-[180px] group" onClick={() => {
         onModuleChange('marketplace');
         setTimeout(() => {
           window.history.pushState({}, '', '/?view=marketplace&supplier=makro');
@@ -490,83 +489,66 @@ const Dashboard = ({
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
 
           {/* Texto informativo en hover */}
-          <div className="absolute bottom-4 right-4 text-white z-10">
-            <p className="text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-lg">
-              Click para ver productos →
+          <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-white z-10">
+            <p className="text-xs sm:text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-lg">
+              Ver productos →
             </p>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions - Módulos Regulares - Diseño delgado y limpio */}
+      {/* Quick Actions - Mobile optimized grid */}
       <div className="relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {regularActions.map((action, index) => <button key={index} className={`group relative h-20 p-4 rounded-xl bg-card border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:-translate-y-1 active:scale-95 overflow-hidden`} style={{
-          borderImage: `linear-gradient(45deg, ${action.gradient.replace('from-', '').replace('to-', '').replace('-500', '').replace('-600', '')}) 1`,
-          borderImageSlice: 1
-        }} onClick={() => onModuleChange(action.module)}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
+          {regularActions.map((action, index) => <button key={index} className={`group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl bg-card border border-border/30 shadow-lg hover:shadow-xl transition-all duration-300 lg:hover:scale-105 active:scale-95 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
               {/* Fondo degradado que aparece en hover */}
               <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
               
               {/* Indicadores */}
-              {action.urgent && <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>}
-              {action.alert && <div className="absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary-foreground">!</span>
+              {action.urgent && <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-pulse"></div>}
+              {action.alert && <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-[8px] sm:text-xs font-bold text-primary-foreground">!</span>
                 </div>}
               
-              <div className="relative z-10 flex items-center justify-between h-full">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg bg-gradient-to-br ${action.gradient} text-primary-foreground group-hover:bg-foreground/20 transition-all`}>
-                    <action.icon className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className={`font-bold text-xs sm:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors`}>
-                      {action.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                      {action.description}
-                    </p>
-                  </div>
+              <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3">
+                <div className={`p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-br ${action.gradient} text-primary-foreground group-hover:bg-foreground/20 transition-all flex-shrink-0`}>
+                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                
-                {/* Badges informativos */}
-                {action.badge && <span className={`px-2 py-1 bg-gradient-to-r ${action.gradient} text-primary-foreground rounded-full text-xs font-semibold opacity-80 group-hover:bg-foreground/20`}>
-                    {action.badge}
-                  </span>}
+                <div className="text-left min-w-0 flex-1">
+                  <p className={`font-bold text-[10px] sm:text-xs lg:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors truncate`}>
+                    {action.title}
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate hidden sm:block">
+                    {action.description}
+                  </p>
+                </div>
               </div>
             </button>)}
         </div>
       </div>
 
-      {/* Módulos de IA - Futuristas y delgados */}
-      <div className="space-y-4 relative z-10">
-        <h3 className="text-sm sm:text-lg md:text-xl font-bold text-center bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-          🚀 INTELIGENCIA ARTIFICIAL AVANZADA
+      {/* Módulos de IA - Mobile optimized */}
+      <div className="space-y-2 sm:space-y-3 lg:space-y-4 relative z-10">
+        <h3 className="text-xs sm:text-sm lg:text-xl font-bold text-center bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+          🚀 INTELIGENCIA ARTIFICIAL
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {aiActions.map((action, index) => <button key={index} className={`group relative h-20 p-6 rounded-2xl bg-gradient-to-r ${action.gradient} text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:-translate-y-2 active:scale-95 border-0 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+          {aiActions.map((action, index) => <button key={index} className={`group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-r ${action.gradient} text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-500 lg:hover:scale-105 active:scale-95 border-0 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
               {/* Efectos holográficos */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               
-              {/* Partículas flotantes */}
-              <div className="absolute top-2 right-4 w-2 h-2 bg-foreground/60 rounded-full animate-bounce"></div>
-              <div className="absolute top-4 right-8 w-1 h-1 bg-foreground/40 rounded-full animate-pulse"></div>
+              {/* Partículas flotantes - hidden on mobile */}
+              <div className="absolute top-2 right-4 w-2 h-2 bg-foreground/60 rounded-full animate-bounce hidden sm:block"></div>
               
-              {/* Badge tecnológico */}
-              
-              
-              <div className="relative z-10 flex items-center justify-between h-full">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 group-hover:rotate-12 transition-all">
-                    <action.icon className="h-6 w-6" />
-                  </div>
-                  <div className="text-left">
-                    <h4 className="text-sm sm:text-base md:text-lg font-bold">{action.title}</h4>
-                    <p className="text-xs sm:text-sm opacity-90">{action.description}</p>
-                  </div>
+              <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3 lg:gap-4">
+                <div className="p-1.5 sm:p-2 lg:p-3 rounded-lg sm:rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-all flex-shrink-0">
+                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
                 </div>
-                <div className="text-2xl group-hover:animate-pulse">🤖</div>
+                <div className="text-left min-w-0 flex-1">
+                  <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold truncate">{action.title}</h4>
+                  <p className="text-[9px] sm:text-[10px] lg:text-sm opacity-90 truncate hidden sm:block">{action.description}</p>
+                </div>
+                <div className="text-base sm:text-lg lg:text-2xl group-hover:animate-pulse hidden sm:block">🤖</div>
               </div>
             </button>)}
         </div>
@@ -574,28 +556,28 @@ const Dashboard = ({
         {/* auditorIA Quick Access - Only for owner/admin */}
         {(profile?.role === 'owner' || profile?.role === 'admin') && (
           <button 
-            className="group relative w-full h-16 p-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-orange-500 text-white shadow-xl hover:shadow-2xl hover:shadow-cyan-500/30 transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1 active:scale-95 border-0 overflow-hidden"
+            className="group relative w-full h-12 sm:h-14 lg:h-16 p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-orange-500 text-white shadow-xl hover:shadow-2xl hover:shadow-cyan-500/30 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 border-0 overflow-hidden"
             onClick={() => onModuleChange('documents')}
           >
             {/* Efectos */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
             
             <div className="relative z-10 flex items-center justify-between h-full">
-              <div className="flex items-center space-x-4">
-                <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-all">
-                  <Eye className="h-5 w-5" />
+              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+                <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-all">
+                  <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 <div className="text-left">
-                  <h4 className="text-base font-bold">
+                  <h4 className="text-xs sm:text-sm lg:text-base font-bold">
                     👁 <span className="text-white">auditor</span>
                     <span className="bg-gradient-to-r from-cyan-200 to-orange-200 bg-clip-text text-transparent">IA</span>
-                    <span className="text-white/80 ml-2 text-sm font-normal">– Auditoría del negocio</span>
+                    <span className="text-white/80 ml-1 sm:ml-2 text-[10px] sm:text-xs lg:text-sm font-normal hidden sm:inline">– Auditoría</span>
                   </h4>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 bg-white/20 rounded-full text-xs font-semibold">Hunter</span>
-                <span className="text-xl">🛡️</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full text-[9px] sm:text-xs font-semibold hidden sm:block">Hunter</span>
+                <span className="text-base sm:text-lg lg:text-xl">🛡️</span>
               </div>
             </div>
           </button>
@@ -603,169 +585,130 @@ const Dashboard = ({
       </div>
 
 
-      {/* Analytics Preview & AI Suggestions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+      {/* Analytics Preview & AI Suggestions - Mobile optimized */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-8 relative z-10">
         {/* Analytics Chart with Real Data Preview */}
-        <Card className="p-6 bg-card/80 backdrop-blur-sm border-0 shadow-float rounded-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm sm:text-base md:text-lg font-bold text-foreground">Resumen de Ventas Diarias</h3>
+        <Card className="p-3 sm:p-4 lg:p-6 bg-card/80 backdrop-blur-sm border-0 shadow-float rounded-xl sm:rounded-2xl">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2">
+            <h3 className="text-xs sm:text-sm lg:text-lg font-bold text-foreground truncate">Resumen de Ventas</h3>
             <Button variant="outline" size="sm" onClick={() => onModuleChange('billing')} className="border-2 border-orange-200 hover:border-primary font-extrabold rounded-full text-[#f17b13] text-xs">
               Ver Análisis Completo
             </Button>
           </div>
-          <div className="h-56 bg-gradient-to-br from-gray-900 via-blue-950 to-gray-950 rounded-2xl relative overflow-hidden border border-white/10">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-20 mx-0 px-[3px] py-[10px]"></div>
+          <div className="h-40 sm:h-48 lg:h-56 bg-gradient-to-br from-gray-900 via-blue-950 to-gray-950 rounded-lg sm:rounded-xl lg:rounded-2xl relative overflow-hidden border border-white/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-20"></div>
             
             {/* Real Sales Chart */}
-            <div className="absolute inset-4">
-              <div className="text-center mb-4">
-                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white mb-1">Ventas Últimos 7 Días</h3>
-                <p className="text-xs sm:text-sm text-white/70">Total del mes: {formatCurrency(realSalesData.monthlySales)}</p>
+            <div className="absolute inset-2 sm:inset-3 lg:inset-4">
+              <div className="text-center mb-2 sm:mb-3 lg:mb-4">
+                <h3 className="text-[10px] sm:text-xs lg:text-lg font-bold text-white mb-0.5 sm:mb-1">Ventas Últimos 7 Días</h3>
+                <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/70">Total: {formatCurrency(realSalesData.monthlySales)}</p>
               </div>
-              <div className="space-y-2">
-                {/* Mostrar datos reales de ventas por día */}
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Lun</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-blue-400 to-indigo-500 h-4 rounded-full" style={{
-                    width: realSalesData.dailySales > 0 ? '0%' : '0%'
-                  }}></div>
+              <div className="space-y-1 sm:space-y-1.5 lg:space-y-2">
+                {/* Sales bars - mobile optimized */}
+                {[
+                  { day: 'Lun', color: 'from-blue-400 to-indigo-500', width: '0%', value: 0 },
+                  { day: 'Mar', color: 'from-green-400 to-emerald-500', width: '0%', value: 0 },
+                  { day: 'Mié', color: 'from-purple-400 to-pink-500', width: '0%', value: realSalesData.dailySales * 0.9 },
+                  { day: 'Jue', color: 'from-yellow-400 to-orange-500', width: '95%', value: realSalesData.dailySales * 1.2 },
+                  { day: 'Vie', color: 'from-pink-400 to-red-500', width: '100%', value: realSalesData.dailySales * 1.5 },
+                  { day: 'Hoy', color: 'from-orange-400 to-red-500', width: '30%', value: realSalesData.dailySales, isToday: true }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="text-[9px] sm:text-[10px] lg:text-xs text-white/80 w-8 sm:w-10 lg:w-12">{item.day}</span>
+                    <div className="flex-1 mx-1 sm:mx-2 bg-gray-700/50 rounded-full h-2 sm:h-3 lg:h-4">
+                      <div className={`bg-gradient-to-r ${item.color} h-full rounded-full ${item.isToday ? 'animate-pulse' : ''}`} style={{ width: item.width }}></div>
+                    </div>
+                    <span className={`text-[8px] sm:text-[9px] lg:text-xs font-medium w-12 sm:w-14 lg:w-16 text-right ${item.isToday ? 'text-orange-400 font-bold' : 'text-white'}`}>
+                      {formatCurrency(item.value)}
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(0)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Mar</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-4 rounded-full" style={{
-                    width: '0%'
-                  }}></div>
-                  </div>
-                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(0)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Mié</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-purple-400 to-pink-500 h-4 rounded-full" style={{
-                    width: '0%'
-                  }}></div>
-                  </div>
-                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 0.9)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Jue</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 h-4 rounded-full w-[95%]"></div>
-                  </div>
-                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Vie</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-pink-400 to-red-500 h-4 rounded-full w-full"></div>
-                  </div>
-                  <span className="text-xs font-medium text-white w-16 text-right">{formatCurrency(realSalesData.dailySales * 1.5)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-white/80 w-12">Hoy</span>
-                  <div className="flex-1 mx-2 bg-gray-700/50 rounded-full h-4">
-                    <div className="bg-gradient-to-r from-orange-400 to-red-500 h-4 rounded-full w-[30%] animate-pulse"></div>
-                  </div>
-                  <span className="text-xs font-bold text-orange-400 w-16 text-right">{formatCurrency(realSalesData.dailySales)}</span>
-                </div>
+                ))}
               </div>
-              <div className="mt-3 text-center">
-                <div className="text-xs text-white/70 mb-2">
-                  {aiRecommendations?.underperforming_product ? `Productos con menor rendimiento: ${aiRecommendations.underperforming_product}` : `Facturas hoy: ${realSalesData.dailyOrders} • Ticket promedio: ${formatCurrency(realSalesData.averageTicket)}`}
+              <div className="mt-1.5 sm:mt-2 lg:mt-3 text-center">
+                <div className="text-[8px] sm:text-[9px] lg:text-xs text-white/70 mb-1 sm:mb-2 truncate">
+                  Facturas: {realSalesData.dailyOrders} • Ticket: {formatCurrency(realSalesData.averageTicket)}
                 </div>
-                <Button onClick={() => onModuleChange('billing')} size="sm" className="bg-primary hover:bg-primary/90 text-white px-4 py-1 rounded-full text-xs">
-                  Ver Detalles por Producto
+                <Button onClick={() => onModuleChange('billing')} size="sm" className="bg-primary hover:bg-primary/90 text-white px-2 sm:px-3 lg:px-4 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs">
+                  Ver Detalles
                 </Button>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* AI Assistant Suggestions - Interactive */}
-        <Card className="p-6 bg-gradient-secondary border-0 shadow-float rounded-2xl overflow-hidden relative">
+        {/* AI Assistant Suggestions - Mobile optimized */}
+        <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-secondary border-0 shadow-float rounded-xl sm:rounded-2xl overflow-hidden relative">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative">
-            <div className="text-white mb-6">
-              <div className="flex items-center mb-4">
-                <div className="relative mr-3">
-                  <Sparkles className="h-8 w-8 animate-pulse" />
-                  <div className="absolute -top-1 -right-1">
-                    <Star className="h-4 w-4 text-yellow-300 animate-bounce" />
+            <div className="text-white mb-3 sm:mb-4 lg:mb-6">
+              <div className="flex items-center mb-2 sm:mb-3 lg:mb-4">
+                <div className="relative mr-2 sm:mr-3">
+                  <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 animate-pulse" />
+                  <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1">
+                    <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 lg:h-4 lg:w-4 text-yellow-300 animate-bounce" />
                   </div>
                 </div>
-                <h3 className="text-xl font-bold">IA Conektao - Recomendaciones</h3>
+                <h3 className="text-sm sm:text-base lg:text-xl font-bold">IA Conektao</h3>
               </div>
               
               {/* Análisis actual dinámico */}
-              <div className="bg-foreground/10 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="bg-foreground/10 rounded-lg sm:rounded-xl p-2 sm:p-3 lg:p-4 mb-2 sm:mb-3 lg:mb-4">
+                <div className="flex items-center justify-between mb-1 sm:mb-2">
                   <div className="flex items-center">
-                    <AlertTriangle className={`h-5 w-5 mr-2 ${aiRecommendations?.hasAlert ? 'text-yellow-300 animate-pulse' : 'text-green-300'}`} />
-                    <span className="font-semibold text-sm">
-                      {isLoadingAI ? 'Analizando...' : aiRecommendations?.hasAlert ? 'Alerta Detectada' : 'Todo en Orden'}
+                    <AlertTriangle className={`h-3.5 w-3.5 sm:h-4 sm:w-4 lg:h-5 lg:w-5 mr-1.5 sm:mr-2 ${aiRecommendations?.hasAlert ? 'text-yellow-300 animate-pulse' : 'text-green-300'}`} />
+                    <span className="font-semibold text-[10px] sm:text-xs lg:text-sm">
+                      {isLoadingAI ? 'Analizando...' : aiRecommendations?.hasAlert ? 'Alerta' : 'OK'}
                     </span>
                   </div>
-                  <Button size="sm" variant="ghost" className="text-white/70 hover:text-white text-xs p-1" onClick={generateAIRecommendations} disabled={isLoadingAI}>
+                  <Button size="sm" variant="ghost" className="text-white/70 hover:text-white text-[10px] sm:text-xs p-0.5 sm:p-1 h-auto" onClick={generateAIRecommendations} disabled={isLoadingAI}>
                     🔄
                   </Button>
                 </div>
-                <p className="text-white/90 text-sm leading-relaxed">
-                  {isLoadingAI ? "🧠 Analizando datos en tiempo real..." : <>
-                      <span>
-                        Hoy: {formatCurrency(realSalesData.dailySales)} • Facturas: {realSalesData.dailyOrders} • Ticket: {formatCurrency(realSalesData.averageTicket)}
+                <p className="text-white/90 text-[9px] sm:text-[10px] lg:text-sm leading-relaxed">
+                  {isLoadingAI ? "🧠 Analizando..." : <>
+                      <span className="block sm:inline">
+                        Hoy: {formatCurrency(realSalesData.dailySales)}
                       </span>
-                      {aiRecommendations?.analysis ? <>
-                          {" — "}
-                          {aiRecommendations.analysis.substring(0, 150)}...
-                        </> : " — Esperando recomendaciones de la IA..."}
+                      <span className="hidden sm:inline"> • Facturas: {realSalesData.dailyOrders}</span>
                     </>}
                 </p>
-                {aiRecommendations?.timestamp && <p className="text-white/60 text-xs mt-2">
-                    Última actualización: {aiRecommendations.timestamp.toLocaleTimeString()}
-                  </p>}
               </div>
 
               {/* Estrategia sugerida */}
-              <div className="bg-foreground/10 rounded-xl p-4 mb-4">
-                <div className="flex items-center mb-2">
-                  <Zap className="h-5 w-5 text-cyan-300 mr-2" />
-                  <span className="font-semibold text-sm">Estrategia Sugerida</span>
+              <div className="bg-foreground/10 rounded-lg sm:rounded-xl p-2 sm:p-3 lg:p-4 mb-2 sm:mb-3 lg:mb-4">
+                <div className="flex items-center mb-1 sm:mb-2">
+                  <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 lg:h-5 lg:w-5 text-cyan-300 mr-1.5 sm:mr-2" />
+                  <span className="font-semibold text-[10px] sm:text-xs lg:text-sm">Estrategia</span>
                 </div>
-                <p className="text-white/90 text-sm leading-relaxed mb-3">
-                  {aiRecommendations?.analysis ? aiRecommendations.analysis.substring(150, 300) + "..." : "Promoción especial: Alianza con influencers locales"}
+                <p className="text-white/90 text-[9px] sm:text-[10px] lg:text-sm leading-relaxed mb-2 sm:mb-3 line-clamp-2">
+                  {aiRecommendations?.analysis ? aiRecommendations.analysis.substring(150, 250) + "..." : "Promoción con influencers locales"}
                 </p>
                 
-                <Button size="sm" className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-full text-xs w-full" onClick={implementStrategy} disabled={!aiRecommendations || isLoadingAI}>
-                  {isLoadingAI ? '🧠 Analizando...' : '🎯 Implementar Estrategia IA'}
+                <Button size="sm" className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 rounded-full text-[9px] sm:text-[10px] lg:text-xs w-full" onClick={implementStrategy} disabled={!aiRecommendations || isLoadingAI}>
+                  {isLoadingAI ? '🧠...' : '🎯 Implementar'}
                 </Button>
               </div>
               
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge className={`${aiRecommendations?.hasAlert ? 'bg-yellow-500/20' : 'bg-green-500/20'} backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs`}>
-                  {isLoadingAI ? '🧠 Analizando' : aiRecommendations?.hasAlert ? '⚠️ Alerta Activa' : '✅ Optimizado'}
+              <div className="flex flex-wrap gap-1 sm:gap-1.5 lg:gap-2 mb-2 sm:mb-3 lg:mb-4">
+                <Badge className={`${aiRecommendations?.hasAlert ? 'bg-yellow-500/20' : 'bg-green-500/20'} backdrop-blur-sm text-white px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] lg:text-xs`}>
+                  {isLoadingAI ? '🧠' : aiRecommendations?.hasAlert ? '⚠️' : '✅'}
                 </Badge>
-                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
-                  📊 Datos en Tiempo Real
+                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] lg:text-xs hidden sm:inline-flex">
+                  📊 Tiempo Real
                 </Badge>
-                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
-                  🚀 IA Automática
+                <Badge className="bg-foreground/20 backdrop-blur-sm text-white px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] lg:text-xs hidden sm:inline-flex">
+                  🚀 Auto
                 </Badge>
-                {aiRecommendations && <Badge className="bg-purple-500/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs">
-                    🎯 Estrategia Lista
-                  </Badge>}
               </div>
             </div>
             
             <div className="text-center">
-              <Button size="lg" className="bg-foreground/20 backdrop-blur-sm text-white border-white/30 hover:bg-foreground/30 hover:scale-105 transition-all rounded-2xl px-6 py-3 w-full" onClick={() => onModuleChange('ai')}>
-                🧠 Chat con IA Avanzada
+              <Button size="default" className="bg-foreground/20 backdrop-blur-sm text-white border-white/30 hover:bg-foreground/30 transition-all rounded-xl sm:rounded-2xl px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 w-full text-xs sm:text-sm" onClick={() => onModuleChange('ai')}>
+                🧠 Chat IA
               </Button>
-              <p className="text-white/70 text-xs mt-2">
-                IA conectada a tu base de datos • Actualización automática cada día
+              <p className="text-white/70 text-[8px] sm:text-[9px] lg:text-xs mt-1 sm:mt-2 hidden sm:block">
+                IA conectada a tu base de datos
               </p>
             </div>
           </div>
