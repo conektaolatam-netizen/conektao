@@ -278,11 +278,17 @@ const Billing = () => {
     };
   }, [user, profile?.restaurant_id]);
 
-  // Efecto para limpiar productos seleccionados cuando se cambia de vista a tables
+  // Estado para sincronización
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  
+  // Efecto para limpiar productos y recargar mesas cuando se vuelve a la vista de tables
   useEffect(() => {
     if (currentView === 'tables') {
       setSelectedProducts([]);
       setSelectedTable(null);
+      // CRÍTICO: Siempre recargar mesas desde DB para evitar datos stale
+      loadTodaysSales();
     }
   }, [currentView]);
   const loadCategoriesFromDB = async () => {
@@ -750,19 +756,59 @@ const Billing = () => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
-  const updateTableOrder = async (updatedProducts: any[]) => {
-    if (!profile?.restaurant_id || !selectedTable) return;
+  // Función robusta para actualizar orden con retry
+  const updateTableOrder = async (updatedProducts: any[], retryCount = 0): Promise<boolean> => {
+    if (!profile?.restaurant_id || !selectedTable) return false;
+    
+    const maxRetries = 3;
+    setIsSyncing(true);
+    setSyncError(null);
+    
     try {
       const orderTotal = updatedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
-      await supabase.from('table_states').update({
-        current_order: updatedProducts,
-        order_total: orderTotal,
-        updated_at: new Date().toISOString()
-      }).eq('restaurant_id', profile.restaurant_id).eq('table_number', selectedTable);
+      
+      const { data, error } = await supabase
+        .from('table_states')
+        .update({
+          current_order: updatedProducts,
+          order_total: orderTotal,
+          updated_at: new Date().toISOString()
+        })
+        .eq('restaurant_id', profile.restaurant_id)
+        .eq('table_number', selectedTable)
+        .select();
+      
+      if (error) throw error;
+      
+      // Verificar que la actualización se aplicó
+      if (!data || data.length === 0) {
+        throw new Error('No se actualizó ningún registro');
+      }
+      
+      setIsSyncing(false);
+      return true;
     } catch (error) {
-      console.error('Error actualizando orden de mesa:', error);
+      console.error(`Error actualizando orden de mesa (intento ${retryCount + 1}):`, error);
+      
+      if (retryCount < maxRetries) {
+        // Retry exponencial
+        const delay = Math.pow(2, retryCount) * 300;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return updateTableOrder(updatedProducts, retryCount + 1);
+      }
+      
+      // Falló después de todos los reintentos
+      setIsSyncing(false);
+      setSyncError('No se pudo guardar. Reintenta.');
+      toast({
+        title: "Error de sincronización",
+        description: "Los cambios no se guardaron. Revisa tu conexión.",
+        variant: "destructive"
+      });
+      return false;
     }
   };
+  
   const addProduct = async (product: any) => {
     const existing = selectedProducts.find(p => p.id === product.id);
     let updatedProducts;
@@ -777,18 +823,29 @@ const Billing = () => {
         quantity: 1
       }];
     }
+    
+    // Actualizar UI inmediatamente (optimistic update)
     setSelectedProducts(updatedProducts);
 
-    // Actualizar en la base de datos
-    await updateTableOrder(updatedProducts);
-    toast({
-      title: "Producto agregado",
-      description: `${product.name} añadido a la orden`
-    });
+    // Actualizar en la base de datos con validación
+    const success = await updateTableOrder(updatedProducts);
+    
+    if (success) {
+      toast({
+        title: "Producto agregado",
+        description: `${product.name} añadido a la orden`
+      });
+    } else {
+      // Revertir UI si falló la persistencia
+      setSelectedProducts(selectedProducts);
+    }
   };
+  
   const removeProduct = async (productId: number) => {
     const existing = selectedProducts.find(p => p.id === productId);
+    const previousProducts = [...selectedProducts];
     let updatedProducts;
+    
     if (existing && existing.quantity > 1) {
       updatedProducts = selectedProducts.map(p => p.id === productId ? {
         ...p,
@@ -797,10 +854,17 @@ const Billing = () => {
     } else {
       updatedProducts = selectedProducts.filter(p => p.id !== productId);
     }
+    
+    // Optimistic update
     setSelectedProducts(updatedProducts);
 
-    // Actualizar en la base de datos
-    await updateTableOrder(updatedProducts);
+    // Actualizar en la base de datos con validación
+    const success = await updateTableOrder(updatedProducts);
+    
+    if (!success) {
+      // Revertir si falló
+      setSelectedProducts(previousProducts);
+    }
   };
   const calculateSubtotal = () => selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const calculateTipAmount = () => {
@@ -1003,18 +1067,47 @@ const Billing = () => {
       console.error('Error procesando consumo por receta:', err);
     }
   };
+  // Cargar orden de mesa SIEMPRE desde DB - es la fuente de verdad
   const loadTableOrder = async (tableNumber: number) => {
     if (!profile?.restaurant_id) return;
+    
+    setIsSyncing(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('table_states').select('current_order').eq('restaurant_id', profile.restaurant_id).eq('table_number', tableNumber).single();
-      if (!error && data?.current_order) {
-        setSelectedProducts(Array.isArray(data.current_order) ? data.current_order : []);
+      const { data, error } = await supabase
+        .from('table_states')
+        .select('current_order, order_total, status')
+        .eq('restaurant_id', profile.restaurant_id)
+        .eq('table_number', tableNumber)
+        .single();
+      
+      if (error) {
+        console.error('Error cargando orden de mesa:', error);
+        toast({
+          title: "Error de carga",
+          description: "No se pudo cargar la orden. Intenta nuevamente.",
+          variant: "destructive"
+        });
+        setIsSyncing(false);
+        return;
       }
+      
+      if (data?.current_order) {
+        const orderProducts = Array.isArray(data.current_order) ? data.current_order : [];
+        setSelectedProducts(orderProducts);
+        console.log(`Mesa ${tableNumber} cargada con ${orderProducts.length} productos`);
+      } else {
+        setSelectedProducts([]);
+      }
+      
+      setIsSyncing(false);
     } catch (error) {
       console.error('Error cargando orden de mesa:', error);
+      setIsSyncing(false);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la orden de la mesa",
+        variant: "destructive"
+      });
     }
   };
   const handleTableSelect = async (tableNumber: number) => {
@@ -1662,7 +1755,28 @@ Por favor:
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1">
-                  <h1 className="text-xl font-bold">Orden {selectedTable}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold">Orden {selectedTable}</h1>
+                    {/* Indicador de sincronización */}
+                    {isSyncing && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 rounded-full animate-pulse">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-ping" />
+                        <span className="text-xs text-yellow-700 font-medium">Guardando...</span>
+                      </div>
+                    )}
+                    {syncError && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-red-100 rounded-full">
+                        <AlertTriangle className="w-3 h-3 text-red-500" />
+                        <span className="text-xs text-red-700 font-medium">{syncError}</span>
+                      </div>
+                    )}
+                    {!isSyncing && !syncError && selectedProducts.length > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-green-100 rounded-full">
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        <span className="text-xs text-green-700 font-medium">Guardado</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-muted-foreground">Selecciona productos</p>
                     <span className="text-xs text-muted-foreground">•</span>
