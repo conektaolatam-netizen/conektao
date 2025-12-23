@@ -3660,6 +3660,16 @@ export type Database = {
         }[]
       }
       cleanup_expired_invitations: { Args: never; Returns: undefined }
+      clear_table_order: {
+        Args: {
+          p_reason?: string
+          p_restaurant_id: string
+          p_table_number: number
+          p_user_id: string
+          p_user_name?: string
+        }
+        Returns: Json
+      }
       generate_monthly_invoice_document: {
         Args: { p_month: number; p_restaurant_id: string; p_year: number }
         Returns: string
