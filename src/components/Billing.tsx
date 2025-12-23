@@ -816,6 +816,8 @@ const Billing = () => {
   
   // Función para anular/liberar mesa usando RPC atómico
   const handleClearTable = async () => {
+    console.log('>>> handleClearTable INICIADO <<<');
+    
     // Validación con feedback al usuario
     if (!profile?.restaurant_id) {
       console.error('handleClearTable: No restaurant_id');
@@ -841,9 +843,20 @@ const Billing = () => {
       reason: clearTableReason 
     });
     
+    // Mostrar feedback inmediato
+    toast({ title: "Procesando...", description: `${hasProducts ? 'Anulando' : 'Liberando'} mesa ${selectedTable}` });
+    
     setIsClearingTable(true);
     
     try {
+      console.log('Llamando RPC clear_table_order con:', {
+        p_table_number: selectedTable,
+        p_restaurant_id: profile.restaurant_id,
+        p_user_id: user.id,
+        p_user_name: profile?.full_name || 'Usuario',
+        p_reason: hasProducts ? clearTableReason : (clearTableReason || 'Mesa liberada sin productos')
+      });
+      
       const { data, error } = await supabase.rpc('clear_table_order', {
         p_table_number: selectedTable,
         p_restaurant_id: profile.restaurant_id,
@@ -854,9 +867,13 @@ const Billing = () => {
       
       console.log('RPC clear_table_order response:', { data, error });
       
-      if (error) throw error;
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
       
       const result = data as { success: boolean; message: string };
+      console.log('RPC result:', result);
       
       if (!result?.success) {
         throw new Error(result?.message || 'Error desconocido');
@@ -878,6 +895,8 @@ const Billing = () => {
         description: `Mesa ${selectedTable} liberada.${hasProducts ? ' Quedó registro para auditoría.' : ''}`
       });
       
+      console.log('>>> handleClearTable COMPLETADO EXITOSAMENTE <<<');
+      
       // Cerrar modal y resetear estado
       setShowClearTableModal(false);
       setClearTableReason('');
@@ -888,11 +907,11 @@ const Billing = () => {
       // Forzar recarga desde DB
       await loadTodaysSales();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error limpiando mesa:', error);
       toast({
-        title: "Error",
-        description: `No se pudo ${hasProducts ? 'anular' : 'liberar'} la mesa. Reintenta.`,
+        title: "Error al procesar",
+        description: error?.message || `No se pudo ${hasProducts ? 'anular' : 'liberar'} la mesa. Reintenta.`,
         variant: "destructive"
       });
     } finally {
@@ -2552,8 +2571,14 @@ Por favor:
                 Cancelar
               </AlertDialogCancel>
               <Button
+                type="button"
                 variant={selectedProducts.length > 0 ? "destructive" : "default"}
-                onClick={handleClearTable}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('>>> CONFIRMAR ANULACIÓN/LIBERAR clicked <<<');
+                  handleClearTable();
+                }}
                 disabled={isClearingTable || (selectedProducts.length > 0 && !clearTableReason.trim())}
                 className={`w-full sm:w-auto font-bold shadow-lg ${selectedProducts.length > 0 ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white'}`}
               >
