@@ -81,6 +81,12 @@ All colors MUST be HSL.
     --ai-surface: 0 0% 2%;
     --ai-foreground: 0 0% 95%;
     --ai-border: 0 0% 18%;
+
+    /* ALICIA Design System */
+    --alicia-turquoise: 174 100% 29%;
+    --alicia-orange: 25 100% 50%;
+    --alicia-surface: 0 0% 4%;
+    --alicia-glow: 174 100% 29%;
   }
 
   .dark {
@@ -196,6 +202,36 @@ All colors MUST be HSL.
   /* Fix responsive overflow */
   .max-w-screen {
     max-width: 100vw;
+  }
+
+  /* ALICIA Styles */
+  .alicia-gradient {
+    background: linear-gradient(135deg, hsl(174 100% 29%), hsl(25 100% 50%));
+  }
+
+  .alicia-surface {
+    background: hsl(0 0% 4%);
+  }
+
+  .alicia-border {
+    border-color: hsl(0 0% 15%);
+  }
+
+  .alicia-glow {
+    box-shadow: 0 0 30px hsl(174 100% 29% / 0.15);
+  }
+
+  .alicia-breathing {
+    animation: aliciaBreathing 3s ease-in-out infinite;
+  }
+
+  @keyframes aliciaBreathing {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(174 100% 29% / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(174 100% 29% / 0.4), 0 0 60px hsl(25 100% 50% / 0.2);
+    }
   }
 
   .break-anywhere {
