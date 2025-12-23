@@ -2248,6 +2248,129 @@ Por favor:
               </Button>
             </div>
           </div>}
+          
+        {/* Modal de confirmación para ANULAR/LIBERAR MESA - DENTRO de vista menu */}
+        <AlertDialog open={showClearTableModal} onOpenChange={(open) => !open && closeClearTableModal()}>
+          <AlertDialogContent className={`max-w-md ${(clearTableData?.products.length ?? 0) > 0 ? 'border-red-200 bg-gradient-to-b from-red-50 to-white' : 'border-cyan-200 bg-gradient-to-b from-cyan-50 to-white'}`}>
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-gradient-to-br from-red-500 to-red-700 animate-pulse' : 'bg-gradient-to-br from-cyan-500 to-cyan-700'}`}>
+                  {(clearTableData?.products.length ?? 0) > 0 ? (
+                    <AlertTriangle className="h-7 w-7 text-white" />
+                  ) : (
+                    <CheckCircle className="h-7 w-7 text-white" />
+                  )}
+                </div>
+                <div>
+                  <AlertDialogTitle className={`text-xl font-bold ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? `⚠️ Anular mesa ${clearTableData?.tableNumber}` : `Liberar mesa ${clearTableData?.tableNumber}`}
+                  </AlertDialogTitle>
+                  <p className={`text-xs font-medium ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-500' : 'text-cyan-500'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Acción crítica con auditoría' : 'Marcar mesa como disponible'}
+                  </p>
+                </div>
+              </div>
+              <AlertDialogDescription className={`text-base p-3 rounded-lg border ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-red-100 border-red-200' : 'bg-cyan-100 border-cyan-200'}`}>
+                {(clearTableData?.products.length ?? 0) > 0 ? (
+                  <>
+                    <strong className="text-red-700">Esto eliminará la orden y liberará la mesa.</strong>
+                    <br />
+                    <span className="text-red-600">Quedará registro permanente para auditoría del dueño.</span>
+                  </>
+                ) : (
+                  <span className="text-cyan-700">Esta mesa está vacía. Se liberará para nuevos clientes.</span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="my-4 space-y-4">
+              {/* Resumen de la orden - USANDO DATOS CAPTURADOS */}
+              <div className={`p-4 rounded-lg border ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-cyan-50 border-cyan-200'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-sm font-medium ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Orden a anular:' : 'Estado actual:'}
+                  </span>
+                  <Badge variant={(clearTableData?.products.length ?? 0) > 0 ? "destructive" : "secondary"} className="text-xs">
+                    Mesa {clearTableData?.tableNumber}
+                  </Badge>
+                </div>
+                <div className={`space-y-1 text-sm ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
+                  <p>• <strong>{clearTableData?.products.length ?? 0}</strong> productos</p>
+                  <p>• Total: <strong>{formatCurrency(clearTableData?.total ?? 0)}</strong></p>
+                </div>
+                {(clearTableData?.products.length ?? 0) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-red-200 max-h-24 overflow-y-auto">
+                    {clearTableData?.products.map((p, i) => (
+                      <p key={i} className="text-xs text-red-500">
+                        {p.quantity}x {p.name} - {formatCurrency(p.price * p.quantity)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Motivo - obligatorio solo si hay productos */}
+              {(clearTableData?.products.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="clearReasonMenu" className="text-red-700 font-semibold flex items-center gap-2">
+                    <span>Motivo de anulación</span>
+                    <Badge variant="outline" className="text-xs border-red-300 text-red-600">Obligatorio</Badge>
+                  </Label>
+                  <Textarea
+                    id="clearReasonMenu"
+                    placeholder="Ej: Error de comanda, cliente se fue, producto devuelto, otro..."
+                    value={clearTableReason}
+                    onChange={(e) => setClearTableReason(e.target.value)}
+                    className="min-h-[80px] border-red-200 focus:border-red-400 focus:ring-red-400"
+                  />
+                </div>
+              )}
+            </div>
+            
+            <AlertDialogFooter className={`flex-col sm:flex-row gap-2 pt-4 border-t ${(clearTableData?.products.length ?? 0) > 0 ? 'border-red-200' : 'border-cyan-200'}`}>
+              <AlertDialogCancel 
+                disabled={isClearingTable}
+                onClick={() => closeClearTableModal()}
+                className="w-full sm:w-auto border-2"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <Button
+                type="button"
+                variant={(clearTableData?.products.length ?? 0) > 0 ? "destructive" : "default"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('>>> CONFIRMAR ANULACIÓN/LIBERAR clicked (from menu view) <<<', { clearTableData });
+                  handleClearTable();
+                }}
+                disabled={isClearingTable || ((clearTableData?.products.length ?? 0) > 0 && !clearTableReason.trim())}
+                className={`w-full sm:w-auto font-bold shadow-lg ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white'}`}
+              >
+                {isClearingTable ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Anulando...' : 'Liberando...'}
+                  </>
+                ) : (
+                  <>
+                    {(clearTableData?.products.length ?? 0) > 0 ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        CONFIRMAR ANULACIÓN
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        LIBERAR MESA
+                      </>
+                    )}
+                  </>
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>;
   }
 
