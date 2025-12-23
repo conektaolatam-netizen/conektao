@@ -13,20 +13,71 @@ const AliciaAvatar: React.FC<AliciaAvatarProps> = ({
   size = 'md' 
 }) => {
   const sizeClasses = {
-    sm: 'w-16 h-16',
-    md: 'w-24 h-24',
-    lg: 'w-32 h-32'
+    sm: 'w-12 h-12',
+    md: 'w-20 h-20',
+    lg: 'w-28 h-28'
+  };
+
+  const innerSizeClasses = {
+    sm: 'w-10 h-10',
+    md: 'w-16 h-16',
+    lg: 'w-24 h-24'
   };
 
   return (
-    <div className={`relative ${sizeClasses[size]}`}>
-      {/* Glow effect when speaking */}
+    <div className={`relative ${sizeClasses[size]} flex items-center justify-center`}>
+      {/* Outer breathing glow ring */}
+      <motion.div
+        className="absolute inset-0 rounded-full alicia-gradient opacity-30"
+        animate={{
+          scale: [1, 1.15, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+
+      {/* Speaking pulse rings */}
       {isSpeaking && (
+        <>
+          <motion.div
+            className="absolute inset-0 rounded-full border-2 border-[hsl(174,100%,29%)]"
+            animate={{
+              scale: [1, 1.4],
+              opacity: [0.6, 0],
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          />
+          <motion.div
+            className="absolute inset-0 rounded-full border-2 border-[hsl(25,100%,50%)]"
+            animate={{
+              scale: [1, 1.6],
+              opacity: [0.4, 0],
+            }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "easeOut",
+              delay: 0.3,
+            }}
+          />
+        </>
+      )}
+
+      {/* Listening indicator ring */}
+      {isListening && !isSpeaking && (
         <motion.div
-          className="absolute inset-0 rounded-full bg-primary/30"
+          className="absolute inset-0 rounded-full border-2 border-emerald-400"
           animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.5, 0.2, 0.5],
+            scale: [1, 1.1, 1],
+            opacity: [0.8, 0.4, 0.8],
           }}
           transition={{
             duration: 1.5,
@@ -36,103 +87,96 @@ const AliciaAvatar: React.FC<AliciaAvatarProps> = ({
         />
       )}
 
-      {/* Listening indicator */}
-      {isListening && (
-        <motion.div
-          className="absolute inset-0 rounded-full border-2 border-green-400"
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [1, 0.5, 1],
-          }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      )}
-
-      {/* Robot body */}
+      {/* Main avatar body */}
       <motion.div
-        className="relative w-full h-full rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 shadow-lg border-2 border-primary/30 overflow-hidden"
-        animate={isSpeaking ? { scale: [1, 1.02, 1] } : {}}
-        transition={{ duration: 0.3, repeat: isSpeaking ? Infinity : 0 }}
+        className={`relative ${innerSizeClasses[size]} rounded-full alicia-gradient shadow-lg overflow-hidden`}
+        animate={isSpeaking ? { scale: [1, 1.03, 1] } : {}}
+        transition={{ duration: 0.4, repeat: isSpeaking ? Infinity : 0 }}
       >
-        {/* Robot face */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {/* Inner dark surface */}
+        <div className="absolute inset-1 rounded-full bg-[#0a0a0a] flex flex-col items-center justify-center">
           {/* Eyes */}
-          <div className="flex gap-3 mb-2">
+          <div className="flex gap-2 mb-1">
             <motion.div
-              className="w-3 h-3 rounded-full bg-white shadow-inner"
+              className="w-2 h-2 rounded-full bg-[hsl(174,100%,50%)]"
               animate={{
-                scaleY: [1, 0.1, 1],
+                scaleY: isSpeaking ? [1, 0.3, 1] : [1, 0.1, 1],
+                boxShadow: [
+                  '0 0 4px hsl(174,100%,50%)',
+                  '0 0 8px hsl(174,100%,50%)',
+                  '0 0 4px hsl(174,100%,50%)'
+                ],
               }}
               transition={{
-                duration: 0.2,
-                repeat: Infinity,
-                repeatDelay: 3,
+                scaleY: {
+                  duration: isSpeaking ? 0.3 : 0.2,
+                  repeat: Infinity,
+                  repeatDelay: isSpeaking ? 0 : 3,
+                },
+                boxShadow: {
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
               }}
             />
             <motion.div
-              className="w-3 h-3 rounded-full bg-white shadow-inner"
+              className="w-2 h-2 rounded-full bg-[hsl(174,100%,50%)]"
               animate={{
-                scaleY: [1, 0.1, 1],
+                scaleY: isSpeaking ? [1, 0.3, 1] : [1, 0.1, 1],
+                boxShadow: [
+                  '0 0 4px hsl(174,100%,50%)',
+                  '0 0 8px hsl(174,100%,50%)',
+                  '0 0 4px hsl(174,100%,50%)'
+                ],
               }}
               transition={{
-                duration: 0.2,
-                repeat: Infinity,
-                repeatDelay: 3,
+                scaleY: {
+                  duration: isSpeaking ? 0.3 : 0.2,
+                  repeat: Infinity,
+                  repeatDelay: isSpeaking ? 0 : 3,
+                },
+                boxShadow: {
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
               }}
             />
           </div>
 
-          {/* Mouth - animates when speaking */}
+          {/* Mouth / voice indicator */}
           <motion.div
-            className="w-6 h-2 bg-white rounded-full"
+            className="w-4 h-1 rounded-full bg-gradient-to-r from-[hsl(174,100%,40%)] to-[hsl(25,100%,50%)]"
             animate={isSpeaking ? {
-              scaleX: [1, 1.2, 0.8, 1],
-              scaleY: [1, 1.5, 0.5, 1],
-            } : {}}
+              scaleX: [1, 1.3, 0.7, 1],
+              scaleY: [1, 2, 0.5, 1],
+            } : {
+              scaleX: 1,
+              scaleY: 1,
+            }}
             transition={{
-              duration: 0.3,
+              duration: 0.25,
               repeat: isSpeaking ? Infinity : 0,
             }}
           />
         </div>
-
-        {/* Antenna */}
-        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-          <motion.div
-            className="w-1.5 h-4 bg-primary rounded-t-full"
-            animate={isSpeaking ? { rotateZ: [-5, 5, -5] } : {}}
-            transition={{ duration: 0.5, repeat: Infinity }}
-          />
-          <motion.div
-            className="w-3 h-3 rounded-full bg-white absolute -top-2 left-1/2 transform -translate-x-1/2"
-            animate={{
-              boxShadow: isSpeaking 
-                ? ['0 0 5px #8B5CF6', '0 0 15px #8B5CF6', '0 0 5px #8B5CF6']
-                : '0 0 5px #8B5CF6',
-            }}
-            transition={{ duration: 0.5, repeat: Infinity }}
-          />
-        </div>
       </motion.div>
 
-      {/* Sound waves when speaking */}
+      {/* Sound wave indicators when speaking */}
       {isSpeaking && (
-        <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 flex gap-0.5">
+        <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 flex gap-0.5">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-1 bg-primary rounded-full"
+              className="w-0.5 rounded-full bg-gradient-to-b from-[hsl(174,100%,40%)] to-[hsl(25,100%,50%)]"
               animate={{
-                height: ['8px', '16px', '8px'],
+                height: ['6px', '14px', '6px'],
               }}
               transition={{
-                duration: 0.4,
+                duration: 0.35,
                 repeat: Infinity,
-                delay: i * 0.1,
+                delay: i * 0.08,
               }}
             />
           ))}

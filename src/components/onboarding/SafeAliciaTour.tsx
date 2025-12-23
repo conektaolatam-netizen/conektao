@@ -115,19 +115,19 @@ const SafeAliciaTour: React.FC<SafeAliciaTourProps> = ({ onComplete, onSkip }) =
 
         {/* Overlay para pasos sin target */}
         {!currentTourStep.targetSelector && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
         )}
 
-        {/* Panel principal de AliciIA */}
+        {/* Panel principal de AliciIA - ALICIA Design */}
         <motion.div
           className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4"
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header con avatar y controles */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50">
+          <div className="alicia-surface border border-[hsl(0,0%,15%)] rounded-2xl shadow-2xl overflow-hidden alicia-glow">
+            {/* Header con avatar y controles - Gradient ALICIA */}
+            <div className="flex items-center justify-between p-4 border-b border-[hsl(0,0%,15%)] alicia-gradient">
               <div className="flex items-center gap-3">
                 <AliciaAvatar
                   isSpeaking={false}
@@ -135,13 +135,13 @@ const SafeAliciaTour: React.FC<SafeAliciaTourProps> = ({ onComplete, onSkip }) =
                   size="sm"
                 />
                 <div>
-                  <h3 className="font-semibold text-foreground">AliciIA</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <h3 className="font-semibold text-white">AlicIA</h3>
+                  <p className="text-xs text-white/70">
                     {isConnecting 
                       ? 'Conectando...' 
                       : isVoiceEnabled 
                         ? 'Modo voz activo' 
-                        : 'Modo texto'}
+                        : 'Tu asistente CONEKTAO'}
                   </p>
                 </div>
               </div>
@@ -151,47 +151,47 @@ const SafeAliciaTour: React.FC<SafeAliciaTourProps> = ({ onComplete, onSkip }) =
                   size="icon"
                   onClick={toggleVoice}
                   disabled={isConnecting}
-                  className="h-8 w-8"
+                  className="h-8 w-8 text-white hover:bg-white/10"
                 >
                   {isVoiceEnabled ? (
-                    <Volume2 className="h-4 w-4 text-primary" />
+                    <Volume2 className="h-4 w-4" />
                   ) : (
-                    <MicOff className="h-4 w-4" />
+                    <MicOff className="h-4 w-4 opacity-70" />
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleSkip}
-                  className="h-8 w-8"
+                  className="h-8 w-8 text-white hover:bg-white/10"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Contenido del paso */}
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground">
+            {/* Contenido del paso - Deep black surface */}
+            <div className="p-5 bg-[#0a0a0a]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-gray-500">
                   Paso {currentStep + 1} de {tourSteps.length}
                 </span>
-                <span className="text-xs font-medium text-primary">
+                <span className="text-xs font-medium text-[hsl(174,100%,45%)]">
                   {currentTourStep.title}
                 </span>
               </div>
 
-              {/* Progress bar */}
-              <div className="h-1 bg-muted rounded-full mb-4">
+              {/* Progress bar - Gradient */}
+              <div className="h-1 bg-[hsl(0,0%,15%)] rounded-full mb-4 overflow-hidden">
                 <motion.div
-                  className="h-full bg-primary rounded-full"
+                  className="h-full alicia-gradient rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${((currentStep + 1) / tourSteps.length) * 100}%` }}
                 />
               </div>
 
               {/* Descripción */}
-              <p className="text-sm text-foreground mb-4 leading-relaxed">
+              <p className="text-sm text-gray-300 mb-5 leading-relaxed">
                 {currentSubtitle || currentTourStep.description}
               </p>
 
@@ -201,17 +201,17 @@ const SafeAliciaTour: React.FC<SafeAliciaTourProps> = ({ onComplete, onSkip }) =
                   variant="ghost"
                   size="sm"
                   onClick={handleSkip}
-                  className="text-muted-foreground"
+                  className="text-gray-500 hover:text-gray-300 hover:bg-white/5"
                 >
                   <SkipForward className="h-4 w-4 mr-1" />
-                  Saltar tour
+                  Saltar
                 </Button>
                 <Button
                   onClick={nextStep}
                   size="sm"
-                  className="bg-primary hover:bg-primary/90"
+                  className="alicia-gradient text-white hover:opacity-90 shadow-lg"
                 >
-                  {currentStep === tourSteps.length - 1 ? 'Finalizar' : 'Siguiente'}
+                  {currentStep === tourSteps.length - 1 ? 'Comenzar' : 'Siguiente'}
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
