@@ -116,10 +116,37 @@ const Billing = () => {
   const [editPrice, setEditPrice] = useState('');
   const [editDescription, setEditDescription] = useState('');
   
-  // Estado para modal de limpiar mesa
+  // Estado para modal de limpiar mesa - CAPTURAMOS datos antes de abrir modal
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [clearTableReason, setClearTableReason] = useState('');
   const [isClearingTable, setIsClearingTable] = useState(false);
+  const [clearTableData, setClearTableData] = useState<{
+    tableNumber: number;
+    products: any[];
+    total: number;
+  } | null>(null);
+  
+  // Función para abrir modal capturando datos ANTES
+  const openClearTableModal = () => {
+    if (!selectedTable) {
+      toast({ title: "Error", description: "No hay mesa seleccionada", variant: "destructive" });
+      return;
+    }
+    // CAPTURAR estado ANTES de abrir modal
+    setClearTableData({
+      tableNumber: selectedTable,
+      products: [...selectedProducts],
+      total: selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0)
+    });
+    setShowClearTableModal(true);
+  };
+  
+  // Función para cerrar modal y limpiar datos capturados
+  const closeClearTableModal = () => {
+    setShowClearTableModal(false);
+    setClearTableReason('');
+    setClearTableData(null);
+  };
   const openEditProduct = (product: any) => {
     // Abrir el ProductCreator con el producto existente para edición completa
     setEditingProductWithAI({
@@ -290,12 +317,15 @@ const Billing = () => {
   // Efecto para limpiar productos y recargar mesas cuando se vuelve a la vista de tables
   useEffect(() => {
     if (currentView === 'tables') {
-      setSelectedProducts([]);
-      setSelectedTable(null);
+      // NO resetear si el modal está abierto - usuario puede estar anulando
+      if (!showClearTableModal) {
+        setSelectedProducts([]);
+        setSelectedTable(null);
+      }
       // CRÍTICO: Siempre recargar mesas desde DB para evitar datos stale
       loadTodaysSales();
     }
-  }, [currentView]);
+  }, [currentView, showClearTableModal]);
   const loadCategoriesFromDB = async () => {
     if (!user || !profile?.restaurant_id) return;
     try {
@@ -814,19 +844,24 @@ const Billing = () => {
     }
   };
   
-  // Función para anular/liberar mesa usando RPC atómico
+  // Función para anular/liberar mesa usando RPC atómico - USA clearTableData (datos capturados)
   const handleClearTable = async () => {
     console.log('>>> handleClearTable INICIADO <<<');
+    
+    // USAR DATOS CAPTURADOS, NO ESTADO LIVE
+    if (!clearTableData) {
+      console.error('handleClearTable: No clearTableData');
+      toast({ title: "Error", description: "No hay datos de mesa para procesar", variant: "destructive" });
+      return;
+    }
+    
+    const { tableNumber, products } = clearTableData;
+    const hasProducts = products.length > 0;
     
     // Validación con feedback al usuario
     if (!profile?.restaurant_id) {
       console.error('handleClearTable: No restaurant_id');
       toast({ title: "Error", description: "No se encontró el restaurante", variant: "destructive" });
-      return;
-    }
-    if (!selectedTable) {
-      console.error('handleClearTable: No selectedTable');
-      toast({ title: "Error", description: "No hay mesa seleccionada", variant: "destructive" });
       return;
     }
     if (!user) {
@@ -835,35 +870,30 @@ const Billing = () => {
       return;
     }
     
-    const hasProducts = selectedProducts.length > 0;
-    console.log('handleClearTable ejecutando:', { 
-      selectedTable, 
+    console.log('handleClearTable ejecutando con datos CAPTURADOS:', { 
+      tableNumber, 
       hasProducts, 
-      productCount: selectedProducts.length,
+      productCount: products.length,
       reason: clearTableReason 
     });
     
     // Mostrar feedback inmediato
-    toast({ title: "Procesando...", description: `${hasProducts ? 'Anulando' : 'Liberando'} mesa ${selectedTable}` });
+    toast({ title: "Procesando...", description: `${hasProducts ? 'Anulando' : 'Liberando'} mesa ${tableNumber}` });
     
     setIsClearingTable(true);
     
     try {
-      console.log('Llamando RPC clear_table_order con:', {
-        p_table_number: selectedTable,
+      const rpcParams = {
+        p_table_number: tableNumber,
         p_restaurant_id: profile.restaurant_id,
         p_user_id: user.id,
         p_user_name: profile?.full_name || 'Usuario',
         p_reason: hasProducts ? clearTableReason : (clearTableReason || 'Mesa liberada sin productos')
-      });
+      };
       
-      const { data, error } = await supabase.rpc('clear_table_order', {
-        p_table_number: selectedTable,
-        p_restaurant_id: profile.restaurant_id,
-        p_user_id: user.id,
-        p_user_name: profile?.full_name || 'Usuario',
-        p_reason: hasProducts ? clearTableReason : (clearTableReason || 'Mesa liberada sin productos')
-      });
+      console.log('Llamando RPC clear_table_order con:', rpcParams);
+      
+      const { data, error } = await supabase.rpc('clear_table_order', rpcParams);
       
       console.log('RPC clear_table_order response:', { data, error });
       
@@ -883,23 +913,22 @@ const Billing = () => {
       setSelectedProducts([]);
       setKitchenOrderSent(false);
       
-      // Actualizar estado local de la mesa
+      // Actualizar estado local de la mesa usando tableNumber capturado
       setTables(prev => prev.map(t => 
-        t.number === selectedTable 
+        t.number === tableNumber 
           ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0, current_order: [] }
           : t
       ));
       
       toast({
         title: hasProducts ? "✅ Mesa anulada" : "✅ Mesa liberada",
-        description: `Mesa ${selectedTable} liberada.${hasProducts ? ' Quedó registro para auditoría.' : ''}`
+        description: `Mesa ${tableNumber} liberada.${hasProducts ? ' Quedó registro para auditoría.' : ''}`
       });
       
       console.log('>>> handleClearTable COMPLETADO EXITOSAMENTE <<<');
       
-      // Cerrar modal y resetear estado
-      setShowClearTableModal(false);
-      setClearTableReason('');
+      // Cerrar modal y limpiar datos capturados
+      closeClearTableModal();
       
       // Volver al dashboard de mesas
       setCurrentView('tables');
@@ -1935,10 +1964,10 @@ Por favor:
                   )
                 )}
 
-                {/* ANULAR MESA - Único botón para cancelar/limpiar */}
+                {/* ANULAR MESA - Único botón para cancelar/limpiar - USA openClearTableModal para CAPTURAR datos */}
                 <Button
                   variant="destructive"
-                  onClick={() => setShowClearTableModal(true)}
+                  onClick={openClearTableModal}
                   className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold shadow-lg border-0"
                 >
                   <AlertTriangle className="h-4 w-4 mr-2" />
@@ -2485,29 +2514,29 @@ Por favor:
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Modal de confirmación para ANULAR/LIBERAR MESA - UX diferenciada */}
-        <AlertDialog open={showClearTableModal} onOpenChange={setShowClearTableModal}>
-          <AlertDialogContent className={`max-w-md ${selectedProducts.length > 0 ? 'border-red-200 bg-gradient-to-b from-red-50 to-white' : 'border-cyan-200 bg-gradient-to-b from-cyan-50 to-white'}`}>
+        {/* Modal de confirmación para ANULAR/LIBERAR MESA - USA clearTableData (datos capturados) */}
+        <AlertDialog open={showClearTableModal} onOpenChange={(open) => !open && closeClearTableModal()}>
+          <AlertDialogContent className={`max-w-md ${(clearTableData?.products.length ?? 0) > 0 ? 'border-red-200 bg-gradient-to-b from-red-50 to-white' : 'border-cyan-200 bg-gradient-to-b from-cyan-50 to-white'}`}>
             <AlertDialogHeader>
               <div className="flex items-center gap-3 mb-2">
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${selectedProducts.length > 0 ? 'bg-gradient-to-br from-red-500 to-red-700 animate-pulse' : 'bg-gradient-to-br from-cyan-500 to-cyan-700'}`}>
-                  {selectedProducts.length > 0 ? (
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-gradient-to-br from-red-500 to-red-700 animate-pulse' : 'bg-gradient-to-br from-cyan-500 to-cyan-700'}`}>
+                  {(clearTableData?.products.length ?? 0) > 0 ? (
                     <AlertTriangle className="h-7 w-7 text-white" />
                   ) : (
                     <CheckCircle className="h-7 w-7 text-white" />
                   )}
                 </div>
                 <div>
-                  <AlertDialogTitle className={`text-xl font-bold ${selectedProducts.length > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
-                    {selectedProducts.length > 0 ? `⚠️ Anular mesa ${selectedTable}` : `Liberar mesa ${selectedTable}`}
+                  <AlertDialogTitle className={`text-xl font-bold ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? `⚠️ Anular mesa ${clearTableData?.tableNumber}` : `Liberar mesa ${clearTableData?.tableNumber}`}
                   </AlertDialogTitle>
-                  <p className={`text-xs font-medium ${selectedProducts.length > 0 ? 'text-red-500' : 'text-cyan-500'}`}>
-                    {selectedProducts.length > 0 ? 'Acción crítica con auditoría' : 'Marcar mesa como disponible'}
+                  <p className={`text-xs font-medium ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-500' : 'text-cyan-500'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Acción crítica con auditoría' : 'Marcar mesa como disponible'}
                   </p>
                 </div>
               </div>
-              <AlertDialogDescription className={`text-base p-3 rounded-lg border ${selectedProducts.length > 0 ? 'bg-red-100 border-red-200' : 'bg-cyan-100 border-cyan-200'}`}>
-                {selectedProducts.length > 0 ? (
+              <AlertDialogDescription className={`text-base p-3 rounded-lg border ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-red-100 border-red-200' : 'bg-cyan-100 border-cyan-200'}`}>
+                {(clearTableData?.products.length ?? 0) > 0 ? (
                   <>
                     <strong className="text-red-700">Esto eliminará la orden y liberará la mesa.</strong>
                     <br />
@@ -2520,23 +2549,23 @@ Por favor:
             </AlertDialogHeader>
             
             <div className="my-4 space-y-4">
-              {/* Resumen de la orden */}
-              <div className={`p-4 rounded-lg border ${selectedProducts.length > 0 ? 'bg-red-50 border-red-200' : 'bg-cyan-50 border-cyan-200'}`}>
+              {/* Resumen de la orden - USANDO DATOS CAPTURADOS */}
+              <div className={`p-4 rounded-lg border ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-cyan-50 border-cyan-200'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-sm font-medium ${selectedProducts.length > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
-                    {selectedProducts.length > 0 ? 'Orden a anular:' : 'Estado actual:'}
+                  <span className={`text-sm font-medium ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Orden a anular:' : 'Estado actual:'}
                   </span>
-                  <Badge variant={selectedProducts.length > 0 ? "destructive" : "secondary"} className="text-xs">
-                    Mesa {selectedTable}
+                  <Badge variant={(clearTableData?.products.length ?? 0) > 0 ? "destructive" : "secondary"} className="text-xs">
+                    Mesa {clearTableData?.tableNumber}
                   </Badge>
                 </div>
-                <div className={`space-y-1 text-sm ${selectedProducts.length > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
-                  <p>• <strong>{selectedProducts.length}</strong> productos</p>
-                  <p>• Total: <strong>{formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}</strong></p>
+                <div className={`space-y-1 text-sm ${(clearTableData?.products.length ?? 0) > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
+                  <p>• <strong>{clearTableData?.products.length ?? 0}</strong> productos</p>
+                  <p>• Total: <strong>{formatCurrency(clearTableData?.total ?? 0)}</strong></p>
                 </div>
-                {selectedProducts.length > 0 && (
+                {(clearTableData?.products.length ?? 0) > 0 && (
                   <div className="mt-3 pt-3 border-t border-red-200 max-h-24 overflow-y-auto">
-                    {selectedProducts.map((p, i) => (
+                    {clearTableData?.products.map((p, i) => (
                       <p key={i} className="text-xs text-red-500">
                         {p.quantity}x {p.name} - {formatCurrency(p.price * p.quantity)}
                       </p>
@@ -2546,7 +2575,7 @@ Por favor:
               </div>
               
               {/* Motivo - obligatorio solo si hay productos */}
-              {selectedProducts.length > 0 && (
+              {(clearTableData?.products.length ?? 0) > 0 && (
                 <div className="space-y-2">
                   <Label htmlFor="clearReason" className="text-red-700 font-semibold flex items-center gap-2">
                     <span>Motivo de anulación</span>
@@ -2563,33 +2592,34 @@ Por favor:
               )}
             </div>
             
-            <AlertDialogFooter className={`flex-col sm:flex-row gap-2 pt-4 border-t ${selectedProducts.length > 0 ? 'border-red-200' : 'border-cyan-200'}`}>
+            <AlertDialogFooter className={`flex-col sm:flex-row gap-2 pt-4 border-t ${(clearTableData?.products.length ?? 0) > 0 ? 'border-red-200' : 'border-cyan-200'}`}>
               <AlertDialogCancel 
                 disabled={isClearingTable}
+                onClick={() => closeClearTableModal()}
                 className="w-full sm:w-auto border-2"
               >
                 Cancelar
               </AlertDialogCancel>
               <Button
                 type="button"
-                variant={selectedProducts.length > 0 ? "destructive" : "default"}
+                variant={(clearTableData?.products.length ?? 0) > 0 ? "destructive" : "default"}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('>>> CONFIRMAR ANULACIÓN/LIBERAR clicked <<<');
+                  console.log('>>> CONFIRMAR ANULACIÓN/LIBERAR clicked <<<', { clearTableData });
                   handleClearTable();
                 }}
-                disabled={isClearingTable || (selectedProducts.length > 0 && !clearTableReason.trim())}
-                className={`w-full sm:w-auto font-bold shadow-lg ${selectedProducts.length > 0 ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white'}`}
+                disabled={isClearingTable || ((clearTableData?.products.length ?? 0) > 0 && !clearTableReason.trim())}
+                className={`w-full sm:w-auto font-bold shadow-lg ${(clearTableData?.products.length ?? 0) > 0 ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white'}`}
               >
                 {isClearingTable ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    {selectedProducts.length > 0 ? 'Anulando...' : 'Liberando...'}
+                    {(clearTableData?.products.length ?? 0) > 0 ? 'Anulando...' : 'Liberando...'}
                   </>
                 ) : (
                   <>
-                    {selectedProducts.length > 0 ? (
+                    {(clearTableData?.products.length ?? 0) > 0 ? (
                       <>
                         <AlertTriangle className="h-4 w-4 mr-2" />
                         CONFIRMAR ANULACIÓN
