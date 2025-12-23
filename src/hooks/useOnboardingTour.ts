@@ -10,7 +10,7 @@ interface OnboardingState {
 }
 
 export const useOnboardingTour = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [state, setState] = useState<OnboardingState>({
     tourCompleted: false,
     tourStep: 0,
@@ -26,6 +26,18 @@ export const useOnboardingTour = () => {
         return;
       }
 
+      // SKIP automático del tour para empleados - evita problemas con ElevenLabs SDK
+      if (profile?.role === 'employee') {
+        console.log('Skipping tour for employee profile');
+        setState({
+          tourCompleted: true,
+          tourStep: 0,
+          isLoading: false,
+          showTour: false,
+        });
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from('user_onboarding')
@@ -35,6 +47,9 @@ export const useOnboardingTour = () => {
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error loading onboarding state:', error);
+          // Si hay error, no mostrar tour para evitar crashes
+          setState(prev => ({ ...prev, isLoading: false, showTour: false }));
+          return;
         }
 
         if (data) {
@@ -46,34 +61,53 @@ export const useOnboardingTour = () => {
           });
         } else {
           // Usuario nuevo, crear registro y mostrar tour
-          const { error: insertError } = await supabase
-            .from('user_onboarding')
-            .insert({
-              user_id: user.id,
-              tour_completed: false,
-              tour_step: 0,
-              tour_started_at: new Date().toISOString(),
+          try {
+            const { error: insertError } = await supabase
+              .from('user_onboarding')
+              .insert({
+                user_id: user.id,
+                tour_completed: false,
+                tour_step: 0,
+                tour_started_at: new Date().toISOString(),
+              });
+
+            if (insertError) {
+              console.error('Error creating onboarding record:', insertError);
+              // Si falla la inserción, no mostrar tour
+              setState({
+                tourCompleted: true,
+                tourStep: 0,
+                isLoading: false,
+                showTour: false,
+              });
+              return;
+            }
+
+            setState({
+              tourCompleted: false,
+              tourStep: 0,
+              isLoading: false,
+              showTour: true,
             });
-
-          if (insertError) {
-            console.error('Error creating onboarding record:', insertError);
+          } catch (insertCatch) {
+            console.error('Exception creating onboarding record:', insertCatch);
+            setState({
+              tourCompleted: true,
+              tourStep: 0,
+              isLoading: false,
+              showTour: false,
+            });
           }
-
-          setState({
-            tourCompleted: false,
-            tourStep: 0,
-            isLoading: false,
-            showTour: true,
-          });
         }
       } catch (error) {
         console.error('Error in loadOnboardingState:', error);
-        setState(prev => ({ ...prev, isLoading: false }));
+        // En caso de error, no mostrar tour para evitar crashes
+        setState(prev => ({ ...prev, isLoading: false, showTour: false }));
       }
     };
 
     loadOnboardingState();
-  }, [user?.id]);
+  }, [user?.id, profile?.role]);
 
   // Actualizar paso del tour
   const updateTourStep = useCallback(async (step: number) => {
