@@ -1869,6 +1869,51 @@ export type Database = {
           },
         ]
       }
+      prelaunch_partial_registrations: {
+        Row: {
+          business_type: string | null
+          converted_at: string | null
+          created_at: string
+          id: string
+          is_converted: boolean | null
+          name: string | null
+          phone: string | null
+          referrer: string | null
+          session_id: string
+          step_reached: number
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean | null
+          name?: string | null
+          phone?: string | null
+          referrer?: string | null
+          session_id: string
+          step_reached?: number
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean | null
+          name?: string | null
+          phone?: string | null
+          referrer?: string | null
+          session_id?: string
+          step_reached?: number
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       prelaunch_registrations: {
         Row: {
           branches: string
