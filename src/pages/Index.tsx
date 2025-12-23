@@ -25,10 +25,11 @@ import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
 import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
 import InventoryManagement from '@/components/inventory/InventoryManagement';
 import Welcome from './Welcome';
-import AliciaTour from '@/components/onboarding/AliciaTour';
+import SafeAliciaTour from '@/components/onboarding/SafeAliciaTour';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { LoadingState, ErrorState } from '@/components/LoadingState';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import React from 'react';
 
 const Index = () => {
   const {
@@ -254,12 +255,20 @@ const Index = () => {
       setShowTutorial(false);
     }} />}
 
-      {/* Tour de AliciIA para usuarios nuevos */}
+      {/* Tour de AliciIA para usuarios nuevos - Con ErrorBoundary protector */}
       {showTour && !tourLoading && (
-        <AliciaTour 
-          onComplete={completeTour} 
-          onSkip={skipTour} 
-        />
+        <ErrorBoundary 
+          fallback={null} 
+          onError={(error) => {
+            console.error('Tour crashed, auto-skipping:', error);
+            skipTour();
+          }}
+        >
+          <SafeAliciaTour 
+            onComplete={completeTour} 
+            onSkip={skipTour} 
+          />
+        </ErrorBoundary>
       )}
     </>;
 };
