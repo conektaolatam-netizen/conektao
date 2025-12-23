@@ -814,9 +814,32 @@ const Billing = () => {
     }
   };
   
-  // Función para limpiar mesa usando RPC atómico
+  // Función para anular/liberar mesa usando RPC atómico
   const handleClearTable = async () => {
-    if (!profile?.restaurant_id || !selectedTable || !user) return;
+    // Validación con feedback al usuario
+    if (!profile?.restaurant_id) {
+      console.error('handleClearTable: No restaurant_id');
+      toast({ title: "Error", description: "No se encontró el restaurante", variant: "destructive" });
+      return;
+    }
+    if (!selectedTable) {
+      console.error('handleClearTable: No selectedTable');
+      toast({ title: "Error", description: "No hay mesa seleccionada", variant: "destructive" });
+      return;
+    }
+    if (!user) {
+      console.error('handleClearTable: No user');
+      toast({ title: "Error", description: "Usuario no autenticado", variant: "destructive" });
+      return;
+    }
+    
+    const hasProducts = selectedProducts.length > 0;
+    console.log('handleClearTable ejecutando:', { 
+      selectedTable, 
+      hasProducts, 
+      productCount: selectedProducts.length,
+      reason: clearTableReason 
+    });
     
     setIsClearingTable(true);
     
@@ -826,8 +849,10 @@ const Billing = () => {
         p_restaurant_id: profile.restaurant_id,
         p_user_id: user.id,
         p_user_name: profile?.full_name || 'Usuario',
-        p_reason: clearTableReason || null
+        p_reason: hasProducts ? clearTableReason : (clearTableReason || 'Mesa liberada sin productos')
       });
+      
+      console.log('RPC clear_table_order response:', { data, error });
       
       if (error) throw error;
       
@@ -844,18 +869,21 @@ const Billing = () => {
       // Actualizar estado local de la mesa
       setTables(prev => prev.map(t => 
         t.number === selectedTable 
-          ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0 }
+          ? { ...t, status: 'libre', customers: 0, guestCount: 0, orderTotal: 0, current_order: [] }
           : t
       ));
       
       toast({
-        title: "✅ Mesa anulada",
-        description: `Mesa ${selectedTable} liberada. Quedó registro para auditoría.`
+        title: hasProducts ? "✅ Mesa anulada" : "✅ Mesa liberada",
+        description: `Mesa ${selectedTable} liberada.${hasProducts ? ' Quedó registro para auditoría.' : ''}`
       });
       
       // Cerrar modal y resetear estado
       setShowClearTableModal(false);
       setClearTableReason('');
+      
+      // Volver al dashboard de mesas
+      setCurrentView('tables');
       
       // Forzar recarga desde DB
       await loadTodaysSales();
@@ -864,7 +892,7 @@ const Billing = () => {
       console.error('Error limpiando mesa:', error);
       toast({
         title: "Error",
-        description: "No se pudo limpiar la mesa. Reintenta.",
+        description: `No se pudo ${hasProducts ? 'anular' : 'liberar'} la mesa. Reintenta.`,
         variant: "destructive"
       });
     } finally {
@@ -2438,36 +2466,52 @@ Por favor:
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Modal de confirmación para ANULAR MESA - Peligroso y confirmativo */}
+        {/* Modal de confirmación para ANULAR/LIBERAR MESA - UX diferenciada */}
         <AlertDialog open={showClearTableModal} onOpenChange={setShowClearTableModal}>
-          <AlertDialogContent className="max-w-md border-red-200 bg-gradient-to-b from-red-50 to-white">
+          <AlertDialogContent className={`max-w-md ${selectedProducts.length > 0 ? 'border-red-200 bg-gradient-to-b from-red-50 to-white' : 'border-cyan-200 bg-gradient-to-b from-cyan-50 to-white'}`}>
             <AlertDialogHeader>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg animate-pulse">
-                  <AlertTriangle className="h-7 w-7 text-white" />
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${selectedProducts.length > 0 ? 'bg-gradient-to-br from-red-500 to-red-700 animate-pulse' : 'bg-gradient-to-br from-cyan-500 to-cyan-700'}`}>
+                  {selectedProducts.length > 0 ? (
+                    <AlertTriangle className="h-7 w-7 text-white" />
+                  ) : (
+                    <CheckCircle className="h-7 w-7 text-white" />
+                  )}
                 </div>
                 <div>
-                  <AlertDialogTitle className="text-xl text-red-700 font-bold">⚠️ Anular mesa {selectedTable}</AlertDialogTitle>
-                  <p className="text-xs text-red-500 font-medium">Acción crítica con auditoría</p>
+                  <AlertDialogTitle className={`text-xl font-bold ${selectedProducts.length > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {selectedProducts.length > 0 ? `⚠️ Anular mesa ${selectedTable}` : `Liberar mesa ${selectedTable}`}
+                  </AlertDialogTitle>
+                  <p className={`text-xs font-medium ${selectedProducts.length > 0 ? 'text-red-500' : 'text-cyan-500'}`}>
+                    {selectedProducts.length > 0 ? 'Acción crítica con auditoría' : 'Marcar mesa como disponible'}
+                  </p>
                 </div>
               </div>
-              <AlertDialogDescription className="text-base bg-red-100 p-3 rounded-lg border border-red-200">
-                <strong className="text-red-700">Esto eliminará la orden y liberará la mesa.</strong>
-                <br />
-                <span className="text-red-600">Quedará registro permanente para auditoría del dueño.</span>
+              <AlertDialogDescription className={`text-base p-3 rounded-lg border ${selectedProducts.length > 0 ? 'bg-red-100 border-red-200' : 'bg-cyan-100 border-cyan-200'}`}>
+                {selectedProducts.length > 0 ? (
+                  <>
+                    <strong className="text-red-700">Esto eliminará la orden y liberará la mesa.</strong>
+                    <br />
+                    <span className="text-red-600">Quedará registro permanente para auditoría del dueño.</span>
+                  </>
+                ) : (
+                  <span className="text-cyan-700">Esta mesa está vacía. Se liberará para nuevos clientes.</span>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             
             <div className="my-4 space-y-4">
               {/* Resumen de la orden */}
-              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <div className={`p-4 rounded-lg border ${selectedProducts.length > 0 ? 'bg-red-50 border-red-200' : 'bg-cyan-50 border-cyan-200'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-red-700">Orden a anular:</span>
-                  <Badge variant="destructive" className="text-xs">
+                  <span className={`text-sm font-medium ${selectedProducts.length > 0 ? 'text-red-700' : 'text-cyan-700'}`}>
+                    {selectedProducts.length > 0 ? 'Orden a anular:' : 'Estado actual:'}
+                  </span>
+                  <Badge variant={selectedProducts.length > 0 ? "destructive" : "secondary"} className="text-xs">
                     Mesa {selectedTable}
                   </Badge>
                 </div>
-                <div className="space-y-1 text-sm text-red-600">
+                <div className={`space-y-1 text-sm ${selectedProducts.length > 0 ? 'text-red-600' : 'text-cyan-600'}`}>
                   <p>• <strong>{selectedProducts.length}</strong> productos</p>
                   <p>• Total: <strong>{formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}</strong></p>
                 </div>
@@ -2482,23 +2526,25 @@ Por favor:
                 )}
               </div>
               
-              {/* Motivo obligatorio */}
-              <div className="space-y-2">
-                <Label htmlFor="clearReason" className="text-red-700 font-semibold flex items-center gap-2">
-                  <span>Motivo de anulación</span>
-                  {selectedProducts.length > 0 && <Badge variant="outline" className="text-xs border-red-300 text-red-600">Obligatorio</Badge>}
-                </Label>
-                <Textarea
-                  id="clearReason"
-                  placeholder="Ej: Error de comanda, cliente se fue, producto devuelto, otro..."
-                  value={clearTableReason}
-                  onChange={(e) => setClearTableReason(e.target.value)}
-                  className="min-h-[80px] border-red-200 focus:border-red-400 focus:ring-red-400"
-                />
-              </div>
+              {/* Motivo - obligatorio solo si hay productos */}
+              {selectedProducts.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="clearReason" className="text-red-700 font-semibold flex items-center gap-2">
+                    <span>Motivo de anulación</span>
+                    <Badge variant="outline" className="text-xs border-red-300 text-red-600">Obligatorio</Badge>
+                  </Label>
+                  <Textarea
+                    id="clearReason"
+                    placeholder="Ej: Error de comanda, cliente se fue, producto devuelto, otro..."
+                    value={clearTableReason}
+                    onChange={(e) => setClearTableReason(e.target.value)}
+                    className="min-h-[80px] border-red-200 focus:border-red-400 focus:ring-red-400"
+                  />
+                </div>
+              )}
             </div>
             
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4 border-t border-red-200">
+            <AlertDialogFooter className={`flex-col sm:flex-row gap-2 pt-4 border-t ${selectedProducts.length > 0 ? 'border-red-200' : 'border-cyan-200'}`}>
               <AlertDialogCancel 
                 disabled={isClearingTable}
                 className="w-full sm:w-auto border-2"
@@ -2506,20 +2552,29 @@ Por favor:
                 Cancelar
               </AlertDialogCancel>
               <Button
-                variant="destructive"
+                variant={selectedProducts.length > 0 ? "destructive" : "default"}
                 onClick={handleClearTable}
                 disabled={isClearingTable || (selectedProducts.length > 0 && !clearTableReason.trim())}
-                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-bold shadow-lg"
+                className={`w-full sm:w-auto font-bold shadow-lg ${selectedProducts.length > 0 ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' : 'bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white'}`}
               >
                 {isClearingTable ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Anulando...
+                    {selectedProducts.length > 0 ? 'Anulando...' : 'Liberando...'}
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    CONFIRMAR ANULACIÓN
+                    {selectedProducts.length > 0 ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        CONFIRMAR ANULACIÓN
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        LIBERAR MESA
+                      </>
+                    )}
                   </>
                 )}
               </Button>
