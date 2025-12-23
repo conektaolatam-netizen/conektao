@@ -849,8 +849,8 @@ const Billing = () => {
       ));
       
       toast({
-        title: "✅ Mesa limpiada",
-        description: `Mesa ${selectedTable} está lista para nuevos clientes`
+        title: "✅ Mesa anulada",
+        description: `Mesa ${selectedTable} liberada. Quedó registro para auditoría.`
       });
       
       // Cerrar modal y resetear estado
@@ -1888,17 +1888,15 @@ Por favor:
                   )
                 )}
 
-                {/* LIMPIAR MESA */}
-                {selectedProducts.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowClearTableModal(true)}
-                    className="border-red-300 text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Limpiar mesa
-                  </Button>
-                )}
+                {/* ANULAR MESA - Único botón para cancelar/limpiar */}
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowClearTableModal(true)}
+                  className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold shadow-lg border-0"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  ANULAR MESA
+                </Button>
 
                 {/* IMPRIMIR CUENTA */}
                 {selectedProducts.length > 0 && (
@@ -2440,44 +2438,70 @@ Por favor:
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Modal de confirmación para limpiar mesa */}
+        {/* Modal de confirmación para ANULAR MESA - Peligroso y confirmativo */}
         <AlertDialog open={showClearTableModal} onOpenChange={setShowClearTableModal}>
-          <AlertDialogContent className="max-w-md">
+          <AlertDialogContent className="max-w-md border-red-200 bg-gradient-to-b from-red-50 to-white">
             <AlertDialogHeader>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <Trash2 className="h-6 w-6 text-red-600" />
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg animate-pulse">
+                  <AlertTriangle className="h-7 w-7 text-white" />
                 </div>
-                <AlertDialogTitle className="text-xl">¿Limpiar mesa {selectedTable}?</AlertDialogTitle>
+                <div>
+                  <AlertDialogTitle className="text-xl text-red-700 font-bold">⚠️ Anular mesa {selectedTable}</AlertDialogTitle>
+                  <p className="text-xs text-red-500 font-medium">Acción crítica con auditoría</p>
+                </div>
               </div>
-              <AlertDialogDescription className="text-base">
-                Esta acción eliminará todos los productos de la mesa. Se guardará un registro de auditoría.
+              <AlertDialogDescription className="text-base bg-red-100 p-3 rounded-lg border border-red-200">
+                <strong className="text-red-700">Esto eliminará la orden y liberará la mesa.</strong>
+                <br />
+                <span className="text-red-600">Quedará registro permanente para auditoría del dueño.</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             
             <div className="my-4 space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg border">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Mesa {selectedTable}</strong> • {selectedProducts.length} productos • {formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}
-                </p>
+              {/* Resumen de la orden */}
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-red-700">Orden a anular:</span>
+                  <Badge variant="destructive" className="text-xs">
+                    Mesa {selectedTable}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-sm text-red-600">
+                  <p>• <strong>{selectedProducts.length}</strong> productos</p>
+                  <p>• Total: <strong>{formatCurrency(selectedProducts.reduce((sum, p) => sum + (p.price * (p.quantity || 1)), 0))}</strong></p>
+                </div>
+                {selectedProducts.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-red-200 max-h-24 overflow-y-auto">
+                    {selectedProducts.map((p, i) => (
+                      <p key={i} className="text-xs text-red-500">
+                        {p.quantity}x {p.name} - {formatCurrency(p.price * p.quantity)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
               
+              {/* Motivo obligatorio */}
               <div className="space-y-2">
-                <Label htmlFor="clearReason">Motivo (obligatorio si hay productos)</Label>
+                <Label htmlFor="clearReason" className="text-red-700 font-semibold flex items-center gap-2">
+                  <span>Motivo de anulación</span>
+                  {selectedProducts.length > 0 && <Badge variant="outline" className="text-xs border-red-300 text-red-600">Obligatorio</Badge>}
+                </Label>
                 <Textarea
                   id="clearReason"
-                  placeholder="Ej: Cliente canceló, error en la orden, etc."
+                  placeholder="Ej: Error de comanda, cliente se fue, producto devuelto, otro..."
                   value={clearTableReason}
                   onChange={(e) => setClearTableReason(e.target.value)}
-                  className="min-h-[80px]"
+                  className="min-h-[80px] border-red-200 focus:border-red-400 focus:ring-red-400"
                 />
               </div>
             </div>
             
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4 border-t border-red-200">
               <AlertDialogCancel 
                 disabled={isClearingTable}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto border-2"
               >
                 Cancelar
               </AlertDialogCancel>
@@ -2485,17 +2509,17 @@ Por favor:
                 variant="destructive"
                 onClick={handleClearTable}
                 disabled={isClearingTable || (selectedProducts.length > 0 && !clearTableReason.trim())}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-bold shadow-lg"
               >
                 {isClearingTable ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Limpiando...
+                    Anulando...
                   </>
                 ) : (
                   <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Confirmar limpieza
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    CONFIRMAR ANULACIÓN
                   </>
                 )}
               </Button>
