@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const resend = new Resend(RESEND_API_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +25,10 @@ interface PrelaunchRegistration {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("=== SEND PRELAUNCH NOTIFICATION CALLED ===");
+  console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
+  console.log("RESEND_API_KEY length:", RESEND_API_KEY?.length || 0);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -31,7 +36,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const registration: PrelaunchRegistration = await req.json();
-    console.log("Sending prelaunch notification for:", registration.email);
+    console.log("📧 New registration received:");
+    console.log("- Name:", registration.name);
+    console.log("- Business:", registration.business_name);
+    console.log("- Phone:", registration.phone);
 
     const improvementsList = registration.improvements_wanted.join(", ") || "Ninguna seleccionada";
     const posInfo = registration.pos_uses 
@@ -117,23 +125,30 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
+    console.log("📤 Attempting to send email via Resend...");
+    
     const emailResponse = await resend.emails.send({
       from: "Conektao <onboarding@resend.dev>",
       to: ["conektaolatam@gmail.com"],
-      subject: `Nuevo registro Conektao – Prelanzamiento: ${registration.business_name}`,
+      subject: `🚀 Nuevo registro: ${registration.name} - ${registration.business_name}`,
       html: emailHtml,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("✅ Email sent successfully!");
+    console.log("Email response:", JSON.stringify(emailResponse));
 
     return new Response(JSON.stringify({ success: true, emailResponse }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in send-prelaunch-notification:", error);
+    console.error("❌ Error in send-prelaunch-notification:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, name: error.name }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
