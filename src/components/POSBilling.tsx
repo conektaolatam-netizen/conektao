@@ -38,7 +38,7 @@ import {
   LogIn
 } from 'lucide-react';
 import KitchenOrderModal from '@/components/kitchen/KitchenOrderModal';
-import KitchenOrderWarningModal from '@/components/billing/KitchenOrderWarningModal';
+
 import PaymentBlockedModal from '@/components/billing/PaymentBlockedModal';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
@@ -111,9 +111,7 @@ const POSBilling = () => {
   const { sendToKitchen, checkPendingCommand, setPendingCommandReminder, isLoading: kitchenLoading } = useKitchenOrders();
   
   // Estados para modales de advertencia
-  const [showExitWarningModal, setShowExitWarningModal] = useState(false);
   const [showPaymentBlockedModal, setShowPaymentBlockedModal] = useState(false);
-  const [pendingNavigationTarget, setPendingNavigationTarget] = useState<string | null>(null);
   
   // Estado de mesas con sincronización con base de datos
   const [tables, setTables] = useState<Table[]>([]);
@@ -162,60 +160,22 @@ const POSBilling = () => {
     }
   };
 
-  // Verificar si hay items sin enviar a cocina antes de salir
-  const checkAndHandleExit = (targetView: string) => {
+  // Registrar salida sin enviar comanda de forma silenciosa (para auditorIA)
+  const logExitWithoutSending = async (targetView: string) => {
     if (selectedProducts.length > 0 && !kitchenOrderSent) {
-      setPendingNavigationTarget(targetView);
-      setShowExitWarningModal(true);
-      return true;
+      // Registrar evento sospechoso silenciosamente para auditorIA
+      await logSuspiciousEvent({
+        eventType: 'EXIT_ORDER_WITHOUT_SENDING_KITCHEN_ORDER',
+        tableNumber: selectedTable?.number,
+        hasItems: true,
+        itemsCount: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
+        orderTotal: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+        metadata: {
+          products: selectedProducts.map(p => ({ name: p.name, qty: p.quantity })),
+          exitTarget: targetView
+        }
+      });
     }
-    return false;
-  };
-
-  // Manejar envío de comanda desde modal de advertencia
-  const handleSendFromWarningModal = async () => {
-    setIsKitchenModalOpen(true);
-    setShowExitWarningModal(false);
-  };
-
-  // Manejar salida sin enviar comanda (registra evento sospechoso)
-  const handleExitWithoutSending = async () => {
-    // Registrar evento sospechoso para auditorIA
-    await logSuspiciousEvent({
-      eventType: 'EXIT_ORDER_WITHOUT_SENDING_KITCHEN_ORDER',
-      tableNumber: selectedTable?.number,
-      hasItems: selectedProducts.length > 0,
-      itemsCount: selectedProducts.reduce((sum, p) => sum + p.quantity, 0),
-      orderTotal: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-      metadata: {
-        products: selectedProducts.map(p => ({ name: p.name, qty: p.quantity })),
-        exitTarget: pendingNavigationTarget
-      }
-    });
-
-    toast({
-      title: "Saliendo sin enviar comanda",
-      description: "Este evento ha sido registrado para auditoría.",
-      variant: "default"
-    });
-
-    // Navegar al destino pendiente
-    if (pendingNavigationTarget) {
-      if (pendingNavigationTarget === 'tables') {
-        setCurrentView('tables');
-        setSelectedProducts([]);
-        setSelectedTable(null);
-        setKitchenOrderSent(false);
-      } else if (pendingNavigationTarget === 'order-type') {
-        setCurrentView('order-type');
-        setSelectedProducts([]);
-        setSelectedTable(null);
-        setKitchenOrderSent(false);
-      }
-    }
-
-    setShowExitWarningModal(false);
-    setPendingNavigationTarget(null);
   };
 
   // Verificar antes de procesar pago
@@ -452,10 +412,6 @@ const POSBilling = () => {
         className: "bg-green-50 border-green-200"
       });
 
-      // Si venía de modal de navegación pendiente, continuar
-      if (pendingNavigationTarget) {
-        setPendingNavigationTarget(null);
-      }
     } catch (error) {
       console.error('Error sending to kitchen:', error);
     }
@@ -633,19 +589,17 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
     }
   };
 
-  // Función para manejar navegación con verificación
-  const handleBackNavigation = (targetView: 'tables' | 'order-type' | 'guests' | 'customer-info') => {
-    if (selectedProducts.length > 0 && !kitchenOrderSent) {
-      setPendingNavigationTarget(targetView);
-      setShowExitWarningModal(true);
-    } else {
-      if (targetView === 'tables' || targetView === 'order-type') {
-        setSelectedProducts([]);
-        setSelectedTable(null);
-        setKitchenOrderSent(false);
-      }
-      setCurrentView(targetView);
+  // Función para manejar navegación (registra silenciosamente si hay items sin enviar)
+  const handleBackNavigation = async (targetView: 'tables' | 'order-type' | 'guests' | 'customer-info') => {
+    // Registrar silenciosamente para auditoría si hay items sin enviar
+    await logExitWithoutSending(targetView);
+    
+    if (targetView === 'tables' || targetView === 'order-type') {
+      setSelectedProducts([]);
+      setSelectedTable(null);
+      setKitchenOrderSent(false);
     }
+    setCurrentView(targetView);
   };
 
   return (
@@ -1474,16 +1428,6 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
         customerInfo={orderType === 'delivery' ? customerInfo : undefined}
       />
 
-      {/* Modal de advertencia al salir sin enviar comanda */}
-      <KitchenOrderWarningModal
-        isOpen={showExitWarningModal}
-        onClose={() => setShowExitWarningModal(false)}
-        onSendToKitchen={handleSendFromWarningModal}
-        onExitWithoutSending={handleExitWithoutSending}
-        itemsCount={selectedProducts.reduce((sum, p) => sum + p.quantity, 0)}
-        tableNumber={selectedTable?.number}
-        isLoading={kitchenLoading}
-      />
 
       {/* Modal de pago bloqueado sin comanda */}
       <PaymentBlockedModal
