@@ -9,12 +9,22 @@ import {
   Loader2,
   AlertTriangle,
   FileQuestion,
-  RotateCcw
+  RotateCcw,
+  ScanLine
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ManualReceiptForm } from '@/components/receipt/ManualReceiptForm';
 import { AssistedReceiptReview } from '@/components/receipt/AssistedReceiptReview';
+import { ReceiptBlockedState } from '@/components/receipt/ReceiptBlockedState';
+import { MultiCaptureScanner } from '@/components/receipt/MultiCaptureScanner';
+import { 
+  validateReceipt, 
+  calculateRealConfidence,
+  type ValidationResult,
+  type ConfidenceBreakdown,
+  type ReceiptState
+} from '@/lib/receiptValidation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,23 +35,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from '@/hooks/useAuth';
 
 interface ReceiptProcessorProps {
   onProcessComplete?: (data: any) => void;
 }
 
-type ProcessingMode = 'idle' | 'processing' | 'auto' | 'assisted' | 'manual';
+type ProcessingMode = 'idle' | 'multi_capture' | 'processing' | 'blocked' | 'assisted' | 'manual';
 
 const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }) => {
+  const { user, profile } = useAuth();
   const [mode, setMode] = useState<ProcessingMode>('idle');
+  const [receiptState, setReceiptState] = useState<ReceiptState>('uploaded');
   const [extractedData, setExtractedData] = useState<any>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [confidenceBreakdown, setConfidenceBreakdown] = useState<ConfidenceBreakdown | null>(null);
   const [fallbackReason, setFallbackReason] = useState<'low_confidence' | 'handwritten' | 'user_requested' | 'ai_error'>('user_requested');
   const [showExitWarning, setShowExitWarning] = useState(false);
+  const [captureHashes, setCaptureHashes] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Restringir upload de archivos para cajeros (employee role)
+  const isCashierOnly = profile?.role === 'employee';
 
   const resizeImage = (file: File, maxWidth: number = 1024): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -62,12 +81,14 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     });
   };
 
-  const processReceipt = async (file: File) => {
+  const processReceipt = async (imageBase64: string, sourceType: 'camera' | 'upload' | 'multi_capture' = 'camera') => {
     setMode('processing');
+    setReceiptState('uploaded');
     setExtractedData(null);
+    setValidation(null);
+    setConfidenceBreakdown(null);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({ title: "Error", description: "Debes iniciar sesión", variant: "destructive" });
         setMode('idle');
@@ -75,8 +96,9 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
       }
 
       // Upload original image
-      const path = `receipts/${user.id}/${Date.now()}-${file.name}`;
-      const { error: uploadErr } = await supabase.storage.from('receipts').upload(path, file, { contentType: file.type });
+      const blob = await fetch(imageBase64).then(r => r.blob());
+      const path = `receipts/${user.id}/${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage.from('receipts').upload(path, blob, { contentType: 'image/jpeg' });
 
       let publicUrl: string | null = null;
       if (!uploadErr) {
@@ -86,40 +108,77 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
       }
 
       // Resize for AI processing
-      const imageBase64 = await resizeImage(file, 800);
+      const resizedImage = imageBase64;
 
       // Call AI processor
       const { data, error } = await supabase.functions.invoke('receipt-processor', {
-        body: { imageBase64, userId: user.id, receiptUrl: publicUrl }
+        body: { 
+          imageBase64: resizedImage, 
+          userId: user.id, 
+          receiptUrl: publicUrl,
+          sourceType, // Track if from camera or upload
+          captureHashes // For multi-capture fraud detection
+        }
       });
 
       if (error) throw error;
 
-      // Determine processing level based on response
-      if (data.type === 'manual_required' || data.confidence < 50) {
-        // LEVEL C: Manual fallback
-        setFallbackReason(data.is_handwritten ? 'handwritten' : 'low_confidence');
-        setExtractedData(data.data || null);
-        setMode('manual');
-        toast({ title: "Modo manual activado", description: "La IA no pudo leer claramente la factura" });
+      setReceiptState('extracted');
+
+      // === VALIDACIÓN REAL OBLIGATORIA ===
+      const extractedDataWithDefaults = {
+        ...data.data,
+        items: data.data?.items || [],
+        total: data.data?.total || 0,
+        supplier_name: data.data?.supplier_name || ''
+      };
+
+      const validationResult = validateReceipt(extractedDataWithDefaults);
+      const breakdown = calculateRealConfidence(extractedDataWithDefaults);
+      
+      setValidation(validationResult);
+      setConfidenceBreakdown(breakdown);
+
+      // Guardar confianza REAL, no la reportada por IA
+      extractedDataWithDefaults.realConfidence = breakdown.weighted;
+      extractedDataWithDefaults.aiReportedConfidence = data.confidence || data.data?.confidence;
+      extractedDataWithDefaults.validationStatus = validationResult.status;
+
+      // === DECISIÓN BASADA EN VALIDACIÓN REAL ===
+      if (!validationResult.canProceed) {
+        // BLOCKED: Datos críticos faltantes
+        setExtractedData(extractedDataWithDefaults);
+        setFallbackReason('ai_error'); // Use existing type for validation failures
+        setReceiptState('blocked');
+        setMode('blocked');
         
-      } else if (data.confidence < 75 || data.has_low_confidence_items) {
-        // LEVEL B: Assisted review
-        setExtractedData(data.data || data);
+        // Log evento de auditoría
+        console.warn('Receipt BLOCKED:', validationResult.blockingReason);
+        
+      } else if (validationResult.status === 'needs_review' || breakdown.weighted < 70) {
+        // NEEDS REVIEW: Requiere revisión humana
+        setExtractedData(extractedDataWithDefaults);
+        setReceiptState('needs_review');
         setMode('assisted');
-        toast({ title: "Revisión requerida", description: "Algunos items necesitan verificación" });
+        toast({ 
+          title: "⚠️ Revisión requerida", 
+          description: `Confianza: ${breakdown.weighted}%. Verifica los datos.` 
+        });
         
       } else {
-        // LEVEL A: Auto (still requires confirmation)
-        setExtractedData(data.data || data);
-        setMode('assisted'); // Even "auto" goes through assisted for confirmation
-        toast({ title: "Factura procesada", description: "Revisa y confirma los datos" });
+        // VALID: Puede proceder pero siempre requiere confirmación
+        setExtractedData(extractedDataWithDefaults);
+        setReceiptState('pending_confirmation');
+        setMode('assisted');
+        toast({ 
+          title: "✅ Factura procesada", 
+          description: `Confianza: ${breakdown.weighted}%. Confirma los datos.` 
+        });
       }
 
     } catch (error: any) {
       console.error('Error processing receipt:', error);
       
-      // On error, offer manual fallback
       if (error.status === 429) {
         toast({ title: "Sistema ocupado", description: "Intenta de nuevo en unos segundos", variant: "destructive" });
       } else if (error.status === 402) {
@@ -137,15 +196,22 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         toast({ title: "Archivo muy grande", description: "Máximo 5MB", variant: "destructive" });
         return;
       }
-      processReceipt(file);
+      
+      const imageBase64 = await resizeImage(file, 1024);
+      processReceipt(imageBase64, 'upload');
     }
+  };
+
+  const handleMultiCaptureComplete = async (captures: any[], mergedImage: string) => {
+    setCaptureHashes(captures.map(c => c.hash));
+    await processReceipt(mergedImage, 'multi_capture');
   };
 
   const handleComplete = (result: any) => {
@@ -155,8 +221,12 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
 
   const resetState = () => {
     setMode('idle');
+    setReceiptState('uploaded');
     setExtractedData(null);
     setReceiptUrl(null);
+    setValidation(null);
+    setConfidenceBreakdown(null);
+    setCaptureHashes([]);
   };
 
   const handleSwitchToManual = () => {
@@ -177,25 +247,67 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         <CardContent>
           <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center space-y-4">
             <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <Camera className="h-8 w-8 text-primary" />
+              <ScanLine className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">🚀 Procesador Inteligente de Facturas</h3>
-              <p className="text-muted-foreground">
-                La IA extraerá ingredientes, cantidades y precios automáticamente
+              <h3 className="text-lg font-semibold">Escanear Factura de Proveedor</h3>
+              <p className="text-muted-foreground text-sm">
+                La IA extraerá proveedor, productos, cantidades y precios automáticamente
               </p>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-sm mx-auto">
-              <Button onClick={() => cameraInputRef.current?.click()} className="h-12">
-                <Camera className="h-4 w-4 mr-2" />
-                📸 Fotografiar
+            <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+              {/* Multi-capture for long receipts */}
+              <Button 
+                onClick={() => setMode('multi_capture')} 
+                className="h-12"
+                variant="default"
+              >
+                <ScanLine className="h-4 w-4 mr-2" />
+                📋 Escanear factura (guiado)
               </Button>
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="h-12">
-                <Upload className="h-4 w-4 mr-2" />
-                📁 Subir Archivo
-              </Button>
+              
+              {/* Quick single capture */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={() => cameraInputRef.current?.click()} 
+                  variant="outline" 
+                  className="h-10"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  📸 Foto rápida
+                </Button>
+                
+                {/* Solo admin/owner pueden subir archivos */}
+                {!isCashierOnly ? (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="h-10"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    📁 Subir
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    disabled 
+                    className="h-10 opacity-50"
+                    title="Solo cámara disponible para cajeros"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    📁 Subir
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {isCashierOnly && (
+              <p className="text-xs text-amber-600 flex items-center justify-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Política de seguridad: Solo captura con cámara disponible
+              </p>
+            )}
 
             <Button 
               variant="ghost" 
@@ -228,6 +340,17 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     );
   }
 
+  // MULTI-CAPTURE MODE
+  if (mode === 'multi_capture') {
+    return (
+      <MultiCaptureScanner
+        onComplete={handleMultiCaptureComplete}
+        onCancel={resetState}
+        restrictToCamera={isCashierOnly}
+      />
+    );
+  }
+
   // PROCESSING STATE
   if (mode === 'processing') {
     return (
@@ -236,9 +359,9 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
           <div className="flex items-center gap-3">
             <Loader2 className="h-6 w-6 text-primary animate-spin" />
             <div>
-              <p className="font-medium">🤖 IA procesando factura...</p>
+              <p className="font-medium">🤖 IA analizando factura...</p>
               <p className="text-sm text-muted-foreground">
-                Analizando imagen • Extrayendo datos • Preparando inventario
+                Extrayendo proveedor • Detectando productos • Validando totales
               </p>
             </div>
           </div>
@@ -256,12 +379,32 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     );
   }
 
+  // BLOCKED STATE - Critical data missing
+  if (mode === 'blocked' && validation) {
+    return (
+      <ReceiptBlockedState
+        validation={validation}
+        confidenceBreakdown={confidenceBreakdown || undefined}
+        onRescan={resetState}
+        onManualEntry={handleSwitchToManual}
+        onCancel={resetState}
+      />
+    );
+  }
+
   // ASSISTED MODE - Review and edit
   if (mode === 'assisted' && extractedData) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Badge variant="outline">Modo: Revisión Asistida</Badge>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Badge variant={validation?.status === 'needs_review' ? 'secondary' : 'default'}>
+              {receiptState === 'needs_review' ? '⚠️ Revisión requerida' : '✅ Pendiente confirmación'}
+            </Badge>
+            <Badge variant="outline">
+              Confianza real: {confidenceBreakdown?.weighted || 0}%
+            </Badge>
+          </div>
           <Button variant="ghost" size="sm" onClick={() => setShowExitWarning(true)}>
             <RotateCcw className="h-4 w-4 mr-1" />
             Nueva factura
@@ -269,7 +412,11 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         </div>
         
         <AssistedReceiptReview
-          extractedData={extractedData}
+          extractedData={{
+            ...extractedData,
+            // Override con confianza REAL
+            confidence: confidenceBreakdown?.weighted || 0
+          }}
           receiptUrl={receiptUrl || undefined}
           onComplete={handleComplete}
           onSwitchToManual={handleSwitchToManual}
