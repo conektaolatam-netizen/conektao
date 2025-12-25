@@ -301,6 +301,9 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Obtener rango del día actual para filtrar solo facturas de hoy
+      const { startISO, endISO } = getLocalDayRange();
+
       const { data, error } = await supabase
         .from('expenses')
         .select(`
@@ -315,8 +318,10 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
           )
         `)
         .eq('user_id', user.id)
+        .gte('created_at', startISO)
+        .lt('created_at', endISO)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (error) {
         console.error('Error loading processed receipts:', error);
