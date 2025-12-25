@@ -209,34 +209,48 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
     );
   }
 
+  // Calcular confianza real basada en datos
+  const realConfidence = extractedData?.realConfidence || extractedData?.confidence || 0;
+  const hasValidSupplier = Boolean(supplierName && supplierName.length > 2);
+  const hasValidTotal = totalAmount > 0;
+  const hasValidItems = items.length > 0;
+  const isCriticalDataMissing = !hasValidSupplier || !hasValidTotal || !hasValidItems;
+
   return (
     <div className="space-y-4">
-      {/* Header with confidence indicator */}
-      <Card className={hasIssues ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}>
+      {/* Header with REAL confidence indicator */}
+      <Card className={isCriticalDataMissing ? 'bg-red-50 border-red-200' : hasIssues ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              {hasIssues ? (
+              {isCriticalDataMissing ? (
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              ) : hasIssues ? (
                 <AlertTriangle className="h-5 w-5 text-amber-600" />
               ) : (
                 <CheckCircle className="h-5 w-5 text-green-600" />
               )}
               <div>
                 <p className="font-medium">
-                  {hasIssues 
-                    ? '⚠️ Revisión requerida' 
-                    : '✅ Factura procesada correctamente'
+                  {isCriticalDataMissing 
+                    ? '❌ Datos críticos faltantes'
+                    : hasIssues 
+                      ? '⚠️ Revisión requerida' 
+                      : '✅ Datos completos - Confirma para continuar'
                   }
                 </p>
                 <p className="text-sm text-muted-foreground">
+                  {!hasValidSupplier && 'Proveedor no identificado. '}
+                  {!hasValidTotal && 'Total inválido. '}
+                  {!hasValidItems && 'Sin items detectados. '}
                   {lowConfidenceItems.length > 0 && `${lowConfidenceItems.length} items con baja confianza. `}
                   {unmappedItems.length > 0 && `${unmappedItems.length} items sin mapear.`}
-                  {!hasIssues && 'Todos los items fueron reconocidos correctamente.'}
+                  {!hasIssues && !isCriticalDataMissing && 'Todos los items fueron reconocidos correctamente.'}
                 </p>
               </div>
             </div>
-            <Badge variant={hasIssues ? 'secondary' : 'default'}>
-              Confianza: {extractedData?.confidence || 85}%
+            <Badge variant={isCriticalDataMissing ? 'destructive' : hasIssues ? 'secondary' : 'default'}>
+              Confianza: {realConfidence}%
             </Badge>
           </div>
         </CardContent>
@@ -344,11 +358,16 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
         </div>
         <Button 
           onClick={handleConfirmAndProcess} 
-          disabled={isSubmitting || items.length === 0}
-          className="bg-green-600 hover:bg-green-700"
+          disabled={isSubmitting || items.length === 0 || isCriticalDataMissing || totalAmount <= 0}
+          className={isCriticalDataMissing ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}
         >
           {isSubmitting ? (
             <>Procesando...</>
+          ) : isCriticalDataMissing ? (
+            <>
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Datos incompletos - Usa modo manual
+            </>
           ) : (
             <>
               <CheckCircle className="h-4 w-4 mr-2" />
