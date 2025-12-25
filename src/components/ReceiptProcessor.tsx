@@ -123,56 +123,60 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
 
       if (error) throw error;
 
-      setReceiptState('extracted');
-
-      // === VALIDACIÓN REAL OBLIGATORIA ===
+      // El backend ya hace la validación real - usar esos datos
+      const validationFromBackend = data.validation;
       const extractedDataWithDefaults = {
         ...data.data,
         items: data.data?.items || [],
         total: data.data?.total || 0,
-        supplier_name: data.data?.supplier_name || ''
+        supplier_name: data.data?.supplier_name || '',
+        realConfidence: data.confidence || validationFromBackend?.realConfidence || 0
       };
 
-      const validationResult = validateReceipt(extractedDataWithDefaults);
-      const breakdown = calculateRealConfidence(extractedDataWithDefaults);
-      
-      setValidation(validationResult);
-      setConfidenceBreakdown(breakdown);
+      // Si el backend ya validó, usar su resultado
+      if (validationFromBackend) {
+        setValidation(validationFromBackend);
+        if (validationFromBackend.breakdown) {
+          setConfidenceBreakdown(validationFromBackend.breakdown);
+        }
+      } else {
+        // Fallback: validar en frontend
+        const validationResult = validateReceipt(extractedDataWithDefaults);
+        const breakdown = calculateRealConfidence(extractedDataWithDefaults);
+        setValidation(validationResult);
+        setConfidenceBreakdown(breakdown);
+        extractedDataWithDefaults.realConfidence = breakdown.weighted;
+      }
 
-      // Guardar confianza REAL, no la reportada por IA
-      extractedDataWithDefaults.realConfidence = breakdown.weighted;
-      extractedDataWithDefaults.aiReportedConfidence = data.confidence || data.data?.confidence;
-      extractedDataWithDefaults.validationStatus = validationResult.status;
+      setReceiptState('extracted');
 
-      // === DECISIÓN BASADA EN VALIDACIÓN REAL ===
-      if (!validationResult.canProceed) {
+      // === DECISIÓN BASADA EN TIPO DE RESPUESTA DEL BACKEND ===
+      if (data.type === 'blocked' || data.status === 'blocked') {
         // BLOCKED: Datos críticos faltantes
         setExtractedData(extractedDataWithDefaults);
-        setFallbackReason('ai_error'); // Use existing type for validation failures
+        setFallbackReason('ai_error');
         setReceiptState('blocked');
         setMode('blocked');
+        console.warn('Receipt BLOCKED:', data.validation?.blockingReason || data.message);
         
-        // Log evento de auditoría
-        console.warn('Receipt BLOCKED:', validationResult.blockingReason);
-        
-      } else if (validationResult.status === 'needs_review' || breakdown.weighted < 70) {
+      } else if (data.type === 'needs_review' || data.status === 'needs_review') {
         // NEEDS REVIEW: Requiere revisión humana
         setExtractedData(extractedDataWithDefaults);
         setReceiptState('needs_review');
         setMode('assisted');
         toast({ 
           title: "⚠️ Revisión requerida", 
-          description: `Confianza: ${breakdown.weighted}%. Verifica los datos.` 
+          description: `Confianza: ${extractedDataWithDefaults.realConfidence}%. Verifica los datos.` 
         });
         
       } else {
-        // VALID: Puede proceder pero siempre requiere confirmación
+        // VALID/PENDING_CONFIRMATION: Puede proceder pero siempre requiere confirmación
         setExtractedData(extractedDataWithDefaults);
         setReceiptState('pending_confirmation');
         setMode('assisted');
         toast({ 
           title: "✅ Factura procesada", 
-          description: `Confianza: ${breakdown.weighted}%. Confirma los datos.` 
+          description: `Confianza: ${extractedDataWithDefaults.realConfidence}%. Confirma los datos.` 
         });
       }
 
