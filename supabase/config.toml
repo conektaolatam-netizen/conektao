@@ -86,3 +86,6 @@ verify_jwt = true
 
 [functions.elevenlabs-conversation-token]
 verify_jwt = true
+
+[functions.daily-close-receipts]
+verify_jwt = true

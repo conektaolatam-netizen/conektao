@@ -35,7 +35,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { extractedData, userId, receiptUrl, paymentInfo, paymentOnly } = await req.json();
+    const { 
+      extractedData, 
+      userId, 
+      receiptUrl, 
+      paymentInfo, 
+      paymentOnly,
+      // New fields for deferred inventory and audit
+      receiptState,
+      originalExtraction,
+      userCorrected,
+      hasManualEdits,
+      captureHashes,
+      captureSource
+    } = await req.json();
 
     if (!extractedData || !userId) {
       return new Response(
@@ -82,13 +95,18 @@ serve(async (req) => {
     // Determine payment method and status for expense
     let paymentMethod = 'pending';
     let paymentStatus = 'pending';
+    let currentReceiptState = receiptState || 'pending_confirmation';
     
     if (paymentInfo) {
       paymentMethod = paymentInfo.method;
       paymentStatus = paymentInfo.method === 'credit' ? 'credit' : 'paid';
     }
 
-    // 1. Create expense record first
+    // DEFERRED INVENTORY: Only apply inventory when state is PAID
+    const shouldApplyInventory = currentReceiptState === 'paid' || 
+                                  (paymentInfo && paymentStatus === 'paid');
+
+    // 1. Create expense record first (always save for audit)
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
@@ -101,15 +119,75 @@ serve(async (req) => {
         subtotal: extractedData.subtotal,
         tax: extractedData.tax || 0,
         total_amount: extractedData.total,
-        status: 'processed',
+        status: shouldApplyInventory ? 'processed' : 'pending_inventory',
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         payment_details: paymentInfo || null,
-        ai_analysis: extractedData,
+        ai_analysis: {
+          ...extractedData,
+          original_extraction: originalExtraction || extractedData,
+          user_corrected: userCorrected || null,
+          has_manual_edits: hasManualEdits || false,
+          capture_hashes: captureHashes || [],
+          capture_source: captureSource || 'camera',
+          receipt_state: currentReceiptState
+        },
         receipt_url: receiptUrl || null
       })
       .select()
       .single();
+
+    if (expenseError) {
+      console.error('Error creating expense:', expenseError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to save expense' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Expense created:', expense.id, '| Apply inventory:', shouldApplyInventory);
+
+    // If payment is not complete, save and return without applying inventory
+    if (!shouldApplyInventory) {
+      // Save to business_documents for tracking
+      await supabase
+        .from('business_documents')
+        .insert({
+          restaurant_id: restaurantId,
+          user_id: userId,
+          document_type: 'supplier_invoice_pending',
+          document_date: extractedData.date || new Date().toISOString().split('T')[0],
+          title: `[PENDIENTE] Factura ${extractedData.invoice_number || 'S/N'} - ${extractedData.supplier_name}`,
+          content: JSON.stringify({
+            expense_id: expense.id,
+            supplier_name: extractedData.supplier_name,
+            invoice_number: extractedData.invoice_number,
+            total: extractedData.total,
+            items_count: extractedData.items?.length || 0,
+            receipt_url: receiptUrl,
+            receipt_state: currentReceiptState,
+            has_manual_edits: hasManualEdits
+          }),
+          metadata: {
+            expense_id: expense.id,
+            receipt_state: currentReceiptState,
+            pending_inventory: true
+          }
+        });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          expense_id: expense.id,
+          inventory_applied: false,
+          message: '📋 Factura guardada. El inventario se actualizará cuando se registre el pago.',
+          receipt_state: currentReceiptState
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // PROCEED WITH INVENTORY UPDATE (state is PAID)
 
     if (expenseError) {
       console.error('Error creating expense:', expenseError);
