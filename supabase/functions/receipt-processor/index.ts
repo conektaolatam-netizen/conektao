@@ -348,6 +348,30 @@ INSTRUCCIONES CRÍTICAS:
 6. Asigna confidence_score individual a cada item (0-100)
 7. NUNCA inventes datos - si no puedes leer algo, déjalo vacío
 
+=== MATCHING INTELIGENTE DE INGREDIENTES (MUY IMPORTANTE) ===
+Tu objetivo principal es ASOCIAR los productos de la factura con los ingredientes existentes del usuario.
+Debes pensar como un humano que entiende que:
+
+- "Coca Cola", "Coke", "Coca-cola 500ml", "COCA COLA PET", "coca cla" → son el mismo ingrediente
+- "Pepperoni", "Pepperoni madurado 500g", "Peperoni" → son el mismo ingrediente  
+- "Açaí pulp", "Açaí mix", "Pulpa de acai" → son el mismo ingrediente
+- "Queso mozarella", "Mozzarella", "Mozza", "queso moz" → son el mismo ingrediente
+- "Leche entera", "Leche 1L", "LECHE E/T" → son el mismo ingrediente
+- "Aceite vegetal", "Aceite de cocina", "Aceite" → son el mismo ingrediente
+- Las marcas pueden variar pero el ingrediente base es el mismo
+- Los errores tipográficos son comunes en facturas
+- Las abreviaturas son comunes (Lt = Litros, Kg = Kilos, Pte = Paquete)
+- El tamaño/presentación puede variar pero el ingrediente es el mismo
+
+REGLAS DE MATCHING:
+1. Busca coincidencias FLEXIBLES, no exactas
+2. Ignora diferencias de mayúsculas/minúsculas
+3. Ignora acentos y caracteres especiales
+4. Ignora tamaños y presentaciones (500ml, 1L, etc.)
+5. Considera errores tipográficos comunes
+6. Si hay duda entre varios ingredientes, elige el más similar
+7. Solo marca needs_mapping=true si NO hay ningún ingrediente similar
+
 FORMATO JSON OBLIGATORIO:
 {
   "success": true,
@@ -361,15 +385,16 @@ FORMATO JSON OBLIGATORIO:
   "total": numero o 0,
   "items": [
     {
-      "description": "nombre del producto/ingrediente",
+      "description": "nombre NORMALIZADO del ingrediente (ej: 'Coca Cola' aunque factura diga 'coke 500ml')",
       "quantity": numero,
       "unit": "kg/g/ml/L/unidades",
       "unit_price": numero,
       "subtotal": numero,
-      "matched_ingredient": "nombre del ingrediente existente si aplica",
-      "confidence_score": numero (0-100),
-      "needs_mapping": boolean,
-      "product_name_on_receipt": "nombre exacto como aparece en factura"
+      "matched_ingredient": "nombre EXACTO del ingrediente existente del usuario si encontraste match (copia exacto de la lista)",
+      "confidence_score": numero (0-100, qué tan seguro estás del match),
+      "needs_mapping": boolean (true SOLO si no encontraste ningún ingrediente similar),
+      "product_name_on_receipt": "nombre exacto como aparece en factura sin modificar",
+      "match_reason": "breve explicación de por qué hiciste este match o por qué no encontraste match"
     }
   ],
   "is_handwritten": boolean,
