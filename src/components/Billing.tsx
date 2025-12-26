@@ -51,6 +51,7 @@ const Billing = () => {
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [showInlineKitchen, setShowInlineKitchen] = useState(false);
   const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
+  const [lastSentProductCount, setLastSentProductCount] = useState(0); // Trackear productos enviados
   const [showNoKitchenWarning, setShowNoKitchenWarning] = useState(false);
   
   // Estado de procesamiento de pago - feedback inmediato
@@ -946,6 +947,7 @@ const Billing = () => {
       // SOLO si la DB confirmó, actualizar UI
       setSelectedProducts([]);
       setKitchenOrderSent(false);
+      setLastSentProductCount(0);
       
       // Actualizar estado local de la mesa usando tableNumber capturado
       setTables(prev => prev.map(t => 
@@ -1000,6 +1002,15 @@ const Billing = () => {
     }
     
     console.log('[addProduct] Productos actualizados:', updatedProducts.length);
+    
+    // Calcular total de unidades actual
+    const currentTotalUnits = updatedProducts.reduce((sum, p) => sum + (p.quantity || 1), 0);
+    
+    // Si ya se envió comanda y ahora hay más productos, resetear el estado para permitir nueva comanda
+    if (kitchenOrderSent && currentTotalUnits > lastSentProductCount) {
+      console.log('[addProduct] Nuevos productos agregados después de comanda enviada. Habilitando nuevo envío.');
+      setKitchenOrderSent(false);
+    }
     
     // Actualizar UI inmediatamente (optimistic update)
     setSelectedProducts(updatedProducts);
@@ -2088,9 +2099,10 @@ Por favor:
                 {/* ENVIAR COMANDA A COCINA */}
                 {selectedProducts.length > 0 && (
                   kitchenOrderSent ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-green-100 border border-green-300 rounded-lg animate-pulse">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-lg">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-green-700 font-medium text-sm">✓ Comanda enviada a cocina</span>
+                      <span className="text-green-700 font-medium text-sm">✓ Comanda enviada</span>
+                      <span className="text-green-600/70 text-xs hidden sm:inline">· Agrega más productos para nueva comanda</span>
                     </div>
                   ) : (
                     <Button
@@ -2224,8 +2236,10 @@ Por favor:
             tableNumber={selectedTable || undefined}
             onConfirmOrder={async (items, notes, priority, estimatedTime) => {
               try {
+                const totalUnits = selectedProducts.reduce((sum, p) => sum + (p.quantity || 1), 0);
                 await sendToKitchen(items, selectedTable || undefined, notes, priority as 'normal' | 'high' | 'urgent', estimatedTime);
                 setKitchenOrderSent(true);
+                setLastSentProductCount(totalUnits);
                 setShowInlineKitchen(false);
                 toast({
                   title: "✅ Comanda enviada",
@@ -2756,8 +2770,10 @@ Por favor:
           onClose={() => setIsKitchenModalOpen(false)}
           onConfirmOrder={async (items, notes, priority, estimatedTime) => {
             try {
+              const totalUnits = selectedProducts.reduce((sum, p) => sum + (p.quantity || 1), 0);
               await sendToKitchen(items, selectedTable || undefined, notes, priority as 'normal' | 'high' | 'urgent', estimatedTime);
               setKitchenOrderSent(true);
+              setLastSentProductCount(totalUnits); // Guardar cantidad al momento del envío
               setIsKitchenModalOpen(false);
               toast({
                 title: "✅ Comanda enviada",
