@@ -2031,7 +2031,11 @@ Por favor:
           <div className="p-4 bg-stone-950">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" onClick={() => setCurrentView('tables')} className="rounded-full">
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setIsKitchenModalOpen(false);
+                  closeClearTableModal();
+                  setCurrentView('tables');
+                }} className="rounded-full">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1">
