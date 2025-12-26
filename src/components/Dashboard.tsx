@@ -527,57 +527,82 @@ const Dashboard = ({
         </div>
       </div>
 
-      {/* Módulos de IA - Mobile optimized */}
-      <div className="space-y-2 sm:space-y-3 lg:space-y-4 relative z-10">
-        <h3 className="text-xs sm:text-sm lg:text-xl font-bold text-center bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-          🚀 INTELIGENCIA ARTIFICIAL
-        </h3>
+      {/* Módulos de IA - Diseño Futurista Apple iOS con Naranja */}
+      <div className="space-y-3 sm:space-y-4 lg:space-y-5 relative z-10">
+        {/* Header futurista */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
+          <h3 className="text-xs sm:text-sm lg:text-xl font-semibold tracking-wide text-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent uppercase">
+            Inteligencia Artificial
+          </h3>
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
+        </div>
+        
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
-          {aiActions.map((action, index) => <button key={index} className={`group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-r ${action.gradient} text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-500 lg:hover:scale-105 active:scale-95 border-0 overflow-hidden`} onClick={() => onModuleChange(action.module)}>
-              {/* Efectos holográficos */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+          {aiActions.map((action, index) => (
+            <button 
+              key={index} 
+              className="group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/40 transition-all duration-500 lg:hover:scale-105 active:scale-95 border border-white/20 overflow-hidden backdrop-blur-xl" 
+              onClick={() => onModuleChange(action.module)}
+            >
+              {/* Glassmorphism overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 rounded-2xl sm:rounded-3xl"></div>
               
-              {/* Partículas flotantes - hidden on mobile */}
-              <div className="absolute top-2 right-4 w-2 h-2 bg-foreground/60 rounded-full animate-bounce hidden sm:block"></div>
+              {/* Shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              
+              {/* Floating orb - hidden on mobile */}
+              <div className="absolute top-2 right-4 w-2 h-2 bg-white/70 rounded-full animate-pulse hidden sm:block"></div>
               
               <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3 lg:gap-4">
-                <div className="p-1.5 sm:p-2 lg:p-3 rounded-lg sm:rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-all flex-shrink-0">
-                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
+                <div className="p-1.5 sm:p-2 lg:p-3 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 flex-shrink-0 border border-white/10">
+                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                 </div>
                 <div className="text-left min-w-0 flex-1">
-                  <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold truncate">{action.title}</h4>
-                  <p className="text-[9px] sm:text-[10px] lg:text-sm opacity-90 truncate hidden sm:block">{action.description}</p>
+                  <h4 className="text-[10px] sm:text-xs lg:text-lg font-semibold tracking-tight truncate text-white">{action.title}</h4>
+                  <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/80 truncate hidden sm:block font-light">{action.description}</p>
                 </div>
-                <div className="text-base sm:text-lg lg:text-2xl group-hover:animate-pulse hidden sm:block">🤖</div>
+                <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-110 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-white/10">
+                  <span className="text-sm sm:text-base lg:text-lg">✦</span>
+                </div>
               </div>
-            </button>)}
+            </button>
+          ))}
         </div>
 
-        {/* auditorIA Quick Access - Only for owner/admin */}
+        {/* auditorIA Quick Access - Diseño Premium Apple iOS */}
         {(profile?.role === 'owner' || profile?.role === 'admin') && (
           <button 
-            className="group relative w-full h-12 sm:h-14 lg:h-16 p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-orange-500 text-white shadow-xl hover:shadow-2xl hover:shadow-cyan-500/30 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 border-0 overflow-hidden"
+            className="group relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/50 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 border border-white/20 overflow-hidden"
             onClick={() => onModuleChange('documents')}
           >
-            {/* Efectos */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            {/* Glassmorphism layers */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/10 rounded-2xl sm:rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            
+            {/* Subtle glow */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-amber-400 rounded-3xl opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500"></div>
             
             <div className="relative z-10 flex items-center justify-between h-full">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm group-hover:scale-110 transition-all">
-                  <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 border border-white/10">
+                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <h4 className="text-xs sm:text-sm lg:text-base font-bold">
-                    👁 <span className="text-white">auditor</span>
-                    <span className="bg-gradient-to-r from-cyan-200 to-orange-200 bg-clip-text text-transparent">IA</span>
-                    <span className="text-white/80 ml-1 sm:ml-2 text-[10px] sm:text-xs lg:text-sm font-normal hidden sm:inline">– Auditoría</span>
+                  <h4 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight flex items-center gap-1">
+                    <span className="text-white/90">auditor</span>
+                    <span className="bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent font-bold">IA</span>
+                    <span className="text-white/70 ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
                   </h4>
                 </div>
               </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full text-[9px] sm:text-xs font-semibold hidden sm:block">Hunter</span>
-                <span className="text-base sm:text-lg lg:text-xl">🛡️</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white/15 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-medium hidden sm:block border border-white/10">
+                  Hunter Pro
+                </span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                  <span className="text-sm sm:text-base">◉</span>
+                </div>
               </div>
             </div>
           </button>
