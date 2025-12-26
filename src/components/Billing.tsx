@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import KitchenOrderModal from './kitchen/KitchenOrderModal';
 import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
@@ -27,6 +27,8 @@ import TipAdjustmentModal from './billing/TipAdjustmentModal';
 import TipSelector from './billing/TipSelector';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useTipConfig } from '@/context/TipConfigContext';
+import { useCashRegisterStatus } from '@/hooks/useCashRegisterStatus';
+import CashRegisterBlockedModal from './billing/CashRegisterBlockedModal';
 
 const Billing = () => {
   const {
@@ -40,6 +42,10 @@ const Billing = () => {
   const { sendToKitchen, isLoading: kitchenLoading } = useKitchenOrders();
   const { logSuspiciousEvent } = useSuspiciousEvents();
   
+  // ✅ VERIFICACIÓN DE CAJA ABIERTA - Bloquea facturación sin base inicial
+  const { canProcessSales, isOpen: isCashOpen, isClosed: isCashClosed, isLoading: isCashLoading, refresh: refreshCashStatus } = useCashRegisterStatus();
+  const [showCashBlockedModal, setShowCashBlockedModal] = useState(false);
+  
   // Estado para cocina
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
@@ -50,6 +56,15 @@ const Billing = () => {
   
   // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
   const tipConfig = useTipConfig();
+  
+  // Verificar caja al intentar ir a pago
+  const checkCashBeforePayment = () => {
+    if (!canProcessSales && !isCashLoading) {
+      setShowCashBlockedModal(true);
+      return false;
+    }
+    return true;
+  };
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
@@ -2116,6 +2131,9 @@ Por favor:
                 {selectedProducts.length > 0 && (
                   <Button 
                     onClick={() => {
+                      // ✅ Verificar caja abierta primero
+                      if (!checkCashBeforePayment()) return;
+                      
                       if (!kitchenOrderSent) {
                         setShowNoKitchenWarning(true);
                       } else {
@@ -2349,7 +2367,11 @@ Por favor:
                 <Printer className="h-5 w-5 mr-2" />
                 Cuenta
               </Button>
-              <Button onClick={() => setCurrentView('payment')} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white font-semibold">
+              <Button onClick={() => {
+                // ✅ Verificar caja abierta primero
+                if (!checkCashBeforePayment()) return;
+                setCurrentView('payment');
+              }} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white font-semibold">
                 <Receipt className="h-5 w-5 mr-2" />
                 Cobrar ({selectedProducts.length})
               </Button>
@@ -2874,6 +2896,17 @@ Por favor:
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        
+        {/* ✅ Modal de bloqueo por caja no abierta */}
+        <CashRegisterBlockedModal
+          isOpen={showCashBlockedModal}
+          onClose={() => setShowCashBlockedModal(false)}
+          onGoToCash={() => {
+            setShowCashBlockedModal(false);
+            setCurrentView('cash');
+          }}
+          isClosed={isCashClosed}
+        />
     </div>;
 };
 export default Billing;

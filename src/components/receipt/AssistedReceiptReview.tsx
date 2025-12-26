@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, Edit3, Eye, ArrowRight } from 'lucide-react';
 import { ReceiptItemEditor, ReceiptItem } from './ReceiptItemEditor';
+import PaymentQuestionStep, { PaymentQuestionResult } from './PaymentQuestionStep';
 import { useIngredients } from '@/hooks/useIngredients';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +36,10 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
   const [showPayment, setShowPayment] = useState(false);
   const [savedExpenseId, setSavedExpenseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'summary' | 'edit'>('summary');
+  
+  // ✅ NUEVO: Paso de pregunta de pago ANTES de confirmar
+  const [currentStep, setCurrentStep] = useState<'review' | 'payment-question' | 'processing'>('review');
+  const [paymentDecision, setPaymentDecision] = useState<PaymentQuestionResult | null>(null);
 
   // Store original items for audit comparison
   const [originalItems] = useState<any[]>(extractedData?.items || []);
@@ -86,7 +91,14 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
       return;
     }
 
+    // ✅ NUEVO: Si no hay decisión de pago, ir al paso de pregunta primero
+    if (!paymentDecision) {
+      setCurrentStep('payment-question');
+      return;
+    }
+
     setIsSubmitting(true);
+    setCurrentStep('processing');
 
     try {
       // Detect and log significant changes for audit
@@ -101,7 +113,7 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
         await logLowConfidenceAccepted(extractedData.confidence, receiptUrl);
       }
 
-      // Process inventory update
+      // Process inventory update with payment info
       const { data, error } = await supabase.functions.invoke('update-inventory-from-receipt', {
         body: {
           extractedData: {
@@ -123,25 +135,135 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
             user_confirmed: true
           },
           userId: user.id,
-          receiptUrl
+          receiptUrl,
+          // ✅ NUEVO: Incluir decisión de pago
+          paymentDecision: {
+            paidToday: paymentDecision.paidToday,
+            paymentMethod: paymentDecision.paymentMethod,
+            dueDate: paymentDecision.dueDate,
+            affectsCash: paymentDecision.paidToday && paymentDecision.paymentMethod === 'efectivo'
+          }
         }
       });
 
       if (error) throw error;
 
+      const paymentMethodText = paymentDecision.paymentMethod === 'credito' 
+        ? 'Registrado a crédito' 
+        : paymentDecision.paidToday 
+          ? `Pagado en ${paymentDecision.paymentMethod}` 
+          : 'Sin afectar caja de hoy';
+
       toast({
-        title: '✅ Inventario actualizado',
-        description: `${data.summary?.ingredients_updated || 0} actualizados, ${data.summary?.ingredients_created || 0} nuevos`,
+        title: '✅ Factura procesada',
+        description: `${data.summary?.ingredients_updated || 0} ingredientes actualizados. ${paymentMethodText}`,
       });
 
-      setSavedExpenseId(data.expense_id);
-      setShowPayment(true);
+      onComplete({
+        expense_id: data.expense_id,
+        items_count: items.length,
+        total: totalAmount,
+        payment_method: paymentDecision.paymentMethod
+      });
 
     } catch (error: any) {
       console.error('Error processing receipt:', error);
       toast({
         title: 'Error',
         description: 'No se pudo procesar. Intenta de nuevo o usa modo manual.',
+        variant: 'destructive'
+      });
+      setCurrentStep('review');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler para cuando el usuario responde la pregunta de pago
+  const handlePaymentQuestionComplete = (result: PaymentQuestionResult) => {
+    setPaymentDecision(result);
+    // Continuar con el procesamiento
+    setCurrentStep('review');
+    // Llamar handleConfirmAndProcess después de establecer la decisión
+    setTimeout(() => {
+      handleConfirmAndProcessWithDecision(result);
+    }, 100);
+  };
+
+  const handleConfirmAndProcessWithDecision = async (decision: PaymentQuestionResult) => {
+    if (!user?.id || !restaurant?.id) {
+      toast({ title: 'Error', description: 'Sesión no válida', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const auditEvents = detectSignificantChanges(originalItems, items);
+      if (auditEvents.length > 0) {
+        await logBulkEvents(auditEvents.map(e => ({ ...e, receiptUrl })));
+      }
+
+      if (extractedData.confidence && extractedData.confidence < 75) {
+        await logLowConfidenceAccepted(extractedData.confidence, receiptUrl);
+      }
+
+      const { data, error } = await supabase.functions.invoke('update-inventory-from-receipt', {
+        body: {
+          extractedData: {
+            supplier_name: supplierName,
+            invoice_number: extractedData.invoice_number,
+            date: documentDate,
+            total: totalAmount,
+            items: items.map(item => ({
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unit_price: item.unit_price,
+              subtotal: item.subtotal,
+              matched_ingredient_id: item.matched_ingredient_id,
+              inventory_type: item.inventory_type,
+              product_name_on_receipt: item.product_name_on_receipt
+            })),
+            confidence: extractedData.confidence || 85,
+            user_confirmed: true
+          },
+          userId: user.id,
+          receiptUrl,
+          paymentDecision: {
+            paidToday: decision.paidToday,
+            paymentMethod: decision.paymentMethod,
+            dueDate: decision.dueDate,
+            affectsCash: decision.paidToday && decision.paymentMethod === 'efectivo'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      const paymentMethodText = decision.paymentMethod === 'credito' 
+        ? 'Registrado a crédito' 
+        : decision.paidToday 
+          ? `Pagado en ${decision.paymentMethod}` 
+          : 'Sin afectar caja de hoy';
+
+      toast({
+        title: '✅ Factura procesada',
+        description: `${data.summary?.ingredients_updated || 0} ingredientes actualizados. ${paymentMethodText}`,
+      });
+
+      onComplete({
+        expense_id: data.expense_id,
+        items_count: items.length,
+        total: totalAmount,
+        payment_method: decision.paymentMethod
+      });
+
+    } catch (error: any) {
+      console.error('Error processing receipt:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo procesar. Intenta de nuevo.',
         variant: 'destructive'
       });
     } finally {
@@ -185,6 +307,19 @@ export const AssistedReceiptReview: React.FC<AssistedReceiptReviewProps> = ({
     }
   };
 
+  // ✅ NUEVO: Si estamos en el paso de pregunta de pago
+  if (currentStep === 'payment-question') {
+    return (
+      <PaymentQuestionStep
+        supplierName={supplierName}
+        totalAmount={totalAmount}
+        onComplete={handlePaymentQuestionComplete}
+        onBack={() => setCurrentStep('review')}
+      />
+    );
+  }
+
+  // El flujo de PaymentMethodFlow ya no se usa - ahora preguntamos antes
   if (showPayment) {
     return (
       <Card>
