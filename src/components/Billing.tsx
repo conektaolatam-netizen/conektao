@@ -1387,9 +1387,85 @@ const Billing = () => {
         payload: sale
       });
 
-      // 5. Crear factura
+      // 5. Crear y guardar factura en Supabase
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(saleData.id).slice(0, 8).toUpperCase()}`;
+      const paymentMethodName = paymentMethods.find(m => m.id === paymentMethod)?.name || 'Efectivo';
+      
+      let invoiceId: string | null = null;
+      if (profile?.restaurant_id) {
+        try {
+          console.log('📄 Guardando factura en Supabase...');
+          const { data: invoiceData, error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+              restaurant_id: profile.restaurant_id,
+              sale_id: saleData.id,
+              invoice_number: invoiceNumber,
+              invoice_type: 'pos_receipt',
+              payment_method: paymentMethodName,
+              subtotal: calculateSubtotal(),
+              tax_amount: 0,
+              total_amount: total,
+              created_by: user?.id,
+              sent_to_email: !!customerEmail,
+              sent_at: customerEmail ? new Date().toISOString() : null
+            })
+            .select()
+            .single();
+          
+          if (invoiceError) {
+            console.error('❌ Error guardando factura:', invoiceError);
+          } else {
+            invoiceId = invoiceData?.id;
+            console.log('✅ Factura guardada:', invoiceId);
+          }
+          
+          // 5.1 Guardar en business_documents para archivo del día
+          const today = new Date().toISOString().split('T')[0];
+          const { error: docError } = await supabase
+            .from('business_documents')
+            .insert({
+              restaurant_id: profile.restaurant_id,
+              user_id: user?.id || '',
+              document_type: 'invoice',
+              title: `Factura ${invoiceNumber} - Mesa ${selectedTable || 'N/A'}`,
+              document_date: today,
+              content: {
+                invoice_number: invoiceNumber,
+                sale_id: saleData.id,
+                table_number: selectedTable,
+                customer_email: customerEmail,
+                items: selectedProducts.map(p => ({
+                  name: p.name,
+                  quantity: p.quantity,
+                  price: p.price,
+                  subtotal: p.price * p.quantity
+                })),
+                subtotal: calculateSubtotal(),
+                total: total,
+                payment_method: paymentMethodName,
+                tip_amount: calculateTipAmount()
+              },
+              metadata: {
+                invoice_id: invoiceId,
+                processed_at: new Date().toISOString(),
+                source: 'billing'
+              }
+            });
+          
+          if (docError) {
+            console.error('❌ Error guardando documento:', docError);
+          } else {
+            console.log('✅ Documento archivado para el día:', today);
+          }
+        } catch (err) {
+          console.error('💥 Error en persistencia de factura:', err);
+        }
+      }
+      
+      // Dispatch local para mantener sincronización de UI
       const invoice = {
-        id: `INV-2024-${String(saleData.id).slice(-3)}`,
+        id: invoiceNumber,
         clientName: `Cliente Orden ${selectedTable}`,
         items: selectedProducts.map(p => ({
           description: p.name,
@@ -1401,7 +1477,7 @@ const Billing = () => {
         total: total,
         date: new Date().toISOString(),
         status: 'paid',
-        paymentMethod: paymentMethods.find(m => m.id === paymentMethod)?.name || 'Efectivo'
+        paymentMethod: paymentMethodName
       };
       dispatch({
         type: 'ADD_INVOICE',
