@@ -87,6 +87,18 @@ const KitchenDashboard = () => {
     profile?.role === 'admin' || 
     (profile?.permissions as any)?.can_cancel_kitchen_order;
 
+  // ✅ VALIDACIÓN CRÍTICA: Verificar que el perfil está configurado correctamente
+  const isProfileConfigured = !!profile?.restaurant_id;
+
+  // Log para debug si hay problema de configuración
+  useEffect(() => {
+    if (user && !profile) {
+      console.error('[KITCHEN DASHBOARD] Usuario sin perfil:', user.id, user.email);
+    } else if (profile && !profile.restaurant_id) {
+      console.error('[KITCHEN DASHBOARD] Perfil sin restaurant_id:', profile.id, profile.email);
+    }
+  }, [user, profile]);
+
   // Guardar historial del día en documentos
   const handleSaveDailyReport = async () => {
     if (!profile?.restaurant_id || !user?.id) return;
@@ -556,6 +568,32 @@ const KitchenDashboard = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
           <p className="text-sm text-slate-400">Cargando comandas...</p>
         </div>
+      </div>
+    );
+  }
+
+  // ✅ VALIDACIÓN CRÍTICA: Mostrar error si el perfil no está configurado
+  if (!isProfileConfigured) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <Card className="max-w-md p-8 text-center bg-slate-800 border-amber-500/50">
+          <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+            <ChefHat className="h-8 w-8 text-amber-400" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Cuenta no configurada</h3>
+          <p className="text-slate-400 mb-4">
+            Tu perfil no está vinculado a ningún restaurante. 
+            Contacta al administrador para que vincule tu cuenta.
+          </p>
+          <div className="p-3 bg-slate-900 rounded-lg border border-slate-700 text-left">
+            <p className="text-xs text-slate-500">Debug info:</p>
+            <p className="text-xs text-slate-400 font-mono">
+              Usuario: {user?.email || 'No autenticado'}<br/>
+              Perfil: {profile ? 'Existe' : 'No existe'}<br/>
+              Restaurant ID: {profile?.restaurant_id || 'No asignado'}
+            </p>
+          </div>
+        </Card>
       </div>
     );
   }

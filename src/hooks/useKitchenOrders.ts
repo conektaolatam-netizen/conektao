@@ -23,13 +23,47 @@ export const useKitchenOrders = () => {
     priority: 'normal' | 'high' | 'urgent' = 'normal',
     estimatedTime: number = 30
   ) => {
-    if (!user || !profile?.restaurant_id) {
+    // ✅ VALIDACIÓN CRÍTICA: Verificar que el usuario tiene perfil y restaurant_id
+    if (!user) {
+      toast({
+        title: "Error de autenticación",
+        description: "Debes iniciar sesión para enviar comandas",
+        variant: "destructive"
+      });
       throw new Error('Usuario no autenticado');
+    }
+
+    if (!profile) {
+      toast({
+        title: "Error de configuración",
+        description: "Tu cuenta no tiene un perfil configurado. Contacta al administrador.",
+        variant: "destructive"
+      });
+      console.error('[KITCHEN] Usuario sin perfil:', user.id, user.email);
+      throw new Error('Perfil de usuario no encontrado');
+    }
+
+    if (!profile.restaurant_id) {
+      toast({
+        title: "Error de configuración",
+        description: "Tu cuenta no está vinculada a ningún restaurante. Contacta al administrador.",
+        variant: "destructive"
+      });
+      console.error('[KITCHEN] Perfil sin restaurant_id:', profile.id, profile.email);
+      throw new Error('Usuario no tiene restaurante asignado');
     }
 
     if (items.length === 0) {
       throw new Error('No hay productos para enviar');
     }
+
+    console.log('[KITCHEN] Enviando comanda:', {
+      userId: user.id,
+      profileId: profile.id,
+      restaurantId: profile.restaurant_id,
+      tableNumber,
+      itemsCount: items.length
+    });
 
     setIsLoading(true);
     
