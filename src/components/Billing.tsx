@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import KitchenOrderModal from './kitchen/KitchenOrderModal';
+import InlineKitchenOrder from './billing/InlineKitchenOrder';
 import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
 import CashManagement from './CashManagement';
 import { useToast } from '@/hooks/use-toast';
@@ -48,6 +49,7 @@ const Billing = () => {
   
   // Estado para cocina
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
+  const [showInlineKitchen, setShowInlineKitchen] = useState(false);
   const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
   const [showNoKitchenWarning, setShowNoKitchenWarning] = useState(false);
   
@@ -2093,8 +2095,8 @@ Por favor:
                   ) : (
                     <Button
                       onClick={() => {
-                        console.log('[BILLING] Abriendo modal cocina con productos:', selectedProducts.length, selectedProducts.map(p => ({ name: p.name, qty: p.quantity })));
-                        setIsKitchenModalOpen(true);
+                        console.log('[BILLING] Abriendo panel inline cocina con productos:', selectedProducts.length, selectedProducts.map(p => ({ name: p.name, qty: p.quantity })));
+                        setShowInlineKitchen(true);
                       }}
                       disabled={kitchenLoading}
                       className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg transition-all duration-200"
@@ -2208,6 +2210,41 @@ Por favor:
             </div>
           </div>
         </div>
+
+        {/* Panel inline de comanda - aparece inmediatamente al tocar "Enviar comanda" */}
+        {showInlineKitchen && (
+          <InlineKitchenOrder
+            selectedProducts={selectedProducts.map(p => ({
+              id: String(p.id),
+              name: p.name || 'Producto sin nombre',
+              price: p.price || 0,
+              quantity: p.quantity || 1,
+              special_instructions: p.special_instructions
+            }))}
+            tableNumber={selectedTable || undefined}
+            onConfirmOrder={async (items, notes, priority, estimatedTime) => {
+              try {
+                await sendToKitchen(items, selectedTable || undefined, notes, priority as 'normal' | 'high' | 'urgent', estimatedTime);
+                setKitchenOrderSent(true);
+                setShowInlineKitchen(false);
+                toast({
+                  title: "✅ Comanda enviada",
+                  description: `La orden de la mesa ${selectedTable} fue enviada a cocina`
+                });
+              } catch (error) {
+                console.error('Error sending to kitchen:', error);
+                toast({
+                  title: "Error",
+                  description: "No se pudo enviar la comanda a cocina",
+                  variant: "destructive"
+                });
+              }
+            }}
+            onClose={() => setShowInlineKitchen(false)}
+            onBackToTables={() => setCurrentView('tables')}
+            isLoading={kitchenLoading}
+          />
+        )}
 
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
