@@ -1422,7 +1422,14 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
         isOpen={isKitchenModalOpen}
         onClose={() => setIsKitchenModalOpen(false)}
         onConfirmOrder={handleSendToKitchen}
-        selectedProducts={selectedProducts.map(product => ({ product, quantity: product.quantity }))}
+        selectedProducts={selectedProducts.map(p => ({ 
+          product: { 
+            id: String(p.id), 
+            name: p.name || 'Producto sin nombre', 
+            price: p.price || 0
+          }, 
+          quantity: p.quantity || 1 
+        }))}
         tableNumber={selectedTable?.number}
         orderType={orderType}
         customerInfo={orderType === 'delivery' ? customerInfo : undefined}

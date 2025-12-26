@@ -2575,7 +2575,15 @@ Por favor:
               });
             }
           }}
-          selectedProducts={selectedProducts.map(product => ({ product, quantity: product.quantity || 1 }))}
+          selectedProducts={selectedProducts.map(p => ({ 
+            product: { 
+              id: String(p.id), 
+              name: p.name || 'Producto sin nombre', 
+              price: p.price || 0,
+              special_instructions: p.special_instructions 
+            }, 
+            quantity: p.quantity || 1 
+          }))}
           tableNumber={selectedTable || undefined}
           orderType="dine-in"
         />
