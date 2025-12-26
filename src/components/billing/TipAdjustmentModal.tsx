@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, MessageSquare } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Loader2, CheckCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface TipAdjustmentModalProps {
   open: boolean;
@@ -47,22 +48,47 @@ const TipAdjustmentModal: React.FC<TipAdjustmentModalProps> = ({
 }) => {
   const [reasonType, setReasonType] = useState<string>('');
   const [reasonComment, setReasonComment] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { toast } = useToast();
 
   const difference = suggestedTipAmount - newTipAmount;
   const differencePercent = subtotal > 0 ? ((newTipAmount / subtotal) * 100).toFixed(1) : '0';
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!reasonType) return;
+    
+    // Feedback inmediato
+    setIsSaving(true);
+    
+    // Simular breve delay para mostrar loading
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Mostrar éxito antes de cerrar
+    setShowSuccess(true);
+    toast({
+      title: "✅ Motivo registrado",
+      description: `Razón: ${TIP_REASON_TYPES.find(r => r.value === reasonType)?.label}`
+    });
+    
+    // Esperar un momento para mostrar el check
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     onConfirm(reasonType, reasonComment);
+    
     // Reset state
     setReasonType('');
     setReasonComment('');
+    setIsSaving(false);
+    setShowSuccess(false);
   };
 
   const handleCancel = () => {
     onCancel();
     setReasonType('');
     setReasonComment('');
+    setIsSaving(false);
+    setShowSuccess(false);
   };
 
   return (
@@ -144,10 +170,28 @@ const TipAdjustmentModal: React.FC<TipAdjustmentModalProps> = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!reasonType}
-            className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
+            disabled={!reasonType || isSaving}
+            className={`transition-all duration-300 ${
+              showSuccess 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                : 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600'
+            } text-white min-w-[140px]`}
           >
-            Confirmar Cambio
+            {isSaving ? (
+              showSuccess ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  ¡Guardado!
+                </>
+              ) : (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              )
+            ) : (
+              'Confirmar Cambio'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
