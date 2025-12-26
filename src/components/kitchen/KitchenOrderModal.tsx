@@ -137,22 +137,6 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
             <Textarea placeholder="Observaciones generales para cocina (opcional)..." value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] text-sm resize-none" />
           </div>
 
-          {/* Prioridad - botones compactos */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground shrink-0">Prioridad:</span>
-            <div className="flex gap-1 flex-1">
-              <Button variant={priority === 'normal' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('normal')} className={`flex-1 h-8 text-xs ${priority === 'normal' ? 'bg-slate-600 hover:bg-slate-700' : ''}`}>
-                Normal
-              </Button>
-              <Button variant={priority === 'high' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('high')} className={`flex-1 h-8 text-xs ${priority === 'high' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}>
-                Alta
-              </Button>
-              <Button variant={priority === 'urgent' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('urgent')} className={`flex-1 h-8 text-xs gap-1 ${priority === 'urgent' ? 'bg-red-500 hover:bg-red-600' : ''}`}>
-                <Zap className="h-3 w-3" />
-                Urgente
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Footer con botones de acción */}
