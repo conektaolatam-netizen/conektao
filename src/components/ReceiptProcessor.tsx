@@ -88,6 +88,8 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
     setValidation(null);
     setConfidenceBreakdown(null);
     
+    console.log('📸 [ReceiptProcessor] Iniciando procesamiento...', { sourceType, hasCaptureHashes: captureHashes.length > 0 });
+    
     try {
       if (!user) {
         toast({ title: "Error", description: "Debes iniciar sesión", variant: "destructive" });
@@ -105,11 +107,14 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         const { data: publicData } = supabase.storage.from('receipts').getPublicUrl(path);
         publicUrl = publicData.publicUrl;
         setReceiptUrl(publicUrl);
+        console.log('📤 [ReceiptProcessor] Imagen subida:', publicUrl);
       }
 
       // Resize for AI processing
       const resizedImage = imageBase64;
 
+      console.log('🤖 [ReceiptProcessor] Llamando a receipt-processor...');
+      
       // Call AI processor
       const { data, error } = await supabase.functions.invoke('receipt-processor', {
         body: { 
@@ -122,6 +127,19 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
       });
 
       if (error) throw error;
+
+      // === LOGGING DIAGNÓSTICO DETALLADO ===
+      console.log('📥 [ReceiptProcessor] Respuesta del backend:', {
+        type: data.type,
+        status: data.status,
+        confidence: data.confidence,
+        message: data.message,
+        hasValidation: !!data.validation,
+        validationStatus: data.validation?.status,
+        itemsCount: data.data?.items?.length || 0,
+        total: data.data?.total,
+        supplier: data.data?.supplier_name
+      });
 
       // El backend ya hace la validación real - usar esos datos
       const validationFromBackend = data.validation;
@@ -139,8 +157,10 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         if (validationFromBackend.breakdown) {
           setConfidenceBreakdown(validationFromBackend.breakdown);
         }
+        console.log('✅ [ReceiptProcessor] Usando validación del backend:', validationFromBackend.status);
       } else {
         // Fallback: validar en frontend
+        console.log('⚠️ [ReceiptProcessor] Backend sin validación, usando fallback frontend');
         const validationResult = validateReceipt(extractedDataWithDefaults);
         const breakdown = calculateRealConfidence(extractedDataWithDefaults);
         setValidation(validationResult);
@@ -157,13 +177,19 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         setFallbackReason('ai_error');
         setReceiptState('blocked');
         setMode('blocked');
-        console.warn('Receipt BLOCKED:', data.validation?.blockingReason || data.message);
+        console.error('🚫 [ReceiptProcessor] BLOCKED:', data.validation?.blockingReason || data.message);
+        toast({ 
+          title: "🚫 Factura bloqueada", 
+          description: data.validation?.blockingReason || "Datos críticos no detectados", 
+          variant: "destructive" 
+        });
         
       } else if (data.type === 'needs_review' || data.status === 'needs_review') {
         // NEEDS REVIEW: Requiere revisión humana
         setExtractedData(extractedDataWithDefaults);
         setReceiptState('needs_review');
         setMode('assisted');
+        console.warn('⚠️ [ReceiptProcessor] NEEDS_REVIEW - Confianza:', extractedDataWithDefaults.realConfidence);
         toast({ 
           title: "⚠️ Revisión requerida", 
           description: `Confianza: ${extractedDataWithDefaults.realConfidence}%. Verifica los datos.` 
@@ -174,6 +200,7 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         setExtractedData(extractedDataWithDefaults);
         setReceiptState('pending_confirmation');
         setMode('assisted');
+        console.log('✅ [ReceiptProcessor] PENDING_CONFIRMATION - Confianza:', extractedDataWithDefaults.realConfidence);
         toast({ 
           title: "✅ Factura procesada", 
           description: `Confianza: ${extractedDataWithDefaults.realConfidence}%. Confirma los datos.` 
