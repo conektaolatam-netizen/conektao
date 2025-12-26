@@ -40,10 +40,12 @@ import {
 import KitchenOrderModal from '@/components/kitchen/KitchenOrderModal';
 
 import PaymentBlockedModal from '@/components/billing/PaymentBlockedModal';
+import CashRegisterBlockedModal from '@/components/billing/CashRegisterBlockedModal';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import { useProductAvailability } from '@/hooks/useProductAvailability';
 import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
 import { useActiveShift } from '@/hooks/useActiveShift';
+import { useCashRegisterStatus } from '@/hooks/useCashRegisterStatus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface Table {
@@ -79,6 +81,10 @@ const POSBilling = () => {
   // GPS is NOT used here - only attendance records (clock_in/clock_out)
   const { hasActiveShift, isLoading: isLoadingShift, refresh: refreshShift } = useActiveShift();
   const [showNoShiftModal, setShowNoShiftModal] = useState(false);
+  
+  // ✅ VERIFICACIÓN DE CAJA ABIERTA - Bloquea facturación sin base inicial
+  const { canProcessSales, isClosed: isCashClosed, isLoading: isCashLoading } = useCashRegisterStatus();
+  const [showCashBlockedModal, setShowCashBlockedModal] = useState(false);
   
   // Verificar permisos del empleado - TODOS con permiso de facturar pueden enviar comandas
   const permissions = profile?.permissions || {};
@@ -1014,6 +1020,11 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                             });
                             return;
                           }
+                          // ✅ Verificar caja abierta primero
+                          if (!canProcessSales && !isCashLoading) {
+                            setShowCashBlockedModal(true);
+                            return;
+                          }
                           const canProceed = await checkKitchenOrderBeforePayment();
                           if (canProceed) {
                             setCurrentView('payment');
@@ -1222,7 +1233,14 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                 {/* Botón rápido para ir a cobrar desde carrito */}
                 {canProcessPayments && selectedProducts.length > 0 && kitchenOrderSent && (
                   <Button
-                    onClick={() => setCurrentView('payment')}
+                    onClick={() => {
+                      // ✅ Verificar caja abierta primero
+                      if (!canProcessSales && !isCashLoading) {
+                        setShowCashBlockedModal(true);
+                        return;
+                      }
+                      setCurrentView('payment');
+                    }}
                     className="w-full h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
@@ -1442,6 +1460,17 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
         onClose={() => setShowPaymentBlockedModal(false)}
         onSendToKitchenAndContinue={handleSendAndContinuePayment}
         isLoading={kitchenLoading}
+      />
+
+      {/* ✅ Modal de bloqueo por caja no abierta */}
+      <CashRegisterBlockedModal
+        isOpen={showCashBlockedModal}
+        onClose={() => setShowCashBlockedModal(false)}
+        onGoToCash={() => {
+          setShowCashBlockedModal(false);
+          setCurrentView('cash');
+        }}
+        isClosed={isCashClosed}
       />
     </div>
   );
