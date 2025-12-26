@@ -61,6 +61,7 @@ const GuidedCashClose = ({
     
     setIsSubmitting(true);
     try {
+      // 1. Cerrar la caja
       const { error } = await supabase
         .from('cash_registers')
         .update({
@@ -73,6 +74,34 @@ const GuidedCashClose = ({
         .eq('id', cashRegisterId);
 
       if (error) throw error;
+
+      // 2. Ejecutar cierre de recibos del día (migrar a documentos)
+      try {
+        console.log('📦 [GuidedCashClose] Ejecutando cierre de recibos del día...');
+        const { data: closeData, error: closeError } = await supabase.functions.invoke('daily-close-receipts', {
+          body: {
+            restaurantId: profile.restaurant_id,
+            userId: profile.id,
+            closeDate: new Date().toISOString().split('T')[0],
+            manualClose: true
+          }
+        });
+
+        if (closeError) {
+          console.warn('⚠️ Error en cierre de recibos:', closeError);
+        } else {
+          console.log('✅ Cierre de recibos completado:', closeData);
+          if (closeData?.pendingCount > 0) {
+            toast({
+              title: "⚠️ Recibos pendientes",
+              description: `${closeData.pendingCount} facturas sin pagar no fueron migradas`,
+            });
+          }
+        }
+      } catch (closeErr) {
+        console.error('Error en cierre de recibos:', closeErr);
+        // No bloqueamos el cierre de caja por esto
+      }
 
       toast({
         title: "Caja cerrada exitosamente",
