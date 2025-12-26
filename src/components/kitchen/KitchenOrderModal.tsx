@@ -4,14 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertTriangle, ChefHat, Zap, Send } from 'lucide-react';
-
 interface Product {
   id: string;
   name: string;
   price: number;
   special_instructions?: string;
 }
-
 interface KitchenOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,9 +27,12 @@ interface KitchenOrderModalProps {
   }>;
   tableNumber?: number;
   orderType: 'dine-in' | 'delivery';
-  customerInfo?: { name: string; phone: string; address: string };
+  customerInfo?: {
+    name: string;
+    phone: string;
+    address: string;
+  };
 }
-
 const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
   isOpen,
   onClose,
@@ -51,7 +52,6 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
   // Calcular tiempo estimado automáticamente
   const totalItems = validProducts.reduce((sum, item) => sum + item.quantity, 0);
   const autoEstimatedTime = Math.max(15, Math.min(60, totalItems * 5 + 10));
-
   const handleConfirm = () => {
     const items = validProducts.map(item => ({
       product_id: item.product.id,
@@ -60,21 +60,18 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
       unit_price: item.product.price || 0,
       special_instructions: productInstructions[item.product.id] || item.special_instructions || undefined
     }));
-
     if (items.length === 0) {
       console.warn('No hay productos válidos para enviar a cocina');
       return;
     }
-
     onConfirmOrder(items, notes || undefined, priority, autoEstimatedTime);
     onClose();
-    
+
     // Reset states
     setNotes('');
     setPriority('normal');
     setProductInstructions({});
   };
-
   const updateProductInstructions = (productId: string, instructions: string) => {
     setProductInstructions(prev => ({
       ...prev,
@@ -84,8 +81,7 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
 
   // Si no hay productos válidos
   if (validProducts.length === 0) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+    return <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
@@ -98,10 +94,8 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
           </p>
           <Button onClick={onClose} variant="outline" size="sm">Cerrar</Button>
         </DialogContent>
-      </Dialog>
-    );
+      </Dialog>;
   }
-
   const getTitle = () => {
     if (orderType === 'delivery' && customerInfo?.name) {
       return `Comanda - ${customerInfo.name}`;
@@ -111,9 +105,7 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
     }
     return 'Enviar Comanda';
   };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+  return <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
         {/* Header compacto */}
         <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3 text-white">
@@ -129,63 +121,33 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
         <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
           {/* Lista compacta de productos */}
           <div className="space-y-2">
-            {validProducts.map((item, index) => (
-              <div 
-                key={`${item.product.id}-${index}`} 
-                className="flex items-center gap-2 bg-muted/50 rounded-lg p-2"
-              >
+            {validProducts.map((item, index) => <div key={`${item.product.id}-${index}`} className="flex items-center gap-2 bg-muted/50 rounded-lg p-2">
                 <div className="bg-primary/10 text-primary font-bold rounded-md w-7 h-7 flex items-center justify-center text-sm shrink-0">
                   {item.quantity}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{item.product.name}</p>
                 </div>
-                <Input
-                  placeholder="Obs..."
-                  value={productInstructions[item.product.id] || item.special_instructions || ''}
-                  onChange={(e) => updateProductInstructions(item.product.id, e.target.value)}
-                  className="w-28 h-7 text-xs px-2 bg-background"
-                />
-              </div>
-            ))}
+                
+              </div>)}
           </div>
 
           {/* Observaciones generales */}
           <div>
-            <Textarea
-              placeholder="Observaciones generales para cocina (opcional)..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[60px] text-sm resize-none"
-            />
+            <Textarea placeholder="Observaciones generales para cocina (opcional)..." value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] text-sm resize-none" />
           </div>
 
           {/* Prioridad - botones compactos */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground shrink-0">Prioridad:</span>
             <div className="flex gap-1 flex-1">
-              <Button
-                variant={priority === 'normal' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPriority('normal')}
-                className={`flex-1 h-8 text-xs ${priority === 'normal' ? 'bg-slate-600 hover:bg-slate-700' : ''}`}
-              >
+              <Button variant={priority === 'normal' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('normal')} className={`flex-1 h-8 text-xs ${priority === 'normal' ? 'bg-slate-600 hover:bg-slate-700' : ''}`}>
                 Normal
               </Button>
-              <Button
-                variant={priority === 'high' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPriority('high')}
-                className={`flex-1 h-8 text-xs ${priority === 'high' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
-              >
+              <Button variant={priority === 'high' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('high')} className={`flex-1 h-8 text-xs ${priority === 'high' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}>
                 Alta
               </Button>
-              <Button
-                variant={priority === 'urgent' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPriority('urgent')}
-                className={`flex-1 h-8 text-xs gap-1 ${priority === 'urgent' ? 'bg-red-500 hover:bg-red-600' : ''}`}
-              >
+              <Button variant={priority === 'urgent' ? 'default' : 'outline'} size="sm" onClick={() => setPriority('urgent')} className={`flex-1 h-8 text-xs gap-1 ${priority === 'urgent' ? 'bg-red-500 hover:bg-red-600' : ''}`}>
                 <Zap className="h-3 w-3" />
                 Urgente
               </Button>
@@ -195,24 +157,15 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
 
         {/* Footer con botones de acción */}
         <div className="border-t bg-muted/30 p-3 flex gap-2">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-            className="flex-1 h-10"
-          >
+          <Button variant="ghost" onClick={onClose} className="flex-1 h-10">
             Cancelar
           </Button>
-          <Button
-            onClick={handleConfirm}
-            className="flex-[2] h-10 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold gap-2"
-          >
+          <Button onClick={handleConfirm} className="flex-[2] h-10 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold gap-2">
             <Send className="h-4 w-4" />
             Enviar a Cocina
           </Button>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
-
 export default KitchenOrderModal;
