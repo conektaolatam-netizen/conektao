@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Clock, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { AlertTriangle, ChefHat, Zap, Send } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -45,15 +43,14 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
 }) => {
   const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
-  const [estimatedTime, setEstimatedTime] = useState<number>(30);
   const [productInstructions, setProductInstructions] = useState<Record<string, string>>({});
 
   // Filtrar productos válidos
   const validProducts = selectedProducts.filter(item => item && item.product && item.product.name && item.quantity > 0);
 
-  // Log para debug
-  console.log('[KitchenOrderModal] selectedProducts:', selectedProducts);
-  console.log('[KitchenOrderModal] validProducts:', validProducts);
+  // Calcular tiempo estimado automáticamente
+  const totalItems = validProducts.reduce((sum, item) => sum + item.quantity, 0);
+  const autoEstimatedTime = Math.max(15, Math.min(60, totalItems * 5 + 10));
 
   const handleConfirm = () => {
     const items = validProducts.map(item => ({
@@ -69,14 +66,12 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
       return;
     }
 
-    console.log('[KitchenOrderModal] Enviando items a cocina:', items);
-    onConfirmOrder(items, notes || undefined, priority, estimatedTime);
+    onConfirmOrder(items, notes || undefined, priority, autoEstimatedTime);
     onClose();
     
     // Reset states
     setNotes('');
     setPriority('normal');
-    setEstimatedTime(30);
     setProductInstructions({});
   };
 
@@ -87,250 +82,133 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
     }));
   };
 
-  const totalItems = validProducts.reduce((sum, item) => sum + item.quantity, 0);
-  
-  const totalAmount = validProducts.reduce((sum, item) => {
-    return sum + ((item.product.price || 0) * item.quantity);
-  }, 0);
-
-  const getPriorityColor = (priorityLevel: string) => {
-    switch (priorityLevel) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  // Si no hay productos válidos, mostrar mensaje en lugar de cerrar
+  // Si no hay productos válidos
   if (validProducts.length === 0) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              No hay productos
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Sin productos
             </DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground">
-            No hay productos en la orden para enviar a cocina. Agrega productos primero.
+          <p className="text-muted-foreground text-sm">
+            Agrega productos antes de enviar la comanda.
           </p>
-          <Button onClick={onClose} className="w-full">Cerrar</Button>
+          <Button onClick={onClose} variant="outline" size="sm">Cerrar</Button>
         </DialogContent>
       </Dialog>
     );
   }
 
+  const getTitle = () => {
+    if (orderType === 'delivery' && customerInfo?.name) {
+      return `Comanda - ${customerInfo.name}`;
+    }
+    if (tableNumber) {
+      return `Comanda - Mesa ${tableNumber}`;
+    }
+    return 'Enviar Comanda';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
-            Enviar Comanda a Cocina
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        {/* Header compacto */}
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3 text-white">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+            <ChefHat className="h-5 w-5" />
+            {getTitle()}
           </DialogTitle>
-        </DialogHeader>
+          <p className="text-white/80 text-xs mt-0.5">
+            {totalItems} producto{totalItems !== 1 ? 's' : ''} • ~{autoEstimatedTime} min
+          </p>
+        </div>
 
-        <div className="space-y-6">
-          {/* Información del pedido */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <h3 className="font-medium text-gray-900">Información del Pedido</h3>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Tipo:</span>
-                <span className="ml-2 font-medium">
-                  {orderType === 'dine-in' ? 'Consumo en sala' : 'Domicilio'}
-                </span>
-              </div>
-              
-              {tableNumber && (
-                <div>
-                  <span className="text-gray-600">Mesa:</span>
-                  <span className="ml-2 font-medium">Mesa {tableNumber}</span>
-                </div>
-              )}
-              
-              <div>
-                <span className="text-gray-600">Total items:</span>
-                <span className="ml-2 font-medium">{totalItems}</span>
-              </div>
-              
-              <div>
-                <span className="text-gray-600">Total:</span>
-                <span className="ml-2 font-medium">${totalAmount.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {orderType === 'delivery' && customerInfo && (
-              <div className="border-t pt-3 mt-3">
-                <h4 className="font-medium text-gray-900 mb-2">Información del Cliente</h4>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <User className="h-4 w-4 inline mr-2 text-gray-500" />
-                    {customerInfo.name}
-                  </div>
-                  {customerInfo.phone && (
-                    <div className="text-gray-600">Tel: {customerInfo.phone}</div>
-                  )}
-                  {customerInfo.address && (
-                    <div className="text-gray-600">Dir: {customerInfo.address}</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Lista de productos con observaciones */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900">Productos del Pedido</h3>
-            
+        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* Lista compacta de productos */}
+          <div className="space-y-2">
             {validProducts.map((item, index) => (
-              <div key={`${item.product.id}-${index}`} className="border rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{item.product.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      Cantidad: {item.quantity} × ${(item.product.price || 0).toLocaleString()} = ${((item.quantity || 0) * (item.product.price || 0)).toLocaleString()}
-                    </p>
-                  </div>
+              <div 
+                key={`${item.product.id}-${index}`} 
+                className="flex items-center gap-2 bg-muted/50 rounded-lg p-2"
+              >
+                <div className="bg-primary/10 text-primary font-bold rounded-md w-7 h-7 flex items-center justify-center text-sm shrink-0">
+                  {item.quantity}
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor={`instructions-${item.product.id}`} className="text-sm font-medium">
-                    Observaciones especiales para cocina:
-                  </Label>
-                  <Textarea
-                    id={`instructions-${item.product.id}`}
-                    placeholder="Ej: Sin cebolla, término medio, extra salsa..."
-                    value={productInstructions[item.product.id] || item.special_instructions || ''}
-                    onChange={(e) => updateProductInstructions(item.product.id, e.target.value)}
-                    className="min-h-[60px] text-sm"
-                  />
-                  {(productInstructions[item.product.id] || item.special_instructions) && (
-                    <p className="text-xs text-orange-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Esta observación aparecerá destacada en la comanda
-                    </p>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{item.product.name}</p>
                 </div>
+                <Input
+                  placeholder="Obs..."
+                  value={productInstructions[item.product.id] || item.special_instructions || ''}
+                  onChange={(e) => updateProductInstructions(item.product.id, e.target.value)}
+                  className="w-28 h-7 text-xs px-2 bg-background"
+                />
               </div>
             ))}
           </div>
 
-          <Separator />
-
-          {/* Configuración de la comanda */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-gray-900">Configuración de la Comanda</h3>
-            
-            {/* Prioridad */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Prioridad del pedido:</Label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'normal', label: 'Normal' },
-                  { value: 'high', label: 'Alta' },
-                  { value: 'urgent', label: 'Urgente' }
-                ].map((option) => (
-                  <Button
-                    key={option.value}
-                    variant={priority === option.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPriority(option.value as any)}
-                    className={priority === option.value ? getPriorityColor(option.value) : ""}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-              {priority !== 'normal' && (
-                <p className="text-xs text-orange-600">
-                  Los pedidos con prioridad {priority === 'high' ? 'alta' : 'urgente'} se destacarán en cocina
-                </p>
-              )}
-            </div>
-
-            {/* Tiempo estimado */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Tiempo estimado de preparación (minutos):
-              </Label>
-              <div className="flex gap-2">
-                {[15, 20, 30, 45, 60].map((time) => (
-                  <Button
-                    key={time}
-                    variant={estimatedTime === time ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setEstimatedTime(time)}
-                  >
-                    {time} min
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Notas generales */}
-            <div className="space-y-2">
-              <Label htmlFor="general-notes" className="text-sm font-medium">
-                Notas generales para cocina:
-              </Label>
-              <Textarea
-                id="general-notes"
-                placeholder="Notas adicionales para toda la comanda..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
+          {/* Observaciones generales */}
+          <div>
+            <Textarea
+              placeholder="Observaciones generales para cocina (opcional)..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[60px] text-sm resize-none"
+            />
           </div>
 
-          {/* Resumen final */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Resumen de la Comanda</h4>
-            <div className="space-y-1 text-sm text-blue-800">
-              <div className="flex justify-between">
-                <span>Total de productos:</span>
-                <span className="font-medium">{totalItems} items</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Prioridad:</span>
-                <Badge className={getPriorityColor(priority)}>
-                  {priority === 'urgent' ? 'Urgente' :
-                   priority === 'high' ? 'Alta' : 'Normal'}
-                </Badge>
-              </div>
-              <div className="flex justify-between">
-                <span>Tiempo estimado:</span>
-                <span className="font-medium">{estimatedTime} minutos</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Productos con observaciones:</span>
-                <span className="font-medium">
-                  {Object.values(productInstructions).filter(Boolean).length + 
-                   validProducts.filter(p => p.special_instructions).length}
-                </span>
-              </div>
+          {/* Prioridad - botones compactos */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">Prioridad:</span>
+            <div className="flex gap-1 flex-1">
+              <Button
+                variant={priority === 'normal' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPriority('normal')}
+                className={`flex-1 h-8 text-xs ${priority === 'normal' ? 'bg-slate-600 hover:bg-slate-700' : ''}`}
+              >
+                Normal
+              </Button>
+              <Button
+                variant={priority === 'high' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPriority('high')}
+                className={`flex-1 h-8 text-xs ${priority === 'high' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+              >
+                Alta
+              </Button>
+              <Button
+                variant={priority === 'urgent' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPriority('urgent')}
+                className={`flex-1 h-8 text-xs gap-1 ${priority === 'urgent' ? 'bg-red-500 hover:bg-red-600' : ''}`}
+              >
+                <Zap className="h-3 w-3" />
+                Urgente
+              </Button>
             </div>
           </div>
+        </div>
 
-          {/* Botones de acción */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              className="flex-1 bg-orange-600 hover:bg-orange-700"
-            >
-              Enviar Comanda a Cocina
-            </Button>
-          </div>
+        {/* Footer con botones de acción */}
+        <div className="border-t bg-muted/30 p-3 flex gap-2">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="flex-1 h-10"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            className="flex-[2] h-10 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold gap-2"
+          >
+            <Send className="h-4 w-4" />
+            Enviar a Cocina
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
