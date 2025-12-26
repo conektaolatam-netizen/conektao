@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Receipt, DollarSign, Calendar, Users, Utensils, Minus, CreditCard, Banknote, Smartphone, ArrowLeft, CheckCircle, Clock, Coffee, Pizza, Wine, IceCream, ChefHat, Sparkles, Eye, Download, TrendingUp, Wallet, Upload, Camera, Printer, Edit3, Trash2, Brain, Truck, AlertTriangle, Loader2 } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
 import KitchenOrderModal from './kitchen/KitchenOrderModal';
 import { useSuspiciousEvents } from '@/hooks/useSuspiciousEvents';
@@ -44,6 +44,9 @@ const Billing = () => {
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [kitchenOrderSent, setKitchenOrderSent] = useState(false);
   const [showNoKitchenWarning, setShowNoKitchenWarning] = useState(false);
+  
+  // Estado de procesamiento de pago - feedback inmediato
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
   const tipConfig = useTipConfig();
@@ -1322,6 +1325,14 @@ const Billing = () => {
   // Función interna para procesar el pago real
   const processPaymentInternal = async () => {
     const total = calculateTotal();
+    
+    // ACTIVAR estado de procesamiento INMEDIATAMENTE
+    setIsProcessing(true);
+    toast({
+      title: "⏳ Procesando pago...",
+      description: "Por favor espera mientras registramos la venta"
+    });
+    
     try {
       // Verificar si hay ajuste de propina pendiente
       const pendingAdjustment = localStorage.getItem('pending_tip_adjustment');
@@ -1613,14 +1624,14 @@ const Billing = () => {
         setShowTipDistributionModal(true);
         // No mostrar success inmediatamente, esperar al modal
         toast({
-          title: "¡Venta registrada!",
+          title: "✅ ¡Venta registrada!",
           description: `Orden ${selectedTable} - ${formatCurrency(total)} | Ahora distribuye la propina`
         });
       } else {
         setCurrentView('success');
         toast({
-          title: "¡Venta registrada!",
-          description: `Orden ${selectedTable} - ${formatCurrency(total)} | Guardado en base de datos`
+          title: "✅ ¡Pago completado!",
+          description: `Factura guardada y archivada | Orden ${selectedTable} - ${formatCurrency(total)}`
         });
 
         // Reset after 3 seconds
@@ -1638,10 +1649,13 @@ const Billing = () => {
     } catch (error) {
       console.error('Error processing payment:', error);
       toast({
-        title: "Error al procesar pago",
+        title: "❌ Error al procesar pago",
         description: "Hubo un problema al guardar la venta. Intenta nuevamente.",
         variant: "destructive"
       });
+    } finally {
+      // SIEMPRE desactivar estado de procesamiento
+      setIsProcessing(false);
     }
   };
   
@@ -1894,10 +1908,27 @@ Por favor:
               </CardContent>
             </Card>
 
-            {/* Botón de pago */}
-            <Button onClick={handlePayment} disabled={!paymentMethod} className="w-full h-14 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
-              <CheckCircle className="h-5 w-5 mr-2" />
-              Procesar Pago {formatCurrency(calculateTotal())}
+            {/* Botón de pago con estado de procesamiento */}
+            <Button 
+              onClick={handlePayment} 
+              disabled={!paymentMethod || isProcessing} 
+              className={`w-full h-14 text-lg transition-all duration-300 ${
+                isProcessing 
+                  ? 'bg-gradient-to-r from-yellow-600 to-orange-600 cursor-wait' 
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Procesar Pago {formatCurrency(calculateTotal())}
+                </>
+              )}
             </Button>
           </div>
         </div>
