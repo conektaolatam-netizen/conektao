@@ -48,16 +48,24 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
   const [estimatedTime, setEstimatedTime] = useState<number>(30);
   const [productInstructions, setProductInstructions] = useState<Record<string, string>>({});
 
+  // Filtrar productos válidos
+  const validProducts = selectedProducts.filter(item => item && item.product && item.product.name && item.quantity > 0);
+
+  // Si no hay productos válidos, no mostrar el modal
+  if (isOpen && validProducts.length === 0) {
+    console.warn('🚫 [KitchenOrderModal] No hay productos válidos, cerrando modal');
+    onClose();
+    return null;
+  }
+
   const handleConfirm = () => {
-    const items = selectedProducts
-      .filter(item => item && item.product && item.quantity > 0)
-      .map(item => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        quantity: item.quantity,
-        unit_price: item.product.price || 0,
-        special_instructions: productInstructions[item.product.id] || item.special_instructions || undefined
-      }));
+    const items = validProducts.map(item => ({
+      product_id: item.product.id,
+      product_name: item.product.name,
+      quantity: item.quantity,
+      unit_price: item.product.price || 0,
+      special_instructions: productInstructions[item.product.id] || item.special_instructions || undefined
+    }));
 
     if (items.length === 0) {
       console.warn('No hay productos válidos para enviar a cocina');
@@ -81,16 +89,10 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
     }));
   };
 
-  const totalItems = selectedProducts.reduce((sum, item) => {
-    if (!item || typeof item.quantity !== 'number') return sum;
-    return sum + item.quantity;
-  }, 0);
+  const totalItems = validProducts.reduce((sum, item) => sum + item.quantity, 0);
   
-  const totalAmount = selectedProducts.reduce((sum, item) => {
-    if (!item || !item.product || typeof item.product.price !== 'number' || typeof item.quantity !== 'number') {
-      return sum;
-    }
-    return sum + (item.product.price * item.quantity);
+  const totalAmount = validProducts.reduce((sum, item) => {
+    return sum + ((item.product.price || 0) * item.quantity);
   }, 0);
 
   const getPriorityColor = (priorityLevel: string) => {
@@ -165,9 +167,7 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
           <div className="space-y-4">
             <h3 className="font-medium text-gray-900">Productos del Pedido</h3>
             
-            {selectedProducts
-              .filter(item => item && item.product && item.product.name)
-              .map((item, index) => (
+            {validProducts.map((item, index) => (
               <div key={`${item.product.id}-${index}`} className="border rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
@@ -291,7 +291,7 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
                 <span>Productos con observaciones:</span>
                 <span className="font-medium">
                   {Object.values(productInstructions).filter(Boolean).length + 
-                   selectedProducts.filter(p => p.special_instructions).length}
+                   validProducts.filter(p => p.special_instructions).length}
                 </span>
               </div>
             </div>
