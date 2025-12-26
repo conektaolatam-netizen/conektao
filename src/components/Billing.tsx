@@ -2067,21 +2067,30 @@ Por favor:
                 {/* ENVIAR COMANDA A COCINA */}
                 {selectedProducts.length > 0 && (
                   kitchenOrderSent ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-green-100 border border-green-300 rounded-lg">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-green-100 border border-green-300 rounded-lg animate-pulse">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-green-700 font-medium text-sm">Comanda enviada</span>
+                      <span className="text-green-700 font-medium text-sm">✓ Comanda enviada a cocina</span>
                     </div>
                   ) : (
                     <Button
                       onClick={() => setIsKitchenModalOpen(true)}
                       disabled={kitchenLoading}
-                      className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg"
+                      className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg transition-all duration-200"
                     >
-                      <ChefHat className="h-4 w-4 mr-2" />
-                      Enviar comanda
-                      <Badge className="bg-white/20 text-white border-white/30 ml-2 text-xs">
-                        {selectedProducts.length}
-                      </Badge>
+                      {kitchenLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <ChefHat className="h-4 w-4 mr-2" />
+                          Enviar comanda
+                          <Badge className="bg-white/20 text-white border-white/30 ml-2 text-xs">
+                            {selectedProducts.length}
+                          </Badge>
+                        </>
+                      )}
                     </Button>
                   )
                 )}
