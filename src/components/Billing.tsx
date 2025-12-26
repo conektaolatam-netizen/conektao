@@ -335,15 +335,15 @@ const Billing = () => {
   // Efecto para limpiar productos y recargar mesas cuando se vuelve a la vista de tables
   useEffect(() => {
     if (currentView === 'tables') {
-      // NO resetear si el modal está abierto - usuario puede estar anulando
-      if (!showClearTableModal) {
+      // NO resetear si algún modal está abierto - usuario puede estar en proceso
+      if (!showClearTableModal && !isKitchenModalOpen) {
         setSelectedProducts([]);
         setSelectedTable(null);
       }
       // CRÍTICO: Siempre recargar mesas desde DB para evitar datos stale
       loadTodaysSales();
     }
-  }, [currentView, showClearTableModal]);
+  }, [currentView, showClearTableModal, isKitchenModalOpen]);
   const loadCategoriesFromDB = async () => {
     if (!user || !profile?.restaurant_id) return;
     try {
@@ -809,9 +809,12 @@ const Billing = () => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
-  // Función robusta para actualizar orden con retry
+  // Función robusta para actualizar orden con retry - USA UPSERT para garantizar persistencia
   const updateTableOrder = async (updatedProducts: any[], retryCount = 0): Promise<boolean> => {
-    if (!profile?.restaurant_id || !selectedTable) return false;
+    if (!profile?.restaurant_id || !selectedTable) {
+      console.error('[updateTableOrder] Faltan datos:', { restaurant_id: profile?.restaurant_id, selectedTable });
+      return false;
+    }
     
     const maxRetries = 3;
     setIsSyncing(true);
@@ -820,28 +823,39 @@ const Billing = () => {
     try {
       const orderTotal = updatedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
       
+      console.log('[updateTableOrder] Guardando productos:', {
+        table: selectedTable,
+        productCount: updatedProducts.length,
+        orderTotal,
+        products: updatedProducts.map(p => ({ name: p.name, qty: p.quantity }))
+      });
+      
+      // USAR UPSERT para garantizar que siempre se guarde, aunque la fila no exista
       const { data, error } = await supabase
         .from('table_states')
-        .update({
+        .upsert({
+          restaurant_id: profile.restaurant_id,
+          table_number: selectedTable,
           current_order: updatedProducts,
           order_total: orderTotal,
+          status: 'ocupada',
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'restaurant_id,table_number'
         })
-        .eq('restaurant_id', profile.restaurant_id)
-        .eq('table_number', selectedTable)
         .select();
       
-      if (error) throw error;
-      
-      // Verificar que la actualización se aplicó
-      if (!data || data.length === 0) {
-        throw new Error('No se actualizó ningún registro');
+      if (error) {
+        console.error('[updateTableOrder] Error de Supabase:', error);
+        throw error;
       }
+      
+      console.log('[updateTableOrder] Guardado exitoso:', data);
       
       setIsSyncing(false);
       return true;
     } catch (error) {
-      console.error(`Error actualizando orden de mesa (intento ${retryCount + 1}):`, error);
+      console.error(`[updateTableOrder] Error (intento ${retryCount + 1}):`, error);
       
       if (retryCount < maxRetries) {
         // Retry exponencial
@@ -967,6 +981,8 @@ const Billing = () => {
   };
   
   const addProduct = async (product: any) => {
+    console.log('[addProduct] Agregando:', product.name, 'Mesa:', selectedTable);
+    
     const existing = selectedProducts.find(p => p.id === product.id);
     let updatedProducts;
     if (existing) {
@@ -981,6 +997,8 @@ const Billing = () => {
       }];
     }
     
+    console.log('[addProduct] Productos actualizados:', updatedProducts.length);
+    
     // Actualizar UI inmediatamente (optimistic update)
     setSelectedProducts(updatedProducts);
 
@@ -994,6 +1012,7 @@ const Billing = () => {
       });
     } else {
       // Revertir UI si falló la persistencia
+      console.error('[addProduct] Falló persistencia, revirtiendo UI');
       setSelectedProducts(selectedProducts);
     }
   };
@@ -2073,7 +2092,10 @@ Por favor:
                     </div>
                   ) : (
                     <Button
-                      onClick={() => setIsKitchenModalOpen(true)}
+                      onClick={() => {
+                        console.log('[BILLING] Abriendo modal cocina con productos:', selectedProducts.length, selectedProducts.map(p => ({ name: p.name, qty: p.quantity })));
+                        setIsKitchenModalOpen(true);
+                      }}
                       disabled={kitchenLoading}
                       className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 hover:from-orange-600 hover:via-red-600 hover:to-pink-700 text-white font-bold shadow-lg transition-all duration-200"
                     >
