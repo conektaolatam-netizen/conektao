@@ -51,12 +51,9 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
   // Filtrar productos válidos
   const validProducts = selectedProducts.filter(item => item && item.product && item.product.name && item.quantity > 0);
 
-  // Si no hay productos válidos, no mostrar el modal
-  if (isOpen && validProducts.length === 0) {
-    console.warn('🚫 [KitchenOrderModal] No hay productos válidos, cerrando modal');
-    onClose();
-    return null;
-  }
+  // Log para debug
+  console.log('[KitchenOrderModal] selectedProducts:', selectedProducts);
+  console.log('[KitchenOrderModal] validProducts:', validProducts);
 
   const handleConfirm = () => {
     const items = validProducts.map(item => ({
@@ -72,6 +69,7 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
       return;
     }
 
+    console.log('[KitchenOrderModal] Enviando items a cocina:', items);
     onConfirmOrder(items, notes || undefined, priority, estimatedTime);
     onClose();
     
@@ -102,6 +100,26 @@ const KitchenOrderModal: React.FC<KitchenOrderModalProps> = ({
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  // Si no hay productos válidos, mostrar mensaje en lugar de cerrar
+  if (validProducts.length === 0) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              No hay productos
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            No hay productos en la orden para enviar a cocina. Agrega productos primero.
+          </p>
+          <Button onClick={onClose} className="w-full">Cerrar</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
