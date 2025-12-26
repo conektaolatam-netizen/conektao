@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -696,18 +697,12 @@ const CashManagement = ({ onBack }: { onBack?: () => void }) => {
                       <FormItem>
                         <FormLabel className="text-white font-medium">Dinero inicial en caja</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              placeholder="Ej: 500000"
-                              className="bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-12 text-lg font-medium pr-16"
-                              {...field}
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                            />
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 font-medium">
-                              COP
-                            </div>
-                          </div>
+                          <CurrencyInput
+                            placeholder="Ej: 50.000"
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-12 text-lg font-medium [&>div]:text-white/70"
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage className="text-yellow-200" />
                       </FormItem>
