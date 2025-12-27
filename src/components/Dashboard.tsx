@@ -578,7 +578,7 @@ const Dashboard = ({
                     <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left min-w-0 flex-1">
-                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold tracking-tight truncate drop-shadow-sm">
+                    <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight truncate drop-shadow-sm">
                       {action.title.includes('IA') ? (
                         <>
                           <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-extrabold">IA</span>
