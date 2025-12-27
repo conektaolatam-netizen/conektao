@@ -76,7 +76,7 @@ const InlineKitchenOrder: React.FC<InlineKitchenOrderProps> = ({
   }
 
   return (
-    <div className="bg-gradient-to-br from-orange-50 to-red-50 border-b-4 border-orange-500 animate-in slide-in-from-top duration-300">
+    <div className="bg-black/95 border-b-2 border-orange-500/50 animate-in slide-in-from-top duration-300 backdrop-blur-xl">
       {/* Header con botón de volver */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3 text-white">
         <div className="flex items-center justify-between">
@@ -116,13 +116,13 @@ const InlineKitchenOrder: React.FC<InlineKitchenOrderProps> = ({
           {validProducts.map((item, index) => (
             <div 
               key={`${item.id}-${index}`} 
-              className="flex items-center gap-2 bg-white/80 rounded-lg p-2 shadow-sm"
+              className="flex items-center gap-2 bg-white/10 rounded-lg p-2 border border-white/10"
             >
-              <div className="bg-orange-500/10 text-orange-600 font-bold rounded-md w-7 h-7 flex items-center justify-center text-sm shrink-0">
+              <div className="bg-gradient-to-br from-orange-500 to-amber-500 text-white font-bold rounded-md w-7 h-7 flex items-center justify-center text-sm shrink-0">
                 {item.quantity}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate text-foreground">{item.name}</p>
+                <p className="font-medium text-sm truncate text-white">{item.name}</p>
               </div>
             </div>
           ))}
@@ -133,7 +133,7 @@ const InlineKitchenOrder: React.FC<InlineKitchenOrderProps> = ({
           placeholder="Observaciones para cocina (opcional)..." 
           value={notes} 
           onChange={e => setNotes(e.target.value)} 
-          className="min-h-[60px] text-sm resize-none bg-white border-orange-200 focus:border-orange-400"
+          className="min-h-[60px] text-sm resize-none bg-white/10 border-white/20 focus:border-orange-400 text-white placeholder:text-white/50"
         />
 
         {/* Botones de acción */}
@@ -141,11 +141,11 @@ const InlineKitchenOrder: React.FC<InlineKitchenOrderProps> = ({
           <Button 
             variant="outline" 
             onClick={onClose} 
-            className="flex-1 h-12 border-orange-300 text-orange-700 hover:bg-orange-100"
+            className="flex-1 h-12 border-white/20 text-white hover:bg-white/10 bg-transparent"
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirm}
             disabled={isLoading}
             className="flex-[2] h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold gap-2 shadow-lg"
