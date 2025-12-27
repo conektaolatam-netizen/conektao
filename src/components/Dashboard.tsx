@@ -528,7 +528,7 @@ const Dashboard = ({
       </div>
 
       {/* Módulos de IA - Diseño Futurista Apple iOS con Naranja */}
-      <div className="space-y-3 sm:space-y-4 lg:space-y-5 relative z-10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-t from-teal-500/10 via-transparent to-transparent">
+      <div className="space-y-3 sm:space-y-4 lg:space-y-5 relative z-10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl">
         {/* Header futurista */}
         <div className="flex items-center justify-center gap-2 sm:gap-3">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
