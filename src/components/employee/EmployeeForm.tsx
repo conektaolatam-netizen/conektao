@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FaceEnrollment from "./FaceEnrollment";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Employee {
   id?: string;
@@ -38,6 +39,13 @@ const EmployeeForm = ({ isOpen, onOpenChange, employee, onSuccess }: EmployeeFor
   const [formLoading, setFormLoading] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  
+  // Estados para cambio de credenciales (solo al editar)
+  const [showCredentialsSection, setShowCredentialsSection] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     email: employee?.email || "",
@@ -94,6 +102,14 @@ const EmployeeForm = ({ isOpen, onOpenChange, employee, onSuccess }: EmployeeFor
   });
 
   const [inviteMethod, setInviteMethod] = React.useState<'direct' | 'invitation'>('direct');
+
+  // Reset credentials fields when employee changes
+  React.useEffect(() => {
+    setShowCredentialsSection(false);
+    setNewEmail("");
+    setNewPassword("");
+    setShowNewPassword(false);
+  }, [employee]);
 
   React.useEffect(() => {
     if (employee) {
@@ -222,6 +238,54 @@ const EmployeeForm = ({ isOpen, onOpenChange, employee, onSuccess }: EmployeeFor
       // El edge function create-employee se encarga de vincular y actualizar el perfil existente.
     } finally {
       setEmailCheckLoading(false);
+    }
+  };
+
+  // Función para actualizar credenciales (email/contraseña)
+  const handleUpdateCredentials = async () => {
+    if (!employee?.id) return;
+    if (!newEmail && !newPassword) {
+      toast({
+        title: "Sin cambios",
+        description: "Ingresa un nuevo email o contraseña para actualizar",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCredentialsLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('update-employee-credentials', {
+        body: {
+          employee_id: employee.id,
+          new_email: newEmail || undefined,
+          new_password: newPassword || undefined
+        }
+      });
+
+      if (error || result?.error) {
+        throw new Error(result?.error || error?.message || 'Error actualizando credenciales');
+      }
+
+      toast({
+        title: "Credenciales actualizadas",
+        description: `${result.updated.email ? 'Email' : ''}${result.updated.email && result.updated.password ? ' y ' : ''}${result.updated.password ? 'Contraseña' : ''} actualizado(s) correctamente`
+      });
+
+      // Limpiar campos y cerrar sección
+      setNewEmail("");
+      setNewPassword("");
+      setShowCredentialsSection(false);
+      onSuccess(); // Refrescar lista
+    } catch (error: any) {
+      console.error("Error updating credentials:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron actualizar las credenciales",
+        variant: "destructive"
+      });
+    } finally {
+      setCredentialsLoading(false);
     }
   };
 
@@ -374,6 +438,94 @@ const EmployeeForm = ({ isOpen, onOpenChange, employee, onSuccess }: EmployeeFor
               <p className="text-xs text-destructive">Este email ya está en uso. Usa "Enviar invitación" o elige otro correo.</p>
             )}
           </div>
+
+          {/* Sección de cambio de credenciales - Solo para empleados existentes */}
+          {employee && (
+            <div className="border rounded-lg p-3 bg-muted/30">
+              <Collapsible open={showCredentialsSection} onOpenChange={setShowCredentialsSection}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-between p-0 h-auto hover:bg-transparent"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Cambiar email o contraseña</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {showCredentialsSection ? '▲' : '▼'}
+                    </span>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4 space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="new_email" className="text-sm flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5" />
+                      Nuevo Email
+                    </Label>
+                    <Input
+                      id="new_email"
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder={employee.email}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Deja vacío si no deseas cambiar el email
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="new_password" className="text-sm flex items-center gap-2">
+                      <Lock className="h-3.5 w-3.5" />
+                      Nueva Contraseña
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="new_password"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        minLength={6}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Mínimo 6 caracteres. Deja vacío si no deseas cambiar la contraseña
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleUpdateCredentials}
+                    disabled={credentialsLoading || (!newEmail && !newPassword)}
+                  >
+                    {credentialsLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Actualizando...
+                      </>
+                    ) : (
+                      "Actualizar credenciales"
+                    )}
+                  </Button>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="phone">Teléfono</Label>
