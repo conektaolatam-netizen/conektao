@@ -345,15 +345,15 @@ const Dashboard = ({
 
   // Módulos de IA - Futuristas
   const aiActions = [{
-    title: "IA CONEKTAO",
+    title: "IA Conektao",
     module: "ai",
     gradient: "from-cyan-400 via-blue-500 to-indigo-600",
     icon: Sparkles,
-    description: "Asistente Neural Avanzado",
+    description: "Asistente neural avanzado",
     badge: "Neural",
     special: "ai"
   }, {
-    title: "CONTABILIDAD IA",
+    title: "Contabilidad IA",
     module: "contai",
     gradient: "from-violet-500 via-purple-600 to-indigo-700",
     icon: Calculator,
@@ -532,8 +532,9 @@ const Dashboard = ({
         {/* Header futurista */}
         <div className="flex items-center justify-center gap-2 sm:gap-3">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
-          <h3 className="text-xs sm:text-sm lg:text-xl font-semibold tracking-wide text-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent uppercase">
-            Inteligencia Artificial
+          <h3 className="text-xs sm:text-sm lg:text-xl font-semibold tracking-wide text-center">
+            <span className="text-white/90">Inteligencia </span>
+            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-bold">Artificial</span>
           </h3>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
         </div>
@@ -577,7 +578,16 @@ const Dashboard = ({
                     <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left min-w-0 flex-1">
-                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold tracking-tight truncate bg-gradient-to-r from-white via-orange-100 to-cyan-100 bg-clip-text text-transparent drop-shadow-sm">{action.title}</h4>
+                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold tracking-tight truncate drop-shadow-sm">
+                      {action.title.includes('IA') ? (
+                        <>
+                          <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-extrabold">IA</span>
+                          <span className="text-white"> {action.title.replace('IA ', '').replace(' IA', '')}</span>
+                        </>
+                      ) : (
+                        <span className="text-white">{action.title}</span>
+                      )}
+                    </h4>
                     <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/70 truncate hidden sm:block font-light">{action.description}</p>
                   </div>
                   <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-125 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/30 to-cyan-500/30 border border-white/20 shadow-lg shadow-cyan-500/30">
@@ -630,10 +640,10 @@ const Dashboard = ({
                     <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight flex items-center gap-1 drop-shadow-sm">
-                      <span className="bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">auditor</span>
-                      <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-fuchsia-400 bg-clip-text text-transparent font-extrabold">IA</span>
-                      <span className="bg-gradient-to-r from-white/80 to-cyan-200/80 bg-clip-text text-transparent ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
+                    <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight flex items-center gap-0.5 drop-shadow-sm">
+                      <span className="text-white/90">Auditor</span>
+                      <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-extrabold">IA</span>
+                      <span className="text-white/70 ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría inteligente</span>
                     </h4>
                   </div>
                 </div>
