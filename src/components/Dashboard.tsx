@@ -538,39 +538,50 @@ const Dashboard = ({
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
         </div>
         
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-5">
           {aiActions.map((action, index) => (
             <div key={index} className="relative group">
-              {/* Animated gradient border - Apple Intelligence style */}
-              <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-cyan-400 to-blue-500 opacity-70 group-hover:opacity-100 blur-[1px] transition-all duration-500 animate-pulse"></div>
-              <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400 via-amber-300 to-cyan-400 opacity-50"></div>
+              {/* Outer glow - intense radial */}
+              <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-orange-500/40 via-cyan-400/40 to-blue-500/40 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700"></div>
+              
+              {/* Multiple animated gradient borders - Apple Intelligence style */}
+              <div className="absolute -inset-[2px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-fuchsia-500 via-cyan-400 to-blue-500 opacity-80 group-hover:opacity-100 blur-[2px] transition-all duration-500 animate-pulse"></div>
+              <div className="absolute -inset-[1.5px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-400 via-cyan-300 via-amber-400 to-orange-500 opacity-90"></div>
+              <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400/80 via-white/30 to-cyan-400/80 opacity-60 animate-pulse"></div>
               
               <button 
-                className="relative h-16 sm:h-18 lg:h-20 w-full p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-black text-white shadow-lg shadow-black/50 hover:shadow-xl hover:shadow-orange-500/20 transition-all duration-500 lg:hover:scale-105 active:scale-95 overflow-hidden" 
+                className="relative h-16 sm:h-18 lg:h-20 w-full p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/20 hover:shadow-orange-500/30 transition-all duration-500 lg:hover:scale-105 active:scale-95 overflow-hidden" 
                 onClick={() => onModuleChange(action.module)}
               >
-                {/* Inner glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-500/10 rounded-2xl sm:rounded-3xl"></div>
+                {/* Corner glows */}
+                <div className="absolute top-0 left-0 w-20 h-20 bg-orange-500/20 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-0 right-0 w-20 h-20 bg-cyan-500/20 rounded-full blur-2xl"></div>
+                
+                {/* Inner glow effect - stronger */}
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-transparent to-cyan-500/20 rounded-2xl sm:rounded-3xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-tl from-blue-500/10 via-transparent to-amber-500/10 rounded-2xl sm:rounded-3xl"></div>
                 
                 {/* Shine sweep effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                 
-                {/* Top highlight */}
-                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+                {/* Top highlight - more visible */}
+                <div className="absolute top-0 left-[10%] right-[10%] h-[1px] bg-gradient-to-r from-transparent via-white/60 to-transparent"></div>
+                <div className="absolute bottom-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent"></div>
                 
-                {/* Floating orb - hidden on mobile */}
-                <div className="absolute top-2 right-4 w-1.5 h-1.5 bg-gradient-to-r from-orange-400 to-cyan-400 rounded-full animate-pulse hidden sm:block"></div>
+                {/* Floating orbs */}
+                <div className="absolute top-2 right-4 w-2 h-2 bg-gradient-to-r from-orange-400 to-amber-300 rounded-full animate-pulse hidden sm:block shadow-lg shadow-orange-500/50"></div>
+                <div className="absolute bottom-2 left-4 w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-400 rounded-full animate-pulse hidden sm:block shadow-lg shadow-cyan-500/50"></div>
                 
                 <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3 lg:gap-4">
-                  <div className="p-1.5 sm:p-2 lg:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/30 to-cyan-500/20 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/40 group-hover:to-cyan-500/30 transition-all duration-300 flex-shrink-0 border border-white/10">
-                    <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                  <div className="p-1.5 sm:p-2 lg:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/40 to-cyan-500/30 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/50 group-hover:to-cyan-500/40 transition-all duration-300 flex-shrink-0 border border-white/20 shadow-lg shadow-orange-500/20">
+                    <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left min-w-0 flex-1">
-                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-semibold tracking-tight truncate bg-gradient-to-r from-white via-orange-100 to-cyan-100 bg-clip-text text-transparent">{action.title}</h4>
-                    <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/60 truncate hidden sm:block font-light">{action.description}</p>
+                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-bold tracking-tight truncate bg-gradient-to-r from-white via-orange-100 to-cyan-100 bg-clip-text text-transparent drop-shadow-sm">{action.title}</h4>
+                    <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/70 truncate hidden sm:block font-light">{action.description}</p>
                   </div>
-                  <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-110 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/20 to-cyan-500/20 border border-white/10">
-                    <span className="text-sm sm:text-base lg:text-lg bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent">✦</span>
+                  <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-125 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/30 to-cyan-500/30 border border-white/20 shadow-lg shadow-cyan-500/30">
+                    <span className="text-sm sm:text-base lg:text-lg bg-gradient-to-r from-orange-300 to-cyan-300 bg-clip-text text-transparent font-bold">✦</span>
                   </div>
                 </div>
               </button>
@@ -581,42 +592,57 @@ const Dashboard = ({
         {/* auditorIA Quick Access - Diseño Premium Apple Intelligence */}
         {(profile?.role === 'owner' || profile?.role === 'admin') && (
           <div className="relative group">
-            {/* Animated gradient border - Apple Intelligence style */}
-            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-cyan-400 to-blue-500 opacity-70 group-hover:opacity-100 blur-[1px] transition-all duration-500"></div>
-            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-400 via-cyan-300 to-orange-400 opacity-50 animate-pulse"></div>
+            {/* Outer glow - intense radial */}
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/20 to-orange-500/30 opacity-0 group-hover:opacity-100 blur-3xl transition-all duration-700"></div>
+            
+            {/* Multiple animated gradient borders - Apple Intelligence style */}
+            <div className="absolute -inset-[2px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-400 via-fuchsia-500 via-orange-500 to-amber-400 opacity-80 group-hover:opacity-100 blur-[2px] transition-all duration-500 animate-pulse"></div>
+            <div className="absolute -inset-[1.5px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400 via-pink-400 via-cyan-400 to-blue-500 opacity-90"></div>
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-300/80 via-white/40 to-orange-300/80 opacity-60 animate-pulse"></div>
             
             <button 
-              className="relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-black text-white shadow-lg shadow-black/50 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden"
+              className="relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/30 hover:shadow-orange-500/40 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden"
               onClick={() => onModuleChange('documents')}
             >
-              {/* Inner glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-500/10 rounded-2xl sm:rounded-3xl"></div>
+              {/* Corner glows */}
+              <div className="absolute top-0 left-0 w-32 h-16 bg-orange-500/20 rounded-full blur-2xl"></div>
+              <div className="absolute bottom-0 right-0 w-32 h-16 bg-cyan-500/20 rounded-full blur-2xl"></div>
+              <div className="absolute top-0 right-1/3 w-20 h-10 bg-fuchsia-500/15 rounded-full blur-xl"></div>
               
-              {/* Top highlight */}
-              <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+              {/* Inner glow effect - stronger */}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-transparent to-cyan-500/20 rounded-2xl sm:rounded-3xl"></div>
+              <div className="absolute inset-0 bg-gradient-to-tl from-blue-500/10 via-fuchsia-500/5 to-amber-500/10 rounded-2xl sm:rounded-3xl"></div>
+              
+              {/* Top highlight - more visible */}
+              <div className="absolute top-0 left-[10%] right-[10%] h-[1px] bg-gradient-to-r from-transparent via-white/70 to-transparent"></div>
+              <div className="absolute bottom-0 left-[15%] right-[15%] h-[1px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
               
               {/* Shine sweep effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              
+              {/* Floating orbs */}
+              <div className="absolute top-2 right-6 w-2 h-2 bg-gradient-to-r from-orange-400 to-amber-300 rounded-full animate-pulse shadow-lg shadow-orange-500/50"></div>
+              <div className="absolute bottom-2 left-6 w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-400 rounded-full animate-pulse shadow-lg shadow-cyan-500/50"></div>
               
               <div className="relative z-10 flex items-center justify-between h-full">
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/30 to-cyan-500/20 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/40 group-hover:to-cyan-500/30 transition-all duration-300 border border-white/10">
-                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                  <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/40 to-cyan-500/30 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/50 group-hover:to-cyan-500/40 transition-all duration-300 border border-white/20 shadow-lg shadow-orange-500/20">
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight flex items-center gap-1">
+                    <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight flex items-center gap-1 drop-shadow-sm">
                       <span className="bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">auditor</span>
-                      <span className="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent font-bold">IA</span>
-                      <span className="bg-gradient-to-r from-white/70 to-cyan-200/70 bg-clip-text text-transparent ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
+                      <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-fuchsia-400 bg-clip-text text-transparent font-extrabold">IA</span>
+                      <span className="bg-gradient-to-r from-white/80 to-cyan-200/80 bg-clip-text text-transparent ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
                     </h4>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-orange-500/20 to-cyan-500/20 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-medium hidden sm:block border border-white/10 bg-gradient-to-r from-orange-200 to-cyan-200 bg-clip-text text-transparent">
+                  <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-orange-500/30 to-cyan-500/30 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-semibold hidden sm:block border border-white/20 text-white/90 shadow-lg shadow-cyan-500/20">
                     Hunter Pro
                   </span>
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-500/20 to-cyan-500/20 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
-                    <span className="text-sm sm:text-base bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent">◉</span>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-cyan-500/30 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-125 transition-transform shadow-lg shadow-orange-500/30">
+                    <span className="text-sm sm:text-base bg-gradient-to-r from-orange-300 to-cyan-300 bg-clip-text text-transparent font-bold">◉</span>
                   </div>
                 </div>
               </div>
