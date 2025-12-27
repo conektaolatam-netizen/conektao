@@ -309,7 +309,7 @@ const Dashboard = ({
   }, {
     title: "Documentos",
     module: "documents",
-    gradient: "from-indigo-500 to-purple-600",
+    gradient: "from-teal-400 via-cyan-500 to-teal-600",
     icon: FileText,
     description: "Archivos",
     badge: "29",
