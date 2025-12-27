@@ -518,7 +518,7 @@ const Dashboard = ({
                   <p className={`font-bold text-[10px] sm:text-xs lg:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors truncate`}>
                     {action.title}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] lg:text-xs text-teal-400 group-hover:text-teal-300 transition-colors truncate hidden sm:block">
+                  <p className="text-[9px] sm:text-[10px] lg:text-xs text-white/80 group-hover:text-white transition-colors truncate hidden sm:block">
                     {action.description}
                   </p>
                 </div>
