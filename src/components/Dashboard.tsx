@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2, Eye } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2, Clipboard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/integrations/supabase/client';
@@ -540,8 +540,7 @@ const Dashboard = ({
         </div>
         
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-5">
-          {aiActions.map((action, index) => (
-            <div key={index} className="relative group">
+          {aiActions.map((action, index) => <div key={index} className="relative group">
               {/* Outer glow - intense radial */}
               <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-orange-500/40 via-cyan-400/40 to-blue-500/40 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700"></div>
               
@@ -550,10 +549,7 @@ const Dashboard = ({
               <div className="absolute -inset-[1.5px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-400 via-cyan-300 via-amber-400 to-orange-500 opacity-90"></div>
               <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400/80 via-white/30 to-cyan-400/80 opacity-60 animate-pulse"></div>
               
-              <button 
-                className="relative h-16 sm:h-18 lg:h-20 w-full p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/20 hover:shadow-orange-500/30 transition-all duration-500 lg:hover:scale-105 active:scale-95 overflow-hidden" 
-                onClick={() => onModuleChange(action.module)}
-              >
+              <button className="relative h-16 sm:h-18 lg:h-20 w-full p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/20 hover:shadow-orange-500/30 transition-all duration-500 lg:hover:scale-105 active:scale-95 overflow-hidden" onClick={() => onModuleChange(action.module)}>
                 {/* Corner glows */}
                 <div className="absolute top-0 left-0 w-20 h-20 bg-orange-500/20 rounded-full blur-2xl"></div>
                 <div className="absolute bottom-0 right-0 w-20 h-20 bg-cyan-500/20 rounded-full blur-2xl"></div>
@@ -579,14 +575,10 @@ const Dashboard = ({
                   </div>
                   <div className="text-left min-w-0 flex-1">
                     <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight truncate drop-shadow-sm">
-                      {action.title.includes('IA') ? (
-                        <>
+                      {action.title.includes('IA') ? <>
                           <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-extrabold">IA</span>
                           <span className="text-white"> {action.title.replace('IA ', '').replace(' IA', '')}</span>
-                        </>
-                      ) : (
-                        <span className="text-white">{action.title}</span>
-                      )}
+                        </> : <span className="text-white">{action.title}</span>}
                     </h4>
                     <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/70 truncate hidden sm:block font-light">{action.description}</p>
                   </div>
@@ -595,13 +587,11 @@ const Dashboard = ({
                   </div>
                 </div>
               </button>
-            </div>
-          ))}
+            </div>)}
         </div>
 
         {/* auditorIA Quick Access - Diseño Premium Apple Intelligence */}
-        {(profile?.role === 'owner' || profile?.role === 'admin') && (
-          <div className="relative group">
+        {(profile?.role === 'owner' || profile?.role === 'admin') && <div className="relative group">
             {/* Outer glow - intense radial */}
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/20 to-orange-500/30 opacity-0 group-hover:opacity-100 blur-3xl transition-all duration-700"></div>
             
@@ -610,10 +600,7 @@ const Dashboard = ({
             <div className="absolute -inset-[1.5px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400 via-pink-400 via-cyan-400 to-blue-500 opacity-90"></div>
             <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-300/80 via-white/40 to-orange-300/80 opacity-60 animate-pulse"></div>
             
-            <button 
-              className="relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/30 hover:shadow-orange-500/40 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden"
-              onClick={() => onModuleChange('documents')}
-            >
+            <button className="relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-black/95 text-white shadow-2xl shadow-cyan-500/30 hover:shadow-orange-500/40 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden" onClick={() => onModuleChange('documents')}>
               {/* Corner glows */}
               <div className="absolute top-0 left-0 w-32 h-16 bg-orange-500/20 rounded-full blur-2xl"></div>
               <div className="absolute bottom-0 right-0 w-32 h-16 bg-cyan-500/20 rounded-full blur-2xl"></div>
@@ -637,7 +624,7 @@ const Dashboard = ({
               <div className="relative z-10 flex items-center justify-between h-full">
                 <div className="flex items-center gap-3 sm:gap-4">
                   <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/40 to-cyan-500/30 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/50 group-hover:to-cyan-500/40 transition-all duration-300 border border-white/20 shadow-lg shadow-orange-500/20">
-                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white drop-shadow-lg" />
+                    <Clipboard className="h-4 w-4 sm:h-5 sm:w-5 text-white drop-shadow-lg" />
                   </div>
                   <div className="text-left">
                     <h4 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight flex items-center gap-0.5 drop-shadow-sm">
@@ -657,8 +644,7 @@ const Dashboard = ({
                 </div>
               </div>
             </button>
-          </div>
-        )}
+          </div>}
       </div>
 
 
@@ -683,24 +669,48 @@ const Dashboard = ({
               </div>
               <div className="space-y-1 sm:space-y-1.5 lg:space-y-2">
                 {/* Sales bars - mobile optimized */}
-                {[
-                  { day: 'Lun', color: 'from-blue-400 to-indigo-500', width: '0%', value: 0 },
-                  { day: 'Mar', color: 'from-green-400 to-emerald-500', width: '0%', value: 0 },
-                  { day: 'Mié', color: 'from-purple-400 to-pink-500', width: '0%', value: realSalesData.dailySales * 0.9 },
-                  { day: 'Jue', color: 'from-yellow-400 to-orange-500', width: '95%', value: realSalesData.dailySales * 1.2 },
-                  { day: 'Vie', color: 'from-pink-400 to-red-500', width: '100%', value: realSalesData.dailySales * 1.5 },
-                  { day: 'Hoy', color: 'from-orange-400 to-red-500', width: '30%', value: realSalesData.dailySales, isToday: true }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
+                {[{
+                day: 'Lun',
+                color: 'from-blue-400 to-indigo-500',
+                width: '0%',
+                value: 0
+              }, {
+                day: 'Mar',
+                color: 'from-green-400 to-emerald-500',
+                width: '0%',
+                value: 0
+              }, {
+                day: 'Mié',
+                color: 'from-purple-400 to-pink-500',
+                width: '0%',
+                value: realSalesData.dailySales * 0.9
+              }, {
+                day: 'Jue',
+                color: 'from-yellow-400 to-orange-500',
+                width: '95%',
+                value: realSalesData.dailySales * 1.2
+              }, {
+                day: 'Vie',
+                color: 'from-pink-400 to-red-500',
+                width: '100%',
+                value: realSalesData.dailySales * 1.5
+              }, {
+                day: 'Hoy',
+                color: 'from-orange-400 to-red-500',
+                width: '30%',
+                value: realSalesData.dailySales,
+                isToday: true
+              }].map((item, idx) => <div key={idx} className="flex justify-between items-center">
                     <span className="text-[9px] sm:text-[10px] lg:text-xs text-white/80 w-8 sm:w-10 lg:w-12">{item.day}</span>
                     <div className="flex-1 mx-1 sm:mx-2 bg-gray-700/50 rounded-full h-2 sm:h-3 lg:h-4">
-                      <div className={`bg-gradient-to-r ${item.color} h-full rounded-full ${item.isToday ? 'animate-pulse' : ''}`} style={{ width: item.width }}></div>
+                      <div className={`bg-gradient-to-r ${item.color} h-full rounded-full ${item.isToday ? 'animate-pulse' : ''}`} style={{
+                    width: item.width
+                  }}></div>
                     </div>
                     <span className={`text-[8px] sm:text-[9px] lg:text-xs font-medium w-12 sm:w-14 lg:w-16 text-right ${item.isToday ? 'text-orange-400 font-bold' : 'text-white'}`}>
                       {formatCurrency(item.value)}
                     </span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
               <div className="mt-1.5 sm:mt-2 lg:mt-3 text-center">
                 <div className="text-[8px] sm:text-[9px] lg:text-xs text-white/70 mb-1 sm:mb-2 truncate">
