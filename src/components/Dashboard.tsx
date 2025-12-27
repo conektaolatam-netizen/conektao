@@ -285,7 +285,7 @@ const Dashboard = ({
   }, {
     title: "Inventario",
     module: "inventory",
-    gradient: "from-purple-500 to-violet-600",
+    gradient: "from-amber-400 via-orange-400 to-yellow-500",
     icon: Package,
     description: "Ingredientes, productos y recetas",
     alert: true,
