@@ -2639,30 +2639,30 @@ Por favor:
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {tables.map(table => <Button key={table.number} variant="outline" onClick={() => handleTableSelect(table.number)} className={`h-24 flex-col gap-2 transition-all duration-500 rounded-xl hover:scale-105 bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-hidden group ${table.status === 'libre' 
                 ? 'border-2 border-green-400/80 shadow-[0_0_15px_rgba(34,197,94,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5),0_0_50px_rgba(34,197,94,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] hover:border-green-300' 
-                : 'border-2 border-red-400/80 shadow-[0_0_15px_rgba(239,68,68,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(239,68,68,0.5),0_0_50px_rgba(239,68,68,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] hover:border-red-300'
+                : 'border-2 border-orange-500/90 shadow-[0_0_15px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(249,115,22,0.6),0_0_50px_rgba(239,68,68,0.25),inset_0_1px_0_rgba(255,255,255,0.15)] hover:border-orange-400'
               }`}>
                 {/* Efecto de brillo metálico */}
                 <div className={`absolute inset-0 rounded-xl opacity-30 group-hover:opacity-50 transition-opacity duration-500 ${table.status === 'libre' 
                   ? 'bg-gradient-to-br from-green-400/20 via-transparent to-green-500/10' 
-                  : 'bg-gradient-to-br from-red-400/20 via-transparent to-red-500/10'
+                  : 'bg-gradient-to-br from-orange-500/25 via-red-500/10 to-orange-600/15'
                 }`} />
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
                 <div className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${table.status === 'libre'
                   ? 'bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)]'
-                  : 'bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.15)_0%,transparent_70%)]'
+                  : 'bg-[radial-gradient(ellipse_at_center,rgba(249,115,22,0.2)_0%,rgba(239,68,68,0.1)_50%,transparent_70%)]'
                 }`} />
                 
-                <Utensils className={`h-5 w-5 relative z-10 ${table.status === 'libre' ? 'text-green-400 drop-shadow-[0_0_6px_rgba(34,197,94,0.5)]' : 'text-red-400 drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]'}`} />
+                <Utensils className={`h-5 w-5 relative z-10 ${table.status === 'libre' ? 'text-green-400 drop-shadow-[0_0_6px_rgba(34,197,94,0.5)]' : 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.6)]'}`} />
                 
                 <div className="text-center relative z-10">
-                  <div className={`font-bold text-sm ${table.status === 'libre' ? 'text-green-300 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'text-red-300 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`}>
+                  <div className={`font-bold text-sm ${table.status === 'libre' ? 'text-green-300 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]'}`}>
                     Orden {table.number}
                   </div>
                   {table.status === 'libre' ? <div className="text-xs text-green-300/90 font-medium">
                       Disponible
-                    </div> : <div className="text-xs text-gray-300 space-y-1">
+                    </div> : <div className="text-xs text-orange-200/90 space-y-1">
                       <div>{table.customers} personas</div>
-                      {table.orderTotal > 0 && <div className="text-sm font-bold text-red-300 drop-shadow-[0_0_6px_rgba(239,68,68,0.3)]">
+                      {table.orderTotal > 0 && <div className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-300 to-red-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.4)]">
                           {formatCurrency(table.orderTotal)}
                         </div>}
                     </div>}
