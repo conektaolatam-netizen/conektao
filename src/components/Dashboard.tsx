@@ -533,8 +533,8 @@ const Dashboard = ({
         <div className="flex items-center justify-center gap-2 sm:gap-3">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
           <h3 className="text-xs sm:text-sm lg:text-xl font-semibold tracking-wide text-center">
-            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-bold">Inteligencia </span>
-            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-bold">Artificial</span>
+            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-bold">INTELIGENCIA </span>
+            <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-cyan-400 bg-clip-text text-transparent font-bold">ARTIFICIAL</span>
           </h3>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent"></div>
         </div>
