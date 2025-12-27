@@ -540,72 +540,88 @@ const Dashboard = ({
         
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
           {aiActions.map((action, index) => (
-            <button 
-              key={index} 
-              className="group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/40 transition-all duration-500 lg:hover:scale-105 active:scale-95 border border-white/20 overflow-hidden backdrop-blur-xl" 
-              onClick={() => onModuleChange(action.module)}
-            >
-              {/* Glassmorphism overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 rounded-2xl sm:rounded-3xl"></div>
+            <div key={index} className="relative group">
+              {/* Animated gradient border - Apple Intelligence style */}
+              <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-cyan-400 to-blue-500 opacity-70 group-hover:opacity-100 blur-[1px] transition-all duration-500 animate-pulse"></div>
+              <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-400 via-amber-300 to-cyan-400 opacity-50"></div>
               
-              {/* Shine effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              
-              {/* Floating orb - hidden on mobile */}
-              <div className="absolute top-2 right-4 w-2 h-2 bg-white/70 rounded-full animate-pulse hidden sm:block"></div>
-              
-              <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3 lg:gap-4">
-                <div className="p-1.5 sm:p-2 lg:p-3 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 flex-shrink-0 border border-white/10">
-                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+              <button 
+                className="relative h-16 sm:h-18 lg:h-20 w-full p-2 sm:p-3 lg:p-6 rounded-2xl sm:rounded-3xl bg-black text-white shadow-lg shadow-black/50 hover:shadow-xl hover:shadow-orange-500/20 transition-all duration-500 lg:hover:scale-105 active:scale-95 overflow-hidden" 
+                onClick={() => onModuleChange(action.module)}
+              >
+                {/* Inner glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-500/10 rounded-2xl sm:rounded-3xl"></div>
+                
+                {/* Shine sweep effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                
+                {/* Top highlight */}
+                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+                
+                {/* Floating orb - hidden on mobile */}
+                <div className="absolute top-2 right-4 w-1.5 h-1.5 bg-gradient-to-r from-orange-400 to-cyan-400 rounded-full animate-pulse hidden sm:block"></div>
+                
+                <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3 lg:gap-4">
+                  <div className="p-1.5 sm:p-2 lg:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/30 to-cyan-500/20 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/40 group-hover:to-cyan-500/30 transition-all duration-300 flex-shrink-0 border border-white/10">
+                    <action.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                  </div>
+                  <div className="text-left min-w-0 flex-1">
+                    <h4 className="text-[10px] sm:text-xs lg:text-lg font-semibold tracking-tight truncate bg-gradient-to-r from-white via-orange-100 to-cyan-100 bg-clip-text text-transparent">{action.title}</h4>
+                    <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/60 truncate hidden sm:block font-light">{action.description}</p>
+                  </div>
+                  <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-110 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/20 to-cyan-500/20 border border-white/10">
+                    <span className="text-sm sm:text-base lg:text-lg bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent">✦</span>
+                  </div>
                 </div>
-                <div className="text-left min-w-0 flex-1">
-                  <h4 className="text-[10px] sm:text-xs lg:text-lg font-semibold tracking-tight truncate text-white">{action.title}</h4>
-                  <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/80 truncate hidden sm:block font-light">{action.description}</p>
-                </div>
-                <div className="text-base sm:text-lg lg:text-2xl group-hover:scale-110 transition-transform hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-white/10">
-                  <span className="text-sm sm:text-base lg:text-lg">✦</span>
-                </div>
-              </div>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
 
-        {/* auditorIA Quick Access - Diseño Premium Apple iOS */}
+        {/* auditorIA Quick Access - Diseño Premium Apple Intelligence */}
         {(profile?.role === 'owner' || profile?.role === 'admin') && (
-          <button 
-            className="group relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/50 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 border border-white/20 overflow-hidden"
-            onClick={() => onModuleChange('documents')}
-          >
-            {/* Glassmorphism layers */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/10 rounded-2xl sm:rounded-3xl"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+          <div className="relative group">
+            {/* Animated gradient border - Apple Intelligence style */}
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-orange-500 via-cyan-400 to-blue-500 opacity-70 group-hover:opacity-100 blur-[1px] transition-all duration-500"></div>
+            <div className="absolute -inset-[1px] rounded-2xl sm:rounded-3xl bg-gradient-to-r from-blue-400 via-cyan-300 to-orange-400 opacity-50 animate-pulse"></div>
             
-            {/* Subtle glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-amber-400 rounded-3xl opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500"></div>
-            
-            <div className="relative z-10 flex items-center justify-between h-full">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300 border border-white/10">
-                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+            <button 
+              className="relative w-full h-14 sm:h-16 lg:h-18 p-3 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-black text-white shadow-lg shadow-black/50 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden"
+              onClick={() => onModuleChange('documents')}
+            >
+              {/* Inner glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-500/10 rounded-2xl sm:rounded-3xl"></div>
+              
+              {/* Top highlight */}
+              <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+              
+              {/* Shine sweep effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              
+              <div className="relative z-10 flex items-center justify-between h-full">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/30 to-cyan-500/20 backdrop-blur-md group-hover:scale-110 group-hover:from-orange-500/40 group-hover:to-cyan-500/30 transition-all duration-300 border border-white/10">
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight flex items-center gap-1">
+                      <span className="bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">auditor</span>
+                      <span className="bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent font-bold">IA</span>
+                      <span className="bg-gradient-to-r from-white/70 to-cyan-200/70 bg-clip-text text-transparent ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
+                    </h4>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h4 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight flex items-center gap-1">
-                    <span className="text-white/90">auditor</span>
-                    <span className="bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent font-bold">IA</span>
-                    <span className="text-white/70 ml-2 text-xs sm:text-sm font-light hidden sm:inline">Auditoría Inteligente</span>
-                  </h4>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-orange-500/20 to-cyan-500/20 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-medium hidden sm:block border border-white/10 bg-gradient-to-r from-orange-200 to-cyan-200 bg-clip-text text-transparent">
+                    Hunter Pro
+                  </span>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-500/20 to-cyan-500/20 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                    <span className="text-sm sm:text-base bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent">◉</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white/15 backdrop-blur-md rounded-full text-[10px] sm:text-xs font-medium hidden sm:block border border-white/10">
-                  Hunter Pro
-                </span>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
-                  <span className="text-sm sm:text-base">◉</span>
-                </div>
-              </div>
-            </div>
-          </button>
+            </button>
+          </div>
         )}
       </div>
 
