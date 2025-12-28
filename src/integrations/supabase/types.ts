@@ -2674,6 +2674,56 @@ export type Database = {
         }
         Relationships: []
       }
+      settings_audit_log: {
+        Row: {
+          action: string
+          after_json: Json | null
+          before_json: Json | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          restaurant_id: string
+          section: string
+          user_agent: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          after_json?: Json | null
+          before_json?: Json | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          restaurant_id: string
+          section: string
+          user_agent?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          after_json?: Json | null
+          before_json?: Json | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          restaurant_id?: string
+          section?: string
+          user_agent?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settings_audit_log_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_settings: {
         Row: {
           auto_renew: boolean
