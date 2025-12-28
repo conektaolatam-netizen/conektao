@@ -3754,6 +3754,20 @@ export type Database = {
         Returns: string
       }
       mask_customer_email: { Args: { email: string }; Returns: string }
+      process_sale_atomic: {
+        Args: {
+          p_customer_email?: string
+          p_idempotency_key?: string
+          p_items: Json
+          p_payment_method: string
+          p_restaurant_id: string
+          p_table_number?: number
+          p_tip_amount?: number
+          p_total_amount: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       reset_daily_ai_usage: { Args: never; Returns: undefined }
       seed_table_states: {
         Args: { p_count?: number; p_restaurant_id: string }
