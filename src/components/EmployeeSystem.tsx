@@ -32,13 +32,28 @@ const EmployeeSystem = () => {
   const [activeTab, setActiveTab] = useState("list");
   const [showPOS, setShowPOS] = useState(false);
   if (!profile) {
-    return <Card>
+    return (
+      <Card>
         <CardContent className="p-6">
           <p className="text-center text-muted-foreground">
             Cargando datos del usuario...
           </p>
         </CardContent>
-      </Card>;
+      </Card>
+    );
+  }
+
+  // Guard clause: Si no hay restaurante asignado, mostrar mensaje
+  if (!restaurant) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-center text-muted-foreground">
+            Cargando datos del establecimiento...
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   // Vista para empleados - mostrar herramientas según permisos + control de tiempo

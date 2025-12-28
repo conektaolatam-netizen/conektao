@@ -24,9 +24,59 @@ serve(async (req: Request): Promise<Response> => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // AUTHORIZATION: Verify the caller has permission
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No autorizado - token faltante' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (authError || !caller) {
+      console.error('Auth error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'No autorizado - token inválido' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Get caller's profile to check role and restaurant
+    const { data: callerProfile, error: callerError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, restaurant_id, role')
+      .eq('id', caller.id)
+      .single();
+
+    if (callerError || !callerProfile) {
+      console.error('Caller profile error:', callerError);
+      return new Response(
+        JSON.stringify({ error: 'No se pudo verificar tu perfil' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Only owners and admins can update credentials
+    if (callerProfile.role !== 'owner' && callerProfile.role !== 'admin') {
+      console.warn('Unauthorized role attempt:', callerProfile.role);
+      return new Response(
+        JSON.stringify({ error: 'Solo propietarios y administradores pueden cambiar credenciales' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { employee_id, new_email, new_password }: UpdateCredentialsRequest = await req.json();
 
-    console.log("update-employee-credentials payload:", { employee_id, new_email: new_email ? '[PROVIDED]' : null, new_password: new_password ? '[PROVIDED]' : null });
+    console.log("update-employee-credentials payload:", { 
+      caller_id: caller.id,
+      caller_role: callerProfile.role,
+      employee_id, 
+      new_email: new_email ? '[PROVIDED]' : null, 
+      new_password: new_password ? '[PROVIDED]' : null 
+    });
 
     if (!employee_id) {
       return new Response(
@@ -42,14 +92,14 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Verificar que el empleado existe
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // Verificar que el empleado existe y pertenece al mismo restaurante
+    const { data: targetProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email')
+      .select('id, email, restaurant_id')
       .eq('id', employee_id)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError || !targetProfile) {
       console.error('Profile not found:', profileError);
       return new Response(
         JSON.stringify({ error: 'Empleado no encontrado' }),
@@ -57,9 +107,21 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // Verify caller and target belong to the same restaurant
+    if (callerProfile.restaurant_id !== targetProfile.restaurant_id) {
+      console.warn('Cross-restaurant credential change attempt:', {
+        caller_restaurant: callerProfile.restaurant_id,
+        target_restaurant: targetProfile.restaurant_id
+      });
+      return new Response(
+        JSON.stringify({ error: 'No puedes modificar empleados de otro establecimiento' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const updateData: { email?: string; password?: string } = {};
     
-    if (new_email && new_email !== profile.email) {
+    if (new_email && new_email !== targetProfile.email) {
       // Verificar que el nuevo email no esté en uso
       const { data: existingEmail } = await supabaseAdmin
         .from('profiles')

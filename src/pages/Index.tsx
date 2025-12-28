@@ -101,9 +101,42 @@ const Index = () => {
     );
   }
 
-  // Si el usuario no tiene establecimiento asignado, mostrar setup wizard
+  // Si el usuario no tiene establecimiento asignado
   if (user && profile && !profile.restaurant_id) {
-    return <RestaurantSetupWizard onComplete={() => window.location.reload()} />;
+    // Solo los owners pueden configurar un nuevo establecimiento
+    if (profile.role === 'owner') {
+      return <RestaurantSetupWizard onComplete={() => window.location.reload()} />;
+    }
+    // Empleados sin restaurante ven un mensaje claro, no error
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md text-center space-y-6">
+          <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Cuenta sin asignar</h2>
+            <p className="text-muted-foreground">
+              Tu cuenta no está vinculada a ningún establecimiento. 
+              Contacta a tu administrador o propietario para que te asigne a un restaurante.
+            </p>
+          </div>
+          <div className="pt-4">
+            <p className="text-sm text-muted-foreground">
+              Si crees que esto es un error, intenta cerrar sesión y volver a ingresar.
+            </p>
+            <button 
+              onClick={() => window.location.href = '/auth?mode=login'}
+              className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
   const handleOnboardingComplete = (data: any) => {
     localStorage.setItem('restaurantUserData', JSON.stringify(data));

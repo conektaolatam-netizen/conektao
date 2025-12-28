@@ -167,7 +167,8 @@ const EmployeeList = ({ onEmployeeSelect }: EmployeeListProps) => {
       });
   };
 
-  if (!profile || profile.role !== 'owner') {
+  // Permitir acceso a owners y admins
+  if (!profile || (profile.role !== 'owner' && profile.role !== 'admin')) {
     return (
       <Card>
         <CardContent className="p-6">

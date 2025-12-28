@@ -46,7 +46,7 @@ const TimeTracking = ({ selectedEmployeeId, viewMode = 'employee' }: TimeTrackin
   const targetEmployeeId = viewMode === 'manager' && selectedEmployeeId ? selectedEmployeeId : profile?.id;
 
   const loadTodayRecords = async () => {
-    if (!targetEmployeeId) return;
+    if (!targetEmployeeId || !restaurant?.id) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
