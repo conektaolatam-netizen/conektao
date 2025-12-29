@@ -83,8 +83,24 @@ const POSBilling = () => {
   const [showNoShiftModal, setShowNoShiftModal] = useState(false);
   
   // ✅ VERIFICACIÓN DE CAJA ABIERTA - Bloquea facturación sin base inicial
-  const { canProcessSales, isClosed: isCashClosed, isLoading: isCashLoading } = useCashRegisterStatus();
+  const { canProcessSales, isClosed: isCashClosed, isLoading: isCashLoading, refresh: refreshCashStatus } = useCashRegisterStatus();
   const [showCashBlockedModal, setShowCashBlockedModal] = useState(false);
+  const [isCheckingCash, setIsCheckingCash] = useState(false);
+  
+  // Verificar caja al intentar ir a pago - ASÍNCRONO para esperar estado actualizado
+  const checkCashBeforePayment = async (): Promise<boolean> => {
+    if (isCashLoading) {
+      setIsCheckingCash(true);
+      await refreshCashStatus();
+      setIsCheckingCash(false);
+    }
+    
+    if (!canProcessSales) {
+      setShowCashBlockedModal(true);
+      return false;
+    }
+    return true;
+  };
   
   // Verificar permisos del empleado - TODOS con permiso de facturar pueden enviar comandas
   const permissions = profile?.permissions || {};
@@ -1020,17 +1036,16 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                             });
                             return;
                           }
-                          // ✅ Verificar caja abierta primero
-                          if (!canProcessSales && !isCashLoading) {
-                            setShowCashBlockedModal(true);
-                            return;
-                          }
+                          // ✅ Verificar caja abierta primero (asíncrono)
+                          const cashOk = await checkCashBeforePayment();
+                          if (!cashOk) return;
+                          
                           const canProceed = await checkKitchenOrderBeforePayment();
                           if (canProceed) {
                             setCurrentView('payment');
                           }
                         }}
-                        disabled={selectedProducts.length === 0}
+                        disabled={selectedProducts.length === 0 || isCheckingCash}
                         className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold shadow-lg hover:shadow-green-500/30 transition-all duration-300"
                       >
                         <CreditCard className="h-5 w-5 mr-2" />
@@ -1233,12 +1248,11 @@ ${availabilityResult.limitingIngredient ? `Ingrediente faltante: ${availabilityR
                 {/* Botón rápido para ir a cobrar desde carrito */}
                 {canProcessPayments && selectedProducts.length > 0 && kitchenOrderSent && (
                   <Button
-                    onClick={() => {
-                      // ✅ Verificar caja abierta primero
-                      if (!canProcessSales && !isCashLoading) {
-                        setShowCashBlockedModal(true);
-                        return;
-                      }
+                    disabled={isCheckingCash}
+                    onClick={async () => {
+                      // ✅ Verificar caja abierta primero (asíncrono)
+                      const canProceed = await checkCashBeforePayment();
+                      if (!canProceed) return;
                       setCurrentView('payment');
                     }}
                     className="w-full h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold"
