@@ -87,19 +87,21 @@ const POSBilling = () => {
   const [showCashBlockedModal, setShowCashBlockedModal] = useState(false);
   const [isCheckingCash, setIsCheckingCash] = useState(false);
   
-  // Verificar caja al intentar ir a pago - ASÍNCRONO para esperar estado actualizado
+  // Verificar caja al intentar ir a pago - ASÍNCRONO con resultado directo
   const checkCashBeforePayment = async (): Promise<boolean> => {
-    if (isCashLoading) {
-      setIsCheckingCash(true);
-      await refreshCashStatus();
+    setIsCheckingCash(true);
+    try {
+      // Obtener estado directamente de la DB (no del state de React)
+      const result = await refreshCashStatus();
+      
+      if (!result.canProcess) {
+        setShowCashBlockedModal(true);
+        return false;
+      }
+      return true;
+    } finally {
       setIsCheckingCash(false);
     }
-    
-    if (!canProcessSales) {
-      setShowCashBlockedModal(true);
-      return false;
-    }
-    return true;
   };
   
   // Verificar permisos del empleado - TODOS con permiso de facturar pueden enviar comandas
