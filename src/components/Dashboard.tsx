@@ -419,33 +419,55 @@ const Dashboard = ({
         {stats.map((stat, index) => {
         const isMainStat = stat.size === 'large';
         const isTicketPromedio = stat.title === 'Ticket Promedio';
-        return <Card key={index} className={`group p-2 sm:p-3 lg:p-4 bg-card/80 backdrop-blur-sm border border-border/20 shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl cursor-pointer relative overflow-hidden ${isMainStat ? 'ring-2 ring-primary/40 col-span-2 sm:col-span-1' : ''} ${isTicketPromedio ? 'hidden sm:block' : ''}`} onClick={() => handleStatsClick(stat.title)}>
-              {/* 3D effect overlay */}
-              <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none"></div>
+        return (
+          <div 
+            key={index} 
+            className={`group relative cursor-pointer ${isMainStat ? 'col-span-2 sm:col-span-1' : ''} ${isTicketPromedio ? 'hidden sm:block' : ''}`}
+            onClick={() => handleStatsClick(stat.title)}
+          >
+            {/* Glow effect behind card */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-70 blur-md transition-all duration-500 animate-[glow-pulse_3s_ease-in-out_infinite]"></div>
+            
+            {/* Main card */}
+            <Card className={`relative p-2 sm:p-3 lg:p-4 bg-card/90 backdrop-blur-xl border border-orange-500/20 shadow-lg hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl overflow-hidden ${isMainStat ? 'ring-1 ring-orange-500/40' : ''}`}>
+              {/* Animated gradient border effect */}
+              <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-400/10 pointer-events-none"></div>
+              
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none"></div>
+              
+              {/* Top accent line */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity"></div>
               
               <div className="flex items-center justify-between relative z-10 gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                    <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate">
+                    <p className="text-[10px] sm:text-xs lg:text-sm font-medium bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent truncate">
                       {stat.title}
                     </p>
-                    {isMainStat && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>}
+                    {isMainStat && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full animate-pulse flex-shrink-0 shadow-lg shadow-orange-500/50"></div>}
                   </div>
-                  <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate">
+                  <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate text-foreground drop-shadow-[0_0_10px_rgba(251,146,60,0.3)]">
                     {stat.value}
                   </p>
                   <div className="flex items-center">
-                    <Badge className={`bg-gradient-to-r ${stat.gradient} text-primary-foreground px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs ${isMainStat ? 'ring-1 ring-primary shadow-lg' : ''}`}>
+                    <Badge className="bg-gradient-to-r from-orange-500 via-amber-500 to-cyan-500 text-white px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs shadow-lg shadow-orange-500/30 border-0">
                       {stat.change}
                     </Badge>
                   </div>
                   <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">{stat.description}</p>
                 </div>
-                <div className={`p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br ${stat.gradient} text-primary-foreground shadow-lg group-hover:scale-110 transition-transform flex-shrink-0 ${isMainStat ? 'shadow-primary/30 ring-2 ring-primary/20' : ''}`}>
-                  <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
+                <div className="relative">
+                  {/* Icon glow */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-cyan-400 rounded-xl sm:rounded-2xl blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                  <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-cyan-500 text-white shadow-xl group-hover:scale-110 transition-transform flex-shrink-0 ${isMainStat ? 'shadow-orange-500/40 ring-2 ring-white/20' : ''}`}>
+                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                  </div>
                 </div>
               </div>
-            </Card>;
+            </Card>
+          </div>
+        );
       })}
       </div>
 
