@@ -455,10 +455,10 @@ const Dashboard = ({
                   <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">{stat.description}</p>
                 </div>
                 <div className="relative">
-                  {/* Icon glow */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-cyan-400 rounded-xl sm:rounded-2xl blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
-                  <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-cyan-500 text-white shadow-xl group-hover:scale-110 transition-transform flex-shrink-0 ${isMainStat ? 'shadow-orange-500/40 ring-2 ring-white/20' : ''}`}>
-                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                  {/* Subtle glow effect */}
+                  <div className="absolute -inset-1 bg-gradient-to-br from-orange-500/30 to-cyan-400/30 rounded-xl sm:rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-black border border-orange-500/20 shadow-xl group-hover:scale-110 group-hover:border-cyan-400/40 transition-all flex-shrink-0 ${isMainStat ? 'shadow-orange-500/20 ring-1 ring-orange-500/30' : ''}`}>
+                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-transparent bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text" style={{ filter: 'drop-shadow(0 0 4px rgba(251,146,60,0.4))' }} />
                   </div>
                 </div>
               </div>
