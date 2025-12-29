@@ -60,9 +60,20 @@ const Billing = () => {
   // Usar configuración de propinas desde el contexto GLOBAL (única fuente de verdad)
   const tipConfig = useTipConfig();
   
-  // Verificar caja al intentar ir a pago
-  const checkCashBeforePayment = () => {
-    if (!canProcessSales && !isCashLoading) {
+  // Estado para verificación de caja en proceso
+  const [isCheckingCash, setIsCheckingCash] = useState(false);
+  
+  // Verificar caja al intentar ir a pago - ASÍNCRONO para esperar estado actualizado
+  const checkCashBeforePayment = async (): Promise<boolean> => {
+    // Si está cargando, refrescar y esperar
+    if (isCashLoading) {
+      setIsCheckingCash(true);
+      await refreshCashStatus();
+      setIsCheckingCash(false);
+    }
+    
+    // Ahora verificar el estado actualizado
+    if (!canProcessSales) {
       setShowCashBlockedModal(true);
       return false;
     }
@@ -2175,16 +2186,18 @@ Por favor:
                 {/* COBRAR */}
                 {selectedProducts.length > 0 && (
                   <Button 
-                    onClick={() => {
-                      // ✅ Verificar caja abierta primero
-                      if (!checkCashBeforePayment()) return;
+                    disabled={isCheckingCash}
+                    onClick={async () => {
+                      // ✅ Verificar caja abierta primero (asíncrono)
+                      const canProceed = await checkCashBeforePayment();
+                      if (!canProceed) return;
                       
                       if (!kitchenOrderSent) {
                         setShowNoKitchenWarning(true);
                       } else {
                         setCurrentView('payment');
                       }
-                    }} 
+                    }}
                     className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                   >
                     <Receipt className="h-4 w-4 mr-2" />
@@ -2449,11 +2462,14 @@ Por favor:
                 <Printer className="h-5 w-5 mr-2" />
                 Cuenta
               </Button>
-              <Button onClick={() => {
-                // ✅ Verificar caja abierta primero
-                if (!checkCashBeforePayment()) return;
-                setCurrentView('payment');
-              }} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white font-semibold">
+              <Button 
+                disabled={isCheckingCash}
+                onClick={async () => {
+                  // ✅ Verificar caja abierta primero (asíncrono)
+                  const canProceed = await checkCashBeforePayment();
+                  if (!canProceed) return;
+                  setCurrentView('payment');
+                }} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white font-semibold">
                 <Receipt className="h-5 w-5 mr-2" />
                 Cobrar ({selectedProducts.length})
               </Button>
