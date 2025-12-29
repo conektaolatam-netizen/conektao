@@ -651,78 +651,7 @@ const Dashboard = ({
       {/* Analytics Preview & AI Suggestions - Mobile optimized */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-8 relative z-10">
         {/* Analytics Chart with Real Data Preview */}
-        <Card className="p-3 sm:p-4 lg:p-6 bg-card/80 backdrop-blur-sm border-0 shadow-float rounded-xl sm:rounded-2xl">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6 gap-2">
-            <h3 className="text-xs sm:text-sm lg:text-lg font-bold text-foreground truncate">Resumen de Ventas</h3>
-            <Button variant="outline" size="sm" onClick={() => onModuleChange('billing')} className="border-2 border-orange-200 hover:border-primary font-extrabold rounded-full text-[#f17b13] text-xs">
-              Ver Análisis Completo
-            </Button>
-          </div>
-          <div className="h-40 sm:h-48 lg:h-56 bg-gradient-to-br from-gray-900 via-blue-950 to-gray-950 rounded-lg sm:rounded-xl lg:rounded-2xl relative overflow-hidden border border-white/10">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-20"></div>
-            
-            {/* Real Sales Chart */}
-            <div className="absolute inset-2 sm:inset-3 lg:inset-4">
-              <div className="text-center mb-2 sm:mb-3 lg:mb-4">
-                <h3 className="text-[10px] sm:text-xs lg:text-lg font-bold text-white mb-0.5 sm:mb-1">Ventas Últimos 7 Días</h3>
-                <p className="text-[9px] sm:text-[10px] lg:text-sm text-white/70">Total: {formatCurrency(realSalesData.monthlySales)}</p>
-              </div>
-              <div className="space-y-1 sm:space-y-1.5 lg:space-y-2">
-                {/* Sales bars - mobile optimized */}
-                {[{
-                day: 'Lun',
-                color: 'from-blue-400 to-indigo-500',
-                width: '0%',
-                value: 0
-              }, {
-                day: 'Mar',
-                color: 'from-green-400 to-emerald-500',
-                width: '0%',
-                value: 0
-              }, {
-                day: 'Mié',
-                color: 'from-purple-400 to-pink-500',
-                width: '0%',
-                value: realSalesData.dailySales * 0.9
-              }, {
-                day: 'Jue',
-                color: 'from-yellow-400 to-orange-500',
-                width: '95%',
-                value: realSalesData.dailySales * 1.2
-              }, {
-                day: 'Vie',
-                color: 'from-pink-400 to-red-500',
-                width: '100%',
-                value: realSalesData.dailySales * 1.5
-              }, {
-                day: 'Hoy',
-                color: 'from-orange-400 to-red-500',
-                width: '30%',
-                value: realSalesData.dailySales,
-                isToday: true
-              }].map((item, idx) => <div key={idx} className="flex justify-between items-center">
-                    <span className="text-[9px] sm:text-[10px] lg:text-xs text-white/80 w-8 sm:w-10 lg:w-12">{item.day}</span>
-                    <div className="flex-1 mx-1 sm:mx-2 bg-gray-700/50 rounded-full h-2 sm:h-3 lg:h-4">
-                      <div className={`bg-gradient-to-r ${item.color} h-full rounded-full ${item.isToday ? 'animate-pulse' : ''}`} style={{
-                    width: item.width
-                  }}></div>
-                    </div>
-                    <span className={`text-[8px] sm:text-[9px] lg:text-xs font-medium w-12 sm:w-14 lg:w-16 text-right ${item.isToday ? 'text-orange-400 font-bold' : 'text-white'}`}>
-                      {formatCurrency(item.value)}
-                    </span>
-                  </div>)}
-              </div>
-              <div className="mt-1.5 sm:mt-2 lg:mt-3 text-center">
-                <div className="text-[8px] sm:text-[9px] lg:text-xs text-white/70 mb-1 sm:mb-2 truncate">
-                  Facturas: {realSalesData.dailyOrders} • Ticket: {formatCurrency(realSalesData.averageTicket)}
-                </div>
-                <Button onClick={() => onModuleChange('billing')} size="sm" className="bg-primary hover:bg-primary/90 text-white px-2 sm:px-3 lg:px-4 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs">
-                  Ver Detalles
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
+        
 
         {/* AI Assistant Suggestions - Mobile optimized */}
         <Card className="p-3 sm:p-4 lg:p-6 bg-gradient-secondary border-0 shadow-float rounded-xl sm:rounded-2xl overflow-hidden relative">
