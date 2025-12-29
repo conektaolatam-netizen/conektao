@@ -41,7 +41,7 @@ export const useCashRegisterStatus = () => {
       if (error) throw error;
 
       if (!register) {
-        // No hay registro de caja para hoy
+        // No hay registro de caja para hoy - CAJA NO ABIERTA
         const newStatus = {
           isOpen: false,
           hasOpeningBalance: false,
@@ -51,12 +51,15 @@ export const useCashRegisterStatus = () => {
           isLoading: false
         };
         setStatus(newStatus);
+        console.log('[CashStatus] No register found for today - canProcess: false');
         return { canProcess: false, isOpen: false, isClosed: false };
       } else {
         const openingBalance = Number(register.opening_balance) || 0;
+        // La caja está abierta si existe el registro y NO está cerrada
+        // (no importa si el balance es 0, lo que importa es que el registro existe)
+        const isClosed = register.is_closed === true;
+        const isOpen = !isClosed; // Si el registro existe y no está cerrado, está abierta
         const hasOpening = openingBalance > 0;
-        const isOpen = hasOpening && !register.is_closed;
-        const isClosed = register.is_closed || false;
         
         setStatus({
           isOpen,
@@ -67,7 +70,9 @@ export const useCashRegisterStatus = () => {
           isLoading: false
         });
         
-        return { canProcess: isOpen && !isClosed, isOpen, isClosed };
+        const canProcess = isOpen && !isClosed;
+        console.log('[CashStatus] Register found:', { isOpen, isClosed, canProcess, openingBalance });
+        return { canProcess, isOpen, isClosed };
       }
     } catch (error) {
       console.error('Error checking cash register status:', error);
