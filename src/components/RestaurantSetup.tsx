@@ -11,9 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import LocationPicker from "@/components/location/LocationPicker";
 
 const RestaurantSetup = () => {
-  const { user, refreshProfile, loading } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -51,7 +51,7 @@ const RestaurantSetup = () => {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       // Crear el restaurante
@@ -107,7 +107,7 @@ const RestaurantSetup = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -172,9 +172,9 @@ const RestaurantSetup = () => {
             <Button
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Creando establecimiento...
