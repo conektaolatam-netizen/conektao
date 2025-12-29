@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2, Clipboard } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Package, AlertTriangle, Calendar, BarChart3, Clock, Sparkles, Star, Zap, Activity, ChefHat, Coffee, ShoppingCart, Bell, FileText, Calculator, Building2, Clipboard, CircleDollarSign, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/integrations/supabase/client';
@@ -196,7 +196,7 @@ const Dashboard = ({
     title: "Ventas del Día",
     value: formatCurrency(realSalesData.dailySales),
     change: `Ver facturas`,
-    icon: Clock,
+    icon: CircleDollarSign,
     color: "text-blue-600",
     bg: "bg-blue-500",
     gradient: "from-blue-400 to-cyan-500",
@@ -206,7 +206,7 @@ const Dashboard = ({
     title: "Ventas del Mes",
     value: formatCurrency(realSalesData.monthlySales),
     change: `${monthlyGrowth}% del objetivo`,
-    icon: DollarSign,
+    icon: TrendingUp,
     color: "text-green-600",
     bg: "bg-green-500",
     gradient: "from-green-400 to-emerald-500",
@@ -216,7 +216,7 @@ const Dashboard = ({
     title: "Ticket Promedio",
     value: formatCurrency(realSalesData.averageTicket),
     change: realSalesData.monthlyOrders > 0 ? "Promedio real" : "Sin datos",
-    icon: Users,
+    icon: User,
     color: "text-orange-600",
     bg: "bg-orange-500",
     gradient: "from-orange-400 to-red-500",
@@ -415,6 +415,16 @@ const Dashboard = ({
       
       {/* Stats Grid - Moved to top */}
       {/* Stats Grid - Mobile optimized */}
+      {/* SVG Gradient Definition */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="100%" stopColor="#22d3ee" />
+          </linearGradient>
+        </defs>
+      </svg>
+      
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full relative z-10">
         {stats.map((stat, index) => {
         const isMainStat = stat.size === 'large';
@@ -458,7 +468,7 @@ const Dashboard = ({
                   {/* Subtle glow effect */}
                   <div className="absolute -inset-1 bg-gradient-to-br from-orange-500/30 to-cyan-400/30 rounded-xl sm:rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-black border border-orange-500/20 shadow-xl group-hover:scale-110 group-hover:border-cyan-400/40 transition-all flex-shrink-0 ${isMainStat ? 'shadow-orange-500/20 ring-1 ring-orange-500/30' : ''}`}>
-                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-transparent bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text" style={{ filter: 'drop-shadow(0 0 4px rgba(251,146,60,0.4))' }} />
+                    <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" style={{ stroke: 'url(#icon-gradient)', filter: 'drop-shadow(0 0 4px rgba(251,146,60,0.5))' }} />
                   </div>
                 </div>
               </div>
