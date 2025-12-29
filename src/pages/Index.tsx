@@ -80,7 +80,7 @@ const Index = () => {
   }
 
   // Error state para profile que no carga
-  if (user && !profile && !loading) {
+  if (!profile && !loading) {
     return (
       <ErrorState
         title="Error al cargar perfil"
