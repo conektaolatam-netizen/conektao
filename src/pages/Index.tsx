@@ -79,16 +79,9 @@ const Index = () => {
     return <LoadingState message="Cargando tu cuenta..." fullScreen />;
   }
 
-  // Error state para profile que no carga
+  // Si el usuario está autenticado pero el perfil aún no ha cargado, mostrar loading (no error)
   if (user && !profile) {
-    return (
-      <ErrorState
-        title="Error al cargar perfil"
-        message="No se pudo cargar tu perfil. Por favor, intenta refrescar la página."
-        onRetry={() => window.location.reload()}
-        fullScreen
-      />
-    );
+    return <LoadingState message="Cargando tu perfil..." fullScreen />;
   }
 
   // Si el usuario no tiene establecimiento asignado
