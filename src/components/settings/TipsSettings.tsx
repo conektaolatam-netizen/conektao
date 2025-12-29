@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Percent, Info, Loader2, Check, ChevronDown, ChevronUp } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { 
+  Percent, Info, Loader2, Check, ChevronDown, ChevronUp, 
+  Users, Edit3, AlertCircle, Clock 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import SettingsHeader from "./SettingsHeader";
 import SettingsSection from "./SettingsSection";
 import SettingsRow from "./SettingsRow";
@@ -19,7 +22,18 @@ interface TipsSettingsProps {
 
 const TipsSettings = ({ onBack }: TipsSettingsProps) => {
   const { profile } = useAuth();
-  const { tipEnabled, defaultTipPercentage, updateTipConfig, refreshTipConfig, isLoading } = useTipConfig();
+  const { 
+    tipEnabled, 
+    defaultTipPercentage, 
+    tipAutoDistribute,
+    tipDefaultDistType,
+    tipCashierCanDistribute,
+    allowTipEdit,
+    requireReasonIfDecrease,
+    updateTipConfig, 
+    refreshTipConfig, 
+    isLoading 
+  } = useTipConfig();
   const { logSettingsChange } = useSettingsAudit();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -27,20 +41,30 @@ const TipsSettings = ({ onBack }: TipsSettingsProps) => {
   const [showHelp, setShowHelp] = useState(false);
 
   const [formData, setFormData] = useState({
-    tip_enabled: tipEnabled,
-    default_tip_percentage: defaultTipPercentage,
+    tipEnabled,
+    defaultTipPercentage,
+    tipAutoDistribute,
+    tipDefaultDistType,
+    tipCashierCanDistribute,
+    allowTipEdit,
+    requireReasonIfDecrease,
   });
 
   const [originalData, setOriginalData] = useState(formData);
 
   useEffect(() => {
     const data = {
-      tip_enabled: tipEnabled,
-      default_tip_percentage: defaultTipPercentage,
+      tipEnabled,
+      defaultTipPercentage,
+      tipAutoDistribute,
+      tipDefaultDistType,
+      tipCashierCanDistribute,
+      allowTipEdit,
+      requireReasonIfDecrease,
     };
     setFormData(data);
     setOriginalData(data);
-  }, [tipEnabled, defaultTipPercentage]);
+  }, [tipEnabled, defaultTipPercentage, tipAutoDistribute, tipDefaultDistType, tipCashierCanDistribute, allowTipEdit, requireReasonIfDecrease]);
 
   useEffect(() => {
     setIsDirty(JSON.stringify(formData) !== JSON.stringify(originalData));
@@ -56,10 +80,7 @@ const TipsSettings = ({ onBack }: TipsSettingsProps) => {
     setSuccess(false);
 
     try {
-      const successUpdate = await updateTipConfig({
-        tipEnabled: formData.tip_enabled,
-        defaultTipPercentage: formData.default_tip_percentage,
-      });
+      const successUpdate = await updateTipConfig(formData);
 
       if (!successUpdate) throw new Error("No se pudo actualizar");
 
@@ -118,9 +139,9 @@ const TipsSettings = ({ onBack }: TipsSettingsProps) => {
             showChevron={false}
             rightElement={
               <Switch
-                checked={formData.tip_enabled}
+                checked={formData.tipEnabled}
                 onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, tip_enabled: checked }))
+                  setFormData((prev) => ({ ...prev, tipEnabled: checked }))
                 }
                 disabled={!isOwner}
               />
@@ -128,85 +149,188 @@ const TipsSettings = ({ onBack }: TipsSettingsProps) => {
           />
         </SettingsSection>
 
-        {/* Percentage Input */}
-        {formData.tip_enabled && (
-          <SettingsSection title="Porcentaje por Defecto">
-            <div className="p-4">
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.5"
-                  value={formData.default_tip_percentage}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      default_tip_percentage: parseFloat(e.target.value) || 0,
-                    }))
+        {formData.tipEnabled && (
+          <>
+            {/* Percentage Input */}
+            <SettingsSection title="Porcentaje por Defecto">
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.5"
+                    value={formData.defaultTipPercentage}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        defaultTipPercentage: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-24 bg-muted/50 border-border/30"
+                    disabled={!isOwner}
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Por ley es 10%, pero puedes ajustarlo (ej: 5%, 8%, 12%)
+                </p>
+              </div>
+            </SettingsSection>
+
+            {/* Editing Options */}
+            <SettingsSection title="Edición en Factura">
+              <SettingsRow
+                icon={<Edit3 className="h-4 w-4" />}
+                label="Permitir editar propina"
+                description="El cajero puede modificar el valor"
+                showChevron={false}
+                rightElement={
+                  <Switch
+                    checked={formData.allowTipEdit}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, allowTipEdit: checked }))
+                    }
+                    disabled={!isOwner}
+                  />
+                }
+              />
+              {formData.allowTipEdit && (
+                <SettingsRow
+                  icon={<AlertCircle className="h-4 w-4" />}
+                  label="Exigir razón si se reduce"
+                  description="Requiere justificación para bajar propina"
+                  showChevron={false}
+                  rightElement={
+                    <Switch
+                      checked={formData.requireReasonIfDecrease}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({ ...prev, requireReasonIfDecrease: checked }))
+                      }
+                      disabled={!isOwner}
+                    />
                   }
-                  className="w-24 bg-muted/50 border-border/30"
-                  disabled={!isOwner}
                 />
-                <span className="text-muted-foreground">%</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Por ley es 10%, pero puedes ajustarlo (ej: 5%, 8%, 12%)
-              </p>
-            </div>
-          </SettingsSection>
-        )}
-
-        {/* Help Accordion */}
-        {formData.tip_enabled && (
-          <SettingsSection>
-            <button
-              type="button"
-              onClick={() => setShowHelp(!showHelp)}
-              className="w-full flex items-center justify-between p-4 hover:bg-accent/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center">
-                  <Info className="h-4 w-4 text-secondary" />
-                </div>
-                <span className="text-sm font-medium">¿Cómo funciona?</span>
-              </div>
-              {showHelp ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
-            </button>
+            </SettingsSection>
 
-            {showHelp && (
-              <div className="px-4 pb-4">
-                <div className="p-4 rounded-lg bg-secondary/10 border border-secondary/20">
-                  <ul className="text-sm text-foreground/80 space-y-2">
-                    <li className="flex items-start gap-2">
-                      <span className="text-secondary">•</span>
-                      Los meseros y cajeros pueden ajustar la propina al cobrar
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-secondary">•</span>
-                      El cliente puede dar más o menos del porcentaje sugerido
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-secondary">•</span>
-                      Hay una opción "No dio propina" para casos sin propina
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-secondary">•</span>
-                      La propina se suma automáticamente al total de la cuenta
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-secondary">•</span>
-                      Después del pago, aparecerá un modal para distribuir entre meseros
-                    </li>
-                  </ul>
+            {/* Distribution Options */}
+            <SettingsSection title="Distribución de Propinas">
+              <SettingsRow
+                icon={<Clock className="h-4 w-4" />}
+                label="Distribuir al cerrar turno"
+                description="Repartir automáticamente al cierre"
+                showChevron={false}
+                rightElement={
+                  <Switch
+                    checked={formData.tipAutoDistribute}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, tipAutoDistribute: checked }))
+                    }
+                    disabled={!isOwner}
+                  />
+                }
+              />
+              <SettingsRow
+                icon={<Users className="h-4 w-4" />}
+                label="Cajero puede distribuir"
+                description="Permitir que el cajero reparta propinas"
+                showChevron={false}
+                rightElement={
+                  <Switch
+                    checked={formData.tipCashierCanDistribute}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, tipCashierCanDistribute: checked }))
+                    }
+                    disabled={!isOwner}
+                  />
+                }
+              />
+
+              {/* Distribution Type */}
+              <div className="p-4 border-t border-border/10">
+                <Label className="text-sm text-muted-foreground mb-3 block">
+                  Tipo de distribución por defecto
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'equal', label: 'Igual' },
+                    { value: 'by_hours', label: 'Por horas' },
+                    { value: 'manual', label: 'Manual' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ 
+                        ...prev, 
+                        tipDefaultDistType: option.value as 'equal' | 'by_hours' | 'manual' 
+                      }))}
+                      disabled={!isOwner}
+                      className={cn(
+                        "p-2 rounded-lg text-xs font-medium transition-all",
+                        "border",
+                        formData.tipDefaultDistType === option.value
+                          ? "bg-primary/20 border-primary text-primary"
+                          : "bg-muted/30 border-border/30 text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </SettingsSection>
+            </SettingsSection>
+
+            {/* Help Accordion */}
+            <SettingsSection>
+              <button
+                type="button"
+                onClick={() => setShowHelp(!showHelp)}
+                className="w-full flex items-center justify-between p-4 hover:bg-accent/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center">
+                    <Info className="h-4 w-4 text-secondary" />
+                  </div>
+                  <span className="text-sm font-medium">¿Cómo funciona?</span>
+                </div>
+                {showHelp ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+
+              {showHelp && (
+                <div className="px-4 pb-4">
+                  <div className="p-4 rounded-lg bg-secondary/10 border border-secondary/20">
+                    <ul className="text-sm text-foreground/80 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="text-secondary">•</span>
+                        El cajero puede ajustar la propina al cobrar si está habilitado
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-secondary">•</span>
+                        El cliente puede dar más o menos del porcentaje sugerido
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-secondary">•</span>
+                        Hay una opción "No dio propina" para casos sin propina
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-secondary">•</span>
+                        La propina se suma automáticamente al total de la cuenta
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-secondary">•</span>
+                        Después del pago, aparecerá un modal para distribuir entre meseros
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </SettingsSection>
+          </>
         )}
 
         {/* Save Button */}
