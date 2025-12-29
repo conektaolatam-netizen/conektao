@@ -63,21 +63,21 @@ const Billing = () => {
   // Estado para verificación de caja en proceso
   const [isCheckingCash, setIsCheckingCash] = useState(false);
   
-  // Verificar caja al intentar ir a pago - ASÍNCRONO para esperar estado actualizado
+  // Verificar caja al intentar ir a pago - ASÍNCRONO con resultado directo
   const checkCashBeforePayment = async (): Promise<boolean> => {
-    // Si está cargando, refrescar y esperar
-    if (isCashLoading) {
-      setIsCheckingCash(true);
-      await refreshCashStatus();
+    setIsCheckingCash(true);
+    try {
+      // Obtener estado directamente de la DB (no del state de React)
+      const result = await refreshCashStatus();
+      
+      if (!result.canProcess) {
+        setShowCashBlockedModal(true);
+        return false;
+      }
+      return true;
+    } finally {
       setIsCheckingCash(false);
     }
-    
-    // Ahora verificar el estado actualizado
-    if (!canProcessSales) {
-      setShowCashBlockedModal(true);
-      return false;
-    }
-    return true;
   };
   const [currentView, setCurrentView] = useState<'tables' | 'menu' | 'payment' | 'success' | 'cash' | 'pos'>('tables');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);

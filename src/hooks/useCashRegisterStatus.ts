@@ -22,10 +22,10 @@ export const useCashRegisterStatus = () => {
     isLoading: true
   });
 
-  const checkCashRegisterStatus = useCallback(async () => {
+  const checkCashRegisterStatus = useCallback(async (): Promise<{ canProcess: boolean; isOpen: boolean; isClosed: boolean }> => {
     if (!restaurant?.id) {
       setStatus(prev => ({ ...prev, isLoading: false }));
-      return;
+      return { canProcess: false, isOpen: false, isClosed: false };
     }
 
     try {
@@ -42,30 +42,37 @@ export const useCashRegisterStatus = () => {
 
       if (!register) {
         // No hay registro de caja para hoy
-        setStatus({
+        const newStatus = {
           isOpen: false,
           hasOpeningBalance: false,
           isClosed: false,
           openingBalance: 0,
           registerId: null,
           isLoading: false
-        });
+        };
+        setStatus(newStatus);
+        return { canProcess: false, isOpen: false, isClosed: false };
       } else {
         const openingBalance = Number(register.opening_balance) || 0;
         const hasOpening = openingBalance > 0;
+        const isOpen = hasOpening && !register.is_closed;
+        const isClosed = register.is_closed || false;
         
         setStatus({
-          isOpen: hasOpening && !register.is_closed,
+          isOpen,
           hasOpeningBalance: hasOpening,
-          isClosed: register.is_closed || false,
+          isClosed,
           openingBalance,
           registerId: register.id,
           isLoading: false
         });
+        
+        return { canProcess: isOpen && !isClosed, isOpen, isClosed };
       }
     } catch (error) {
       console.error('Error checking cash register status:', error);
       setStatus(prev => ({ ...prev, isLoading: false }));
+      return { canProcess: false, isOpen: false, isClosed: false };
     }
   }, [restaurant?.id]);
 
