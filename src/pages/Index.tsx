@@ -74,12 +74,13 @@ const Index = () => {
     return <Welcome />;
   }
 
+  // Show loading while checking authentication or profile
+  if (loading) {
+    return <LoadingState message="Cargando tu cuenta..." fullScreen />;
+  }
+
   // Error state para profile que no carga
-  if (user && !profile) {
-    // Show loading while checking authentication or profile
-    if (loading) {
-      return <LoadingState message="Cargando tu cuenta..." fullScreen />;
-    }
+  if (user && !profile && !loading) {
     return (
       <ErrorState
         title="Error al cargar perfil"
