@@ -191,16 +191,29 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <Button variant="ghost" size="sm" onClick={() => onModuleChange('dashboard')} className="flex items-center gap-2 sm:gap-3 hover:bg-primary/10 transition-all duration-200 min-w-0">
               {currentModule === 'dashboard' ? <>
-                  <div className="w-6 sm:w-8 h-6 sm:h-8 bg-gradient-to-br from-orange-600 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
-                    <Sparkles className="w-3 sm:w-5 h-3 sm:h-5 text-white" />
+                  <div className="relative w-6 sm:w-8 h-6 sm:h-8 flex-shrink-0">
+                    {/* Glow effect behind icon */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 via-cyan-400 to-purple-500 rounded-lg blur-md opacity-70 animate-pulse"></div>
+                    <div className="relative w-full h-full bg-gradient-to-br from-emerald-400 via-cyan-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                      <Sparkles className="w-3 sm:w-5 h-3 sm:h-5 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-orange-600 to-cyan-500 bg-clip-text text-transparent text-left truncate">
+                  <div className="min-w-0 relative">
+                    {/* Text glow effect */}
+                    <h1 className="text-base sm:text-xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent text-left truncate drop-shadow-[0_0_25px_rgba(34,211,238,0.5)] animate-[pulse_3s_ease-in-out_infinite]">
                       Conektao
                     </h1>
+                    {/* Shimmer effect overlay */}
+                    <div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent bg-[length:200%_100%] animate-[shimmer_3s_ease-in-out_infinite] pointer-events-none"
+                      style={{ 
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text'
+                      }}
+                    ></div>
                   </div>
                 </> : <div className="min-w-0">
-                  <h1 className="text-sm sm:text-lg font-semibold bg-gradient-to-r from-orange-600 to-cyan-500 bg-clip-text text-transparent text-left truncate">← Regresar a Conektao</h1>
+                  <h1 className="text-sm sm:text-lg font-semibold bg-gradient-to-r from-emerald-400 via-cyan-300 to-purple-400 bg-clip-text text-transparent text-left truncate">← Regresar a Conektao</h1>
                 </div>}
             </Button>
           </div>
