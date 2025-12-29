@@ -86,14 +86,13 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
   // Main settings screen (iOS-style list)
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-        <div className="flex flex-col h-full">
-          <SettingsHeader 
-            title="Configuración" 
-            showBackButton={false}
-          />
+      <DialogContent className="max-w-md h-[85vh] max-h-[85vh] p-0 overflow-hidden bg-background border-border/30 flex flex-col">
+        <SettingsHeader 
+          title="Configuración" 
+          showBackButton={false}
+        />
 
-          <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6">
             {/* Account Card */}
             <div className="mb-6">
               <SettingsAccountCard
@@ -173,12 +172,11 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
               )}
             </SettingsSection>
 
-            {/* Footer */}
-            <div className="mt-8 text-center">
-              <p className="text-xs text-muted-foreground">
-                Conektao v1.0 • Todos los cambios se guardan automáticamente
-              </p>
-            </div>
+          {/* Footer */}
+          <div className="mt-8 pb-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Conektao v1.0 • Todos los cambios se guardan automáticamente
+            </p>
           </div>
         </div>
       </DialogContent>
