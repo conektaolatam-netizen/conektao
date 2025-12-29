@@ -23,17 +23,17 @@ const DashboardPage = ({ onModuleChange }: DashboardPageProps) => {
   }
 
   // Si el usuario no tiene perfil, necesita configurar su restaurante
-  if (!profile) {
+  if (!profile && !loading) {
     return <RestaurantSetup />;
   }
 
   // Si es propietario pero no tiene restaurante, necesita configurarlo
-  if (profile.role === 'owner' && !restaurant) {
+  if (profile.role === "owner" && !restaurant && !loading) {
     return <RestaurantSetup />;
   }
 
   // Si es empleado, mostrar sistema de empleados (solo control de tiempo)
-  if (profile.role === 'employee') {
+  if (profile.role === "employee" && !loading) {
     return <EmployeeSystem />;
   }
 
