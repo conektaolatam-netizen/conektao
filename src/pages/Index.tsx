@@ -1,50 +1,40 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useApp } from '@/context/AppContext';
-import { useNotifications } from '@/hooks/useNotifications';
-import { generateSampleProducts, generateSampleEmployees } from '@/utils/sampleDataGenerators';
-import Layout from '@/components/Layout';
-import DashboardPage from '@/pages/Dashboard';
-import Billing from '@/components/Billing';
-import EmployeeSystem from '@/components/EmployeeSystem';
-import Marketplace from '@/components/Marketplace';
-import ProductManager from '@/components/ProductManager';
-import AIAssistant from '@/components/AIAssistant';
-import ContAI from '@/components/ContAI';
-import Documents from '@/components/Documents';
-import IncomePresentation from '@/components/IncomePresentation';
-import CashManagement from '@/components/CashManagement';
-import InvoiceSystem from '@/components/InvoiceSystem';
-import InvoiceSystemReal from '@/components/InvoiceSystemReal';
-import POSBilling from '@/components/POSBilling';
-import Reports from '@/components/Reports';
-import Suppliers from '@/components/Suppliers';
-import UserManagement from '@/components/UserManagement';
-import TutorialGuide from '@/components/TutorialGuide';
-import RestaurantSetupWizard from '@/components/RestaurantSetupWizard';
-import KitchenDashboard from '@/components/kitchen/KitchenDashboard';
-import InventoryManagement from '@/components/inventory/InventoryManagement';
-import Welcome from './Welcome';
-import SafeAliciaTour from '@/components/onboarding/SafeAliciaTour';
-import { useOnboardingTour } from '@/hooks/useOnboardingTour';
-import { LoadingState, ErrorState } from '@/components/LoadingState';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import React from 'react';
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useApp } from "@/context/AppContext";
+import { useNotifications } from "@/hooks/useNotifications";
+import { generateSampleProducts, generateSampleEmployees } from "@/utils/sampleDataGenerators";
+import Layout from "@/components/Layout";
+import DashboardPage from "@/pages/Dashboard";
+import Billing from "@/components/Billing";
+import EmployeeSystem from "@/components/EmployeeSystem";
+import Marketplace from "@/components/Marketplace";
+import ProductManager from "@/components/ProductManager";
+import AIAssistant from "@/components/AIAssistant";
+import ContAI from "@/components/ContAI";
+import Documents from "@/components/Documents";
+import IncomePresentation from "@/components/IncomePresentation";
+import CashManagement from "@/components/CashManagement";
+import InvoiceSystem from "@/components/InvoiceSystem";
+import InvoiceSystemReal from "@/components/InvoiceSystemReal";
+import POSBilling from "@/components/POSBilling";
+import Reports from "@/components/Reports";
+import Suppliers from "@/components/Suppliers";
+import UserManagement from "@/components/UserManagement";
+import TutorialGuide from "@/components/TutorialGuide";
+import RestaurantSetupWizard from "@/components/RestaurantSetupWizard";
+import KitchenDashboard from "@/components/kitchen/KitchenDashboard";
+import InventoryManagement from "@/components/inventory/InventoryManagement";
+import Welcome from "./Welcome";
+import SafeAliciaTour from "@/components/onboarding/SafeAliciaTour";
+import { useOnboardingTour } from "@/hooks/useOnboardingTour";
+import { LoadingState, ErrorState } from "@/components/LoadingState";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import React from "react";
 
 const Index = () => {
-  const {
-    user,
-    profile,
-    restaurant,
-    loading
-  } = useAuth();
-  const {
-    state,
-    dispatch
-  } = useApp();
-  const {
-    notifications
-  } = useNotifications();
+  const { user, profile, restaurant, loading } = useAuth();
+  const { state, dispatch } = useApp();
+  const { notifications } = useNotifications();
   const { showTour, completeTour, skipTour, restartTour, isLoading: tourLoading } = useOnboardingTour();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -54,7 +44,7 @@ const Index = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (loading) {
-        console.warn('Loading timeout - forcing state check');
+        console.warn("Loading timeout - forcing state check");
       }
     }, 10000); // 10 segundos timeout
 
@@ -65,16 +55,16 @@ const Index = () => {
   useEffect(() => {
     if (profile && restaurant) {
       try {
-        const savedUserData = localStorage.getItem('restaurantUserData');
+        const savedUserData = localStorage.getItem("restaurantUserData");
         if (savedUserData) {
           const parsedData = JSON.parse(savedUserData);
           dispatch({
-            type: 'SET_USER_DATA',
-            payload: parsedData
+            type: "SET_USER_DATA",
+            payload: parsedData,
           });
         }
       } catch (error) {
-        console.warn('Error parsing legacy data - ignoring');
+        console.warn("Error parsing legacy data - ignoring");
       }
     }
   }, [profile, restaurant, dispatch]);
@@ -90,9 +80,9 @@ const Index = () => {
   }
 
   // Error state para profile que no carga
-  if (user && !profile && !loading) {
+  if (!profile && !loading) {
     return (
-      <ErrorState 
+      <ErrorState
         title="Error al cargar perfil"
         message="No se pudo cargar tu perfil. Por favor, intenta refrescar la página."
         onRetry={() => window.location.reload()}
@@ -104,7 +94,7 @@ const Index = () => {
   // Si el usuario no tiene establecimiento asignado
   if (user && profile && !profile.restaurant_id) {
     // Solo los owners pueden configurar un nuevo establecimiento
-    if (profile.role === 'owner') {
+    if (profile.role === "owner") {
       return <RestaurantSetupWizard onComplete={() => window.location.reload()} />;
     }
     // Empleados sin restaurante ven un mensaje claro, no error
@@ -113,22 +103,27 @@ const Index = () => {
         <div className="w-full max-w-md text-center space-y-6">
           <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
             <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
           <div>
             <h2 className="text-2xl font-bold text-foreground mb-2">Cuenta sin asignar</h2>
             <p className="text-muted-foreground">
-              Tu cuenta no está vinculada a ningún establecimiento. 
-              Contacta a tu administrador o propietario para que te asigne a un restaurante.
+              Tu cuenta no está vinculada a ningún establecimiento. Contacta a tu administrador o propietario para que
+              te asigne a un restaurante.
             </p>
           </div>
           <div className="pt-4">
             <p className="text-sm text-muted-foreground">
               Si crees que esto es un error, intenta cerrar sesión y volver a ingresar.
             </p>
-            <button 
-              onClick={() => window.location.href = '/auth?mode=login'}
+            <button
+              onClick={() => (window.location.href = "/auth?mode=login")}
               className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               Cerrar sesión
@@ -139,34 +134,34 @@ const Index = () => {
     );
   }
   const handleOnboardingComplete = (data: any) => {
-    localStorage.setItem('restaurantUserData', JSON.stringify(data));
+    localStorage.setItem("restaurantUserData", JSON.stringify(data));
     dispatch({
-      type: 'SET_USER_DATA',
-      payload: data
+      type: "SET_USER_DATA",
+      payload: data,
     });
     setShowTutorial(true);
     initializeSampleData(data);
   };
   const initializeSampleData = (userData: any) => {
     const sampleProducts = generateSampleProducts(userData);
-    sampleProducts.forEach(product => {
+    sampleProducts.forEach((product) => {
       dispatch({
-        type: 'ADD_PRODUCT',
-        payload: product
+        type: "ADD_PRODUCT",
+        payload: product,
       });
     });
     const sampleEmployees = generateSampleEmployees(userData);
-    sampleEmployees.forEach(employee => {
+    sampleEmployees.forEach((employee) => {
       dispatch({
-        type: 'ADD_EMPLOYEE',
-        payload: employee
+        type: "ADD_EMPLOYEE",
+        payload: employee,
       });
     });
   };
   const resetOnboarding = () => {
-    localStorage.removeItem('restaurantUserData');
-    localStorage.removeItem('tutorialCompleted');
-    localStorage.removeItem('conektaoAppData');
+    localStorage.removeItem("restaurantUserData");
+    localStorage.removeItem("tutorialCompleted");
+    localStorage.removeItem("conektaoAppData");
     location.reload();
   };
   const showTutorialManually = () => {
@@ -174,15 +169,15 @@ const Index = () => {
   };
   const handleModuleChange = (module: string) => {
     dispatch({
-      type: 'SET_ACTIVE_MODULE',
-      payload: module
+      type: "SET_ACTIVE_MODULE",
+      payload: module,
     });
   };
 
   // Check if user has permission to access a module
   const hasPermission = (permission: string) => {
     // Owners and admins have access to everything
-    if (profile?.role === 'owner' || profile?.role === 'admin') {
+    if (profile?.role === "owner" || profile?.role === "admin") {
       return true;
     }
 
@@ -191,82 +186,88 @@ const Index = () => {
   };
 
   // Render unauthorized access message
-  const renderUnauthorized = (moduleName: string) => <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+  const renderUnauthorized = (moduleName: string) => (
+    <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
       <div className="text-center">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+            />
           </svg>
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Acceso No Autorizado</h3>
-        <p className="text-gray-600 mb-4">
-          No tienes permisos para acceder al módulo de {moduleName}.
-        </p>
-        <p className="text-sm text-gray-500 mb-6">
-          Contacta al administrador o propietario para solicitar acceso.
-        </p>
-        <button onClick={() => handleModuleChange('dashboard')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+        <p className="text-gray-600 mb-4">No tienes permisos para acceder al módulo de {moduleName}.</p>
+        <p className="text-sm text-gray-500 mb-6">Contacta al administrador o propietario para solicitar acceso.</p>
+        <button
+          onClick={() => handleModuleChange("dashboard")}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
           Volver al Dashboard
         </button>
       </div>
-    </div>;
+    </div>
+  );
   const renderModule = () => {
     switch (state.activeModule) {
-      case 'dashboard':
+      case "dashboard":
         return <DashboardPage onModuleChange={handleModuleChange} />;
-      case 'billing':
-      case 'pos':
-      case 'pos-billing':
-        if (!hasPermission('access_pos')) {
-          return renderUnauthorized('Facturación/POS');
+      case "billing":
+      case "pos":
+      case "pos-billing":
+        if (!hasPermission("access_pos")) {
+          return renderUnauthorized("Facturación/POS");
         }
-        return state.activeModule === 'billing' ? <Billing /> : <POSBilling />;
-      case 'team':
-        if (!hasPermission('view_employees')) {
-          return renderUnauthorized('Personal');
+        return state.activeModule === "billing" ? <Billing /> : <POSBilling />;
+      case "team":
+        if (!hasPermission("view_employees")) {
+          return renderUnauthorized("Personal");
         }
         return <EmployeeSystem />;
-      case 'marketplace':
+      case "marketplace":
         return <Marketplace />;
-      case 'inventory':
-        if (!hasPermission('manage_inventory')) {
-          return renderUnauthorized('Inventario');
+      case "inventory":
+        if (!hasPermission("manage_inventory")) {
+          return renderUnauthorized("Inventario");
         }
         return <InventoryManagement onModuleChange={handleModuleChange} />;
-      case 'ai':
+      case "ai":
         return <AIAssistant />;
-      case 'contai':
+      case "contai":
         return <ContAI />;
-      case 'documents':
-        if (!hasPermission('view_reports')) {
-          return renderUnauthorized('Documentos');
+      case "documents":
+        if (!hasPermission("view_reports")) {
+          return renderUnauthorized("Documentos");
         }
         return <Documents />;
-      case 'cash':
-        if (!hasPermission('manage_cash')) {
-          return renderUnauthorized('Caja');
+      case "cash":
+        if (!hasPermission("manage_cash")) {
+          return renderUnauthorized("Caja");
         }
         return <CashManagement />;
-      case 'invoices':
-        if (!hasPermission('access_billing')) {
-          return renderUnauthorized('Facturas');
+      case "invoices":
+        if (!hasPermission("access_billing")) {
+          return renderUnauthorized("Facturas");
         }
         return <InvoiceSystemReal />;
-      case 'reports':
-        if (!hasPermission('view_reports')) {
-          return renderUnauthorized('Reportes');
+      case "reports":
+        if (!hasPermission("view_reports")) {
+          return renderUnauthorized("Reportes");
         }
         return <Reports />;
-      case 'suppliers':
+      case "suppliers":
         return <Suppliers />;
-      case 'users':
-        if (!hasPermission('view_employees')) {
-          return renderUnauthorized('Usuarios');
+      case "users":
+        if (!hasPermission("view_employees")) {
+          return renderUnauthorized("Usuarios");
         }
         return <UserManagement />;
-      case 'kitchen':
-        if (!hasPermission('access_kitchen')) {
-          return renderUnauthorized('Cocina');
+      case "kitchen":
+        if (!hasPermission("access_kitchen")) {
+          return renderUnauthorized("Cocina");
         }
         return <KitchenDashboard />;
       default:
@@ -278,31 +279,41 @@ const Index = () => {
   if (showIncomePresentation) {
     return <IncomePresentation userData={state.userData} onClose={() => setShowIncomePresentation(false)} />;
   }
-  return <>
-      <Layout currentModule={state.activeModule} onModuleChange={handleModuleChange} onResetOnboarding={resetOnboarding} onShowIncomePresentation={() => setShowIncomePresentation(true)} onShowTutorial={showTutorialManually}>
+  return (
+    <>
+      <Layout
+        currentModule={state.activeModule}
+        onModuleChange={handleModuleChange}
+        onResetOnboarding={resetOnboarding}
+        onShowIncomePresentation={() => setShowIncomePresentation(true)}
+        onShowTutorial={showTutorialManually}
+      >
         {renderModule()}
       </Layout>
-      
-      {showTutorial && <TutorialGuide onClose={() => setShowTutorial(false)} onGoToModule={module => {
-      handleModuleChange(module);
-      setShowTutorial(false);
-    }} />}
+
+      {showTutorial && (
+        <TutorialGuide
+          onClose={() => setShowTutorial(false)}
+          onGoToModule={(module) => {
+            handleModuleChange(module);
+            setShowTutorial(false);
+          }}
+        />
+      )}
 
       {/* Tour de AliciIA para usuarios nuevos - Con ErrorBoundary protector */}
       {showTour && !tourLoading && (
-        <ErrorBoundary 
-          fallback={null} 
+        <ErrorBoundary
+          fallback={null}
           onError={(error) => {
-            console.error('Tour crashed, auto-skipping:', error);
+            console.error("Tour crashed, auto-skipping:", error);
             skipTour();
           }}
         >
-          <SafeAliciaTour 
-            onComplete={completeTour} 
-            onSkip={skipTour} 
-          />
+          <SafeAliciaTour onComplete={completeTour} onSkip={skipTour} />
         </ErrorBoundary>
       )}
-    </>;
+    </>
+  );
 };
 export default Index;

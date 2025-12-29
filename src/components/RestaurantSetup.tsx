@@ -11,13 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import LocationPicker from "@/components/location/LocationPicker";
 
 const RestaurantSetup = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, loading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
-    address: ""
+    address: "",
   });
 
   const [location, setLocation] = useState<{
@@ -27,27 +27,26 @@ const RestaurantSetup = () => {
   }>({
     latitude: null,
     longitude: null,
-    radius: 100
+    radius: 100,
   });
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
         title: "Error de autenticación",
         description: "Debes iniciar sesión para crear un establecimiento",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
-    
+
     if (!formData.name) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa el nombre del establecimiento",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -57,48 +56,46 @@ const RestaurantSetup = () => {
     try {
       // Crear el restaurante
       const { data: restaurant, error: restaurantError } = await supabase
-        .from('restaurants')
+        .from("restaurants")
         .insert({
           owner_id: user.id,
           name: formData.name,
           address: formData.address,
           latitude: location.latitude,
           longitude: location.longitude,
-          location_radius: location.radius
+          location_radius: location.radius,
         })
         .select()
         .single();
-      console.log(restaurant, restaurantError)
+      console.log(restaurant, restaurantError);
 
       if (restaurantError) throw restaurantError;
 
       // Crear/actualizar el perfil del propietario (evita duplicados)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert(
-          {
-            id: user.id,
-            restaurant_id: restaurant.id,
-            email: user.email || "",
-            full_name: user.user_metadata?.full_name || "Propietario",
-            role: 'owner',
-            is_active: true,
-            permissions: {
-              all_modules: true,
-              manage_employees: true,
-              view_reports: true,
-              manage_inventory: true,
-              manage_sales: true
-            }
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          restaurant_id: restaurant.id,
+          email: user.email || "",
+          full_name: user.user_metadata?.full_name || "Propietario",
+          role: "owner",
+          is_active: true,
+          permissions: {
+            all_modules: true,
+            manage_employees: true,
+            view_reports: true,
+            manage_inventory: true,
+            manage_sales: true,
           },
-          { onConflict: 'id' }
-        );
+        },
+        { onConflict: "id" },
+      );
 
       if (profileError) throw profileError;
 
       toast({
         title: "¡Establecimiento creado!",
-        description: "Tu establecimiento ha sido configurado exitosamente"
+        description: "Tu establecimiento ha sido configurado exitosamente",
       });
 
       await refreshProfile();
@@ -107,7 +104,7 @@ const RestaurantSetup = () => {
       toast({
         title: "Error",
         description: error.message || "No se pudo crear el establecimiento",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -115,14 +112,14 @@ const RestaurantSetup = () => {
   };
 
   const handleLocationChange = (lat: number, lng: number, address?: string) => {
-    setLocation(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    setLocation((prev) => ({ ...prev, latitude: lat, longitude: lng }));
     if (address && !formData.address) {
-      setFormData(prev => ({ ...prev, address }));
+      setFormData((prev) => ({ ...prev, address }));
     }
   };
 
   const handleRadiusChange = (radius: number) => {
-    setLocation(prev => ({ ...prev, radius }));
+    setLocation((prev) => ({ ...prev, radius }));
   };
 
   return (
@@ -143,7 +140,7 @@ const RestaurantSetup = () => {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Ej: Establecimiento El Buen Sabor"
                 required
                 className="border-border/50 focus:border-primary"
@@ -155,7 +152,7 @@ const RestaurantSetup = () => {
               <Textarea
                 id="address"
                 value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                 placeholder="Dirección completa del establecimiento"
                 rows={2}
                 className="border-border/50 focus:border-primary"
@@ -172,9 +169,9 @@ const RestaurantSetup = () => {
               showRadiusSlider={true}
             />
 
-            <Button 
-              type="submit" 
-              className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all" 
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all"
               disabled={loading}
             >
               {loading ? (
