@@ -17,7 +17,10 @@ const CashRegisterBlockedModal: React.FC<CashRegisterBlockedModalProps> = ({
   isClosed = false
 }) => {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Evitar cerrar inmediatamente al abrir (Radix llama onOpenChange(true/false))
+      if (!open) onClose();
+    }}>
       <DialogContent className="sm:max-w-md bg-gradient-to-br from-red-50 to-orange-50 border-red-200">
         <DialogHeader>
           <div className="flex justify-center mb-4">
