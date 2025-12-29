@@ -2,17 +2,18 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, RefreshCw, Percent, Loader2, Check } from "lucide-react";
+import { CreditCard, RefreshCw, Calendar, Loader2, Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import SettingsHeader from "./SettingsHeader";
 import SettingsSection from "./SettingsSection";
 import SettingsRow from "./SettingsRow";
 import useSettingsAudit from "@/hooks/useSettingsAudit";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface SubscriptionSettingsProps {
   onBack: () => void;
@@ -22,8 +23,7 @@ interface SubscriptionData {
   plan_type: string;
   billing_cycle: string;
   auto_renew: boolean;
-  service_charge_enabled: boolean;
-  service_charge_percentage: number;
+  expires_at: string | null;
 }
 
 const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
@@ -38,8 +38,7 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
     plan_type: "basic",
     billing_cycle: "monthly",
     auto_renew: true,
-    service_charge_enabled: false,
-    service_charge_percentage: 0,
+    expires_at: null,
   });
 
   const [originalData, setOriginalData] = useState(formData);
@@ -49,7 +48,9 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
   }, [restaurant?.id]);
 
   useEffect(() => {
-    setIsDirty(JSON.stringify(formData) !== JSON.stringify(originalData));
+    const { expires_at: _, ...formWithoutExpires } = formData;
+    const { expires_at: __, ...originalWithoutExpires } = originalData;
+    setIsDirty(JSON.stringify(formWithoutExpires) !== JSON.stringify(originalWithoutExpires));
   }, [formData, originalData]);
 
   const loadSettings = async () => {
@@ -69,8 +70,7 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
           plan_type: data.plan_type || "basic",
           billing_cycle: data.billing_cycle || "monthly",
           auto_renew: data.auto_renew ?? true,
-          service_charge_enabled: data.service_charge_enabled ?? false,
-          service_charge_percentage: data.service_charge_percentage ?? 0,
+          expires_at: data.expires_at || null,
         };
         setFormData(settings);
         setOriginalData(settings);
@@ -92,12 +92,14 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
     setSuccess(false);
 
     try {
+      const { expires_at, ...dataToSave } = formData;
+      
       const { error } = await supabase
         .from("subscription_settings")
         .upsert(
           {
             restaurant_id: restaurant?.id,
-            ...formData,
+            ...dataToSave,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "restaurant_id" }
@@ -214,6 +216,18 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
           </div>
         </SettingsSection>
 
+        {/* Expiry Info */}
+        {formData.expires_at && (
+          <SettingsSection title="Vencimiento">
+            <SettingsRow
+              icon={<Calendar className="h-4 w-4" />}
+              label="Fecha de vencimiento"
+              value={format(new Date(formData.expires_at), "d 'de' MMMM, yyyy", { locale: es })}
+              showChevron={false}
+            />
+          </SettingsSection>
+        )}
+
         {/* Toggles Section */}
         <SettingsSection title="Opciones">
           <SettingsRow
@@ -231,47 +245,7 @@ const SubscriptionSettings = ({ onBack }: SubscriptionSettingsProps) => {
               />
             }
           />
-          <SettingsRow
-            icon={<Percent className="h-4 w-4" />}
-            label="Cobro de Servicio"
-            description="Agregar % de servicio a facturas"
-            showChevron={false}
-            rightElement={
-              <Switch
-                checked={formData.service_charge_enabled}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, service_charge_enabled: checked }))
-                }
-                disabled={!isOwner}
-              />
-            }
-          />
         </SettingsSection>
-
-        {/* Service Charge Percentage */}
-        {formData.service_charge_enabled && isOwner && (
-          <SettingsSection title="Porcentaje de Servicio">
-            <div className="p-4">
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={formData.service_charge_percentage}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      service_charge_percentage: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-24 bg-muted/50 border-border/30"
-                />
-                <span className="text-muted-foreground">%</span>
-              </div>
-            </div>
-          </SettingsSection>
-        )}
 
         {/* Save Button */}
         {isOwner && (

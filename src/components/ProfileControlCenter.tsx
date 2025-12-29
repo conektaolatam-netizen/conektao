@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { User, Building, MapPin, CreditCard, Percent, Shield } from "lucide-react";
+import { 
+  User, Building, MapPin, CreditCard, Percent, Shield, 
+  Target, Lock, Wallet 
+} from "lucide-react";
 import SettingsHeader from "./settings/SettingsHeader";
 import SettingsSection from "./settings/SettingsSection";
 import SettingsRow from "./settings/SettingsRow";
@@ -11,7 +14,9 @@ import RestaurantSettings from "./settings/RestaurantSettings";
 import LocationSettings from "./settings/LocationSettings";
 import SubscriptionSettings from "./settings/SubscriptionSettings";
 import TipsSettings from "./settings/TipsSettings";
-import SecuritySettings from "./settings/SecuritySettings";
+import SalesGoalsSettings from "./settings/SalesGoalsSettings";
+import PrivacyDataSettings from "./settings/PrivacyDataSettings";
+import PaymentMethodsSettings from "./settings/PaymentMethodsSettings";
 
 interface ProfileControlCenterProps {
   open: boolean;
@@ -25,7 +30,9 @@ type SettingsScreen =
   | "location" 
   | "subscription" 
   | "tips" 
-  | "security";
+  | "sales_goals"
+  | "privacy"
+  | "payment_methods";
 
 const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps) => {
   const { user, profile, restaurant } = useAuth();
@@ -43,61 +50,34 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
   const isOwner = profile?.role === "owner";
 
   // Render sub-screens
-  if (currentScreen === "profile") {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <ProfileSettings onBack={handleBack} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const renderSubScreen = () => {
+    switch (currentScreen) {
+      case "profile":
+        return <ProfileSettings onBack={handleBack} />;
+      case "restaurant":
+        return <RestaurantSettings onBack={handleBack} />;
+      case "location":
+        return <LocationSettings onBack={handleBack} />;
+      case "subscription":
+        return <SubscriptionSettings onBack={handleBack} />;
+      case "tips":
+        return <TipsSettings onBack={handleBack} />;
+      case "sales_goals":
+        return <SalesGoalsSettings onBack={handleBack} />;
+      case "privacy":
+        return <PrivacyDataSettings onBack={handleBack} />;
+      case "payment_methods":
+        return <PaymentMethodsSettings onBack={handleBack} />;
+      default:
+        return null;
+    }
+  };
 
-  if (currentScreen === "restaurant") {
+  if (currentScreen !== "main") {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <RestaurantSettings onBack={handleBack} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (currentScreen === "location") {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <LocationSettings onBack={handleBack} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (currentScreen === "subscription") {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <SubscriptionSettings onBack={handleBack} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (currentScreen === "tips") {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <TipsSettings onBack={handleBack} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (currentScreen === "security") {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md h-[85vh] p-0 overflow-hidden bg-background border-border/30">
-          <SecuritySettings onBack={handleBack} />
+          {renderSubScreen()}
         </DialogContent>
       </Dialog>
     );
@@ -155,28 +135,42 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
             {isOwner && (
               <SettingsSection title="Negocio">
                 <SettingsRow
+                  icon={<Target className="h-4 w-4" />}
+                  label="Objetivos de Ventas"
+                  description="Metas mensuales"
+                  onClick={() => setCurrentScreen("sales_goals")}
+                />
+                <SettingsRow
+                  icon={<Percent className="h-4 w-4" />}
+                  label="Propinas"
+                  description="Configuración y distribución"
+                  onClick={() => setCurrentScreen("tips")}
+                />
+                <SettingsRow
                   icon={<CreditCard className="h-4 w-4" />}
                   label="Suscripción"
                   description="Plan y facturación"
                   onClick={() => setCurrentScreen("subscription")}
                 />
-                <SettingsRow
-                  icon={<Percent className="h-4 w-4" />}
-                  label="Propinas"
-                  description="Configuración de propinas"
-                  onClick={() => setCurrentScreen("tips")}
-                />
               </SettingsSection>
             )}
 
-            {/* Security Section */}
-            <SettingsSection title="Seguridad">
+            {/* Security & Payments Section */}
+            <SettingsSection title="Seguridad y Pagos">
               <SettingsRow
-                icon={<Shield className="h-4 w-4" />}
-                label="Cambiar Contraseña"
-                description="Actualiza tu contraseña"
-                onClick={() => setCurrentScreen("security")}
+                icon={<Lock className="h-4 w-4" />}
+                label="Privacidad y Datos"
+                description="Contraseña y documentos"
+                onClick={() => setCurrentScreen("privacy")}
               />
+              {isOwner && (
+                <SettingsRow
+                  icon={<Wallet className="h-4 w-4" />}
+                  label="Métodos de Pago"
+                  description="Tarjetas para suscripción"
+                  onClick={() => setCurrentScreen("payment_methods")}
+                />
+              )}
             </SettingsSection>
 
             {/* Footer */}

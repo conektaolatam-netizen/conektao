@@ -2,11 +2,11 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-type SettingsSection = 'profile' | 'restaurant' | 'location' | 'subscription' | 'tips' | 'security' | 'targets';
+type SettingsSection = 'profile' | 'restaurant' | 'location' | 'subscription' | 'tips' | 'security' | 'targets' | 'sales_goals' | 'documents' | 'payment_methods';
 
 interface AuditLogParams {
   section: SettingsSection;
-  action: 'update' | 'create' | 'delete';
+  action: 'update' | 'create' | 'delete' | 'password_change' | 'upload' | 'add' | 'set_active';
   before?: Record<string, any>;
   after?: Record<string, any>;
 }
