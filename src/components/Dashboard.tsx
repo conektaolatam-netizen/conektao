@@ -426,18 +426,15 @@ const Dashboard = ({
             onClick={() => handleStatsClick(stat.title)}
           >
             {/* Glow effect behind card */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-70 blur-md transition-all duration-500 animate-[glow-pulse_3s_ease-in-out_infinite]"></div>
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-300"></div>
             
             {/* Main card */}
             <Card className={`relative p-2 sm:p-3 lg:p-4 bg-card/90 backdrop-blur-xl border border-orange-500/20 shadow-lg hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl overflow-hidden ${isMainStat ? 'ring-1 ring-orange-500/40' : ''}`}>
-              {/* Animated gradient border effect */}
+              {/* Gradient overlay */}
               <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-400/10 pointer-events-none"></div>
               
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none"></div>
-              
               {/* Top accent line */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 opacity-70"></div>
               
               <div className="flex items-center justify-between relative z-10 gap-2">
                 <div className="min-w-0 flex-1">
@@ -445,7 +442,7 @@ const Dashboard = ({
                     <p className="text-[10px] sm:text-xs lg:text-sm font-medium bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent truncate">
                       {stat.title}
                     </p>
-                    {isMainStat && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full animate-pulse flex-shrink-0 shadow-lg shadow-orange-500/50"></div>}
+                    {isMainStat && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full flex-shrink-0 shadow-lg shadow-orange-500/50"></div>}
                   </div>
                   <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate text-foreground drop-shadow-[0_0_10px_rgba(251,146,60,0.3)]">
                     {stat.value}
