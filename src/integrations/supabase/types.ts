@@ -621,6 +621,133 @@ export type Database = {
           },
         ]
       }
+      employee_bonuses: {
+        Row: {
+          ai_conversation_id: string | null
+          bonus_type: string
+          conditions: Json | null
+          configured_via_ai: boolean | null
+          created_at: string | null
+          employee_id: string | null
+          formula: Json | null
+          frequency: string
+          id: string
+          is_active: boolean | null
+          max_cap: number | null
+          restaurant_id: string | null
+          rule_description: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_conversation_id?: string | null
+          bonus_type: string
+          conditions?: Json | null
+          configured_via_ai?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          formula?: Json | null
+          frequency: string
+          id?: string
+          is_active?: boolean | null
+          max_cap?: number | null
+          restaurant_id?: string | null
+          rule_description: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_conversation_id?: string | null
+          bonus_type?: string
+          conditions?: Json | null
+          configured_via_ai?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          formula?: Json | null
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          max_cap?: number | null
+          restaurant_id?: string | null
+          rule_description?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_bonuses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_bonuses_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_permissions: {
+        Row: {
+          allowed: boolean | null
+          created_at: string | null
+          danger_confirmed_at: string | null
+          danger_confirmed_by: string | null
+          employee_id: string | null
+          id: string
+          module_key: string
+          permission_key: string
+          restaurant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          allowed?: boolean | null
+          created_at?: string | null
+          danger_confirmed_at?: string | null
+          danger_confirmed_by?: string | null
+          employee_id?: string | null
+          id?: string
+          module_key: string
+          permission_key: string
+          restaurant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          allowed?: boolean | null
+          created_at?: string | null
+          danger_confirmed_at?: string | null
+          danger_confirmed_by?: string | null
+          employee_id?: string | null
+          id?: string
+          module_key?: string
+          permission_key?: string
+          restaurant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_permissions_danger_confirmed_by_fkey"
+            columns: ["danger_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_permissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_permissions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_items: {
         Row: {
           created_at: string
@@ -2113,6 +2240,7 @@ export type Database = {
       profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"] | null
+          base_salary: number | null
           created_at: string
           created_by: string | null
           email: string
@@ -2125,10 +2253,12 @@ export type Database = {
           id: string
           is_active: boolean | null
           location_radius: number | null
+          onboarding_completed: boolean | null
           permissions: Json | null
           phone: string | null
           restaurant_id: string | null
           role: Database["public"]["Enums"]["user_role"]
+          salary_frequency: string | null
           updated_at: string
           work_address: string | null
           work_latitude: number | null
@@ -2136,6 +2266,7 @@ export type Database = {
         }
         Insert: {
           account_type?: Database["public"]["Enums"]["account_type"] | null
+          base_salary?: number | null
           created_at?: string
           created_by?: string | null
           email: string
@@ -2148,10 +2279,12 @@ export type Database = {
           id: string
           is_active?: boolean | null
           location_radius?: number | null
+          onboarding_completed?: boolean | null
           permissions?: Json | null
           phone?: string | null
           restaurant_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          salary_frequency?: string | null
           updated_at?: string
           work_address?: string | null
           work_latitude?: number | null
@@ -2159,6 +2292,7 @@ export type Database = {
         }
         Update: {
           account_type?: Database["public"]["Enums"]["account_type"] | null
+          base_salary?: number | null
           created_at?: string
           created_by?: string | null
           email?: string
@@ -2171,10 +2305,12 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           location_radius?: number | null
+          onboarding_completed?: boolean | null
           permissions?: Json | null
           phone?: string | null
           restaurant_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          salary_frequency?: string | null
           updated_at?: string
           work_address?: string | null
           work_latitude?: number | null
@@ -2443,6 +2579,51 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_access: {
+        Row: {
+          allowed: boolean | null
+          created_at: string | null
+          employee_id: string | null
+          id: string
+          resource_id: string
+          resource_type: string
+          restaurant_id: string | null
+        }
+        Insert: {
+          allowed?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: string
+          resource_id: string
+          resource_type: string
+          restaurant_id?: string | null
+        }
+        Update: {
+          allowed?: boolean | null
+          created_at?: string | null
+          employee_id?: string | null
+          id?: string
+          resource_id?: string
+          resource_type?: string
+          restaurant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_access_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_access_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_invitations: {
         Row: {
           accepted_at: string | null
@@ -2552,6 +2733,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      role_presets: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          permissions: Json
+          preset_key: string
+          restaurant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          permissions?: Json
+          preset_key: string
+          restaurant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          permissions?: Json
+          preset_key?: string
+          restaurant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_presets_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sale_item_toppings: {
         Row: {
@@ -3733,6 +3955,14 @@ export type Database = {
       }
     }
     Functions: {
+      apply_role_preset: {
+        Args: {
+          p_employee_id: string
+          p_preset_permissions: Json
+          p_restaurant_id: string
+        }
+        Returns: undefined
+      }
       calculate_distance: {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
@@ -3773,6 +4003,10 @@ export type Database = {
       get_restaurant_owner: {
         Args: { _restaurant_id: string }
         Returns: string
+      }
+      has_permission: {
+        Args: { p_module: string; p_permission: string; p_user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {

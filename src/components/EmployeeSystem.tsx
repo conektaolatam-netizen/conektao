@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Clock, Calculator, UserCheck, ShoppingCart, Wallet, FileText, Package, BarChart3, DollarSign, ChefHat } from "lucide-react";
+import { Users, Clock, Calculator, UserCheck, ShoppingCart, Wallet, FileText, Package, BarChart3, DollarSign, ChefHat, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import TimeTracking from "./employee/TimeTracking";
 import PayrollCalculation from "./employee/PayrollCalculation";
 import DailyPayroll from "./employee/DailyPayroll";
 import POSBilling from "./POSBilling";
+import EmployeeCreationWizard from "./employee/wizard/EmployeeCreationWizard";
 interface Employee {
   id: string;
   email: string;
@@ -31,6 +32,8 @@ const EmployeeSystem = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activeTab, setActiveTab] = useState("list");
   const [showPOS, setShowPOS] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   if (!profile) {
     return (
       <Card>
@@ -227,18 +230,29 @@ const EmployeeSystem = () => {
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-orange-500 to-pink-500" />
             <CardHeader className="bg-gradient-to-r from-orange-500 to-pink-500">
-              <CardTitle className="text-2xl font-bold text-white">
-                Gestión de Empleados
-              </CardTitle>
-              <CardDescription className="text-white/90 text-lg">
-                Administra el equipo, permisos y roles de los empleados
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold text-white">
+                    Gestión de Empleados
+                  </CardTitle>
+                  <CardDescription className="text-white/90 text-lg">
+                    Administra el equipo, permisos y roles de los empleados
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => setShowWizard(true)}
+                  className="bg-white text-orange-600 hover:bg-white/90 gap-2 font-semibold"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuevo Empleado
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-6 bg-muted">
-              <EmployeeList onEmployeeSelect={setSelectedEmployee} />
+              <EmployeeList key={refreshKey} onEmployeeSelect={setSelectedEmployee} />
             </CardContent>
           </Card>
-            </TabsContent>
+        </TabsContent>
 
         <TabsContent value="daily-pay" className="space-y-4">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl overflow-hidden">
@@ -297,6 +311,13 @@ const EmployeeSystem = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Employee Creation Wizard */}
+      <EmployeeCreationWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+      />
     </div>;
 };
 export default EmployeeSystem;
