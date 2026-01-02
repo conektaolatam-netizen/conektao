@@ -867,6 +867,756 @@ export type Database = {
           },
         ]
       }
+      gas_anomalies: {
+        Row: {
+          anomaly_type: string
+          assigned_to: string | null
+          created_at: string | null
+          delivery_id: string | null
+          description: string | null
+          details_json: Json | null
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          route_id: string | null
+          severity: string | null
+          status: string | null
+          tenant_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          anomaly_type: string
+          assigned_to?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          description?: string | null
+          details_json?: Json | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          route_id?: string | null
+          severity?: string | null
+          status?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          anomaly_type?: string
+          assigned_to?: string | null
+          created_at?: string | null
+          delivery_id?: string | null
+          description?: string | null
+          details_json?: Json | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          route_id?: string | null
+          severity?: string | null
+          status?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_anomalies_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "gas_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_anomalies_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "gas_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_anomalies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_ar_ledger: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string | null
+          created_by: string | null
+          delivery_id: string | null
+          due_date: string | null
+          entry_type: string
+          id: string
+          matched_at: string | null
+          matched_by: string | null
+          method: string | null
+          notes: string | null
+          reference_number: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id?: string | null
+          due_date?: string | null
+          entry_type: string
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          method?: string | null
+          notes?: string | null
+          reference_number?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id?: string | null
+          due_date?: string | null
+          entry_type?: string
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          method?: string | null
+          notes?: string | null
+          reference_number?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_ar_ledger_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "gas_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_ar_ledger_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "gas_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_ar_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_clients: {
+        Row: {
+          address: string
+          city: string | null
+          client_type: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contract_json: Json | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          city?: string | null
+          client_type?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_json?: Json | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string | null
+          client_type?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_json?: Json | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_deliveries: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          delivered_at: string | null
+          delivered_qty: number | null
+          delivery_order: number | null
+          id: string
+          incident_reason: string | null
+          location_lat: number | null
+          location_lng: number | null
+          location_meta: Json | null
+          photo_url: string | null
+          planned_qty: number
+          receiver_name: string | null
+          receiver_signature_url: string | null
+          route_id: string
+          status: string | null
+          tenant_id: string
+          total_amount: number | null
+          unit: string | null
+          unit_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          delivered_at?: string | null
+          delivered_qty?: number | null
+          delivery_order?: number | null
+          id?: string
+          incident_reason?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_meta?: Json | null
+          photo_url?: string | null
+          planned_qty: number
+          receiver_name?: string | null
+          receiver_signature_url?: string | null
+          route_id: string
+          status?: string | null
+          tenant_id: string
+          total_amount?: number | null
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          delivered_at?: string | null
+          delivered_qty?: number | null
+          delivery_order?: number | null
+          id?: string
+          incident_reason?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_meta?: Json | null
+          photo_url?: string | null
+          planned_qty?: number
+          receiver_name?: string | null
+          receiver_signature_url?: string | null
+          route_id?: string
+          status?: string | null
+          tenant_id?: string
+          total_amount?: number | null
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_deliveries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "gas_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_deliveries_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "gas_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_deliveries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_inventory_ledger: {
+        Row: {
+          batch_code: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          movement_type: string
+          notes: string | null
+          plant_id: string | null
+          qty: number
+          reference_id: string | null
+          reference_type: string | null
+          tenant_id: string
+          unit: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          batch_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          movement_type: string
+          notes?: string | null
+          plant_id?: string | null
+          qty: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id: string
+          unit?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          batch_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          plant_id?: string | null
+          qty?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          tenant_id?: string
+          unit?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_inventory_ledger_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "gas_plants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_inventory_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_inventory_ledger_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "gas_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_orders: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          created_by: string | null
+          delivery_id: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          preferred_time: string | null
+          requested_date: string | null
+          requested_qty: number
+          status: string | null
+          tenant_id: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id?: string | null
+          id?: string
+          notes?: string | null
+          order_number: string
+          preferred_time?: string | null
+          requested_date?: string | null
+          requested_qty: number
+          status?: string | null
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          preferred_time?: string | null
+          requested_date?: string | null
+          requested_qty?: number
+          status?: string | null
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "gas_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_orders_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "gas_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_payments_events: {
+        Row: {
+          collected_by_driver: boolean | null
+          created_at: string | null
+          created_by: string | null
+          delivery_id: string
+          id: string
+          method: string
+          notes: string | null
+          proof_url: string | null
+          tenant_id: string
+        }
+        Insert: {
+          collected_by_driver?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id: string
+          id?: string
+          method: string
+          notes?: string | null
+          proof_url?: string | null
+          tenant_id: string
+        }
+        Update: {
+          collected_by_driver?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          delivery_id?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          proof_url?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_payments_events_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "gas_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_payments_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_plants: {
+        Row: {
+          capacity_unit: string | null
+          capacity_value: number | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          location_text: string | null
+          name: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          capacity_unit?: string | null
+          capacity_value?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location_text?: string | null
+          name: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          capacity_unit?: string | null
+          capacity_value?: number | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location_text?: string | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_plants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_price_rules: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          effective_from: string | null
+          id: string
+          is_active: boolean | null
+          price_per_unit: number
+          scope: string | null
+          tenant_id: string
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          effective_from?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_per_unit: number
+          scope?: string | null
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          effective_from?: string | null
+          id?: string
+          is_active?: boolean | null
+          price_per_unit?: number
+          scope?: string | null
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_price_rules_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "gas_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_price_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_routes: {
+        Row: {
+          actual_return_qty: number | null
+          assigned_qty: number | null
+          assigned_unit: string | null
+          closed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          driver_user_id: string | null
+          expected_return_qty: number | null
+          id: string
+          notes: string | null
+          planned_date: string | null
+          plant_id: string | null
+          return_reviewed_at: string | null
+          return_reviewed_by: string | null
+          route_number: string
+          started_at: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          actual_return_qty?: number | null
+          assigned_qty?: number | null
+          assigned_unit?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          driver_user_id?: string | null
+          expected_return_qty?: number | null
+          id?: string
+          notes?: string | null
+          planned_date?: string | null
+          plant_id?: string | null
+          return_reviewed_at?: string | null
+          return_reviewed_by?: string | null
+          route_number: string
+          started_at?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          actual_return_qty?: number | null
+          assigned_qty?: number | null
+          assigned_unit?: string | null
+          closed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          driver_user_id?: string | null
+          expected_return_qty?: number | null
+          id?: string
+          notes?: string | null
+          planned_date?: string | null
+          plant_id?: string | null
+          return_reviewed_at?: string | null
+          return_reviewed_by?: string | null
+          route_number?: string
+          started_at?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_routes_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "gas_plants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_routes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_routes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "gas_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gas_vehicles: {
+        Row: {
+          capacity_unit: string | null
+          capacity_value: number
+          created_at: string | null
+          docs_expiry_json: Json | null
+          driver_name: string | null
+          driver_phone: string | null
+          id: string
+          is_active: boolean | null
+          last_maintenance_date: string | null
+          plate: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          capacity_unit?: string | null
+          capacity_value: number
+          created_at?: string | null
+          docs_expiry_json?: Json | null
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_maintenance_date?: string | null
+          plate: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          capacity_unit?: string | null
+          capacity_value?: number
+          created_at?: string | null
+          docs_expiry_json?: Json | null
+          driver_name?: string | null
+          driver_phone?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_maintenance_date?: string | null
+          plate?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_vehicles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredient_movements: {
         Row: {
           batch_code: string | null
@@ -2685,6 +3435,7 @@ export type Database = {
           name: string
           nit: string | null
           owner_id: string
+          product_mode: string | null
           require_reason_if_decrease: boolean | null
           tip_auto_distribute: boolean | null
           tip_cashier_can_distribute: boolean | null
@@ -2705,6 +3456,7 @@ export type Database = {
           name: string
           nit?: string | null
           owner_id: string
+          product_mode?: string | null
           require_reason_if_decrease?: boolean | null
           tip_auto_distribute?: boolean | null
           tip_cashier_can_distribute?: boolean | null
@@ -2725,6 +3477,7 @@ export type Database = {
           name?: string
           nit?: string | null
           owner_id?: string
+          product_mode?: string | null
           require_reason_if_decrease?: boolean | null
           tip_auto_distribute?: boolean | null
           tip_cashier_can_distribute?: boolean | null
@@ -3967,6 +4720,10 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      calculate_gas_route_expected_return: {
+        Args: { p_route_id: string }
+        Returns: number
+      }
       calculate_product_cost: {
         Args: { p_product_id: string }
         Returns: number
@@ -3994,6 +4751,14 @@ export type Database = {
           p_user_name?: string
         }
         Returns: Json
+      }
+      generate_gas_order_number: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
+      generate_gas_route_number: {
+        Args: { p_tenant_id: string }
+        Returns: string
       }
       generate_monthly_invoice_document: {
         Args: { p_month: number; p_restaurant_id: string; p_year: number }

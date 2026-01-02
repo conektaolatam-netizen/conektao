@@ -24,6 +24,7 @@ interface Restaurant {
   latitude: number | null;
   longitude: number | null;
   location_radius: number;
+  product_mode?: string;
   created_at: string;
   updated_at: string;
 }
