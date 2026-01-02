@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGasData, GasClient } from '@/hooks/useGasData';
-import { Plus, Trash2, Truck, Package, Users, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Plus, Trash2, Truck, Package, Users, Loader2, User } from 'lucide-react';
 
 interface DeliveryItem {
   clientId: string;
@@ -22,13 +24,49 @@ interface CreateGasRouteModalProps {
 }
 
 const CreateGasRouteModal: React.FC<CreateGasRouteModalProps> = ({ open, onOpenChange }) => {
+  const { restaurant } = useAuth();
+  const tenantId = restaurant?.id;
   const { plants, vehicles, clients, createRoute, isCreatingRoute } = useGasData();
   
   const [plantId, setPlantId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [driverId, setDriverId] = useState('');
   const [assignedQty, setAssignedQty] = useState('');
   const [selectedClients, setSelectedClients] = useState<DeliveryItem[]>([]);
   const [clientQty, setClientQty] = useState<Record<string, string>>({});
+
+  // Query conductors (users with conductor_gas role)
+  const { data: drivers = [] } = useQuery({
+    queryKey: ['gas_drivers', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      
+      // First get user_ids with conductor_gas role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'conductor_gas');
+
+      if (roleError) throw roleError;
+      if (!roleData || roleData.length === 0) return [];
+
+      const userIds = roleData.map(r => r.user_id);
+
+      // Then get profiles for those users
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (profileError) throw profileError;
+
+      return profileData?.map(p => ({
+        id: p.id,
+        name: p.full_name || p.email || 'Sin nombre',
+      })) || [];
+    },
+    enabled: !!tenantId && open,
+  });
 
   const handleAddClient = (client: GasClient) => {
     if (selectedClients.find(c => c.clientId === client.id)) return;
@@ -57,6 +95,7 @@ const CreateGasRouteModal: React.FC<CreateGasRouteModalProps> = ({ open, onOpenC
     createRoute({
       plantId,
       vehicleId,
+      driverId: driverId || undefined,
       assignedQty: assignedNum,
       deliveries: selectedClients.map((c, index) => ({
         clientId: c.clientId,
@@ -74,6 +113,7 @@ const CreateGasRouteModal: React.FC<CreateGasRouteModalProps> = ({ open, onOpenC
   const resetForm = () => {
     setPlantId('');
     setVehicleId('');
+    setDriverId('');
     setAssignedQty('');
     setSelectedClients([]);
     setClientQty({});
@@ -133,6 +173,32 @@ const CreateGasRouteModal: React.FC<CreateGasRouteModalProps> = ({ open, onOpenC
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Driver Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Conductor (opcional)
+            </Label>
+            <Select value={driverId} onValueChange={setDriverId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar conductor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sin asignar</SelectItem>
+                {drivers.map(driver => (
+                  <SelectItem key={driver.id} value={driver.id}>
+                    {driver.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {drivers.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No hay conductores registrados. Crea usuarios con rol "conductor_gas".
+              </p>
+            )}
           </div>
 
           {/* Assigned Quantity */}

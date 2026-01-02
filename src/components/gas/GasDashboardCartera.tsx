@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useGasData } from '@/hooks/useGasData';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   DollarSign, 
   Users, 
@@ -12,18 +15,93 @@ import {
   ArrowRight,
   CreditCard,
   Banknote,
-  Plus
+  Plus,
+  FileCheck
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import CreateClientModal from './modals/CreateClientModal';
+import ReconcilePaymentModal from './modals/ReconcilePaymentModal';
 
 const GasDashboardCartera: React.FC = () => {
+  const { restaurant } = useAuth();
+  const tenantId = restaurant?.id;
   const { 
     clients,
     isLoading 
   } = useGasData();
 
   const [showCreateClient, setShowCreateClient] = useState(false);
+  const [showReconcile, setShowReconcile] = useState(false);
+
+  // Query today's payments summary
+  const { data: paymentsSummary } = useQuery({
+    queryKey: ['gas_payments_summary', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null;
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data: payments, error } = await supabase
+        .from('gas_payments_events')
+        .select(`
+          method,
+          delivery:gas_deliveries(total_amount)
+        `)
+        .eq('tenant_id', tenantId)
+        .gte('created_at', `${today}T00:00:00`);
+
+      if (error) throw error;
+
+      const cash = payments?.filter(p => p.method === 'cash') || [];
+      const transfer = payments?.filter(p => p.method === 'transfer') || [];
+      const credit = payments?.filter(p => p.method === 'credit') || [];
+      const noPay = payments?.filter(p => p.method === 'no_pay') || [];
+
+      const cashTotal = cash.reduce((sum, p) => sum + (p.delivery?.total_amount || 0), 0);
+      const transferTotal = transfer.reduce((sum, p) => sum + (p.delivery?.total_amount || 0), 0);
+      const creditTotal = credit.reduce((sum, p) => sum + (p.delivery?.total_amount || 0), 0);
+
+      return {
+        cashCount: cash.length,
+        cashTotal,
+        transferCount: transfer.length,
+        transferTotal,
+        creditCount: credit.length,
+        creditTotal,
+        pendingCount: noPay.length,
+        totalPayments: payments?.length || 0,
+      };
+    },
+    enabled: !!tenantId,
+  });
+
+  // Query AR ledger (pending credits)
+  const { data: arSummary } = useQuery({
+    queryKey: ['gas_ar_summary', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null;
+      
+      const { data, error } = await supabase
+        .from('gas_ar_ledger')
+        .select('amount, status, due_date')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'open');
+
+      if (error) throw error;
+
+      const today = new Date().toISOString().split('T')[0];
+      const overdue = data?.filter(a => a.due_date && a.due_date < today) || [];
+      const totalOpen = data?.reduce((sum, a) => sum + (a.amount || 0), 0) || 0;
+      const totalOverdue = overdue.reduce((sum, a) => sum + (a.amount || 0), 0);
+
+      return {
+        openCount: data?.length || 0,
+        totalOpen,
+        overdueCount: overdue.length,
+        totalOverdue,
+      };
+    },
+    enabled: !!tenantId,
+  });
 
   const activeClients = clients.filter(c => c.status === 'active').length;
   const restrictedClients = clients.filter(c => c.status === 'restricted').length;
@@ -59,9 +137,9 @@ const GasDashboardCartera: React.FC = () => {
             <Users className="h-4 w-4 mr-2" />
             Nuevo Cliente
           </Button>
-          <Button className="bg-green-500 hover:bg-green-600">
-            <DollarSign className="h-4 w-4 mr-2" />
-            Registrar Pago
+          <Button className="bg-green-500 hover:bg-green-600" onClick={() => setShowReconcile(true)}>
+            <FileCheck className="h-4 w-4 mr-2" />
+            Conciliar Pagos
           </Button>
         </div>
       </div>
@@ -71,20 +149,13 @@ const GasDashboardCartera: React.FC = () => {
         <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-green-400 mb-2">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-sm font-medium">Clientes Activos</span>
+              <Banknote className="h-4 w-4" />
+              <span className="text-sm font-medium">Efectivo Hoy</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{activeClients}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-yellow-400 mb-2">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm font-medium">Restringidos</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{restrictedClients}</p>
+            <p className="text-2xl font-bold text-foreground">
+              ${(paymentsSummary?.cashTotal || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">{paymentsSummary?.cashCount || 0} pagos</p>
           </CardContent>
         </Card>
 
@@ -92,19 +163,38 @@ const GasDashboardCartera: React.FC = () => {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-blue-400 mb-2">
               <CreditCard className="h-4 w-4" />
-              <span className="text-sm font-medium">Por Conciliar</span>
+              <span className="text-sm font-medium">Transferencias</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">0</p>
+            <p className="text-2xl font-bold text-foreground">
+              ${(paymentsSummary?.transferTotal || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">{paymentsSummary?.transferCount || 0} pagos</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 border-border/30">
+        <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-yellow-400 mb-2">
               <Clock className="h-4 w-4" />
+              <span className="text-sm font-medium">Crédito</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              ${(paymentsSummary?.creditTotal || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">{paymentsSummary?.creditCount || 0} facturas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-400 mb-2">
+              <AlertTriangle className="h-4 w-4" />
               <span className="text-sm font-medium">Vencidos</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">0</p>
+            <p className="text-2xl font-bold text-foreground">
+              ${(arSummary?.totalOverdue || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">{arSummary?.overdueCount || 0} cuentas</p>
           </CardContent>
         </Card>
       </div>
@@ -115,12 +205,22 @@ const GasDashboardCartera: React.FC = () => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-400" />
-              Clientes
+              Clientes ({clients.length})
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setShowCreateClient(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Agregar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/30">
+                {activeClients} activos
+              </Badge>
+              {restrictedClients > 0 && (
+                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30">
+                  {restrictedClients} restringidos
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateClient(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Agregar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -191,41 +291,9 @@ const GasDashboardCartera: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Payment Methods Summary */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="bg-card/50 border-border/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-green-400" />
-              Pagos en Efectivo Hoy
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-4">
-              <p className="text-3xl font-bold text-green-400">$0</p>
-              <p className="text-sm text-muted-foreground mt-1">Pendiente conciliación</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-border/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-blue-400" />
-              Transferencias Hoy
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-4">
-              <p className="text-3xl font-bold text-blue-400">$0</p>
-              <p className="text-sm text-muted-foreground mt-1">Verificadas</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Modals */}
       <CreateClientModal open={showCreateClient} onOpenChange={setShowCreateClient} />
+      <ReconcilePaymentModal open={showReconcile} onOpenChange={setShowReconcile} />
     </div>
   );
 };

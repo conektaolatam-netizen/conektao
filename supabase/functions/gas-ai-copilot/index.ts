@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,10 +15,13 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
 
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const { tenantId, queryType } = await req.json();
 
     if (!tenantId) {
@@ -28,7 +30,6 @@ serve(async (req) => {
 
     console.log(`[gas-ai-copilot] Processing request for tenant: ${tenantId}, type: ${queryType}`);
 
-    // Fetch today's data for the tenant
     const today = new Date().toISOString().split('T')[0];
 
     // Get routes
@@ -57,6 +58,14 @@ serve(async (req) => {
       .in('status', ['new', 'in_review'])
       .limit(10);
 
+    // Get payments for today
+    const { data: payments } = await supabase
+      .from('gas_payments_events')
+      .select('*, delivery:gas_deliveries(total_amount)')
+      .eq('tenant_id', tenantId)
+      .gte('created_at', `${today}T00:00:00`)
+      .limit(50);
+
     // Get inventory summary
     const { data: plantInventory } = await supabase
       .from('gas_inventory_ledger')
@@ -70,10 +79,12 @@ serve(async (req) => {
     const inProgressRoutes = routes?.filter(r => r.status === 'in_progress').length || 0;
     const pendingReviewRoutes = routes?.filter(r => r.status === 'pending_return_review').length || 0;
     const anomalyCount = anomalies?.length || 0;
+    const cashPayments = payments?.filter(p => p.method === 'cash').length || 0;
+    const transferPayments = payments?.filter(p => p.method === 'transfer').length || 0;
+    const creditPayments = payments?.filter(p => p.method === 'credit').length || 0;
 
-    // Build context for AI
     const context = `
-Datos del día para distribuidora de gas:
+Datos operativos del día para distribuidora de gas GLP:
 - Inventario en planta: ${totalPlantInventory.toLocaleString()} kg
 - Rutas del día: ${routesCount}
 - Rutas en progreso: ${inProgressRoutes}
@@ -81,6 +92,7 @@ Datos del día para distribuidora de gas:
 - Gas entregado hoy: ${totalDelivered.toLocaleString()} kg
 - Entregas completadas: ${deliveries?.length || 0}
 - Anomalías activas: ${anomalyCount}
+- Pagos efectivo: ${cashPayments}, transferencias: ${transferPayments}, crédito: ${creditPayments}
 ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.title} (${a.severity})`).join(', ')}` : ''}
 `;
 
@@ -99,15 +111,15 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
         prompt = `Eres un asistente de gerencia para una distribuidora de gas GLP. Basándote en estos datos, da un resumen ejecutivo breve:\n${context}`;
     }
 
-    // Call OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use Lovable AI Gateway (Gemini)
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
@@ -115,15 +127,26 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 200,
-        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[gas-ai-copilot] OpenAI error:', errorText);
-      throw new Error('Error calling AI service');
+      console.error('[gas-ai-copilot] AI gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Límite de solicitudes excedido. Intenta más tarde.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Créditos agotados. Contacta al administrador.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw new Error('Error en servicio de IA');
     }
 
     const data = await response.json();
@@ -142,6 +165,7 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
           inProgressRoutes,
           pendingReviewRoutes,
           anomalyCount,
+          payments: { cash: cashPayments, transfer: transferPayments, credit: creditPayments },
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

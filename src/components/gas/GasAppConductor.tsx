@@ -29,13 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import ReportIncidentModal from './modals/ReportIncidentModal';
 
 const GasAppConductor: React.FC = () => {
   const { 
@@ -54,6 +48,8 @@ const GasAppConductor: React.FC = () => {
 
   const [selectedDelivery, setSelectedDelivery] = useState<any>(null);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [incidentDelivery, setIncidentDelivery] = useState<any>(null);
   const [receiverName, setReceiverName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'card' | 'credit' | 'no_pay'>('cash');
 
@@ -231,25 +227,50 @@ const GasAppConductor: React.FC = () => {
                     </div>
                   </div>
 
-                  {delivery.status === 'pending' && routeInProgress && (
-                    <Button 
-                      size="sm" 
-                      className="bg-orange-500 hover:bg-orange-600"
-                      onClick={() => handleOpenDelivery(delivery)}
-                    >
-                      Entregar
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  )}
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    {delivery.status === 'pending' && routeInProgress && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                          onClick={() => {
+                            setIncidentDelivery(delivery);
+                            setShowIncidentModal(true);
+                          }}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="bg-orange-500 hover:bg-orange-600"
+                          onClick={() => handleOpenDelivery(delivery)}
+                        >
+                          Entregar
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </>
+                    )}
 
-                  {delivery.status === 'delivered' && (
-                    <div className="text-right">
-                      <p className="text-xs text-green-400">Entregado</p>
-                      <p className="text-xs text-muted-foreground">
-                        {delivery.receiver_name}
-                      </p>
-                    </div>
-                  )}
+                    {delivery.status === 'delivered' && (
+                      <div className="text-right">
+                        <p className="text-xs text-green-400">Entregado</p>
+                        <p className="text-xs text-muted-foreground">
+                          {delivery.receiver_name}
+                        </p>
+                      </div>
+                    )}
+
+                    {delivery.status === 'not_delivered' && (
+                      <div className="text-right">
+                        <p className="text-xs text-red-400">No entregado</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {delivery.incident_reason || 'Incidente'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -356,6 +377,14 @@ const GasAppConductor: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Incident Modal */}
+      <ReportIncidentModal
+        open={showIncidentModal}
+        onOpenChange={setShowIncidentModal}
+        delivery={incidentDelivery}
+        routeId={myRoute?.id || ''}
+      />
     </div>
   );
 };
