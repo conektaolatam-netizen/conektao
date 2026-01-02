@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,21 +9,22 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  TrendingUp,
   ArrowRight,
   CreditCard,
-  Banknote
+  Banknote,
+  Plus
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import CreateClientModal from './modals/CreateClientModal';
 
 const GasDashboardCartera: React.FC = () => {
   const { 
     clients,
-    activeRoutes,
     isLoading 
   } = useGasData();
 
-  // Calculate payment stats (simplified for MVP)
+  const [showCreateClient, setShowCreateClient] = useState(false);
+
   const activeClients = clients.filter(c => c.status === 'active').length;
   const restrictedClients = clients.filter(c => c.status === 'restricted').length;
 
@@ -53,10 +54,16 @@ const GasDashboardCartera: React.FC = () => {
           <h1 className="text-2xl font-bold text-foreground">Panel de Cartera</h1>
           <p className="text-muted-foreground">Gestión de pagos y conciliación</p>
         </div>
-        <Button className="bg-green-500 hover:bg-green-600">
-          <DollarSign className="h-4 w-4 mr-2" />
-          Registrar Pago
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowCreateClient(true)}>
+            <Users className="h-4 w-4 mr-2" />
+            Nuevo Cliente
+          </Button>
+          <Button className="bg-green-500 hover:bg-green-600">
+            <DollarSign className="h-4 w-4 mr-2" />
+            Registrar Pago
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -105,16 +112,26 @@ const GasDashboardCartera: React.FC = () => {
       {/* Clients List */}
       <Card className="bg-card/50 border-border/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-blue-400" />
-            Clientes
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-400" />
+              Clientes
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setShowCreateClient(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Agregar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {clients.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">No hay clientes registrados</p>
+              <p className="text-muted-foreground mb-4">No hay clientes registrados</p>
+              <Button variant="outline" onClick={() => setShowCreateClient(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear primer cliente
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -206,6 +223,9 @@ const GasDashboardCartera: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <CreateClientModal open={showCreateClient} onOpenChange={setShowCreateClient} />
     </div>
   );
 };
