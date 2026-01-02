@@ -406,11 +406,13 @@ export const useGasData = () => {
     mutationFn: async ({
       plantId,
       vehicleId,
+      driverId,
       assignedQty,
       deliveries,
     }: {
       plantId: string;
       vehicleId: string;
+      driverId?: string;
       assignedQty: number;
       deliveries: { clientId: string; plannedQty: number; order: number }[];
     }) => {
@@ -425,6 +427,7 @@ export const useGasData = () => {
           route_number: routeNumber || `R-${Date.now()}`,
           plant_id: plantId,
           vehicle_id: vehicleId,
+          driver_user_id: driverId || null,
           assigned_qty: assignedQty,
           assigned_unit: 'kg',
           status: 'planned',
