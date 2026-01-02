@@ -1,20 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useGasData } from '@/hooks/useGasData';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Flame, 
   Truck, 
   MapPin, 
   AlertTriangle,
-  TrendingUp,
   Package,
   Users,
-  DollarSign,
-  ArrowRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Bot,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -27,9 +28,37 @@ const GasDashboardGerencia: React.FC = () => {
     isLoading 
   } = useGasData();
 
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
   const routesInProgress = activeRoutes.filter(r => r.status === 'in_progress').length;
   const routesPending = activeRoutes.filter(r => r.status === 'pending_return_review').length;
   const newAnomalies = anomalies.filter(a => a.status === 'new').length;
+
+  const handleAISummary = async (queryType: string = 'daily_summary') => {
+    setIsLoadingAI(true);
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .single();
+
+      const { data, error } = await supabase.functions.invoke('gas-ai-copilot', {
+        body: { 
+          tenantId: profile?.restaurant_id,
+          queryType 
+        }
+      });
+
+      if (error) throw error;
+      setAiResponse(data.response);
+    } catch (error) {
+      console.error('Error fetching AI summary:', error);
+      setAiResponse('No se pudo obtener el resumen. Intenta de nuevo.');
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -62,9 +91,52 @@ const GasDashboardGerencia: React.FC = () => {
         </Badge>
       </div>
 
+      {/* AI Copilot Card */}
+      <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-400" />
+              Copiloto IA
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleAISummary('daily_summary')}
+                disabled={isLoadingAI}
+                className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+              >
+                {isLoadingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4 mr-1" />}
+                Resumen
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleAISummary('recommendations')}
+                disabled={isLoadingAI}
+                className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+              >
+                Recomendaciones
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {aiResponse ? (
+            <div className="p-4 rounded-lg bg-background/50 border border-purple-500/20">
+              <p className="text-sm text-foreground leading-relaxed">{aiResponse}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Haz clic en "Resumen" para obtener un análisis de la operación del día
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Gas Disponible */}
         <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-orange-400 mb-2">
@@ -78,7 +150,6 @@ const GasDashboardGerencia: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Gas en Ruta */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-blue-400 mb-2">
@@ -92,7 +163,6 @@ const GasDashboardGerencia: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Entregas Hoy */}
         <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-green-400 mb-2">
@@ -106,7 +176,6 @@ const GasDashboardGerencia: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Alertas */}
         <Card className={`border-${newAnomalies > 0 ? 'red' : 'border'}-500/20 ${newAnomalies > 0 ? 'bg-gradient-to-br from-red-500/10 to-red-600/5' : 'bg-card/50'}`}>
           <CardContent className="p-4">
             <div className={`flex items-center gap-2 ${newAnomalies > 0 ? 'text-red-400' : 'text-muted-foreground'} mb-2`}>

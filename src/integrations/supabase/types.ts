@@ -4769,6 +4769,13 @@ export type Database = {
         Args: { _restaurant_id: string }
         Returns: string
       }
+      has_gas_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_permission: {
         Args: { p_module: string; p_permission: string; p_user_id: string }
         Returns: boolean
@@ -4842,6 +4849,10 @@ export type Database = {
         | "waiter"
         | "kitchen"
         | "employee"
+        | "gerencia_gas"
+        | "logistica_gas"
+        | "cartera_gas"
+        | "conductor_gas"
       clock_type: "clock_in" | "clock_out"
       order_status:
         | "pending"
@@ -4994,6 +5005,10 @@ export const Constants = {
         "waiter",
         "kitchen",
         "employee",
+        "gerencia_gas",
+        "logistica_gas",
+        "cartera_gas",
+        "conductor_gas",
       ],
       clock_type: ["clock_in", "clock_out"],
       order_status: [

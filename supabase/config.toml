@@ -89,3 +89,6 @@ verify_jwt = true
 
 [functions.daily-close-receipts]
 verify_jwt = true
+
+[functions.gas-ai-copilot]
+verify_jwt = true

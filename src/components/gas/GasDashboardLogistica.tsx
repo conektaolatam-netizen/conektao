@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useGasData } from '@/hooks/useGasData';
+import { useGasData, GasRoute } from '@/hooks/useGasData';
 import { 
   Truck, 
   MapPin, 
@@ -11,22 +11,37 @@ import {
   CheckCircle2,
   Package,
   ArrowRight,
-  Route
+  Route,
+  Eye
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import CreateGasRouteModal from './modals/CreateGasRouteModal';
+import ReviewReturnModal from './modals/ReviewReturnModal';
+import CreatePlantModal from './modals/CreatePlantModal';
+import CreateVehicleModal from './modals/CreateVehicleModal';
 
 const GasDashboardLogistica: React.FC = () => {
   const { 
     activeRoutes, 
     vehicles,
     plants,
-    clients,
     isLoading 
   } = useGasData();
+
+  const [showCreateRoute, setShowCreateRoute] = useState(false);
+  const [showReviewReturn, setShowReviewReturn] = useState(false);
+  const [showCreatePlant, setShowCreatePlant] = useState(false);
+  const [showCreateVehicle, setShowCreateVehicle] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<GasRoute | null>(null);
 
   const routesPlanned = activeRoutes.filter(r => r.status === 'planned');
   const routesInProgress = activeRoutes.filter(r => r.status === 'in_progress');
   const routesPendingReview = activeRoutes.filter(r => r.status === 'pending_return_review');
+
+  const handleReviewRoute = (route: GasRoute) => {
+    setSelectedRoute(route);
+    setShowReviewReturn(true);
+  };
 
   if (isLoading) {
     return (
@@ -54,7 +69,10 @@ const GasDashboardLogistica: React.FC = () => {
           <h1 className="text-2xl font-bold text-foreground">Panel de Logística</h1>
           <p className="text-muted-foreground">Gestión de rutas y entregas</p>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600">
+        <Button 
+          className="bg-orange-500 hover:bg-orange-600"
+          onClick={() => setShowCreateRoute(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Nueva Ruta
         </Button>
@@ -116,7 +134,7 @@ const GasDashboardLogistica: React.FC = () => {
             <div className="text-center py-8">
               <Route className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground mb-4">No hay rutas programadas para hoy</p>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => setShowCreateRoute(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear primera ruta
               </Button>
@@ -161,9 +179,21 @@ const GasDashboardLogistica: React.FC = () => {
                        route.status === 'planned' ? 'Planificada' :
                        route.status}
                     </Badge>
-                    <Button variant="ghost" size="sm">
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
+                    {route.status === 'pending_return_review' ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleReviewRoute(route)}
+                        className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Revisar
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -177,10 +207,15 @@ const GasDashboardLogistica: React.FC = () => {
         {/* Vehicles */}
         <Card className="bg-card/50 border-border/30">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="h-4 w-4 text-blue-400" />
-              Vehículos Disponibles
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Truck className="h-4 w-4 text-blue-400" />
+                Vehículos Disponibles
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateVehicle(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {vehicles.length === 0 ? (
@@ -209,10 +244,15 @@ const GasDashboardLogistica: React.FC = () => {
         {/* Plants */}
         <Card className="bg-card/50 border-border/30">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Package className="h-4 w-4 text-orange-400" />
-              Plantas
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Package className="h-4 w-4 text-orange-400" />
+                Plantas
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreatePlant(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {plants.length === 0 ? (
@@ -238,6 +278,12 @@ const GasDashboardLogistica: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <CreateGasRouteModal open={showCreateRoute} onOpenChange={setShowCreateRoute} />
+      <ReviewReturnModal open={showReviewReturn} onOpenChange={setShowReviewReturn} route={selectedRoute} />
+      <CreatePlantModal open={showCreatePlant} onOpenChange={setShowCreatePlant} />
+      <CreateVehicleModal open={showCreateVehicle} onOpenChange={setShowCreateVehicle} />
     </div>
   );
 };

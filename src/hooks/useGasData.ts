@@ -331,7 +331,6 @@ export const useGasData = () => {
       receiverName: string;
       paymentMethod: 'cash' | 'transfer' | 'card' | 'credit' | 'no_pay';
     }) => {
-      // Update delivery
       const { error: deliveryError } = await supabase
         .from('gas_deliveries')
         .update({
@@ -343,7 +342,6 @@ export const useGasData = () => {
         .eq('id', deliveryId);
       if (deliveryError) throw deliveryError;
 
-      // Create payment event
       const { error: paymentError } = await supabase
         .from('gas_payments_events')
         .insert({
@@ -366,7 +364,6 @@ export const useGasData = () => {
 
   const finishRouteMutation = useMutation({
     mutationFn: async (routeId: string) => {
-      // Calculate expected return
       const { data: route } = await supabase
         .from('gas_routes')
         .select('assigned_qty')
@@ -404,6 +401,295 @@ export const useGasData = () => {
     },
   });
 
+  // Create Route Mutation
+  const createRouteMutation = useMutation({
+    mutationFn: async ({
+      plantId,
+      vehicleId,
+      assignedQty,
+      deliveries,
+    }: {
+      plantId: string;
+      vehicleId: string;
+      assignedQty: number;
+      deliveries: { clientId: string; plannedQty: number; order: number }[];
+    }) => {
+      // Generate route number
+      const { data: routeNumber } = await supabase.rpc('generate_gas_route_number', { p_tenant_id: tenantId });
+      
+      // Create route
+      const { data: route, error: routeError } = await supabase
+        .from('gas_routes')
+        .insert({
+          tenant_id: tenantId!,
+          route_number: routeNumber || `R-${Date.now()}`,
+          plant_id: plantId,
+          vehicle_id: vehicleId,
+          assigned_qty: assignedQty,
+          assigned_unit: 'kg',
+          status: 'planned',
+          planned_date: new Date().toISOString().split('T')[0],
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+      if (routeError) throw routeError;
+
+      // Create deliveries
+      const deliveryRecords = deliveries.map(d => ({
+        tenant_id: tenantId!,
+        route_id: route.id,
+        client_id: d.clientId,
+        planned_qty: d.plannedQty,
+        delivery_order: d.order,
+        unit: 'kg',
+        status: 'pending',
+      }));
+
+      const { error: deliveriesError } = await supabase
+        .from('gas_deliveries')
+        .insert(deliveryRecords);
+      if (deliveriesError) throw deliveriesError;
+
+      // Create inventory movement (transfer from plant to vehicle)
+      const { error: inventoryError } = await supabase
+        .from('gas_inventory_ledger')
+        .insert({
+          tenant_id: tenantId!,
+          plant_id: plantId,
+          vehicle_id: vehicleId,
+          movement_type: 'transfer_out',
+          qty: -assignedQty,
+          unit: 'kg',
+          reference_type: 'route',
+          reference_id: route.id,
+          notes: `Asignación a ruta ${route.route_number}`,
+          created_by: user?.id,
+        });
+      if (inventoryError) throw inventoryError;
+
+      // Add to vehicle
+      const { error: vehicleInventoryError } = await supabase
+        .from('gas_inventory_ledger')
+        .insert({
+          tenant_id: tenantId!,
+          vehicle_id: vehicleId,
+          movement_type: 'transfer_in',
+          qty: assignedQty,
+          unit: 'kg',
+          reference_type: 'route',
+          reference_id: route.id,
+          notes: `Carga para ruta ${route.route_number}`,
+          created_by: user?.id,
+        });
+      if (vehicleInventoryError) throw vehicleInventoryError;
+
+      return route;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gas_routes_active'] });
+      queryClient.invalidateQueries({ queryKey: ['gas_inventory_summary'] });
+      toast({ title: '¡Ruta creada!', description: 'La ruta está lista para ejecutarse.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error al crear ruta', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Review Return Mutation
+  const reviewReturnMutation = useMutation({
+    mutationFn: async ({
+      routeId,
+      actualReturnQty,
+      mermaReason,
+    }: {
+      routeId: string;
+      actualReturnQty: number;
+      mermaReason?: string;
+    }) => {
+      const { data: route } = await supabase
+        .from('gas_routes')
+        .select('*, vehicle:gas_vehicles(*), plant:gas_plants(*)')
+        .eq('id', routeId)
+        .single();
+
+      if (!route) throw new Error('Ruta no encontrada');
+
+      const expectedReturn = route.expected_return_qty || 0;
+      const difference = expectedReturn - actualReturnQty;
+
+      // Update route
+      const { error: routeError } = await supabase
+        .from('gas_routes')
+        .update({
+          actual_return_qty: actualReturnQty,
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          return_reviewed_by: user?.id,
+          return_reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', routeId);
+      if (routeError) throw routeError;
+
+      // Return inventory to plant
+      const { error: returnError } = await supabase
+        .from('gas_inventory_ledger')
+        .insert({
+          tenant_id: tenantId!,
+          plant_id: route.plant_id,
+          vehicle_id: route.vehicle_id,
+          movement_type: 'return',
+          qty: actualReturnQty,
+          unit: 'kg',
+          reference_type: 'route',
+          reference_id: routeId,
+          notes: `Devolución de ruta ${route.route_number}`,
+          created_by: user?.id,
+        });
+      if (returnError) throw returnError;
+
+      // If there's merma, create merma movement and anomaly
+      if (difference > 0.5) {
+        const { error: mermaError } = await supabase
+          .from('gas_inventory_ledger')
+          .insert({
+            tenant_id: tenantId!,
+            vehicle_id: route.vehicle_id,
+            movement_type: 'merma',
+            qty: -difference,
+            unit: 'kg',
+            reference_type: 'route',
+            reference_id: routeId,
+            notes: mermaReason || 'Merma detectada en revisión',
+            created_by: user?.id,
+          });
+        if (mermaError) throw mermaError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gas_routes_active'] });
+      queryClient.invalidateQueries({ queryKey: ['gas_inventory_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['gas_anomalies'] });
+      toast({ title: 'Ruta cerrada', description: 'Inventario actualizado correctamente.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Create Plant Mutation
+  const createPlantMutation = useMutation({
+    mutationFn: async ({
+      name,
+      locationText,
+      capacityValue,
+    }: {
+      name: string;
+      locationText: string | null;
+      capacityValue: number | null;
+    }) => {
+      const { error } = await supabase
+        .from('gas_plants')
+        .insert({
+          tenant_id: tenantId!,
+          name,
+          location_text: locationText,
+          capacity_value: capacityValue,
+          capacity_unit: 'kg',
+          is_active: true,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gas_plants'] });
+      toast({ title: '¡Planta creada!' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Create Vehicle Mutation
+  const createVehicleMutation = useMutation({
+    mutationFn: async ({
+      plate,
+      capacityValue,
+      driverName,
+      driverPhone,
+    }: {
+      plate: string;
+      capacityValue: number;
+      driverName: string | null;
+      driverPhone: string | null;
+    }) => {
+      const { error } = await supabase
+        .from('gas_vehicles')
+        .insert({
+          tenant_id: tenantId!,
+          plate,
+          capacity_value: capacityValue,
+          capacity_unit: 'kg',
+          driver_name: driverName,
+          driver_phone: driverPhone,
+          is_active: true,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gas_vehicles'] });
+      toast({ title: '¡Vehículo creado!' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Create Client Mutation
+  const createClientMutation = useMutation({
+    mutationFn: async ({
+      name,
+      contactName,
+      contactPhone,
+      email,
+      address,
+      city,
+      clientType,
+      notes,
+    }: {
+      name: string;
+      contactName: string | null;
+      contactPhone: string | null;
+      email: string | null;
+      address: string;
+      city: string | null;
+      clientType: 'contract' | 'free';
+      notes: string | null;
+    }) => {
+      const { error } = await supabase
+        .from('gas_clients')
+        .insert({
+          tenant_id: tenantId!,
+          name,
+          contact_name: contactName,
+          contact_phone: contactPhone,
+          email,
+          address,
+          city,
+          client_type: clientType,
+          status: 'active',
+          notes,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gas_clients'] });
+      toast({ title: '¡Cliente creado!' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     // Queries
     plants: plantsQuery.data || [],
@@ -422,10 +708,20 @@ export const useGasData = () => {
     startRoute: startRouteMutation.mutate,
     completeDelivery: completeDeliveryMutation.mutate,
     finishRoute: finishRouteMutation.mutate,
+    createRoute: createRouteMutation.mutate,
+    reviewRouteReturn: reviewReturnMutation.mutate,
+    createPlant: createPlantMutation.mutate,
+    createVehicle: createVehicleMutation.mutate,
+    createClient: createClientMutation.mutate,
     
     // Mutation states
     isStartingRoute: startRouteMutation.isPending,
     isCompletingDelivery: completeDeliveryMutation.isPending,
     isFinishingRoute: finishRouteMutation.isPending,
+    isCreatingRoute: createRouteMutation.isPending,
+    isReviewingReturn: reviewReturnMutation.isPending,
+    isCreatingPlant: createPlantMutation.isPending,
+    isCreatingVehicle: createVehicleMutation.isPending,
+    isCreatingClient: createClientMutation.isPending,
   };
 };
