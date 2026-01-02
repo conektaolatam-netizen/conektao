@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useApp } from "@/context/AppContext";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useProductMode } from "@/hooks/useProductMode";
 import { generateSampleProducts, generateSampleEmployees } from "@/utils/sampleDataGenerators";
 import Layout from "@/components/Layout";
 import DashboardPage from "@/pages/Dashboard";
@@ -29,12 +30,14 @@ import SafeAliciaTour from "@/components/onboarding/SafeAliciaTour";
 import { useOnboardingTour } from "@/hooks/useOnboardingTour";
 import { LoadingState, ErrorState } from "@/components/LoadingState";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import GasIndex from "@/components/gas/GasIndex";
 import React from "react";
 
 const Index = () => {
   const { user, profile, restaurant, loading } = useAuth();
   const { state, dispatch } = useApp();
   const { notifications } = useNotifications();
+  const { isGasMode, isLoading: productModeLoading } = useProductMode();
   const { showTour, completeTour, skipTour, restartTour, isLoading: tourLoading } = useOnboardingTour();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -82,6 +85,11 @@ const Index = () => {
   // Si el usuario está autenticado pero el perfil aún no ha cargado, mostrar loading (no error)
   if (user && !profile) {
     return <LoadingState message="Cargando tu perfil..." fullScreen />;
+  }
+
+  // If user/profile is ready and it's GAS mode, show GAS interface
+  if (user && profile && profile.restaurant_id && isGasMode) {
+    return <GasIndex />;
   }
 
   // Si el usuario no tiene establecimiento asignado
