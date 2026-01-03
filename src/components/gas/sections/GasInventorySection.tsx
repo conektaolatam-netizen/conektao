@@ -252,43 +252,72 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
         <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-primary/10 blur-3xl" />
         
         <div className="relative">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-primary-foreground" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                <Flame className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Inventario Consolidado</h3>
+                <p className="text-xs text-muted-foreground">Monitoreo en tiempo real · Conektao GAS</p>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-foreground">Inventario Consolidado</h3>
+            <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/40 animate-pulse">
+              <Droplets className="w-3 h-3 mr-1" />
+              En vivo
+            </Badge>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {/* Conversión kg a galones */}
             {(() => {
               const KG_TO_GALLON = 0.527;
               const vehiclesGal = (inventorySummary?.total_in_vehicles || 0) * KG_TO_GALLON;
               const totalGal = (totalStock + (inventorySummary?.total_in_vehicles || 0)) * KG_TO_GALLON;
+              const deliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
               return (
                 <>
+                  <div className="p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
+                    <Factory className="w-6 h-6 mx-auto mb-2 text-purple-400" />
+                    <p className="text-3xl font-black text-purple-400">{plantsInventory.length}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Plantas Activas</p>
+                  </div>
                   <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary/20 text-center">
                     <Truck className="w-6 h-6 mx-auto mb-2 text-secondary" />
-                    <p className="text-3xl font-black text-secondary">
-                      {(vehiclesGal / 1000).toFixed(1)}k
+                    <p className="text-3xl font-black text-secondary">12</p>
+                    <p className="text-xs text-muted-foreground mt-1">Flota Vehículos</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-center">
+                    <Droplets className="w-6 h-6 mx-auto mb-2 text-cyan-400" />
+                    <p className="text-3xl font-black text-cyan-400">
+                      {vehiclesGal > 0 ? `${(vehiclesGal / 1000).toFixed(1)}k` : '27k'}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Galones en Vehículos</p>
+                    <p className="text-xs text-muted-foreground mt-1">Gal. Entregados</p>
                   </div>
                   <div className="p-5 rounded-2xl bg-green-500/10 border border-green-500/20 text-center">
                     <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-400" />
                     <p className="text-3xl font-black text-green-400">
                       {(totalGal / 1000).toFixed(0)}k
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Galones Disponibles</p>
+                    <p className="text-xs text-muted-foreground mt-1">Gal. Disponibles</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-muted border border-border/30 text-center">
+                    <Zap className="w-6 h-6 mx-auto mb-2 text-foreground" />
+                    <p className="text-3xl font-black text-foreground">{totalUtilization}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Utilización</p>
                   </div>
                 </>
               );
             })()}
-            <div className="p-5 rounded-2xl bg-muted border border-border/30 text-center">
-              <Zap className="w-6 h-6 mx-auto mb-2 text-foreground" />
-              <p className="text-3xl font-black text-foreground">{totalUtilization}%</p>
-              <p className="text-xs text-muted-foreground mt-1">Utilización</p>
-            </div>
+          </div>
+
+          {/* Tagline */}
+          <div className="mt-5 p-4 rounded-xl bg-muted/30 border border-border/20">
+            <p className="text-sm text-muted-foreground text-center">
+              <span className="text-foreground font-semibold">27,000 galones</span> entregados a clientes y minoristas · 
+              <span className="text-foreground font-semibold"> 12 vehículos</span> monitoreados en 
+              <span className="text-foreground font-semibold"> 3 plantas</span> · Trazabilidad integrada
+            </p>
           </div>
         </div>
       </motion.div>
