@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Package, 
@@ -10,9 +10,12 @@ import {
   Truck,
   Flame,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Key
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useGasData } from '@/hooks/useGasData';
 import GasRouteMap from './GasRouteMap';
 import GasFlowmeterPanel from './GasFlowmeterPanel';
@@ -21,8 +24,7 @@ import GasInventorySection from './sections/GasInventorySection';
 import GasSalesSection from './sections/GasSalesSection';
 import GasAISection from './sections/GasAISection';
 
-// Temporary Mapbox token for demo
-const MAPBOX_TOKEN = 'pk.eyJ1IjoibG92YWJsZS1kZW1vIiwiYSI6ImNsczF4eHhwMjBicGsyaXBpY3A1NW1mbWoifQ.demo';
+const MAPBOX_STORAGE_KEY = 'conektao_mapbox_token';
 
 type ActiveSection = 'home' | 'inventory' | 'sales' | 'ai' | 'flowmeters' | 'merma';
 
@@ -127,6 +129,11 @@ const QuickStatCard: React.FC<{
 
 const GasHomeDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<ActiveSection>('home');
+  const [mapboxToken, setMapboxToken] = useState<string>(() => {
+    return localStorage.getItem(MAPBOX_STORAGE_KEY) || '';
+  });
+  const [tokenInput, setTokenInput] = useState('');
+  
   const { 
     inventorySummary, 
     activeRoutes, 
@@ -137,6 +144,14 @@ const GasHomeDashboard: React.FC = () => {
   const newAnomalies = anomalies.filter(a => a.status === 'new').length;
   const criticalAnomalies = anomalies.filter(a => a.severity === 'critical' && a.status !== 'resolved').length;
   const routesInProgress = activeRoutes.filter(r => r.status === 'in_progress').length;
+
+  const handleSaveToken = () => {
+    if (tokenInput.trim()) {
+      localStorage.setItem(MAPBOX_STORAGE_KEY, tokenInput.trim());
+      setMapboxToken(tokenInput.trim());
+      setTokenInput('');
+    }
+  };
 
   // If a section is active, render that section
   if (activeSection === 'inventory') {
@@ -292,12 +307,51 @@ const GasHomeDashboard: React.FC = () => {
             Actualizando
           </Badge>
         </div>
-        <div className="h-[400px] md:h-[500px]">
-          <GasRouteMap 
-            mapboxToken={MAPBOX_TOKEN}
-            className="h-full w-full"
-          />
-        </div>
+        
+        {/* Map or Token Input */}
+        {mapboxToken ? (
+          <div className="h-[400px] md:h-[500px]">
+            <GasRouteMap 
+              mapboxToken={mapboxToken}
+              className="h-full w-full"
+            />
+          </div>
+        ) : (
+          <div className="h-[400px] md:h-[500px] flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5">
+            <div className="text-center p-8 max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Key className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Configura tu Mapa</h3>
+              <p className="text-muted-foreground mb-6 text-sm">
+                Ingresa tu token público de Mapbox para visualizar las rutas en tiempo real.
+                <a 
+                  href="https://mapbox.com/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline ml-1"
+                >
+                  Obtén tu token aquí →
+                </a>
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="pk.eyJ1Ijoi..."
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  className="flex-1 bg-background/50"
+                />
+                <Button 
+                  onClick={handleSaveToken}
+                  disabled={!tokenInput.trim()}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
