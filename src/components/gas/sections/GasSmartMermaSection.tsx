@@ -94,8 +94,8 @@ const VehicleCard: React.FC<{ vehicle: GasVehicle }> = ({ vehicle }) => {
           <p className="text-[10px] text-muted-foreground">Viajes</p>
         </div>
         <div className="p-2 rounded-lg bg-background/50">
-          <p className="text-lg font-bold text-cyan-400">{(vehicle.todayLitersDelivered / 1000).toFixed(1)}k</p>
-          <p className="text-[10px] text-muted-foreground">Litros</p>
+          <p className="text-lg font-bold text-cyan-400">{vehicle.todayGallonsDelivered.toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground">Galones</p>
         </div>
       </div>
 
@@ -114,8 +114,8 @@ const VehicleCard: React.FC<{ vehicle: GasVehicle }> = ({ vehicle }) => {
 
 const PlantSection: React.FC<{ plant: keyof typeof PLANTS; vehicles: GasVehicle[] }> = ({ plant, vehicles }) => {
   const plantConfig = PLANTS[plant];
-  const avgMerma = vehicles.reduce((sum, v) => sum + v.mermaPercent, 0) / vehicles.length;
-  const totalLiters = vehicles.reduce((sum, v) => sum + v.todayLitersDelivered, 0);
+  const avgMerma = vehicles.length > 0 ? vehicles.reduce((sum, v) => sum + v.mermaPercent, 0) / vehicles.length : 0;
+  const totalGallons = vehicles.reduce((sum, v) => sum + v.todayGallonsDelivered, 0);
   
   return (
     <div className="space-y-4">
@@ -133,7 +133,7 @@ const PlantSection: React.FC<{ plant: keyof typeof PLANTS; vehicles: GasVehicle[
             Merma prom: <span className={avgMerma > 2 ? 'text-red-400' : 'text-green-400'}>{avgMerma.toFixed(1)}%</span>
           </span>
           <span className="text-muted-foreground">
-            Total: <span className="text-cyan-400">{(totalLiters / 1000).toFixed(1)}k L</span>
+            Total: <span className="text-cyan-400">{totalGallons.toLocaleString()} gal</span>
           </span>
         </div>
       </div>
@@ -254,32 +254,32 @@ const GasSmartMermaSection: React.FC<GasSmartMermaSectionProps> = ({ onBack }) =
             <MapPin className="w-4 h-4" />
             Ibagué
           </TabsTrigger>
-          <TabsTrigger value="p1" className="gap-2">
+          <TabsTrigger value="madre" className="gap-2">
             <MapPin className="w-4 h-4" />
-            PS Planta 1
+            PS Madre
           </TabsTrigger>
-          <TabsTrigger value="mayorista" className="gap-2">
+          <TabsTrigger value="operativa" className="gap-2">
             <MapPin className="w-4 h-4" />
-            PS Mayorista
+            PS Operativa
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           <PlantSection plant="ibague" vehicles={getVehiclesByPlant('ibague')} />
-          <PlantSection plant="puerto_salgar_p1" vehicles={getVehiclesByPlant('puerto_salgar_p1')} />
-          <PlantSection plant="puerto_salgar_mayorista" vehicles={getVehiclesByPlant('puerto_salgar_mayorista')} />
+          <PlantSection plant="puerto_salgar_madre" vehicles={getVehiclesByPlant('puerto_salgar_madre')} />
+          <PlantSection plant="puerto_salgar_operativa" vehicles={getVehiclesByPlant('puerto_salgar_operativa')} />
         </TabsContent>
 
         <TabsContent value="ibague">
           <PlantSection plant="ibague" vehicles={getVehiclesByPlant('ibague')} />
         </TabsContent>
 
-        <TabsContent value="p1">
-          <PlantSection plant="puerto_salgar_p1" vehicles={getVehiclesByPlant('puerto_salgar_p1')} />
+        <TabsContent value="madre">
+          <PlantSection plant="puerto_salgar_madre" vehicles={getVehiclesByPlant('puerto_salgar_madre')} />
         </TabsContent>
 
-        <TabsContent value="mayorista">
-          <PlantSection plant="puerto_salgar_mayorista" vehicles={getVehiclesByPlant('puerto_salgar_mayorista')} />
+        <TabsContent value="operativa">
+          <PlantSection plant="puerto_salgar_operativa" vehicles={getVehiclesByPlant('puerto_salgar_operativa')} />
         </TabsContent>
       </Tabs>
 

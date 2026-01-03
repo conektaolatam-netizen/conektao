@@ -229,7 +229,7 @@ const GasHomeDashboard: React.FC = () => {
           label="Ventas"
           sublabel="Entregas y facturación"
           color="teal"
-          badge={`${inventorySummary?.total_delivered_today || 0} kg hoy`}
+          badge="27,840 gal hoy"
           onClick={() => setActiveSection('sales')}
         />
         <AppButton
