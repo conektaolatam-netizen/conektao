@@ -67,10 +67,14 @@ const PlantCard: React.FC<{
   const isCritical = plant.utilization_percent < 15;
   const isOverflow = plant.utilization_percent > 100;
 
-  // Formatear números grandes
-  const formatKg = (value: number) => {
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}t`;
-    return `${value.toLocaleString()} kg`;
+  // Conversión: 1 kg de GLP ≈ 0.527 galones (densidad ~1.9 kg/galón)
+  const KG_TO_GALLON = 0.527;
+  
+  // Formatear a galones
+  const formatGallons = (kgValue: number) => {
+    const gallons = kgValue * KG_TO_GALLON;
+    if (gallons >= 1000) return `${(gallons / 1000).toFixed(1)}k gal`;
+    return `${gallons.toLocaleString('es-CO', { maximumFractionDigits: 0 })} gal`;
   };
   return <motion.div initial={{
     opacity: 0,
@@ -128,13 +132,13 @@ const PlantCard: React.FC<{
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Stock Actual</p>
               <p className={`text-4xl font-black ${isLowStock ? 'text-red-400' : isOverflow ? 'text-orange-400' : 'text-foreground'}`}>
-                {formatKg(plant.current_stock)}
+                {formatGallons(plant.current_stock)}
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Capacidad</p>
               <p className="text-xl font-bold text-muted-foreground">
-                {formatKg(plant.capacity)}
+                {formatGallons(plant.capacity)}
               </p>
             </div>
           </div>
@@ -256,21 +260,30 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            
-            <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary/20 text-center">
-              <Truck className="w-6 h-6 mx-auto mb-2 text-secondary" />
-              <p className="text-3xl font-black text-secondary">
-                {((inventorySummary?.total_in_vehicles || 0) / 1000).toFixed(1)}t
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">En Vehículos</p>
-            </div>
-            <div className="p-5 rounded-2xl bg-green-500/10 border border-green-500/20 text-center">
-              <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-400" />
-              <p className="text-3xl font-black text-green-400">
-                {((totalStock + (inventorySummary?.total_in_vehicles || 0)) / 1000).toFixed(0)}t
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Total Disponible</p>
-            </div>
+            {/* Conversión kg a galones */}
+            {(() => {
+              const KG_TO_GALLON = 0.527;
+              const vehiclesGal = (inventorySummary?.total_in_vehicles || 0) * KG_TO_GALLON;
+              const totalGal = (totalStock + (inventorySummary?.total_in_vehicles || 0)) * KG_TO_GALLON;
+              return (
+                <>
+                  <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary/20 text-center">
+                    <Truck className="w-6 h-6 mx-auto mb-2 text-secondary" />
+                    <p className="text-3xl font-black text-secondary">
+                      {(vehiclesGal / 1000).toFixed(1)}k
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Galones en Vehículos</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-green-500/10 border border-green-500/20 text-center">
+                    <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-400" />
+                    <p className="text-3xl font-black text-green-400">
+                      {(totalGal / 1000).toFixed(0)}k
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Galones Disponibles</p>
+                  </div>
+                </>
+              );
+            })()}
             <div className="p-5 rounded-2xl bg-muted border border-border/30 text-center">
               <Zap className="w-6 h-6 mx-auto mb-2 text-foreground" />
               <p className="text-3xl font-black text-foreground">{totalUtilization}%</p>
@@ -309,10 +322,18 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-black text-green-400">
-                  {((inventorySummary?.total_delivered_today || 0) / 1000).toFixed(1)}t
-                </p>
-                <p className="text-xs text-muted-foreground">{(inventorySummary?.total_delivered_today || 0).toLocaleString()} kg</p>
+                {(() => {
+                  const KG_TO_GALLON = 0.527;
+                  const deliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
+                  return (
+                    <>
+                      <p className="text-4xl font-black text-green-400">
+                        {deliveredGal >= 1000 ? `${(deliveredGal / 1000).toFixed(1)}k` : deliveredGal.toFixed(0)} gal
+                      </p>
+                      <p className="text-xs text-muted-foreground">{deliveredGal.toLocaleString('es-CO', { maximumFractionDigits: 0 })} galones</p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </CardContent>
