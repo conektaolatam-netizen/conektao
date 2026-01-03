@@ -104,6 +104,15 @@ export interface GasInventorySummary {
   unit: string;
 }
 
+export interface PlantInventory {
+  plant_id: string;
+  plant_name: string;
+  location_text: string | null;
+  capacity: number;
+  current_stock: number;
+  utilization_percent: number;
+}
+
 // Hook for GAS data operations
 export const useGasData = () => {
   const { restaurant, user } = useAuth();
@@ -242,6 +251,55 @@ export const useGasData = () => {
         .limit(50);
       if (error) throw error;
       return data as GasAnomaly[];
+    },
+    enabled: !!tenantId,
+  });
+
+  // Plants inventory (per plant with stock)
+  const plantsInventoryQuery = useQuery({
+    queryKey: ['gas_plants_inventory', tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      
+      // Get all plants
+      const { data: plants, error: plantsError } = await supabase
+        .from('gas_plants')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (plantsError) throw plantsError;
+      if (!plants || plants.length === 0) return [];
+
+      // Get inventory for each plant (sum of all movements)
+      const { data: inventory, error: invError } = await supabase
+        .from('gas_inventory_ledger')
+        .select('plant_id, qty')
+        .eq('tenant_id', tenantId)
+        .not('plant_id', 'is', null)
+        .is('vehicle_id', null);
+      
+      if (invError) throw invError;
+
+      // Calculate stock per plant
+      const stockByPlant: Record<string, number> = {};
+      inventory?.forEach(item => {
+        if (item.plant_id) {
+          stockByPlant[item.plant_id] = (stockByPlant[item.plant_id] || 0) + (item.qty || 0);
+        }
+      });
+
+      return plants.map(plant => ({
+        plant_id: plant.id,
+        plant_name: plant.name,
+        location_text: plant.location_text,
+        capacity: plant.capacity_value || 0,
+        current_stock: stockByPlant[plant.id] || 0,
+        utilization_percent: plant.capacity_value 
+          ? Math.round((stockByPlant[plant.id] || 0) / plant.capacity_value * 100)
+          : 0,
+      })) as PlantInventory[];
     },
     enabled: !!tenantId,
   });
@@ -702,10 +760,12 @@ export const useGasData = () => {
     myRoute: myRouteQuery.data,
     anomalies: anomaliesQuery.data || [],
     inventorySummary: inventorySummaryQuery.data,
+    plantsInventory: plantsInventoryQuery.data || [],
     useRouteDeliveries,
     
     // Loading states
     isLoading: plantsQuery.isLoading || vehiclesQuery.isLoading || activeRoutesQuery.isLoading,
+    isLoadingPlantsInventory: plantsInventoryQuery.isLoading,
     
     // Mutations
     startRoute: startRouteMutation.mutate,

@@ -1,47 +1,108 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Package, Flame, Truck, Factory, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Package, Flame, Truck, Factory, TrendingDown, TrendingUp, MapPin, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGasData } from '@/hooks/useGasData';
+import { Progress } from '@/components/ui/progress';
+import { useGasData, PlantInventory } from '@/hooks/useGasData';
 
 interface GasInventorySectionProps {
   onBack: () => void;
 }
 
-const StatCard: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  sublabel?: string;
-  color: string;
-  trend?: 'up' | 'down' | null;
-}> = ({ icon, label, value, sublabel, color, trend }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`p-5 rounded-2xl border-2 border-border/30 bg-gradient-to-br ${color} backdrop-blur-sm`}
-  >
-    <div className="flex items-start justify-between mb-3">
-      <div className="w-12 h-12 rounded-xl bg-background/50 flex items-center justify-center">
-        {icon}
+const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, index }) => {
+  const isLowStock = plant.utilization_percent < 30;
+  const isHighStock = plant.utilization_percent >= 80;
+  
+  const getStockColor = () => {
+    if (isLowStock) return 'text-red-400';
+    if (isHighStock) return 'text-green-400';
+    return 'text-yellow-400';
+  };
+
+  const getProgressColor = () => {
+    if (isLowStock) return 'bg-red-500';
+    if (isHighStock) return 'bg-green-500';
+    return 'bg-yellow-500';
+  };
+
+  const getPlantType = (name: string) => {
+    if (name.toLowerCase().includes('mayorista')) return { label: 'Mayorista', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' };
+    if (name.toLowerCase().includes('minorista')) return { label: 'Minorista', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
+    return { label: 'Satélite', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' };
+  };
+
+  const plantType = getPlantType(plant.plant_name);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      className="p-5 rounded-2xl border-2 border-border/30 bg-gradient-to-br from-card to-card/50"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Factory className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-foreground text-lg">{plant.plant_name}</h3>
+            <Badge variant="outline" className={plantType.color}>
+              {plantType.label}
+            </Badge>
+          </div>
+        </div>
+        {isLowStock && (
+          <div className="flex items-center gap-1 text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-xs font-medium">Stock bajo</span>
+          </div>
+        )}
       </div>
-      {trend && (
-        <div className={`flex items-center gap-1 text-sm ${trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
-          {trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+
+      {plant.location_text && (
+        <div className="flex items-start gap-2 mb-4 text-sm text-muted-foreground">
+          <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span className="line-clamp-2">{plant.location_text}</span>
         </div>
       )}
-    </div>
-    <p className="text-3xl font-bold text-foreground mb-1">{value}</p>
-    <p className="text-sm font-medium text-foreground/80">{label}</p>
-    {sublabel && <p className="text-xs text-muted-foreground mt-1">{sublabel}</p>}
-  </motion.div>
-);
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Stock actual</span>
+          <span className={`text-2xl font-bold ${getStockColor()}`}>
+            {plant.current_stock.toLocaleString()} kg
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Capacidad</span>
+            <span className="font-medium text-foreground">{plant.capacity.toLocaleString()} kg</span>
+          </div>
+          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={`absolute left-0 top-0 h-full ${getProgressColor()} transition-all duration-500`}
+              style={{ width: `${Math.min(plant.utilization_percent, 100)}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Utilización</span>
+            <span className={`font-bold ${getStockColor()}`}>{plant.utilization_percent}%</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => {
-  const { inventorySummary, isLoading } = useGasData();
+  const { inventorySummary, plantsInventory, isLoadingPlantsInventory } = useGasData();
 
-  const totalGas = (inventorySummary?.total_in_plant || 0) + (inventorySummary?.total_in_vehicles || 0);
+  const totalCapacity = plantsInventory.reduce((sum, p) => sum + p.capacity, 0);
+  const totalStock = plantsInventory.reduce((sum, p) => sum + p.current_stock, 0);
+  const totalUtilization = totalCapacity > 0 ? Math.round(totalStock / totalCapacity * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -62,48 +123,64 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
         </div>
       </div>
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <StatCard
-          icon={<Flame className="w-6 h-6 text-primary" />}
-          label="Gas en Planta"
-          value={`${(inventorySummary?.total_in_plant || 0).toLocaleString()} kg`}
-          sublabel="Puerto Salgar + Ibagué"
-          color="from-primary/15 to-primary/5"
-          trend="up"
-        />
-        <StatCard
-          icon={<Truck className="w-6 h-6 text-secondary" />}
-          label="Gas en Vehículos"
-          value={`${(inventorySummary?.total_in_vehicles || 0).toLocaleString()} kg`}
-          sublabel="En ruta de distribución"
-          color="from-secondary/15 to-secondary/5"
-        />
+      {/* Plants Grid */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Factory className="w-5 h-5 text-muted-foreground" />
+          Plantas de Almacenamiento
+        </h2>
+        
+        {isLoadingPlantsInventory ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-48 rounded-2xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : plantsInventory.length === 0 ? (
+          <Card className="border-2 border-border/30">
+            <CardContent className="p-8 text-center">
+              <Factory className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No hay plantas configuradas</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {plantsInventory.map((plant, index) => (
+              <PlantCard key={plant.plant_id} plant={plant} index={index} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Total Overview */}
       <Card className="border-2 border-border/30 bg-gradient-to-br from-card to-card/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Factory className="w-5 h-5 text-muted-foreground" />
+            <Flame className="w-5 h-5 text-primary" />
             Inventario Total Consolidado
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <p className="text-4xl font-bold text-foreground">{totalGas.toLocaleString()} kg</p>
-              <p className="text-muted-foreground">Total de GLP disponible</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="text-center p-4 rounded-xl bg-primary/10 border border-primary/20">
+              <p className="text-3xl font-bold text-primary">{totalStock.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">kg en Plantas</p>
             </div>
-            <div className="flex gap-4">
-              <div className="text-center p-4 rounded-xl bg-primary/10 border border-primary/20">
-                <p className="text-2xl font-bold text-primary">{Math.round((inventorySummary?.total_in_plant || 0) / totalGas * 100)}%</p>
-                <p className="text-xs text-muted-foreground">En planta</p>
-              </div>
-              <div className="text-center p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                <p className="text-2xl font-bold text-secondary">{Math.round((inventorySummary?.total_in_vehicles || 0) / totalGas * 100)}%</p>
-                <p className="text-xs text-muted-foreground">En ruta</p>
-              </div>
+            <div className="text-center p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+              <p className="text-3xl font-bold text-secondary">
+                {(inventorySummary?.total_in_vehicles || 0).toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground">kg en Vehículos</p>
+            </div>
+            <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+              <p className="text-3xl font-bold text-green-400">
+                {(totalStock + (inventorySummary?.total_in_vehicles || 0)).toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground">kg Total Disponible</p>
+            </div>
+            <div className="text-center p-4 rounded-xl bg-muted border border-border/30">
+              <p className="text-3xl font-bold text-foreground">{totalUtilization}%</p>
+              <p className="text-sm text-muted-foreground">Utilización Global</p>
             </div>
           </div>
         </CardContent>
@@ -130,10 +207,14 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
             </Badge>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-center">
+          <div className="grid grid-cols-3 gap-4 text-center">
             <div className="p-4 rounded-xl bg-card border border-border/30">
-              <p className="text-2xl font-bold text-foreground">0</p>
-              <p className="text-sm text-muted-foreground">Recepciones</p>
+              <p className="text-2xl font-bold text-foreground">{plantsInventory.length}</p>
+              <p className="text-sm text-muted-foreground">Plantas Activas</p>
+            </div>
+            <div className="p-4 rounded-xl bg-card border border-border/30">
+              <p className="text-2xl font-bold text-foreground">{totalCapacity.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">kg Capacidad Total</p>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border/30">
               <p className="text-2xl font-bold text-foreground">{inventorySummary?.total_delivered_today || 0}</p>
