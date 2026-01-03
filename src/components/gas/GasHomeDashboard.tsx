@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Package, 
@@ -8,8 +8,8 @@ import {
   AlertTriangle,
   Truck,
   Flame,
-  ChevronRight,
-  Key
+  Key,
+  Gauge
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,92 +20,11 @@ import GasInventorySection from './sections/GasInventorySection';
 import GasSalesSection from './sections/GasSalesSection';
 import GasAISection from './sections/GasAISection';
 import GasSmartMermaSection from './sections/GasSmartMermaSection';
+import GasAppButton from './ui/GasAppButton';
 
 const MAPBOX_STORAGE_KEY = 'conektao_mapbox_token';
 
 type ActiveSection = 'home' | 'inventory' | 'sales' | 'ai' | 'smartMerma';
-
-interface AppButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  color: 'orange' | 'teal' | 'purple' | 'cyan';
-  badge?: string | number;
-  badgeVariant?: 'default' | 'destructive' | 'secondary';
-  onClick: () => void;
-}
-
-const AppButton: React.FC<AppButtonProps> = ({ 
-  icon, label, sublabel, color, badge, badgeVariant = 'secondary', onClick 
-}) => {
-  const colorStyles = {
-    orange: {
-      bg: 'from-primary/20 to-primary/5',
-      border: 'border-primary/30 hover:border-primary/60',
-      icon: 'text-primary',
-      glow: 'hover:shadow-[0_0_30px_hsl(25_100%_50%/0.3)]'
-    },
-    teal: {
-      bg: 'from-secondary/20 to-secondary/5',
-      border: 'border-secondary/30 hover:border-secondary/60',
-      icon: 'text-secondary',
-      glow: 'hover:shadow-[0_0_30px_hsl(180_100%_27%/0.3)]'
-    },
-    purple: {
-      bg: 'from-purple-500/20 to-purple-500/5',
-      border: 'border-purple-500/30 hover:border-purple-500/60',
-      icon: 'text-purple-400',
-      glow: 'hover:shadow-[0_0_30px_hsl(270_70%_50%/0.3)]'
-    },
-    cyan: {
-      bg: 'from-cyan-500/20 to-cyan-500/5',
-      border: 'border-cyan-500/30 hover:border-cyan-500/60',
-      icon: 'text-cyan-400',
-      glow: 'hover:shadow-[0_0_30px_hsl(190_90%_50%/0.3)]'
-    }
-  };
-
-  const styles = colorStyles[color];
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={`
-        relative w-full p-6 rounded-2xl border-2 transition-all duration-300
-        bg-gradient-to-br ${styles.bg} ${styles.border} ${styles.glow}
-        backdrop-blur-sm group cursor-pointer
-      `}
-    >
-      {/* Badge */}
-      {badge !== undefined && (
-        <Badge 
-          variant={badgeVariant}
-          className="absolute top-3 right-3 text-xs"
-        >
-          {badge}
-        </Badge>
-      )}
-
-      {/* Icon */}
-      <div className={`w-16 h-16 rounded-2xl bg-background/50 flex items-center justify-center mb-4 mx-auto ${styles.icon}`}>
-        {icon}
-      </div>
-
-      {/* Label */}
-      <h3 className="text-lg font-bold text-foreground mb-1">{label}</h3>
-      {sublabel && (
-        <p className="text-sm text-muted-foreground">{sublabel}</p>
-      )}
-
-      {/* Arrow indicator */}
-      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <ChevronRight className={`w-5 h-5 ${styles.icon}`} />
-      </div>
-    </motion.button>
-  );
-};
 
 const QuickStatCard: React.FC<{
   icon: React.ReactNode;
@@ -214,44 +133,50 @@ const GasHomeDashboard: React.FC = () => {
         />
       </div>
 
-      {/* Main App Buttons - Large and Clear */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AppButton
-          icon={<Package className="w-8 h-8" />}
-          label="Inventarios"
-          sublabel="Control de gas y stock"
+      {/* Main App Buttons - Apple-like horizontal cards */}
+      <motion.div 
+        className="space-y-3"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
+        <GasAppButton
+          icon={<TrendingUp className="w-6 h-6" />}
+          title="Ventas"
+          subtitle="Entregas y facturación"
+          color="green"
+          badge="27,840 gal"
+          onClick={() => setActiveSection('sales')}
+        />
+        
+        <GasAppButton
+          icon={<Package className="w-6 h-6" />}
+          title="Inventarios"
+          subtitle="Gas en planta y stock"
           color="orange"
           badge={inventorySummary?.total_in_plant ? `${Math.round(inventorySummary.total_in_plant / 1000)}k kg` : undefined}
           onClick={() => setActiveSection('inventory')}
         />
-        <AppButton
-          icon={<TrendingUp className="w-8 h-8" />}
-          label="Ventas"
-          sublabel="Entregas y facturación"
-          color="teal"
-          badge="27,840 gal hoy"
-          onClick={() => setActiveSection('sales')}
+        
+        <GasAppButton
+          icon={<Gauge className="w-6 h-6" />}
+          title="Control de Merma"
+          subtitle="Caudalímetros IoT · 12 vehículos"
+          color="cyan"
+          badge={newAnomalies > 0 ? newAnomalies : '3 plantas'}
+          badgeVariant={newAnomalies > 0 ? 'destructive' : 'secondary'}
+          onClick={() => setActiveSection('smartMerma')}
         />
-        <AppButton
-          icon={<Brain className="w-8 h-8" />}
-          label="Inteligencia IA"
-          sublabel="Análisis y predicciones"
+        
+        <GasAppButton
+          icon={<Brain className="w-6 h-6" />}
+          title="Inteligencia IA"
+          subtitle="Análisis y predicciones"
           color="purple"
           badge="Activo"
           onClick={() => setActiveSection('ai')}
         />
-      </div>
-
-      {/* Smart Merma Button - Single unified section */}
-      <AppButton
-        icon={<Brain className="w-7 h-7" />}
-        label="Análisis Inteligente de Merma"
-        sublabel="Caudalímetros IoT + Control de pérdidas · 12 vehículos"
-        color="cyan"
-        badge={newAnomalies > 0 ? newAnomalies : '3 plantas'}
-        badgeVariant={newAnomalies > 0 ? 'destructive' : 'secondary'}
-        onClick={() => setActiveSection('smartMerma')}
-      />
+      </motion.div>
 
       {/* Large Map Section */}
       <div className="rounded-2xl border-2 border-border/30 overflow-hidden bg-card/30">
