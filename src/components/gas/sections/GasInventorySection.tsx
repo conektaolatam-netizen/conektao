@@ -1,95 +1,172 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Package, Flame, Truck, Factory, TrendingDown, TrendingUp, MapPin, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Package, Flame, Truck, Factory, TrendingUp, MapPin, AlertTriangle, Zap, Droplets } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { useGasData, PlantInventory } from '@/hooks/useGasData';
 
 interface GasInventorySectionProps {
   onBack: () => void;
 }
 
+// Configuración visual por tipo de planta
+const PLANT_CONFIGS: Record<string, { 
+  gradient: string; 
+  icon: string; 
+  glow: string;
+  badge: string;
+  ring: string;
+}> = {
+  mayorista: {
+    gradient: 'from-purple-500/20 via-purple-600/10 to-transparent',
+    icon: 'bg-gradient-to-br from-purple-500 to-purple-600',
+    glow: 'shadow-purple-500/20',
+    badge: 'bg-purple-500/20 text-purple-400 border-purple-500/40',
+    ring: 'ring-purple-500/30',
+  },
+  minorista: {
+    gradient: 'from-blue-500/20 via-blue-600/10 to-transparent',
+    icon: 'bg-gradient-to-br from-blue-500 to-blue-600',
+    glow: 'shadow-blue-500/20',
+    badge: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
+    ring: 'ring-blue-500/30',
+  },
+  satelite: {
+    gradient: 'from-cyan-500/20 via-cyan-600/10 to-transparent',
+    icon: 'bg-gradient-to-br from-cyan-500 to-cyan-600',
+    glow: 'shadow-cyan-500/20',
+    badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
+    ring: 'ring-cyan-500/30',
+  },
+};
+
+const getPlantConfig = (name: string) => {
+  if (name.toLowerCase().includes('mayorista')) return { type: 'Mayorista', config: PLANT_CONFIGS.mayorista };
+  if (name.toLowerCase().includes('minorista')) return { type: 'Minorista', config: PLANT_CONFIGS.minorista };
+  return { type: 'Satélite', config: PLANT_CONFIGS.satelite };
+};
+
 const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, index }) => {
+  const { type, config } = getPlantConfig(plant.plant_name);
   const isLowStock = plant.utilization_percent < 30;
-  const isHighStock = plant.utilization_percent >= 80;
-  
-  const getStockColor = () => {
-    if (isLowStock) return 'text-red-400';
-    if (isHighStock) return 'text-green-400';
-    return 'text-yellow-400';
-  };
+  const isCritical = plant.utilization_percent < 15;
+  const isOverflow = plant.utilization_percent > 100;
 
-  const getProgressColor = () => {
-    if (isLowStock) return 'bg-red-500';
-    if (isHighStock) return 'bg-green-500';
-    return 'bg-yellow-500';
+  // Formatear números grandes
+  const formatKg = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}t`;
+    return `${value.toLocaleString()} kg`;
   };
-
-  const getPlantType = (name: string) => {
-    if (name.toLowerCase().includes('mayorista')) return { label: 'Mayorista', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' };
-    if (name.toLowerCase().includes('minorista')) return { label: 'Minorista', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
-    return { label: 'Satélite', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' };
-  };
-
-  const plantType = getPlantType(plant.plant_name);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="p-5 rounded-2xl border-2 border-border/30 bg-gradient-to-br from-card to-card/50"
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.4 }}
+      className={`relative overflow-hidden rounded-3xl border border-border/40 bg-card ring-1 ${config.ring} shadow-xl ${config.glow}`}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Factory className="w-6 h-6 text-primary" />
+      {/* Gradient Background */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} pointer-events-none`} />
+      
+      {/* Glow Effect */}
+      <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full ${config.icon} opacity-10 blur-3xl`} />
+
+      <div className="relative p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 rounded-2xl ${config.icon} flex items-center justify-center shadow-lg`}>
+              <Factory className="w-7 h-7 text-white" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-foreground text-lg leading-tight">{plant.plant_name}</h3>
+              <Badge variant="outline" className={`${config.badge} text-xs font-semibold`}>
+                {type}
+              </Badge>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-foreground text-lg">{plant.plant_name}</h3>
-            <Badge variant="outline" className={plantType.color}>
-              {plantType.label}
-            </Badge>
-          </div>
+          {(isLowStock || isCritical) && (
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${isCritical ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-xs font-bold">{isCritical ? 'Crítico' : 'Bajo'}</span>
+            </motion.div>
+          )}
         </div>
-        {isLowStock && (
-          <div className="flex items-center gap-1 text-red-400 bg-red-500/10 px-2 py-1 rounded-lg">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="text-xs font-medium">Stock bajo</span>
+
+        {/* Location */}
+        {plant.location_text && (
+          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
+            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+            <span className="line-clamp-2">{plant.location_text}</span>
           </div>
         )}
-      </div>
 
-      {plant.location_text && (
-        <div className="flex items-start gap-2 mb-4 text-sm text-muted-foreground">
-          <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span className="line-clamp-2">{plant.location_text}</span>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Stock actual</span>
-          <span className={`text-2xl font-bold ${getStockColor()}`}>
-            {plant.current_stock.toLocaleString()} kg
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Capacidad</span>
-            <span className="font-medium text-foreground">{plant.capacity.toLocaleString()} kg</span>
+        {/* Stock Display */}
+        <div className="space-y-4">
+          {/* Main Stock */}
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Stock Actual</p>
+              <p className={`text-4xl font-black ${isLowStock ? 'text-red-400' : isOverflow ? 'text-orange-400' : 'text-foreground'}`}>
+                {formatKg(plant.current_stock)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Capacidad</p>
+              <p className="text-xl font-bold text-muted-foreground">
+                {formatKg(plant.capacity)}
+              </p>
+            </div>
           </div>
-          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-            <div 
-              className={`absolute left-0 top-0 h-full ${getProgressColor()} transition-all duration-500`}
-              style={{ width: `${Math.min(plant.utilization_percent, 100)}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Utilización</span>
-            <span className={`font-bold ${getStockColor()}`}>{plant.utilization_percent}%</span>
+
+          {/* Progress Bar - Futuristic Style */}
+          <div className="space-y-2">
+            <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/30">
+              {/* Background Grid Pattern */}
+              <div className="absolute inset-0 opacity-20" 
+                style={{ 
+                  backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 11px)' 
+                }} 
+              />
+              
+              {/* Progress Fill */}
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(plant.utilization_percent, 100)}%` }}
+                transition={{ duration: 1, delay: index * 0.1 + 0.3, ease: "easeOut" }}
+                className={`absolute left-0 top-0 h-full rounded-full ${
+                  isCritical ? 'bg-gradient-to-r from-red-600 to-red-400' :
+                  isLowStock ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' :
+                  isOverflow ? 'bg-gradient-to-r from-orange-600 to-orange-400' :
+                  'bg-gradient-to-r from-green-600 to-green-400'
+                }`}
+              />
+              
+              {/* Shine Effect */}
+              <motion.div 
+                initial={{ x: '-100%' }}
+                animate={{ x: '200%' }}
+                transition={{ duration: 2, delay: index * 0.2, repeat: Infinity, repeatDelay: 3 }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              />
+            </div>
+
+            {/* Percentage */}
+            <div className="flex items-center justify-center">
+              <div className={`px-4 py-1.5 rounded-full text-sm font-bold ${
+                isCritical ? 'bg-red-500/20 text-red-400' :
+                isLowStock ? 'bg-yellow-500/20 text-yellow-400' :
+                isOverflow ? 'bg-orange-500/20 text-orange-400' :
+                'bg-green-500/20 text-green-400'
+              }`}>
+                <Zap className="w-3 h-3 inline mr-1" />
+                {plant.utilization_percent}% utilizado
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -105,46 +182,53 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
   const totalUtilization = totalCapacity > 0 ? Math.round(totalStock / totalCapacity * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="w-10 h-10 rounded-xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-colors"
+          className="w-12 h-12 rounded-2xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-all hover:scale-105"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <Package className="w-7 h-7 text-primary" />
+          <h1 className="text-3xl font-black text-foreground flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <Package className="w-5 h-5 text-primary-foreground" />
+            </div>
             Inventarios
           </h1>
-          <p className="text-muted-foreground">Control de gas y stock en tiempo real</p>
+          <p className="text-muted-foreground mt-1">Control de gas en tiempo real</p>
         </div>
       </div>
 
-      {/* Plants Grid */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Factory className="w-5 h-5 text-muted-foreground" />
-          Plantas de Almacenamiento
-        </h2>
+      {/* Plants Section */}
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
+            <Factory className="w-6 h-6 text-muted-foreground" />
+            Plantas de Almacenamiento
+          </h2>
+          <Badge variant="secondary" className="text-sm">
+            {plantsInventory.length} plantas activas
+          </Badge>
+        </div>
         
         {isLoadingPlantsInventory ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-48 rounded-2xl bg-muted animate-pulse" />
+              <div key={i} className="h-72 rounded-3xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : plantsInventory.length === 0 ? (
-          <Card className="border-2 border-border/30">
-            <CardContent className="p-8 text-center">
-              <Factory className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No hay plantas configuradas</p>
+          <Card className="border-2 border-dashed border-border/50">
+            <CardContent className="p-12 text-center">
+              <Factory className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-lg text-muted-foreground">No hay plantas configuradas</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {plantsInventory.map((plant, index) => (
               <PlantCard key={plant.plant_id} plant={plant} index={index} />
             ))}
@@ -152,77 +236,86 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
         )}
       </div>
 
-      {/* Total Overview */}
-      <Card className="border-2 border-border/30 bg-gradient-to-br from-card to-card/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-primary" />
-            Inventario Total Consolidado
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 rounded-xl bg-primary/10 border border-primary/20">
-              <p className="text-3xl font-bold text-primary">{totalStock.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">kg en Plantas</p>
+      {/* Consolidated Stats */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-6"
+      >
+        <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-primary/10 blur-3xl" />
+        
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <Flame className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div className="text-center p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-              <p className="text-3xl font-bold text-secondary">
-                {(inventorySummary?.total_in_vehicles || 0).toLocaleString()}
+            <h3 className="text-xl font-bold text-foreground">Inventario Consolidado</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-primary/10 border border-primary/20 text-center">
+              <Droplets className="w-6 h-6 mx-auto mb-2 text-primary" />
+              <p className="text-3xl font-black text-primary">{(totalStock / 1000).toFixed(0)}t</p>
+              <p className="text-xs text-muted-foreground mt-1">En Plantas</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary/20 text-center">
+              <Truck className="w-6 h-6 mx-auto mb-2 text-secondary" />
+              <p className="text-3xl font-black text-secondary">
+                {((inventorySummary?.total_in_vehicles || 0) / 1000).toFixed(1)}t
               </p>
-              <p className="text-sm text-muted-foreground">kg en Vehículos</p>
+              <p className="text-xs text-muted-foreground mt-1">En Vehículos</p>
             </div>
-            <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-              <p className="text-3xl font-bold text-green-400">
-                {(totalStock + (inventorySummary?.total_in_vehicles || 0)).toLocaleString()}
+            <div className="p-5 rounded-2xl bg-green-500/10 border border-green-500/20 text-center">
+              <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-400" />
+              <p className="text-3xl font-black text-green-400">
+                {((totalStock + (inventorySummary?.total_in_vehicles || 0)) / 1000).toFixed(0)}t
               </p>
-              <p className="text-sm text-muted-foreground">kg Total Disponible</p>
+              <p className="text-xs text-muted-foreground mt-1">Total Disponible</p>
             </div>
-            <div className="text-center p-4 rounded-xl bg-muted border border-border/30">
-              <p className="text-3xl font-bold text-foreground">{totalUtilization}%</p>
-              <p className="text-sm text-muted-foreground">Utilización Global</p>
+            <div className="p-5 rounded-2xl bg-muted border border-border/30 text-center">
+              <Zap className="w-6 h-6 mx-auto mb-2 text-foreground" />
+              <p className="text-3xl font-black text-foreground">{totalUtilization}%</p>
+              <p className="text-xs text-muted-foreground mt-1">Utilización</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </motion.div>
 
       {/* Daily Movement */}
-      <Card className="border-2 border-border/30">
-        <CardHeader>
-          <CardTitle>Movimiento del Día</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-400" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Card className="border border-border/40 overflow-hidden">
+          <CardHeader className="border-b border-border/30 bg-muted/30">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-green-400" />
+              Movimiento del Día
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between p-5 rounded-2xl bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/20">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/20">
+                  <TrendingUp className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-foreground">Entregado Hoy</p>
+                  <p className="text-sm text-muted-foreground">Despachos completados</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-foreground">Entregado Hoy</p>
-                <p className="text-sm text-muted-foreground">Despachos completados</p>
+              <div className="text-right">
+                <p className="text-4xl font-black text-green-400">
+                  {((inventorySummary?.total_delivered_today || 0) / 1000).toFixed(1)}t
+                </p>
+                <p className="text-xs text-muted-foreground">{(inventorySummary?.total_delivered_today || 0).toLocaleString()} kg</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2 bg-green-500/10 text-green-400 border-green-500/30">
-              {(inventorySummary?.total_delivered_today || 0).toLocaleString()} kg
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="p-4 rounded-xl bg-card border border-border/30">
-              <p className="text-2xl font-bold text-foreground">{plantsInventory.length}</p>
-              <p className="text-sm text-muted-foreground">Plantas Activas</p>
-            </div>
-            <div className="p-4 rounded-xl bg-card border border-border/30">
-              <p className="text-2xl font-bold text-foreground">{totalCapacity.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">kg Capacidad Total</p>
-            </div>
-            <div className="p-4 rounded-xl bg-card border border-border/30">
-              <p className="text-2xl font-bold text-foreground">{inventorySummary?.total_delivered_today || 0}</p>
-              <p className="text-sm text-muted-foreground">Despachos</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 };
