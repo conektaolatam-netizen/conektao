@@ -4,15 +4,14 @@ import { ChevronLeft, Package, Flame, Truck, Factory, TrendingUp, MapPin, AlertT
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useGasData, PlantInventory } from '@/hooks/useGasData';
-
 interface GasInventorySectionProps {
   onBack: () => void;
 }
 
 // Configuración visual por tipo de planta
-const PLANT_CONFIGS: Record<string, { 
-  gradient: string; 
-  icon: string; 
+const PLANT_CONFIGS: Record<string, {
+  gradient: string;
+  icon: string;
   glow: string;
   badge: string;
   ring: string;
@@ -22,32 +21,48 @@ const PLANT_CONFIGS: Record<string, {
     icon: 'bg-gradient-to-br from-purple-500 to-purple-600',
     glow: 'shadow-purple-500/20',
     badge: 'bg-purple-500/20 text-purple-400 border-purple-500/40',
-    ring: 'ring-purple-500/30',
+    ring: 'ring-purple-500/30'
   },
   minorista: {
     gradient: 'from-blue-500/20 via-blue-600/10 to-transparent',
     icon: 'bg-gradient-to-br from-blue-500 to-blue-600',
     glow: 'shadow-blue-500/20',
     badge: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
-    ring: 'ring-blue-500/30',
+    ring: 'ring-blue-500/30'
   },
   satelite: {
     gradient: 'from-cyan-500/20 via-cyan-600/10 to-transparent',
     icon: 'bg-gradient-to-br from-cyan-500 to-cyan-600',
     glow: 'shadow-cyan-500/20',
     badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
-    ring: 'ring-cyan-500/30',
-  },
+    ring: 'ring-cyan-500/30'
+  }
 };
-
 const getPlantConfig = (name: string) => {
-  if (name.toLowerCase().includes('mayorista')) return { type: 'Mayorista', config: PLANT_CONFIGS.mayorista };
-  if (name.toLowerCase().includes('minorista')) return { type: 'Minorista', config: PLANT_CONFIGS.minorista };
-  return { type: 'Satélite', config: PLANT_CONFIGS.satelite };
+  if (name.toLowerCase().includes('mayorista')) return {
+    type: 'Mayorista',
+    config: PLANT_CONFIGS.mayorista
+  };
+  if (name.toLowerCase().includes('minorista')) return {
+    type: 'Minorista',
+    config: PLANT_CONFIGS.minorista
+  };
+  return {
+    type: 'Satélite',
+    config: PLANT_CONFIGS.satelite
+  };
 };
-
-const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, index }) => {
-  const { type, config } = getPlantConfig(plant.plant_name);
+const PlantCard: React.FC<{
+  plant: PlantInventory;
+  index: number;
+}> = ({
+  plant,
+  index
+}) => {
+  const {
+    type,
+    config
+  } = getPlantConfig(plant.plant_name);
   const isLowStock = plant.utilization_percent < 30;
   const isCritical = plant.utilization_percent < 15;
   const isOverflow = plant.utilization_percent > 100;
@@ -57,14 +72,18 @@ const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, 
     if (value >= 1000) return `${(value / 1000).toFixed(1)}t`;
     return `${value.toLocaleString()} kg`;
   };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay: index * 0.1, duration: 0.4 }}
-      className={`relative overflow-hidden rounded-3xl border border-border/40 bg-card ring-1 ${config.ring} shadow-xl ${config.glow}`}
-    >
+  return <motion.div initial={{
+    opacity: 0,
+    scale: 0.95,
+    y: 20
+  }} animate={{
+    opacity: 1,
+    scale: 1,
+    y: 0
+  }} transition={{
+    delay: index * 0.1,
+    duration: 0.4
+  }} className={`relative overflow-hidden rounded-3xl border border-border/40 bg-card ring-1 ${config.ring} shadow-xl ${config.glow}`}>
       {/* Gradient Background */}
       <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} pointer-events-none`} />
       
@@ -85,25 +104,22 @@ const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, 
               </Badge>
             </div>
           </div>
-          {(isLowStock || isCritical) && (
-            <motion.div 
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${isCritical ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}
-            >
+          {(isLowStock || isCritical) && <motion.div animate={{
+          scale: [1, 1.1, 1]
+        }} transition={{
+          repeat: Infinity,
+          duration: 2
+        }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${isCritical ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
               <AlertTriangle className="w-4 h-4" />
               <span className="text-xs font-bold">{isCritical ? 'Crítico' : 'Bajo'}</span>
-            </motion.div>
-          )}
+            </motion.div>}
         </div>
 
         {/* Location */}
-        {plant.location_text && (
-          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
+        {plant.location_text && <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
             <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
             <span className="line-clamp-2">{plant.location_text}</span>
-          </div>
-        )}
+          </div>}
 
         {/* Stock Display */}
         <div className="space-y-4">
@@ -127,42 +143,37 @@ const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, 
           <div className="space-y-2">
             <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/30">
               {/* Background Grid Pattern */}
-              <div className="absolute inset-0 opacity-20" 
-                style={{ 
-                  backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 11px)' 
-                }} 
-              />
+              <div className="absolute inset-0 opacity-20" style={{
+              backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 11px)'
+            }} />
               
               {/* Progress Fill */}
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(plant.utilization_percent, 100)}%` }}
-                transition={{ duration: 1, delay: index * 0.1 + 0.3, ease: "easeOut" }}
-                className={`absolute left-0 top-0 h-full rounded-full ${
-                  isCritical ? 'bg-gradient-to-r from-red-600 to-red-400' :
-                  isLowStock ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' :
-                  isOverflow ? 'bg-gradient-to-r from-orange-600 to-orange-400' :
-                  'bg-gradient-to-r from-green-600 to-green-400'
-                }`}
-              />
+              <motion.div initial={{
+              width: 0
+            }} animate={{
+              width: `${Math.min(plant.utilization_percent, 100)}%`
+            }} transition={{
+              duration: 1,
+              delay: index * 0.1 + 0.3,
+              ease: "easeOut"
+            }} className={`absolute left-0 top-0 h-full rounded-full ${isCritical ? 'bg-gradient-to-r from-red-600 to-red-400' : isLowStock ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' : isOverflow ? 'bg-gradient-to-r from-orange-600 to-orange-400' : 'bg-gradient-to-r from-green-600 to-green-400'}`} />
               
               {/* Shine Effect */}
-              <motion.div 
-                initial={{ x: '-100%' }}
-                animate={{ x: '200%' }}
-                transition={{ duration: 2, delay: index * 0.2, repeat: Infinity, repeatDelay: 3 }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-              />
+              <motion.div initial={{
+              x: '-100%'
+            }} animate={{
+              x: '200%'
+            }} transition={{
+              duration: 2,
+              delay: index * 0.2,
+              repeat: Infinity,
+              repeatDelay: 3
+            }} className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             </div>
 
             {/* Percentage */}
             <div className="flex items-center justify-center">
-              <div className={`px-4 py-1.5 rounded-full text-sm font-bold ${
-                isCritical ? 'bg-red-500/20 text-red-400' :
-                isLowStock ? 'bg-yellow-500/20 text-yellow-400' :
-                isOverflow ? 'bg-orange-500/20 text-orange-400' :
-                'bg-green-500/20 text-green-400'
-              }`}>
+              <div className={`px-4 py-1.5 rounded-full text-sm font-bold ${isCritical ? 'bg-red-500/20 text-red-400' : isLowStock ? 'bg-yellow-500/20 text-yellow-400' : isOverflow ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}>
                 <Zap className="w-3 h-3 inline mr-1" />
                 {plant.utilization_percent}% utilizado
               </div>
@@ -170,25 +181,23 @@ const PlantCard: React.FC<{ plant: PlantInventory; index: number }> = ({ plant, 
           </div>
         </div>
       </div>
-    </motion.div>
-  );
+    </motion.div>;
 };
-
-const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => {
-  const { inventorySummary, plantsInventory, isLoadingPlantsInventory } = useGasData();
-
+const GasInventorySection: React.FC<GasInventorySectionProps> = ({
+  onBack
+}) => {
+  const {
+    inventorySummary,
+    plantsInventory,
+    isLoadingPlantsInventory
+  } = useGasData();
   const totalCapacity = plantsInventory.reduce((sum, p) => sum + p.capacity, 0);
   const totalStock = plantsInventory.reduce((sum, p) => sum + p.current_stock, 0);
   const totalUtilization = totalCapacity > 0 ? Math.round(totalStock / totalCapacity * 100) : 0;
-
-  return (
-    <div className="space-y-8">
+  return <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onBack}
-          className="w-12 h-12 rounded-2xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-all hover:scale-105"
-        >
+        <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-all hover:scale-105">
           <ChevronLeft className="w-6 h-6" />
         </button>
         <div>
@@ -214,35 +223,28 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
           </Badge>
         </div>
         
-        {isLoadingPlantsInventory ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-72 rounded-3xl bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : plantsInventory.length === 0 ? (
-          <Card className="border-2 border-dashed border-border/50">
+        {isLoadingPlantsInventory ? <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => <div key={i} className="h-72 rounded-3xl bg-muted animate-pulse" />)}
+          </div> : plantsInventory.length === 0 ? <Card className="border-2 border-dashed border-border/50">
             <CardContent className="p-12 text-center">
               <Factory className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-lg text-muted-foreground">No hay plantas configuradas</p>
             </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {plantsInventory.map((plant, index) => (
-              <PlantCard key={plant.plant_id} plant={plant} index={index} />
-            ))}
-          </div>
-        )}
+          </Card> : <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {plantsInventory.map((plant, index) => <PlantCard key={plant.plant_id} plant={plant} index={index} />)}
+          </div>}
       </div>
 
       {/* Consolidated Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-6"
-      >
+      <motion.div initial={{
+      opacity: 0,
+      y: 20
+    }} animate={{
+      opacity: 1,
+      y: 0
+    }} transition={{
+      delay: 0.4
+    }} className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-6">
         <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-primary/10 blur-3xl" />
         
         <div className="relative">
@@ -254,11 +256,7 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-primary/10 border border-primary/20 text-center">
-              <Droplets className="w-6 h-6 mx-auto mb-2 text-primary" />
-              <p className="text-3xl font-black text-primary">{(totalStock / 1000).toFixed(0)}t</p>
-              <p className="text-xs text-muted-foreground mt-1">En Plantas</p>
-            </div>
+            
             <div className="p-5 rounded-2xl bg-secondary/10 border border-secondary/20 text-center">
               <Truck className="w-6 h-6 mx-auto mb-2 text-secondary" />
               <p className="text-3xl font-black text-secondary">
@@ -283,11 +281,15 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
       </motion.div>
 
       {/* Daily Movement */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
+      <motion.div initial={{
+      opacity: 0,
+      y: 20
+    }} animate={{
+      opacity: 1,
+      y: 0
+    }} transition={{
+      delay: 0.5
+    }}>
         <Card className="border border-border/40 overflow-hidden">
           <CardHeader className="border-b border-border/30 bg-muted/30">
             <CardTitle className="flex items-center gap-2">
@@ -316,8 +318,6 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({ onBack }) => 
           </CardContent>
         </Card>
       </motion.div>
-    </div>
-  );
+    </div>;
 };
-
 export default GasInventorySection;
