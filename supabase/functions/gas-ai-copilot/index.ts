@@ -7,6 +7,89 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Conocimiento base de ENVAGAS S.A.E.S.P
+const ENVAGAS_KNOWLEDGE = `
+Eres el asistente de IA de ENVAGAS S.A.E.S.P, una empresa distribuidora de Gas Licuado de Petróleo (GLP).
+
+🏭 PLANTAS DE ALMACENAMIENTO ACTIVAS:
+
+1. Planta Madre Puerto Salgar
+   - Capacidad: 242,400 galones
+   - Stock actual: 200,300 galones (82.6% llena)
+   - Ubicación: Puerto Salgar, Cundinamarca
+   - Es la planta principal y más grande
+
+2. Planta Operativa Puerto Salgar  
+   - Capacidad: 23,700 galones
+   - Stock actual: 20,000 galones (84.4% llena)
+   - Ubicación: Puerto Salgar, Cundinamarca
+
+3. Planta Satélite Ibagué
+   - Capacidad: 18,400 galones
+   - Stock actual: 14,800 galones (80.4% llena)
+   - Ubicación: Ibagué, Tolima
+
+Inventario consolidado: 235,100 galones disponibles de 284,500 galones de capacidad total (82.6%).
+
+🚛 FLOTA VEHICULAR:
+- Total: 12 vehículos activos
+- Distribución por sede:
+  • Ibagué: 5 vehículos
+  • Puerto Salgar Madre: 4 vehículos  
+  • Puerto Salgar Operativa: 3 vehículos
+
+👷 CONDUCTORES Y MERMAS (Datos del 03/01/2026):
+
+Ibagué:
+- Juan Camilo Torres: 2,300 gal entregados, Merma 0%, Facturado $8,740,000
+- Andrés Gutiérrez: 1,950 gal entregados, Merma 2%, 39 gal perdidos, Facturado $7,410,000
+- Camila Rodríguez: 2,400 gal entregados, Merma 0%, Facturado $9,120,000
+
+Puerto Salgar Madre:
+- Manuel Perdomo: 2,800 gal entregados, Merma 4%, 112 gal perdidos, Facturado $10,640,000 ⚠️
+- Freddy Castañeda: 2,600 gal entregados, Merma 0%, Facturado $9,880,000
+- Jhon Jairo Rivas: 2,500 gal entregados, Merma 1.5%, 37.5 gal perdidos, Facturado $9,500,000
+- Jairo Londoño: 2,700 gal entregados, Merma 0%, Facturado $10,260,000
+- Óscar Herrera: 1,940 gal entregados, Merma 0%, Facturado $7,372,000
+
+Puerto Salgar Operativa:
+- Carlos Moreno: 2,350 gal entregados, Merma 3%, 70.5 gal perdidos, Facturado $8,930,000
+- David Bermúdez: 2,000 gal entregados, Merma 0%, Facturado $7,600,000
+- Sebastián Muñoz: 2,200 gal entregados, Merma 0.5%, 11 gal perdidos, Facturado $8,360,000
+- William Galvis: 2,100 gal entregados, Merma 6%, 126 gal perdidos, Facturado $7,980,000 🚨
+
+ALERTAS DE MERMA:
+- William Galvis tiene la merma más alta (6%) - requiere revisión inmediata
+- Manuel Perdomo con 4% de merma - segundo más alto
+- Carlos Moreno con 3% de merma - monitorear
+
+📦 RESUMEN DIARIO (03/01/2026):
+- Entregas del día: 27,840 galones
+- Valor facturado total: $105,792,000 COP
+- Precio GLP: $3,800 COP/galón
+- Merma promedio: 1.42%
+- Galones perdidos hoy: 396 galones (~$1,504,800 COP en pérdidas)
+
+VENTAS POR SEDE:
+- Ibagué: $25,270,000 (3 conductores, 6,650 gal)
+- P. Salgar Madre: $47,652,000 (5 conductores, 12,540 gal)
+- P. Salgar Operativa: $32,870,000 (4 conductores, 8,650 gal)
+
+📊 INDICADORES CLAVE:
+- 7 conductores con 0% merma (excelente)
+- 5 conductores con merma > 0%
+- 2 conductores con merma > 3% (crítico)
+
+INSTRUCCIONES DE RESPUESTA:
+- Responde siempre en español colombiano, de forma amigable y directa
+- Usa lenguaje sencillo, como si hablaras con el gerente
+- Sé conciso: máximo 3-4 líneas para resúmenes, más si te piden detalles
+- Si preguntan por datos que no tienes, di que solo tienes datos hasta el 03/01/2026
+- Destaca siempre lo más importante primero (ventas, alertas, anomalías)
+- Usa emojis con moderación para hacer la respuesta más visual
+- Si hay algo preocupante, menciónalo claramente
+`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,96 +105,37 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { tenantId, queryType } = await req.json();
+    const { tenantId, queryType, userMessage } = await req.json();
 
-    if (!tenantId) {
-      throw new Error('tenantId is required');
+    console.log(`[gas-ai-copilot] Processing: type=${queryType}, message=${userMessage?.substring(0, 50)}...`);
+
+    // Build the user prompt based on query type
+    let userPrompt = '';
+    
+    if (queryType === 'chat' && userMessage) {
+      // Direct chat - use user's message
+      userPrompt = userMessage;
+    } else {
+      // Legacy quick actions
+      switch (queryType) {
+        case 'daily_summary':
+          userPrompt = '¿Cómo estuvo el día de hoy? Dame un resumen ejecutivo.';
+          break;
+        case 'route_analysis':
+          userPrompt = 'Analiza las rutas y entregas del día. ¿Qué destaca?';
+          break;
+        case 'anomaly_detection':
+          userPrompt = '¿Hay alguna anomalía o alerta que deba revisar hoy?';
+          break;
+        case 'recommendations':
+          userPrompt = 'Dame recomendaciones para mejorar la operación.';
+          break;
+        default:
+          userPrompt = '¿Cómo está la operación hoy?';
+      }
     }
 
-    console.log(`[gas-ai-copilot] Processing request for tenant: ${tenantId}, type: ${queryType}`);
-
-    const today = new Date().toISOString().split('T')[0];
-
-    // Get routes
-    const { data: routes } = await supabase
-      .from('gas_routes')
-      .select('*, vehicle:gas_vehicles(plate), plant:gas_plants(name)')
-      .eq('tenant_id', tenantId)
-      .gte('planned_date', today)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Get deliveries for today
-    const { data: deliveries } = await supabase
-      .from('gas_deliveries')
-      .select('*, client:gas_clients(name)')
-      .eq('tenant_id', tenantId)
-      .eq('status', 'delivered')
-      .gte('delivered_at', `${today}T00:00:00`)
-      .limit(50);
-
-    // Get anomalies
-    const { data: anomalies } = await supabase
-      .from('gas_anomalies')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .in('status', ['new', 'in_review'])
-      .limit(10);
-
-    // Get payments for today
-    const { data: payments } = await supabase
-      .from('gas_payments_events')
-      .select('*, delivery:gas_deliveries(total_amount)')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', `${today}T00:00:00`)
-      .limit(50);
-
-    // Get inventory summary
-    const { data: plantInventory } = await supabase
-      .from('gas_inventory_ledger')
-      .select('qty')
-      .eq('tenant_id', tenantId)
-      .not('plant_id', 'is', null);
-
-    const totalPlantInventory = plantInventory?.reduce((sum, item) => sum + (item.qty || 0), 0) || 0;
-    const totalDelivered = deliveries?.reduce((sum, d) => sum + (d.delivered_qty || 0), 0) || 0;
-    const routesCount = routes?.length || 0;
-    const inProgressRoutes = routes?.filter(r => r.status === 'in_progress').length || 0;
-    const pendingReviewRoutes = routes?.filter(r => r.status === 'pending_return_review').length || 0;
-    const anomalyCount = anomalies?.length || 0;
-    const cashPayments = payments?.filter(p => p.method === 'cash').length || 0;
-    const transferPayments = payments?.filter(p => p.method === 'transfer').length || 0;
-    const creditPayments = payments?.filter(p => p.method === 'credit').length || 0;
-
-    const context = `
-Datos operativos del día para distribuidora de gas GLP:
-- Inventario en planta: ${totalPlantInventory.toLocaleString()} kg
-- Rutas del día: ${routesCount}
-- Rutas en progreso: ${inProgressRoutes}
-- Rutas pendientes de revisión: ${pendingReviewRoutes}
-- Gas entregado hoy: ${totalDelivered.toLocaleString()} kg
-- Entregas completadas: ${deliveries?.length || 0}
-- Anomalías activas: ${anomalyCount}
-- Pagos efectivo: ${cashPayments}, transferencias: ${transferPayments}, crédito: ${creditPayments}
-${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.title} (${a.severity})`).join(', ')}` : ''}
-`;
-
-    let prompt = '';
-    switch (queryType) {
-      case 'daily_summary':
-        prompt = `Eres un asistente de gerencia para una distribuidora de gas GLP. Basándote en estos datos, da un resumen ejecutivo en máximo 3 líneas. Sé directo y menciona lo más importante primero:\n${context}`;
-        break;
-      case 'anomaly_alert':
-        prompt = `Basándote en estos datos, identifica problemas críticos que requieran atención inmediata. Máximo 2 líneas:\n${context}`;
-        break;
-      case 'recommendations':
-        prompt = `Basándote en estos datos operativos, da 1-2 recomendaciones concretas para mejorar la operación hoy. Sé específico:\n${context}`;
-        break;
-      default:
-        prompt = `Eres un asistente de gerencia para una distribuidora de gas GLP. Basándote en estos datos, da un resumen ejecutivo breve:\n${context}`;
-    }
-
-    // Use Lovable AI Gateway (Gemini)
+    // Call Lovable AI Gateway
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -123,9 +147,12 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
         messages: [
           {
             role: 'system',
-            content: 'Eres un asistente ejecutivo para gerencia de distribuidoras de gas. Responde siempre en español, de forma concisa y accionable. Máximo 3 líneas.'
+            content: ENVAGAS_KNOWLEDGE
           },
-          { role: 'user', content: prompt }
+          { 
+            role: 'user', 
+            content: userPrompt 
+          }
         ],
       }),
     });
@@ -136,13 +163,13 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Límite de solicitudes excedido. Intenta más tarde.' }),
+          JSON.stringify({ success: false, error: 'Límite de solicitudes excedido. Intenta en unos segundos.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Créditos agotados. Contacta al administrador.' }),
+          JSON.stringify({ success: false, error: 'Créditos de IA agotados. Contacta al administrador.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -150,23 +177,14 @@ ${anomalies && anomalies.length > 0 ? `Anomalías: ${anomalies.map(a => `${a.tit
     }
 
     const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || 'No se pudo generar respuesta.';
+    const aiResponse = data.choices?.[0]?.message?.content || 'No pude procesar tu solicitud. ¿Puedes reformular la pregunta?';
 
-    console.log(`[gas-ai-copilot] Generated response for ${queryType}`);
+    console.log(`[gas-ai-copilot] Response generated successfully`);
 
     return new Response(
       JSON.stringify({
         success: true,
         response: aiResponse,
-        context: {
-          inventoryKg: totalPlantInventory,
-          deliveredTodayKg: totalDelivered,
-          routesCount,
-          inProgressRoutes,
-          pendingReviewRoutes,
-          anomalyCount,
-          payments: { cash: cashPayments, transfer: transferPayments, credit: creditPayments },
-        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
