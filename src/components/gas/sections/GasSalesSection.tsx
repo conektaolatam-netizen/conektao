@@ -8,11 +8,14 @@ import {
   MapPin, 
   Clock,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  Flame,
+  Package
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useGasData } from '@/hooks/useGasData';
+import { useFlowmeterData } from '@/hooks/useFlowmeterData';
 
 interface GasSalesSectionProps {
   onBack: () => void;
@@ -20,10 +23,17 @@ interface GasSalesSectionProps {
 
 const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
   const { inventorySummary, activeRoutes, clients, isLoading } = useGasData();
+  const { todaySummary } = useFlowmeterData();
 
   const routesInProgress = activeRoutes.filter(r => r.status === 'in_progress').length;
   const completedRoutes = activeRoutes.filter(r => r.status === 'closed').length;
   const pendingRoutes = activeRoutes.filter(r => r.status === 'pending_return_review').length;
+
+  // Calculate estimated sales based on flowmeter data
+  const pricePerKg = 3200; // COP per kg
+  const totalKgDispatched = (todaySummary?.tanks_kg || 0) + (todaySummary?.pipetas_kg || 0);
+  const totalFillings = (todaySummary?.tanks_count || 0) + (todaySummary?.pipetas_count || 0);
+  const estimatedSales = totalKgDispatched * pricePerKg;
 
   return (
     <div className="space-y-6">
@@ -58,25 +68,83 @@ const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <p className="text-3xl font-bold text-secondary">
-              {(inventorySummary?.total_delivered_today || 0).toLocaleString()}
+            <p className="text-3xl font-bold text-green-400">
+              ${(estimatedSales / 1000000).toFixed(1)}M
             </p>
-            <p className="text-sm text-muted-foreground">kg Entregados</p>
+            <p className="text-sm text-muted-foreground">Facturado (est.)</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-foreground">{clients.length}</p>
-            <p className="text-sm text-muted-foreground">Clientes Activos</p>
+            <p className="text-3xl font-bold text-secondary">
+              {totalKgDispatched.toLocaleString() || (inventorySummary?.total_delivered_today || 0).toLocaleString()}
+            </p>
+            <p className="text-sm text-muted-foreground">kg Despachados</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-foreground">{activeRoutes.length}</p>
-            <p className="text-sm text-muted-foreground">Rutas Hoy</p>
+            <p className="text-3xl font-bold text-foreground">{totalFillings}</p>
+            <p className="text-sm text-muted-foreground">Llenados</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-bold text-green-400">{completedRoutes}</p>
-            <p className="text-sm text-muted-foreground">Completadas</p>
+            <p className="text-sm text-muted-foreground">Rutas Cerradas</p>
           </div>
         </div>
       </motion.div>
+
+      {/* Sales Breakdown by Product */}
+      {todaySummary && (todaySummary.tanks_count > 0 || todaySummary.pipetas_count > 0) && (
+        <Card className="border-2 border-border/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Desglose por Producto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Stationary Tanks */}
+            {todaySummary.tanks_count > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Flame className="w-4 h-4" />
+                  Tanques Estacionarios
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {Object.entries(todaySummary.tanks_by_size || {}).map(([size, data]) => {
+                    const tankData = data as { count: number; total_kg: number };
+                    if (tankData.count === 0) return null;
+                    return (
+                      <div key={size} className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
+                        <p className="text-lg font-bold text-purple-400">{tankData.count}</p>
+                        <p className="text-xs text-muted-foreground">{size} gal</p>
+                        <p className="text-xs text-purple-300">{tankData.total_kg.toLocaleString()} kg</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Small Pipetas */}
+            {todaySummary.pipetas_count > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Pipetas Pequeñas (20-100kg)
+                </h4>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <div>
+                    <p className="text-2xl font-bold text-cyan-400">{todaySummary.pipetas_count}</p>
+                    <p className="text-sm text-muted-foreground">Unidades llenadas</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-cyan-300">{todaySummary.pipetas_kg.toLocaleString()} kg</p>
+                    <p className="text-sm text-muted-foreground">Total despachado</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Route Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
