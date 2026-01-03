@@ -21,6 +21,7 @@ import GasSalesSection from './sections/GasSalesSection';
 import GasAISection from './sections/GasAISection';
 import GasSmartMermaSection from './sections/GasSmartMermaSection';
 import GasAppButton from './ui/GasAppButton';
+import GasAIButton from './ui/GasAIButton';
 
 const MAPBOX_STORAGE_KEY = 'conektao_mapbox_token';
 
@@ -168,14 +169,7 @@ const GasHomeDashboard: React.FC = () => {
           onClick={() => setActiveSection('smartMerma')}
         />
         
-        <GasAppButton
-          icon={<Brain className="w-6 h-6" />}
-          title="IA Conektao"
-          subtitle="Tu copiloto de negocio"
-          color="purple"
-          badge="Activo"
-          onClick={() => setActiveSection('ai')}
-        />
+        <GasAIButton onClick={() => setActiveSection('ai')} />
       </motion.div>
 
       {/* Large Map Section */}
