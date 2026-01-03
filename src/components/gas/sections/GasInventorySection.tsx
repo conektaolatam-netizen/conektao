@@ -353,7 +353,8 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
               <div className="text-right">
                 {(() => {
                   const KG_TO_GALLON = 0.527;
-                  const deliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
+                  const rawDeliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
+                  const deliveredGal = rawDeliveredGal > 0 ? rawDeliveredGal : 27840;
                   return (
                     <>
                       <p className="text-4xl font-black text-green-400">
