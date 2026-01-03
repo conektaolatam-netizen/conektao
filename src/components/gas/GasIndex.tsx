@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getGasPermissions } from '@/lib/gasPermissions';
 import GasLayout from './GasLayout';
-import GasDashboardGerencia from './GasDashboardGerencia';
+import GasHomeDashboard from './GasHomeDashboard';
 import GasDashboardLogistica from './GasDashboardLogistica';
 import GasDashboardCartera from './GasDashboardCartera';
 import GasAppConductor from './GasAppConductor';
@@ -22,7 +22,7 @@ const GasIndex: React.FC = () => {
   const renderDashboard = () => {
     // Owner/Admin/Gerencia sees full management dashboard
     if (permissions.viewFullKpis && permissions.viewDashboard) {
-      return <GasDashboardGerencia />;
+      return <GasHomeDashboard />;
     }
 
     // Logistics sees route management
