@@ -305,11 +305,60 @@ const GasFlowmeterPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pipetas summary */}
+              {/* Tanques Estacionarios por Tamaño */}
+              <div className="p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Cylinder className="w-5 h-5 text-purple-400" />
+                  <span className="font-semibold text-purple-400">Tanques Estacionarios</span>
+                  <Badge variant="outline" className="ml-auto bg-purple-500/10 text-purple-400 border-purple-500/30">
+                    {todaySummary.tanks_count || 0} llenados
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-5 gap-2">
+                  {[120, 300, 500, 1000, 1500].map(size => {
+                    const tankData = todaySummary.tanks_by_size?.find(t => t.size_gallons === size);
+                    const count = tankData?.count || 0;
+                    const hasUnits = count > 0;
+                    
+                    return (
+                      <div 
+                        key={size}
+                        className={`text-center p-3 rounded-lg transition-all ${
+                          hasUnits 
+                            ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30' 
+                            : 'bg-muted/20 border border-border/20'
+                        }`}
+                      >
+                        <p className={`text-2xl font-bold ${hasUnits ? 'text-cyan-400' : 'text-muted-foreground'}`}>
+                          {count}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-1">{size >= 1000 ? `${size/1000}k` : size} gal</p>
+                        {hasUnits && tankData && (
+                          <p className="text-[10px] text-purple-400">
+                            {tankData.total_kg.toFixed(0)} kg
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {(todaySummary.tanks_count || 0) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/20 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Total despachado</span>
+                    <span className="font-bold text-cyan-400">
+                      {(todaySummary.tanks_kg || 0).toLocaleString()} kg
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Pipetas pequeñas summary */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                 <div className="flex items-center gap-2">
                   <Cylinder className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-green-400">Pipetas llenadas</span>
+                  <span className="text-sm text-green-400">Pipetas pequeñas (20-100kg)</span>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-green-400">{todaySummary.pipetas_count} unidades</p>
