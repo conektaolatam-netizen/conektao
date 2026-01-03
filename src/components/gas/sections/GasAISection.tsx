@@ -1,85 +1,65 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronLeft, 
-  Brain, 
   Bot, 
-  Shield, 
-  TrendingUp,
-  Sparkles,
+  Send,
   Loader2,
-  Zap,
-  MessageSquare
+  Sparkles,
+  TrendingUp,
+  AlertTriangle,
+  Truck,
+  DollarSign
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GasAISectionProps {
   onBack: () => void;
 }
 
-interface AIModuleCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  color: string;
-  isEnabled: boolean;
-  isPremium?: boolean;
-  onToggle: () => void;
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
-const AIModuleCard: React.FC<AIModuleCardProps> = ({
-  icon, title, description, color, isEnabled, isPremium, onToggle
-}) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    whileHover={{ scale: 1.02 }}
-    className={`p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
-      isEnabled 
-        ? `${color} shadow-lg` 
-        : 'border-border/30 bg-card/50 opacity-70'
-    }`}
-    onClick={onToggle}
-  >
-    {isPremium && (
-      <Badge className="absolute top-3 right-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-        <Sparkles className="w-3 h-3 mr-1" />
-        Premium
-      </Badge>
-    )}
-    <div className="flex items-start gap-4">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-        isEnabled ? 'bg-background/30' : 'bg-muted'
-      }`}>
-        {icon}
-      </div>
-      <div className="flex-1">
-        <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      <div className={`w-12 h-7 rounded-full transition-colors ${
-        isEnabled ? 'bg-green-500' : 'bg-muted'
-      } flex items-center ${isEnabled ? 'justify-end' : 'justify-start'} px-1`}>
-        <div className="w-5 h-5 rounded-full bg-white shadow-md" />
-      </div>
-    </div>
-  </motion.div>
-);
+const SUGGESTED_QUESTIONS = [
+  { icon: TrendingUp, text: "¿Cómo estuvo el día de hoy?", color: "text-emerald-400" },
+  { icon: AlertTriangle, text: "¿Hay algo que deba revisar?", color: "text-amber-400" },
+  { icon: Truck, text: "¿Quién tuvo más merma esta semana?", color: "text-red-400" },
+  { icon: DollarSign, text: "¿Cuánto vendimos hoy?", color: "text-blue-400" },
+];
 
 const GasAISection: React.FC<GasAISectionProps> = ({ onBack }) => {
-  const [aiModules, setAiModules] = useState({
-    copilot: true,
-    auditor: true,
-    predictions: false,
-  });
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleAISummary = async (queryType: string = 'daily_summary') => {
-    setIsLoadingAI(true);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: text.trim(),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -89,150 +69,193 @@ const GasAISection: React.FC<GasAISectionProps> = ({ onBack }) => {
       const { data, error } = await supabase.functions.invoke('gas-ai-copilot', {
         body: { 
           tenantId: profile?.restaurant_id,
-          queryType 
+          queryType: 'chat',
+          userMessage: text.trim()
         }
       });
 
       if (error) throw error;
-      setAiResponse(data.response);
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.response || 'Lo siento, no pude procesar tu solicitud.',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error fetching AI summary:', error);
-      setAiResponse('No se pudo obtener el resumen. Intenta de nuevo.');
+      console.error('Error:', error);
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Hubo un problema conectando. ¿Puedes intentar de nuevo?',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
-      setIsLoadingAI(false);
+      setIsLoading(false);
+      inputRef.current?.focus();
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(inputValue);
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    sendMessage(text);
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col h-[calc(100vh-120px)] max-h-[700px]">
+      {/* Header minimalista */}
+      <div className="flex items-center gap-3 pb-4 border-b border-border/30">
         <button 
           onClick={onBack}
-          className="w-10 h-10 rounded-xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-colors"
+          className="w-9 h-9 rounded-xl bg-card border border-border/30 flex items-center justify-center hover:bg-accent transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <Brain className="w-7 h-7 text-purple-400" />
-            Inteligencia Artificial
-          </h1>
-          <p className="text-muted-foreground">Módulos de IA activos para tu operación</p>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-semibold text-foreground">IA Conektao</span>
         </div>
       </div>
 
-      {/* AI Modules Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AIModuleCard
-          icon={<Bot className="w-7 h-7 text-purple-400" />}
-          title="IA Conektao"
-          description="Resúmenes operativos diarios, análisis de rendimiento y alertas inteligentes."
-          color="border-purple-500/50 bg-purple-500/10"
-          isEnabled={aiModules.copilot}
-          onToggle={() => setAiModules(prev => ({ ...prev, copilot: !prev.copilot }))}
-        />
-        <AIModuleCard
-          icon={<Shield className="w-7 h-7 text-cyan-400" />}
-          title="Auditor IA"
-          description="Detección automática de anomalías, fraudes y desviaciones operativas."
-          color="border-cyan-500/50 bg-cyan-500/10"
-          isEnabled={aiModules.auditor}
-          onToggle={() => setAiModules(prev => ({ ...prev, auditor: !prev.auditor }))}
-        />
-        <AIModuleCard
-          icon={<TrendingUp className="w-7 h-7 text-primary" />}
-          title="Predictor IA"
-          description="Proyecciones de demanda, optimización de rutas y recomendaciones."
-          color="border-primary/50 bg-primary/10"
-          isEnabled={aiModules.predictions}
-          isPremium
-          onToggle={() => setAiModules(prev => ({ ...prev, predictions: !prev.predictions }))}
-        />
+      {/* Área de mensajes */}
+      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full px-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center mb-8"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 flex items-center justify-center mx-auto mb-4">
+                <Bot className="w-8 h-8 text-purple-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                Hola, ¿en qué te ayudo?
+              </h2>
+              <p className="text-muted-foreground text-sm max-w-xs">
+                Pregúntame sobre ventas, mermas, conductores o cualquier cosa de tu operación.
+              </p>
+            </motion.div>
+
+            {/* Preguntas sugeridas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+              {SUGGESTED_QUESTIONS.map((q, index) => (
+                <motion.button
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => handleSuggestionClick(q.text)}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-card/50 hover:bg-accent/50 hover:border-purple-500/30 transition-all text-left group"
+                >
+                  <q.icon className={`w-4 h-4 ${q.color} group-hover:scale-110 transition-transform`} />
+                  <span className="text-sm text-foreground/80 group-hover:text-foreground">
+                    {q.text}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <AnimatePresence>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      message.role === 'user'
+                        ? 'bg-purple-500 text-white rounded-br-md'
+                        : 'bg-card border border-border/50 text-foreground rounded-bl-md'
+                    }`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-xs font-medium text-purple-400">IA Conektao</span>
+                      </div>
+                    )}
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-start"
+              >
+                <div className="bg-card border border-border/50 rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                    <span className="text-sm text-muted-foreground">Pensando...</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-purple-500/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-purple-400" />
-            Acciones Rápidas IA
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col gap-2 bg-background/50 hover:bg-purple-500/10 border-purple-500/30"
-              onClick={() => handleAISummary('daily_summary')}
-              disabled={isLoadingAI}
-            >
-              <MessageSquare className="w-5 h-5 text-purple-400" />
-              <span className="text-xs">Resumen del día</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col gap-2 bg-background/50 hover:bg-cyan-500/10 border-cyan-500/30"
-              onClick={() => handleAISummary('route_analysis')}
-              disabled={isLoadingAI}
-            >
-              <TrendingUp className="w-5 h-5 text-cyan-400" />
-              <span className="text-xs">Análisis de rutas</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col gap-2 bg-background/50 hover:bg-primary/10 border-primary/30"
-              onClick={() => handleAISummary('anomaly_detection')}
-              disabled={isLoadingAI}
-            >
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="text-xs">Detectar anomalías</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto py-4 flex flex-col gap-2 bg-background/50 hover:bg-green-500/10 border-green-500/30"
-              onClick={() => handleAISummary('recommendations')}
-              disabled={isLoadingAI}
-            >
-              <Sparkles className="w-5 h-5 text-green-400" />
-              <span className="text-xs">Recomendaciones</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Input - siempre visible abajo */}
+      <div className="pt-3 border-t border-border/30">
+        <form onSubmit={handleSubmit} className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Escribe tu pregunta..."
+            disabled={isLoading}
+            className="w-full px-4 py-3.5 pr-12 rounded-xl bg-card border border-border/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!inputValue.trim() || isLoading}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-purple-500 hover:bg-purple-600 disabled:bg-muted disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Send className="w-4 h-4 text-white" />
+            )}
+          </button>
+        </form>
 
-      {/* AI Response Area */}
-      <Card className="border-2 border-border/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-purple-400" />
-            Respuesta de IA Conektao
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingAI ? (
-            <div className="flex items-center justify-center py-12 gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-              <span className="text-muted-foreground">Analizando datos...</span>
-            </div>
-          ) : aiResponse ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20"
-            >
-              <p className="text-foreground whitespace-pre-wrap">{aiResponse}</p>
-            </motion.div>
-          ) : (
-            <div className="text-center py-12">
-              <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">
-                Selecciona una acción rápida para obtener un análisis inteligente
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {/* Preguntas sugeridas inline cuando hay mensajes */}
+        {messages.length > 0 && !isLoading && (
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+            {SUGGESTED_QUESTIONS.slice(0, 3).map((q, index) => (
+              <button
+                key={index}
+                onClick={() => handleSuggestionClick(q.text)}
+                className="flex-shrink-0 px-3 py-1.5 text-xs rounded-full border border-border/50 bg-card/50 hover:bg-accent/50 hover:border-purple-500/30 text-muted-foreground hover:text-foreground transition-all"
+              >
+                {q.text}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
