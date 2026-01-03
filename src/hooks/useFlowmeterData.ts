@@ -53,8 +53,20 @@ const DRIVERS = [
   { name: 'Juan David Martínez', plate: 'TIB-003', mermaBase: 0.005 },
 ];
 
+// Pipetas pequeñas en kg
 const PIPETA_SIZES = [20, 45, 100]; // kg
+
+// Tanques estacionarios en galones
+const TANK_SIZES_GALLONS = [120, 300, 500, 1000, 1500]; // galones
+const GALLON_TO_LITERS = 3.785; // 1 galón = 3.785 litros
 const GLP_DENSITY = 0.51; // kg/liter
+
+export interface TankFillSummary {
+  size_gallons: number;
+  count: number;
+  total_liters: number;
+  total_kg: number;
+}
 
 export const useFlowmeterData = () => {
   const { restaurant } = useAuth();
@@ -214,7 +226,7 @@ export const useFlowmeterData = () => {
     enabled: !!tenantId,
   });
 
-  // Today's summary
+  // Today's summary with tank breakdown
   const todaySummary = useQuery({
     queryKey: ['flowmeter_today', tenantId],
     queryFn: async () => {
@@ -235,8 +247,52 @@ export const useFlowmeterData = () => {
       
       const sent = readings.filter(r => r.meter_id === 'M1_PUERTO_SALGAR').reduce((sum, r) => sum + r.volume_liters, 0);
       const received = readings.filter(r => r.meter_id === 'M2_IBAGUE').reduce((sum, r) => sum + r.volume_liters, 0);
-      const pipetas = readings.filter(r => r.meter_id === 'M3_PIPETAS');
-      const pipetasKg = pipetas.reduce((sum, r) => sum + (r.volume_kg || 0), 0);
+      const allPipetas = readings.filter(r => r.meter_id === 'M3_PIPETAS');
+      
+      // Separar tanques estacionarios de pipetas pequeñas
+      const tankEstacionarios = allPipetas.filter(r => r.reading_type === 'tanque_estacionario');
+      const pipetasPequenas = allPipetas.filter(r => r.reading_type === 'pipeta_llenada');
+      
+      // Agrupar tanques por tamaño (usando expected_volume que tiene los litros del tanque)
+      const tanksBySize: Record<number, TankFillSummary> = {};
+      TANK_SIZES_GALLONS.forEach(size => {
+        const litersForSize = size * GALLON_TO_LITERS;
+        tanksBySize[size] = {
+          size_gallons: size,
+          count: 0,
+          total_liters: 0,
+          total_kg: 0,
+        };
+      });
+      
+      tankEstacionarios.forEach(reading => {
+        // Determinar el tamaño basado en el volumen
+        const volumeLiters = reading.volume_liters;
+        let matchedSize = TANK_SIZES_GALLONS[0];
+        
+        for (const size of TANK_SIZES_GALLONS) {
+          const expectedLiters = size * GALLON_TO_LITERS;
+          if (Math.abs(volumeLiters - expectedLiters) < 50) { // tolerancia de 50 litros
+            matchedSize = size;
+            break;
+          }
+        }
+        
+        if (!tanksBySize[matchedSize]) {
+          tanksBySize[matchedSize] = {
+            size_gallons: matchedSize,
+            count: 0,
+            total_liters: 0,
+            total_kg: 0,
+          };
+        }
+        
+        tanksBySize[matchedSize].count++;
+        tanksBySize[matchedSize].total_liters += reading.volume_liters;
+        tanksBySize[matchedSize].total_kg += reading.volume_kg || 0;
+      });
+      
+      const pipetasKg = pipetasPequenas.reduce((sum, r) => sum + (r.volume_kg || 0), 0);
       const merma = readings.filter(r => r.meter_id === 'M2_IBAGUE').reduce((sum, r) => sum + Math.abs(r.variance_liters || 0), 0);
       
       return {
@@ -244,8 +300,11 @@ export const useFlowmeterData = () => {
         received_liters: received,
         merma_liters: merma,
         merma_percent: sent > 0 ? (merma / sent) * 100 : 0,
-        pipetas_count: pipetas.length,
+        pipetas_count: pipetasPequenas.length,
         pipetas_kg: pipetasKg,
+        tanks_count: tankEstacionarios.length,
+        tanks_kg: tankEstacionarios.reduce((sum, r) => sum + (r.volume_kg || 0), 0),
+        tanks_by_size: Object.values(tanksBySize).filter(t => t.count > 0 || TANK_SIZES_GALLONS.includes(t.size_gallons)),
       };
     },
     enabled: !!tenantId,
@@ -329,20 +388,44 @@ export const useFlowmeterSimulation = () => {
         is_anomaly: mermaPct > 0.01,
       };
     } else if (type === 'pipeta') {
-      const size = PIPETA_SIZES[Math.floor(Math.random() * PIPETA_SIZES.length)];
-      const volumeLiters = size / GLP_DENSITY;
+      // 70% tanques estacionarios, 30% pipetas pequeñas
+      const isTankEstacionario = Math.random() < 0.7;
       
-      reading = {
-        ...reading,
-        meter_id: 'M3_PIPETAS',
-        meter_location: 'Llenado Pipetas',
-        reading_type: 'pipeta_llenada',
-        volume_liters: Math.round(volumeLiters * 100) / 100,
-        volume_kg: size,
-        temperature: 22 + Math.random() * 3,
-        pressure: 6 + Math.random() * 2,
-        cylinder_serial: `P-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
-      };
+      if (isTankEstacionario) {
+        // Tanque estacionario (120, 300, 500, 1000, 1500 galones)
+        const tankSizeGallons = TANK_SIZES_GALLONS[Math.floor(Math.random() * TANK_SIZES_GALLONS.length)];
+        const volumeLiters = tankSizeGallons * GALLON_TO_LITERS;
+        const volumeKg = volumeLiters * GLP_DENSITY;
+        
+        reading = {
+          ...reading,
+          meter_id: 'M3_PIPETAS',
+          meter_location: 'Llenado Estacionarios',
+          reading_type: 'tanque_estacionario',
+          volume_liters: Math.round(volumeLiters * 100) / 100,
+          volume_kg: Math.round(volumeKg * 100) / 100,
+          temperature: 22 + Math.random() * 3,
+          pressure: 8 + Math.random() * 4,
+          cylinder_serial: `TE-${tankSizeGallons}G-${Math.floor(Math.random() * 100).toString().padStart(3, '0')}`,
+          expected_volume: volumeLiters, // Guardamos el tamaño en galones como expected_volume para identificar
+        };
+      } else {
+        // Pipeta pequeña (20, 45, 100 kg)
+        const size = PIPETA_SIZES[Math.floor(Math.random() * PIPETA_SIZES.length)];
+        const volumeLiters = size / GLP_DENSITY;
+        
+        reading = {
+          ...reading,
+          meter_id: 'M3_PIPETAS',
+          meter_location: 'Llenado Pipetas',
+          reading_type: 'pipeta_llenada',
+          volume_liters: Math.round(volumeLiters * 100) / 100,
+          volume_kg: size,
+          temperature: 22 + Math.random() * 3,
+          pressure: 6 + Math.random() * 2,
+          cylinder_serial: `P-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+        };
+      }
     }
 
     try {
