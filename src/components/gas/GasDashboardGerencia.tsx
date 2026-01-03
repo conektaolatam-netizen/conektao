@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGasData } from '@/hooks/useGasData';
 import { supabase } from '@/integrations/supabase/client';
 import GasRouteMap from './GasRouteMap';
+import GasFlowmeterPanel from './GasFlowmeterPanel';
+import GasMermaAnalysis from './GasMermaAnalysis';
 import { FuturisticCard, AICard } from '@/components/ui/FuturisticCard';
 import { 
   Flame, 
@@ -23,7 +25,9 @@ import {
   Shield,
   TrendingUp,
   Zap,
-  Eye
+  Eye,
+  Gauge,
+  TrendingDown
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -131,6 +135,14 @@ const GasDashboardGerencia: React.FC = () => {
           <TabsTrigger value="ai" className="gap-2">
             <Brain className="w-4 h-4" />
             Inteligencia IA
+          </TabsTrigger>
+          <TabsTrigger value="flowmeters" className="gap-2">
+            <Gauge className="w-4 h-4" />
+            Caudalímetros IoT
+          </TabsTrigger>
+          <TabsTrigger value="merma" className="gap-2">
+            <TrendingDown className="w-4 h-4" />
+            Análisis Merma
           </TabsTrigger>
         </TabsList>
 
@@ -446,6 +458,16 @@ const GasDashboardGerencia: React.FC = () => {
               )}
             </CardContent>
           </FuturisticCard>
+        </TabsContent>
+
+        {/* Flowmeters IoT Tab */}
+        <TabsContent value="flowmeters" className="space-y-6">
+          <GasFlowmeterPanel />
+        </TabsContent>
+
+        {/* Merma Analysis Tab */}
+        <TabsContent value="merma" className="space-y-6">
+          <GasMermaAnalysis />
         </TabsContent>
       </Tabs>
     </div>

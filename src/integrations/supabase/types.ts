@@ -1178,6 +1178,99 @@ export type Database = {
           },
         ]
       }
+      gas_flowmeter_readings: {
+        Row: {
+          batch_code: string | null
+          client_id: string | null
+          created_at: string | null
+          cylinder_serial: string | null
+          device_id: string | null
+          driver_id: string | null
+          driver_name: string | null
+          expected_volume: number | null
+          id: string
+          is_anomaly: boolean | null
+          meter_id: string
+          meter_location: string
+          pressure: number | null
+          reading_at: string | null
+          reading_type: string
+          signal_quality: number | null
+          temperature: number | null
+          tenant_id: string
+          variance_liters: number | null
+          variance_percent: number | null
+          vehicle_plate: string | null
+          volume_kg: number | null
+          volume_liters: number
+        }
+        Insert: {
+          batch_code?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          cylinder_serial?: string | null
+          device_id?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          expected_volume?: number | null
+          id?: string
+          is_anomaly?: boolean | null
+          meter_id: string
+          meter_location: string
+          pressure?: number | null
+          reading_at?: string | null
+          reading_type: string
+          signal_quality?: number | null
+          temperature?: number | null
+          tenant_id: string
+          variance_liters?: number | null
+          variance_percent?: number | null
+          vehicle_plate?: string | null
+          volume_kg?: number | null
+          volume_liters: number
+        }
+        Update: {
+          batch_code?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          cylinder_serial?: string | null
+          device_id?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          expected_volume?: number | null
+          id?: string
+          is_anomaly?: boolean | null
+          meter_id?: string
+          meter_location?: string
+          pressure?: number | null
+          reading_at?: string | null
+          reading_type?: string
+          signal_quality?: number | null
+          temperature?: number | null
+          tenant_id?: string
+          variance_liters?: number | null
+          variance_percent?: number | null
+          vehicle_plate?: string | null
+          volume_kg?: number | null
+          volume_liters?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gas_flowmeter_readings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "gas_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gas_flowmeter_readings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gas_inventory_ledger: {
         Row: {
           batch_code: string | null
