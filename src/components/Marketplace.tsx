@@ -1356,6 +1356,100 @@ const Marketplace = () => {
 
       {/* Suppliers Categories */}
       <div className="space-y-6">
+        {/* Servicios Industriales - ENVAGAS Featured - PRIMERO */}
+        <div className="space-y-4">
+          <h3 className="text-2xl font-bold flex items-center">
+            <div className="w-2 h-8 bg-gradient-to-b from-orange-500 to-blue-500 rounded-full mr-3"></div>
+            Servicios Industriales
+            <Badge className="ml-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
+              Nuevo
+            </Badge>
+          </h3>
+          
+          {/* Envagas Featured Card */}
+          {filteredSuppliers.filter(s => s.type === 'gas').map(supplier => (
+            <Card 
+              key={supplier.id}
+              className="overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer group border-2 border-orange-500/30 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative"
+              onClick={() => supplier.externalLink ? navigate(supplier.externalLink) : enterStore(supplier)}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              
+              <div className="p-6 md:p-8 relative z-10">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-blue-600 shadow-xl group-hover:scale-110 transition-transform">
+                      <Flame className="h-8 w-8 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="text-2xl font-bold text-white">{supplier.name}</h4>
+                        {supplier.isVerified && (
+                          <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg shadow-orange-500/30">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Verificado
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-orange-400 font-medium mb-2">{supplier.category}</p>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm text-yellow-400 font-semibold">{supplier.rating}</span>
+                        <span className="text-xs text-gray-500 ml-1">(238 reseñas)</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1">
+                    <p className="text-gray-400 mb-3 line-clamp-2">{supplier.description}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {supplier.specialties.map(specialty => (
+                        <Badge 
+                          key={specialty}
+                          variant="outline" 
+                          className="border-orange-500/30 text-orange-400 bg-orange-500/10"
+                        >
+                          {specialty === 'Servicio Técnico' && <Wrench className="h-3 w-3 mr-1" />}
+                          {specialty === 'Tanques Industriales' && <Truck className="h-3 w-3 mr-1" />}
+                          {specialty === 'Cilindros GLP' && <Flame className="h-3 w-3 mr-1" />}
+                          {specialty}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3">
+                    <div className="space-y-1 text-sm text-gray-300">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-cyan-400" />
+                        <span>Entrega: {supplier.deliveryTime}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-cyan-400" />
+                        <span>{supplier.location}</span>
+                      </div>
+                    </div>
+                    <Button 
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white border-0 shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (supplier.externalLink) {
+                          navigate(supplier.externalLink);
+                        } else {
+                          enterStore(supplier);
+                        }
+                      }}
+                    >
+                      <Store className="h-4 w-4 mr-2" />
+                      Ver Productos y Servicios
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
         {/* Supermercados */}
         <div>
           <h3 className="text-2xl font-bold mb-4 flex items-center">
@@ -1619,99 +1713,6 @@ const Marketplace = () => {
           </div>
         </div>
 
-        {/* Servicios Industriales - ENVAGAS Featured */}
-        <div className="space-y-4">
-          <h3 className="text-2xl font-bold flex items-center">
-            <div className="w-2 h-8 bg-gradient-to-b from-orange-500 to-blue-500 rounded-full mr-3"></div>
-            Servicios Industriales
-            <Badge className="ml-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
-              Nuevo
-            </Badge>
-          </h3>
-          
-          {/* Envagas Featured Card */}
-          {filteredSuppliers.filter(s => s.type === 'gas').map(supplier => (
-            <Card 
-              key={supplier.id}
-              className="overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer group border-2 border-orange-500/30 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative"
-              onClick={() => supplier.externalLink ? navigate(supplier.externalLink) : enterStore(supplier)}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              
-              <div className="p-6 md:p-8 relative z-10">
-                <div className="flex flex-col md:flex-row md:items-center gap-6">
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-blue-600 shadow-xl group-hover:scale-110 transition-transform">
-                      <Flame className="h-8 w-8 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h4 className="text-2xl font-bold text-white">{supplier.name}</h4>
-                        {supplier.isVerified && (
-                          <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg shadow-orange-500/30">
-                            <Shield className="h-3 w-3 mr-1" />
-                            Verificado
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-orange-400 font-medium mb-2">{supplier.category}</p>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm text-yellow-400 font-semibold">{supplier.rating}</span>
-                        <span className="text-xs text-gray-500 ml-1">(238 reseñas)</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <p className="text-gray-400 mb-3 line-clamp-2">{supplier.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {supplier.specialties.map(specialty => (
-                        <Badge 
-                          key={specialty}
-                          variant="outline" 
-                          className="border-orange-500/30 text-orange-400 bg-orange-500/10"
-                        >
-                          {specialty === 'Servicio Técnico' && <Wrench className="h-3 w-3 mr-1" />}
-                          {specialty === 'Tanques Industriales' && <Truck className="h-3 w-3 mr-1" />}
-                          {specialty === 'Cilindros GLP' && <Flame className="h-3 w-3 mr-1" />}
-                          {specialty}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-3">
-                    <div className="space-y-1 text-sm text-gray-300">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-cyan-400" />
-                        <span>Entrega: {supplier.deliveryTime}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-cyan-400" />
-                        <span>{supplier.location}</span>
-                      </div>
-                    </div>
-                    <Button 
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white border-0 shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (supplier.externalLink) {
-                          navigate(supplier.externalLink);
-                        } else {
-                          enterStore(supplier);
-                        }
-                      }}
-                    >
-                      <Store className="h-4 w-4 mr-2" />
-                      Ver Productos y Servicios
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
       </div>
 
         {/* Floating Cart Summary with Payment Gateway */}
