@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -13,7 +14,10 @@ import {
   Clock,
   ShoppingCart,
   Truck,
-  DollarSign
+  DollarSign,
+  Flame,
+  Shield,
+  Wrench
 } from 'lucide-react';
 
 interface Supplier {
@@ -41,6 +45,7 @@ interface Product {
 
 const SupplierMarketplace = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,6 +53,22 @@ const SupplierMarketplace = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
   const [cart, setCart] = useState<{[key: string]: number}>({});
   const [currentView, setCurrentView] = useState<'suppliers' | 'products'>('suppliers');
+  
+  // Envagas como proveedor featured
+  const envagasFeatured = {
+    id: 'envagas-featured',
+    name: 'ENVAGAS',
+    description: 'Distribuidora líder de GLP. Soluciones residenciales, industriales y servicio técnico certificado.',
+    rating: 4.9,
+    deliveryTime: '2-24h',
+    shippingCoverage: 'regional',
+    minimumOrder: 0,
+    isActive: true,
+    productCount: 12,
+    isFeatured: true,
+    services: ['Cilindros GLP', 'Tanques industriales', 'Servicio técnico'],
+    badge: 'Verificado'
+  };
   
   // Leer parámetro de URL para filtrar por proveedor
   const [urlParams] = useState(() => {
@@ -280,6 +301,12 @@ const SupplierMarketplace = () => {
     }).format(amount);
   };
 
+  // Filtrar proveedores y verificar si Envagas coincide con la búsqueda
+  const envagasMatchesSearch = searchTerm === '' || 
+    envagasFeatured.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    envagasFeatured.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    envagasFeatured.services.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+
   const filteredSuppliers = suppliers.filter(supplier =>
     supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -353,6 +380,85 @@ const SupplierMarketplace = () => {
       {/* Content */}
       {currentView === 'suppliers' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Envagas Featured Card */}
+          {envagasMatchesSearch && (
+            <Card 
+              className="hover:shadow-xl transition-all cursor-pointer border-2 border-orange-500/30 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden group relative col-span-1 md:col-span-2 lg:col-span-1"
+              onClick={() => navigate('/marketplace/envagas')}
+            >
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              {/* Featured badge */}
+              <div className="absolute top-3 right-3 z-10">
+                <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg shadow-orange-500/30">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Verificado
+                </Badge>
+              </div>
+              
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-3">
+                  {/* Logo */}
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-blue-600 shadow-lg group-hover:scale-110 transition-transform">
+                    <Flame className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                      ENVAGAS
+                      <span className="text-xs font-normal text-gray-400">GLP</span>
+                    </CardTitle>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm text-yellow-400 font-semibold">4.9</span>
+                      <span className="text-xs text-gray-500 ml-1">(238 reseñas)</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <p className="text-sm text-gray-400">
+                  Distribuidora líder de GLP. Soluciones residenciales, industriales y servicio técnico certificado.
+                </p>
+                
+                {/* Services tags */}
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="border-orange-500/30 text-orange-400 bg-orange-500/10">
+                    <Flame className="h-3 w-3 mr-1" />
+                    Cilindros GLP
+                  </Badge>
+                  <Badge variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10">
+                    <Truck className="h-3 w-3 mr-1" />
+                    Industrial
+                  </Badge>
+                  <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/10">
+                    <Wrench className="h-3 w-3 mr-1" />
+                    Servicio Técnico
+                  </Badge>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-300">
+                    <Clock className="h-4 w-4 text-cyan-400" />
+                    <span>Entrega: 2-24h</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-gray-300">
+                    <MapPin className="h-4 w-4 text-cyan-400" />
+                    <span>Ibagué, Tolima • Cobertura regional</span>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white border-0 shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all"
+                >
+                  Ver Productos y Servicios
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          
           {filteredSuppliers.map((supplier) => (
             <Card key={supplier.id} className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
