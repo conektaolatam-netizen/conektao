@@ -8,32 +8,42 @@ import {
   MapPin, 
   Clock,
   CheckCircle2,
-  DollarSign,
-  Flame,
-  Package
+  Fuel,
+  Building2,
+  AlertTriangle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useGasData } from '@/hooks/useGasData';
-import { useFlowmeterData } from '@/hooks/useFlowmeterData';
+import { 
+  getPlantSummaries, 
+  getTotalSalesStats, 
+  SALES_PLANTS,
+  getHighMermaDrivers
+} from '@/data/gasSalesData';
 
 interface GasSalesSectionProps {
   onBack: () => void;
 }
 
 const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
-  const { inventorySummary, activeRoutes, clients, isLoading } = useGasData();
-  const { todaySummary } = useFlowmeterData();
+  const { activeRoutes, clients } = useGasData();
 
   const routesInProgress = activeRoutes.filter(r => r.status === 'in_progress').length;
   const completedRoutes = activeRoutes.filter(r => r.status === 'closed').length;
   const pendingRoutes = activeRoutes.filter(r => r.status === 'pending_return_review').length;
 
-  // Calculate estimated sales based on flowmeter data
-  const pricePerKg = 3200; // COP per kg
-  const totalKgDispatched = (todaySummary?.tanks_kg || 0) + (todaySummary?.pipetas_kg || 0);
-  const totalFillings = (todaySummary?.tanks_count || 0) + (todaySummary?.pipetas_count || 0);
-  const estimatedSales = totalKgDispatched * pricePerKg;
+  // Get simulated sales data
+  const totalStats = getTotalSalesStats();
+  const plantSummaries = getPlantSummaries();
+  const highMermaDrivers = getHighMermaDrivers();
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
+    return `$${value.toLocaleString()}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -50,7 +60,7 @@ const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
             <TrendingUp className="w-7 h-7 text-secondary" />
             Ventas y Entregas
           </h1>
-          <p className="text-muted-foreground">Seguimiento de rutas y facturación</p>
+          <p className="text-muted-foreground">12 conductores · 3 plantas · Facturación del día</p>
         </div>
       </div>
 
@@ -61,7 +71,7 @@ const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
         className="p-6 rounded-2xl border-2 border-secondary/30 bg-gradient-to-br from-secondary/15 to-secondary/5"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-foreground">Ventas del Día</h3>
+          <h3 className="text-lg font-bold text-foreground">Resumen Total del Día</h3>
           <Badge variant="outline" className="bg-secondary/10 text-secondary border-secondary/30">
             Hoy
           </Badge>
@@ -69,79 +79,116 @@ const GasSalesSection: React.FC<GasSalesSectionProps> = ({ onBack }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
             <p className="text-3xl font-bold text-green-400">
-              ${(estimatedSales / 1000000).toFixed(1)}M
+              {formatCurrency(totalStats.totalInvoiced)}
             </p>
-            <p className="text-sm text-muted-foreground">Facturado (est.)</p>
+            <p className="text-sm text-muted-foreground">Total Facturado</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-bold text-secondary">
-              {totalKgDispatched.toLocaleString() || (inventorySummary?.total_delivered_today || 0).toLocaleString()}
+              {totalStats.totalGallons.toLocaleString()}
             </p>
-            <p className="text-sm text-muted-foreground">kg Despachados</p>
+            <p className="text-sm text-muted-foreground">Galones Entregados</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-foreground">{totalFillings}</p>
-            <p className="text-sm text-muted-foreground">Llenados</p>
+            <p className="text-3xl font-bold text-foreground">{totalStats.driverCount}</p>
+            <p className="text-sm text-muted-foreground">Conductores Activos</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-green-400">{completedRoutes}</p>
-            <p className="text-sm text-muted-foreground">Rutas Cerradas</p>
+            <p className="text-3xl font-bold text-yellow-400">{totalStats.totalMerma.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">Galones Perdidos</p>
           </div>
         </div>
       </motion.div>
 
-      {/* Sales Breakdown by Product */}
-      {todaySummary && (todaySummary.tanks_count > 0 || todaySummary.pipetas_count > 0) && (
-        <Card className="border-2 border-border/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Desglose por Producto
+      {/* Sales by Plant */}
+      <Card className="border-2 border-border/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            Ventas por Planta
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {plantSummaries.map((plant, index) => {
+            const plantConfig = SALES_PLANTS[plant.plantKey];
+            return (
+              <motion.div
+                key={plant.plantKey}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={`p-4 rounded-xl ${plantConfig.bgClass} border ${plantConfig.borderClass}`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg ${plantConfig.bgClass} flex items-center justify-center`}>
+                      <Building2 className={`w-5 h-5 ${plantConfig.textClass}`} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground">{plant.plant}</h4>
+                      <p className="text-xs text-muted-foreground">{plant.driverCount} conductores</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={`${plantConfig.bgClass} ${plantConfig.textClass} ${plantConfig.borderClass}`}>
+                    {formatCurrency(plant.totalInvoiced)}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className={`text-lg font-bold ${plantConfig.textClass}`}>
+                      {plant.totalGallons.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Galones</p>
+                  </div>
+                  <div>
+                    <p className={`text-lg font-bold ${plant.avgMermaPercent > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {plant.avgMermaPercent.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Merma Prom.</p>
+                  </div>
+                  <div>
+                    <p className={`text-lg font-bold ${plant.totalMerma > 50 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                      {plant.totalMerma.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Gal. Perdidos</p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* High Merma Alert */}
+      {highMermaDrivers.length > 0 && (
+        <Card className="border-2 border-red-500/30 bg-red-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+              Conductores con Merma Alta ({'>'}2%)
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Stationary Tanks */}
-            {todaySummary.tanks_count > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Flame className="w-4 h-4" />
-                  Tanques Estacionarios
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  {Object.entries(todaySummary.tanks_by_size || {}).map(([size, data]) => {
-                    const tankData = data as { count: number; total_kg: number };
-                    if (tankData.count === 0) return null;
-                    return (
-                      <div key={size} className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center">
-                        <p className="text-lg font-bold text-purple-400">{tankData.count}</p>
-                        <p className="text-xs text-muted-foreground">{size} gal</p>
-                        <p className="text-xs text-purple-300">{tankData.total_kg.toLocaleString()} kg</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Small Pipetas */}
-            {todaySummary.pipetas_count > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Pipetas Pequeñas (20-100kg)
-                </h4>
-                <div className="flex items-center justify-between p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+          <CardContent className="space-y-2">
+            {highMermaDrivers.slice(0, 3).map((driver, index) => (
+              <div 
+                key={driver.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 font-bold text-sm">
+                    {index + 1}
+                  </div>
                   <div>
-                    <p className="text-2xl font-bold text-cyan-400">{todaySummary.pipetas_count}</p>
-                    <p className="text-sm text-muted-foreground">Unidades llenadas</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-cyan-300">{todaySummary.pipetas_kg.toLocaleString()} kg</p>
-                    <p className="text-sm text-muted-foreground">Total despachado</p>
+                    <p className="font-medium text-foreground">{driver.driver}</p>
+                    <p className="text-xs text-muted-foreground">{driver.plantLabel}</p>
                   </div>
                 </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-red-400">{driver.mermaPercent}%</p>
+                  <p className="text-xs text-muted-foreground">{driver.gallonsLost} gal perdidos</p>
+                </div>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
       )}
