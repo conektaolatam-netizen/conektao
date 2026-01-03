@@ -4,13 +4,11 @@ import {
   Package, 
   TrendingUp, 
   Brain, 
-  Gauge,
   Map,
   AlertTriangle,
   Truck,
   Flame,
   ChevronRight,
-  Sparkles,
   Key
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -18,15 +16,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useGasData } from '@/hooks/useGasData';
 import GasRouteMap from './GasRouteMap';
-import GasFlowmeterPanel from './GasFlowmeterPanel';
-import GasMermaAnalysis from './GasMermaAnalysis';
 import GasInventorySection from './sections/GasInventorySection';
 import GasSalesSection from './sections/GasSalesSection';
 import GasAISection from './sections/GasAISection';
+import GasSmartMermaSection from './sections/GasSmartMermaSection';
 
 const MAPBOX_STORAGE_KEY = 'conektao_mapbox_token';
 
-type ActiveSection = 'home' | 'inventory' | 'sales' | 'ai' | 'flowmeters' | 'merma';
+type ActiveSection = 'home' | 'inventory' | 'sales' | 'ai' | 'smartMerma';
 
 interface AppButtonProps {
   icon: React.ReactNode;
@@ -163,33 +160,8 @@ const GasHomeDashboard: React.FC = () => {
   if (activeSection === 'ai') {
     return <GasAISection onBack={() => setActiveSection('home')} />;
   }
-  if (activeSection === 'flowmeters') {
-    return (
-      <div className="space-y-6">
-        <button 
-          onClick={() => setActiveSection('home')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronRight className="w-4 h-4 rotate-180" />
-          Volver al inicio
-        </button>
-        <GasFlowmeterPanel />
-      </div>
-    );
-  }
-  if (activeSection === 'merma') {
-    return (
-      <div className="space-y-6">
-        <button 
-          onClick={() => setActiveSection('home')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronRight className="w-4 h-4 rotate-180" />
-          Volver al inicio
-        </button>
-        <GasMermaAnalysis />
-      </div>
-    );
+  if (activeSection === 'smartMerma') {
+    return <GasSmartMermaSection onBack={() => setActiveSection('home')} />;
   }
 
   return (
@@ -270,25 +242,16 @@ const GasHomeDashboard: React.FC = () => {
         />
       </div>
 
-      {/* Secondary Buttons Row */}
-      <div className="grid grid-cols-2 gap-4">
-        <AppButton
-          icon={<Gauge className="w-7 h-7" />}
-          label="Caudalímetros IoT"
-          sublabel="M1 · M2 · M3 en línea"
-          color="cyan"
-          onClick={() => setActiveSection('flowmeters')}
-        />
-        <AppButton
-          icon={<AlertTriangle className="w-7 h-7" />}
-          label="Análisis Merma"
-          sublabel="Control de pérdidas"
-          color="orange"
-          badge={newAnomalies > 0 ? newAnomalies : undefined}
-          badgeVariant={newAnomalies > 0 ? 'destructive' : 'secondary'}
-          onClick={() => setActiveSection('merma')}
-        />
-      </div>
+      {/* Smart Merma Button - Single unified section */}
+      <AppButton
+        icon={<Brain className="w-7 h-7" />}
+        label="Análisis Inteligente de Merma"
+        sublabel="Caudalímetros IoT + Control de pérdidas · 12 vehículos"
+        color="cyan"
+        badge={newAnomalies > 0 ? newAnomalies : '3 plantas'}
+        badgeVariant={newAnomalies > 0 ? 'destructive' : 'secondary'}
+        onClick={() => setActiveSection('smartMerma')}
+      />
 
       {/* Large Map Section */}
       <div className="rounded-2xl border-2 border-border/30 overflow-hidden bg-card/30">
