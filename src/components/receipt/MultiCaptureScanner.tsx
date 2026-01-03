@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { generateHash } from '@/lib/receiptValidation';
+import { enhanceReceiptImage } from '@/lib/imageEnhancement';
 
 interface CapturedSection {
   id: string;
@@ -67,6 +68,10 @@ export const MultiCaptureScanner: React.FC<MultiCaptureScannerProps> = ({
 
   const progress = (captures.length / 3) * 100;
 
+  /**
+   * Process image with automatic enhancement pipeline
+   * Applies: document detection, auto-crop, deskew, contrast, sharpening
+   */
   const processImage = async (file: File): Promise<{ base64: string; hash: string }> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
@@ -74,22 +79,35 @@ export const MultiCaptureScanner: React.FC<MultiCaptureScannerProps> = ({
       const img = new Image();
 
       img.onload = async () => {
-        // Auto-enhance: increase contrast and sharpness
-        const maxWidth = 1200;
+        // Initial load at reasonable size
+        const maxWidth = 1600;
         const ratio = Math.min(maxWidth / img.width, 1);
         canvas.width = img.width * ratio;
         canvas.height = img.height * ratio;
         
         if (ctx) {
-          // Draw with slight contrast boost
-          ctx.filter = 'contrast(1.1) brightness(1.05)';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         }
         
-        const base64 = canvas.toDataURL('image/jpeg', 0.85);
-        const hash = await generateHash(base64);
+        const rawBase64 = canvas.toDataURL('image/jpeg', 0.9);
         
-        resolve({ base64, hash });
+        try {
+          // Apply automatic enhancement (document detection, crop, deskew, contrast, sharpen)
+          console.log('🖼️ [MultiCapture] Applying automatic enhancement...');
+          const enhanced = await enhanceReceiptImage(rawBase64);
+          
+          console.log('✅ [MultiCapture] Enhanced:', {
+            corrections: enhanced.appliedCorrections,
+            size: `${enhanced.finalWidth}x${enhanced.finalHeight}`
+          });
+          
+          const hash = await generateHash(enhanced.base64);
+          resolve({ base64: enhanced.base64, hash });
+        } catch (enhanceError) {
+          console.warn('⚠️ [MultiCapture] Enhancement failed, using raw:', enhanceError);
+          const hash = await generateHash(rawBase64);
+          resolve({ base64: rawBase64, hash });
+        }
       };
 
       img.onerror = reject;
