@@ -25,6 +25,7 @@ import {
   type ConfidenceBreakdown,
   type ReceiptState
 } from '@/lib/receiptValidation';
+import { enhanceReceiptImage } from '@/lib/imageEnhancement';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,18 +63,42 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
   // Restringir upload de archivos para cajeros (employee role)
   const isCashierOnly = profile?.role === 'employee';
 
-  const resizeImage = (file: File, maxWidth: number = 1024): Promise<string> => {
+  /**
+   * Prepare receipt image with automatic enhancement pipeline
+   * Applies: auto-crop, deskew, grayscale, contrast, sharpening
+   */
+  const prepareReceiptImage = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
       
-      img.onload = () => {
-        const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+      img.onload = async () => {
+        // First, draw original image at reasonable size
+        const maxInitialSize = 2000;
+        const ratio = Math.min(maxInitialSize / img.width, maxInitialSize / img.height, 1);
         canvas.width = img.width * ratio;
         canvas.height = img.height * ratio;
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        
+        const rawBase64 = canvas.toDataURL('image/jpeg', 0.9);
+        
+        try {
+          // Apply automatic enhancement pipeline
+          console.log('🖼️ [ReceiptProcessor] Starting automatic enhancement...');
+          const enhanced = await enhanceReceiptImage(rawBase64);
+          
+          console.log('✅ [ReceiptProcessor] Enhancement complete:', {
+            wasEnhanced: enhanced.wasEnhanced,
+            corrections: enhanced.appliedCorrections,
+            size: `${enhanced.finalWidth}x${enhanced.finalHeight}`
+          });
+          
+          resolve(enhanced.base64);
+        } catch (enhanceError) {
+          console.warn('⚠️ [ReceiptProcessor] Enhancement failed, using raw image:', enhanceError);
+          resolve(rawBase64);
+        }
       };
       
       img.onerror = reject;
@@ -235,7 +260,8 @@ const ReceiptProcessor: React.FC<ReceiptProcessorProps> = ({ onProcessComplete }
         return;
       }
       
-      const imageBase64 = await resizeImage(file, 1024);
+      // Use enhanced image preparation with auto-enhancement
+      const imageBase64 = await prepareReceiptImage(file);
       processReceipt(imageBase64, 'upload');
     }
   };

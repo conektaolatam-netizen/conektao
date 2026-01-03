@@ -34,6 +34,23 @@ interface ValidationResult {
   breakdown: ConfidenceBreakdown;
 }
 
+interface OCRBlock {
+  text: string;
+  position: 'top' | 'middle' | 'bottom';
+  alignment: 'left' | 'center' | 'right';
+  type: 'header' | 'table_row' | 'footer' | 'other';
+  line_index: number;
+}
+
+interface OCRResult {
+  blocks: OCRBlock[];
+  raw_text: string;
+  document_type: 'invoice' | 'receipt' | 'unknown';
+  orientation: number;
+  is_handwritten: boolean;
+  quality_score: number;
+}
+
 function calculateRealConfidence(extractedData: any): ConfidenceBreakdown {
   const breakdown: ConfidenceBreakdown = {
     supplier: 0,
@@ -215,6 +232,222 @@ async function generateHash(data: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ==================== TWO-PHASE AI PROCESSING ====================
+
+/**
+ * PHASE 1: Extract raw text with layout/position data
+ * Focus ONLY on reading text accurately - no interpretation
+ */
+async function phase1_OCRWithLayout(
+  imageBase64: string, 
+  lovableApiKey: string
+): Promise<OCRResult> {
+  console.log("📖 [Phase 1] Starting OCR with layout extraction...");
+  
+  const ocrPrompt = `Eres un OCR experto. Tu ÚNICO trabajo es LEER todo el texto visible en esta imagen con información de posición.
+
+INSTRUCCIONES CRÍTICAS:
+1. EXTRAE TODO el texto visible, exactamente como aparece
+2. NO interpretes ni normalices el texto - copia exactamente lo que ves
+3. Para cada bloque de texto, indica:
+   - La posición vertical (top/middle/bottom)
+   - La alineación (left/center/right)
+   - El tipo probable (header/table_row/footer/other)
+   - El número de línea aproximado
+
+FORMATO JSON OBLIGATORIO:
+{
+  "blocks": [
+    {
+      "text": "texto exacto como aparece",
+      "position": "top|middle|bottom",
+      "alignment": "left|center|right",
+      "type": "header|table_row|footer|other",
+      "line_index": numero
+    }
+  ],
+  "raw_text": "todo el texto concatenado con saltos de línea",
+  "document_type": "invoice|receipt|unknown",
+  "orientation": 0,
+  "is_handwritten": boolean,
+  "quality_score": numero 0-100 (calidad de legibilidad)
+}
+
+REGLAS:
+- Si un texto está borroso pero legible, inclúyelo con quality_score bajo
+- Los headers suelen estar en top con info de empresa/fecha
+- Las filas de tabla están en middle con productos/cantidades/precios
+- Los footers tienen totales/subtotales/impuestos
+- NO inventes texto que no puedas leer`;
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: ocrPrompt },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "LEE todo el texto de esta imagen con información de posición. NO interpretes, solo lee." },
+            { type: "image_url", image_url: { url: imageBase64 } }
+          ]
+        }
+      ],
+      max_completion_tokens: 1500,
+    }),
+  });
+
+  if (!response.ok) {
+    const error: any = new Error(`OCR Phase failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || "";
+  
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Phase 1: No JSON in OCR response");
+  }
+  
+  const ocrResult = JSON.parse(jsonMatch[0]) as OCRResult;
+  console.log(`✅ [Phase 1] OCR complete: ${ocrResult.blocks?.length || 0} blocks, quality: ${ocrResult.quality_score}`);
+  
+  return ocrResult;
+}
+
+/**
+ * PHASE 2: Extract structured invoice fields using OCR results + layout context
+ * Uses layout hints to understand document structure
+ */
+async function phase2_ExtractFields(
+  ocrResult: OCRResult,
+  ingredientContext: string,
+  mappingContext: string,
+  lovableApiKey: string
+): Promise<any> {
+  console.log("🔍 [Phase 2] Starting field extraction with layout context...");
+  
+  // Group blocks by position for layout hints
+  const headerBlocks = ocrResult.blocks?.filter(b => b.position === 'top' || b.type === 'header') || [];
+  const tableBlocks = ocrResult.blocks?.filter(b => b.position === 'middle' || b.type === 'table_row') || [];
+  const footerBlocks = ocrResult.blocks?.filter(b => b.position === 'bottom' || b.type === 'footer') || [];
+  
+  const layoutContext = `
+=== DATOS OCR ESTRUCTURADOS POR POSICIÓN ===
+
+ENCABEZADO (top - contiene proveedor, NIT, fecha):
+${headerBlocks.map(b => `[${b.alignment}] ${b.text}`).join('\n') || 'No se detectó encabezado'}
+
+CUERPO/TABLA (middle - contiene productos, cantidades, precios):
+${tableBlocks.map(b => `[línea ${b.line_index}] ${b.text}`).join('\n') || 'No se detectaron productos'}
+
+PIE/TOTALES (bottom - contiene subtotal, IVA, total):
+${footerBlocks.map(b => `[${b.alignment}] ${b.text}`).join('\n') || 'No se detectaron totales'}
+
+=== TEXTO COMPLETO ===
+${ocrResult.raw_text}
+`;
+
+  const extractionPrompt = `Eres un experto extractor de datos de facturas colombianas.
+
+INGREDIENTES EXISTENTES DEL USUARIO: ${ingredientContext}
+ASOCIACIONES APRENDIDAS: ${mappingContext}
+
+${layoutContext}
+
+=== INSTRUCCIONES DE EXTRACCIÓN ===
+
+Usando los datos OCR estructurados arriba, extrae los campos de la factura.
+
+PISTAS DE LAYOUT:
+- ENCABEZADO: Busca nombre de empresa/proveedor, NIT, número de factura, fecha
+- CUERPO: Cada línea es un producto. Busca patrones: [cantidad] [descripción] [precio unitario] [subtotal]
+- PIE: Busca "Subtotal", "IVA", "Total", "Total a pagar" y sus valores numéricos
+
+MATCHING INTELIGENTE DE INGREDIENTES:
+- Compara cada producto con los ingredientes existentes del usuario
+- Ignora mayúsculas, tildes, abreviaturas, tamaños/presentaciones
+- "Coca Cola", "Coke", "coca cla 500ml" → son el mismo ingrediente
+- "Queso mozzarella", "Mozza", "Mozzarella 1kg" → son el mismo ingrediente
+- Solo marca needs_mapping=true si NO hay ningún ingrediente similar
+
+FORMATO JSON OBLIGATORIO:
+{
+  "success": true,
+  "confidence": numero (0-100),
+  "supplier_name": "nombre exacto del proveedor o null",
+  "supplier_nit": "NIT si visible o null",
+  "invoice_number": "número factura o null",
+  "date": "YYYY-MM-DD o null",
+  "currency": "COP",
+  "subtotal": numero o null,
+  "tax": numero o 0,
+  "total": numero o 0,
+  "items": [
+    {
+      "description": "nombre normalizado del ingrediente",
+      "quantity": numero,
+      "unit": "kg/g/ml/L/unidades",
+      "unit_price": numero,
+      "subtotal": numero,
+      "matched_ingredient": "nombre EXACTO del ingrediente existente si hay match",
+      "confidence_score": numero (0-100),
+      "needs_mapping": boolean,
+      "product_name_on_receipt": "texto exacto de la factura",
+      "match_reason": "explicación breve del match"
+    }
+  ],
+  "is_handwritten": ${ocrResult.is_handwritten},
+  "quality_issues": ["lista de problemas"]
+}
+
+REGLA CRÍTICA: Si no puedes leer un campo claramente, déjalo null o vacío. NO inventes datos.`;
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: extractionPrompt },
+        { role: "user", content: "Extrae los datos estructurados de la factura usando la información OCR proporcionada." }
+      ],
+      max_completion_tokens: 1200,
+    }),
+  });
+
+  if (!response.ok) {
+    const error: any = new Error(`Extraction Phase failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || "";
+  
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Phase 2: No JSON in extraction response");
+  }
+  
+  const extractedData = JSON.parse(jsonMatch[0]);
+  console.log(`✅ [Phase 2] Extraction complete: ${extractedData.items?.length || 0} items, supplier: ${extractedData.supplier_name}`);
+  
+  return extractedData;
+}
+
+// ==================== MAIN SERVER ====================
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -280,7 +513,7 @@ serve(async (req) => {
       });
     }
 
-    console.log("Processing receipt image for user:", userId, "Source:", sourceType);
+    console.log("🚀 [Receipt Processor] Starting TWO-PHASE processing for user:", userId, "Source:", sourceType);
 
     // Generate hash for fraud detection
     const imageHash = await generateHash(imageBase64);
@@ -291,7 +524,6 @@ serve(async (req) => {
       const uniqueHashes = new Set(captureHashes);
       if (uniqueHashes.size !== captureHashes.length) {
         console.warn("FRAUD ALERT: Duplicate images detected in multi-capture");
-        // Log to audit
         await supabase.from('audit_logs').insert({
           user_id: userId,
           table_name: 'receipts',
@@ -317,169 +549,41 @@ serve(async (req) => {
     const ingredientContext = ingredients?.map((i) => `${i.name} (${i.unit})`).join(", ") || "No ingredients found";
     const mappingContext = mappings?.map((m: any) => `"${m.product_name}" -> ${m.ingredients?.name}`).join(", ") || "No mappings yet";
 
-    // Process image with AI
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    // ==================== TWO-PHASE PROCESSING ====================
     
-    const response = await retryWithBackoff(async () => {
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: `Eres un experto procesador de facturas de proveedores para restaurantes colombianos.
-
-INGREDIENTES EXISTENTES DEL USUARIO: ${ingredientContext}
-
-ASOCIACIONES APRENDIDAS: ${mappingContext}
-
-INSTRUCCIONES CRÍTICAS:
-1. Extrae TODA la información visible con máxima precisión
-2. El PROVEEDOR es crítico - busca nombre, NIT, razón social
-3. El TOTAL es crítico - debe ser un número > 0
-4. Los ITEMS son críticos - cada uno debe tener descripción, cantidad, precio
-5. Si NO puedes leer claramente proveedor, total o items, indica confidence_score bajo
-6. Asigna confidence_score individual a cada item (0-100)
-7. NUNCA inventes datos - si no puedes leer algo, déjalo vacío
-
-=== MATCHING INTELIGENTE DE INGREDIENTES (MUY IMPORTANTE) ===
-Tu objetivo principal es ASOCIAR los productos de la factura con los ingredientes existentes del usuario.
-Debes pensar como un humano que entiende que:
-
-- "Coca Cola", "Coke", "Coca-cola 500ml", "COCA COLA PET", "coca cla" → son el mismo ingrediente
-- "Pepperoni", "Pepperoni madurado 500g", "Peperoni" → son el mismo ingrediente  
-- "Açaí pulp", "Açaí mix", "Pulpa de acai" → son el mismo ingrediente
-- "Queso mozarella", "Mozzarella", "Mozza", "queso moz" → son el mismo ingrediente
-- "Leche entera", "Leche 1L", "LECHE E/T" → son el mismo ingrediente
-- "Aceite vegetal", "Aceite de cocina", "Aceite" → son el mismo ingrediente
-- Las marcas pueden variar pero el ingrediente base es el mismo
-- Los errores tipográficos son comunes en facturas
-- Las abreviaturas son comunes (Lt = Litros, Kg = Kilos, Pte = Paquete)
-- El tamaño/presentación puede variar pero el ingrediente es el mismo
-
-REGLAS DE MATCHING:
-1. Busca coincidencias FLEXIBLES, no exactas
-2. Ignora diferencias de mayúsculas/minúsculas
-3. Ignora acentos y caracteres especiales
-4. Ignora tamaños y presentaciones (500ml, 1L, etc.)
-5. Considera errores tipográficos comunes
-6. Si hay duda entre varios ingredientes, elige el más similar
-7. Solo marca needs_mapping=true si NO hay ningún ingrediente similar
-
-FORMATO JSON OBLIGATORIO:
-{
-  "success": true,
-  "confidence": number (0-100, basado en calidad real de extracción),
-  "supplier_name": "nombre del proveedor o null si no identificable",
-  "invoice_number": "número factura o null",
-  "date": "YYYY-MM-DD o null",
-  "currency": "COP",
-  "subtotal": numero o null,
-  "tax": numero o 0,
-  "total": numero o 0,
-  "items": [
-    {
-      "description": "nombre NORMALIZADO del ingrediente (ej: 'Coca Cola' aunque factura diga 'coke 500ml')",
-      "quantity": numero,
-      "unit": "kg/g/ml/L/unidades",
-      "unit_price": numero,
-      "subtotal": numero,
-      "matched_ingredient": "nombre EXACTO del ingrediente existente del usuario si encontraste match (copia exacto de la lista)",
-      "confidence_score": numero (0-100, qué tan seguro estás del match),
-      "needs_mapping": boolean (true SOLO si no encontraste ningún ingrediente similar),
-      "product_name_on_receipt": "nombre exacto como aparece en factura sin modificar",
-      "match_reason": "breve explicación de por qué hiciste este match o por qué no encontraste match"
-    }
-  ],
-  "is_handwritten": boolean,
-  "quality_issues": ["lista de problemas de calidad detectados"]
-}
-
-REGLA CRÍTICA: Si confidence < 50, no inventes datos. Devuelve items: [] y total: 0`,
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "PROCESA ESTA FACTURA. Extrae proveedor, total e items con máxima precisión. NO inventes datos si no puedes leerlos claramente."
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: imageBase64
-                  }
-                }
-              ]
-            },
-          ],
-          max_completion_tokens: 1200,
-        }),
-        signal: controller.signal,
-      });
-
-      if (aiResponse.status === 429) {
-        const error: any = new Error('Rate limit exceeded');
-        error.status = 429;
-        throw error;
-      }
-
-      if (aiResponse.status === 402) {
-        const error: any = new Error('Payment required');
-        error.status = 402;
-        throw error;
-      }
-
-      if (!aiResponse.ok) {
-        throw new Error(`AI Gateway error: ${aiResponse.status}`);
-      }
-
-      return aiResponse;
-    }).catch((err) => {
-      console.error("AI request failed:", err);
-      clearTimeout(timeout);
-      throw err;
-    });
+    let extractedData: any;
+    let ocrResult: OCRResult | null = null;
     
-    clearTimeout(timeout);
-
-    const data = await response.json();
-    const aiContent = data?.choices?.[0]?.message?.content || "";
-
-    console.log("AI Response received, parsing...");
-
-    // Parse the JSON response
-    let extractedData;
     try {
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        extractedData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
+      // PHASE 1: OCR with layout data
+      ocrResult = await retryWithBackoff(() => 
+        phase1_OCRWithLayout(imageBase64, lovableApiKey)
+      );
+      
+      // PHASE 2: Field extraction with layout context
+      extractedData = await retryWithBackoff(() => 
+        phase2_ExtractFields(ocrResult!, ingredientContext, mappingContext, lovableApiKey)
+      );
+      
+      console.log("✅ [Receipt Processor] Two-phase processing complete");
+      
+    } catch (phaseError: any) {
+      console.error("❌ [Receipt Processor] Phase processing failed:", phaseError);
+      
+      if (phaseError.status === 429 || phaseError.status === 402) {
+        throw phaseError;
       }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
       
       // Return BLOCKED status - cannot proceed without valid data
       return new Response(
         JSON.stringify({
           type: "blocked",
           status: "blocked",
-          data: {
-            items: [],
-            total: 0,
-            supplier_name: null
-          },
+          data: { items: [], total: 0, supplier_name: null },
           validation: {
             status: "blocked",
             realConfidence: 0,
-            issues: ["No se pudo procesar la imagen. La IA no devolvió datos estructurados."],
+            issues: ["No se pudo procesar la imagen con IA."],
             canProceed: false,
             blockingReason: "Error al procesar la imagen"
           },
@@ -495,11 +599,11 @@ REGLA CRÍTICA: Si confidence < 50, no inventes datos. Devuelve items: [] y tota
     // Log AI reported confidence vs real confidence for audit
     console.log(`Confidence - AI reported: ${extractedData.confidence}, Real calculated: ${validation.realConfidence}`);
     
-    // Store audit trail
+    // Store audit trail with OCR data
     await supabase.from('audit_logs').insert({
       user_id: userId,
       table_name: 'receipts',
-      action: 'AI_EXTRACTION',
+      action: 'AI_EXTRACTION_TWO_PHASE',
       new_values: {
         ai_confidence: extractedData.confidence,
         real_confidence: validation.realConfidence,
@@ -509,7 +613,10 @@ REGLA CRÍTICA: Si confidence < 50, no inventes datos. Devuelve items: [] y tota
         total: extractedData.total,
         supplier: extractedData.supplier_name,
         source_type: sourceType,
-        image_hash: imageHash.substring(0, 32)
+        image_hash: imageHash.substring(0, 32),
+        ocr_blocks_count: ocrResult?.blocks?.length || 0,
+        ocr_quality: ocrResult?.quality_score || 0,
+        is_handwritten: ocrResult?.is_handwritten || false
       }
     });
 
