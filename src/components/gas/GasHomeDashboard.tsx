@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
   TrendingUp, 
@@ -9,7 +10,8 @@ import {
   Truck,
   Flame,
   Key,
-  Gauge
+  Gauge,
+  ShoppingCart
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,7 @@ const QuickStatCard: React.FC<{
 );
 
 const GasHomeDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<ActiveSection>('home');
   const [mapboxToken, setMapboxToken] = useState<string>(() => {
     return localStorage.getItem(MAPBOX_STORAGE_KEY) || '';
@@ -167,6 +170,15 @@ const GasHomeDashboard: React.FC = () => {
           badge={newAnomalies > 0 ? newAnomalies : '3 plantas'}
           badgeVariant={newAnomalies > 0 ? 'destructive' : 'secondary'}
           onClick={() => setActiveSection('smartMerma')}
+        />
+        
+        <GasAppButton
+          icon={<ShoppingCart className="w-6 h-6" />}
+          title="Marketplace"
+          subtitle="Vende en Conektao"
+          color="purple"
+          badge="Nuevo"
+          onClick={() => navigate('/marketplace/envagas')}
         />
         
         <GasAIButton onClick={() => setActiveSection('ai')} />
