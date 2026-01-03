@@ -69,12 +69,14 @@ const PlantCard: React.FC<{
 
   // Conversión: 1 kg de GLP ≈ 0.527 galones (densidad ~1.9 kg/galón)
   const KG_TO_GALLON = 0.527;
-  
+
   // Formatear a galones
   const formatGallons = (kgValue: number) => {
     const gallons = kgValue * KG_TO_GALLON;
     if (gallons >= 1000) return `${(gallons / 1000).toFixed(1)}k gal`;
-    return `${gallons.toLocaleString('es-CO', { maximumFractionDigits: 0 })} gal`;
+    return `${gallons.toLocaleString('es-CO', {
+      maximumFractionDigits: 0
+    })} gal`;
   };
   return <motion.div initial={{
     opacity: 0,
@@ -271,12 +273,11 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {/* Conversión kg a galones */}
             {(() => {
-              const KG_TO_GALLON = 0.527;
-              const vehiclesGal = (inventorySummary?.total_in_vehicles || 0) * KG_TO_GALLON;
-              const totalGal = (totalStock + (inventorySummary?.total_in_vehicles || 0)) * KG_TO_GALLON;
-              const deliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
-              return (
-                <>
+            const KG_TO_GALLON = 0.527;
+            const vehiclesGal = (inventorySummary?.total_in_vehicles || 0) * KG_TO_GALLON;
+            const totalGal = (totalStock + (inventorySummary?.total_in_vehicles || 0)) * KG_TO_GALLON;
+            const deliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
+            return <>
                   <div className="p-5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center">
                     <Factory className="w-6 h-6 mx-auto mb-2 text-purple-400" />
                     <p className="text-3xl font-black text-purple-400">{plantsInventory.length}</p>
@@ -306,15 +307,14 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
                     <p className="text-3xl font-black text-foreground">{totalUtilization}%</p>
                     <p className="text-xs text-muted-foreground mt-1">Utilización</p>
                   </div>
-                </>
-              );
-            })()}
+                </>;
+          })()}
           </div>
 
           {/* Tagline */}
           <div className="mt-5 p-4 rounded-xl bg-muted/30 border border-border/20">
             <p className="text-sm text-muted-foreground text-center">
-              <span className="text-foreground font-semibold">27,000 galones</span> entregados a clientes y minoristas · 
+              <span className="text-foreground font-semibold">27,840 galones</span> entregados a clientes y minoristas · 
               <span className="text-foreground font-semibold"> 12 vehículos</span> monitoreados en 
               <span className="text-foreground font-semibold"> 3 plantas</span> · Trazabilidad integrada
             </p>
@@ -352,18 +352,18 @@ const GasInventorySection: React.FC<GasInventorySectionProps> = ({
               </div>
               <div className="text-right">
                 {(() => {
-                  const KG_TO_GALLON = 0.527;
-                  const rawDeliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
-                  const deliveredGal = rawDeliveredGal > 0 ? rawDeliveredGal : 27840;
-                  return (
-                    <>
+                const KG_TO_GALLON = 0.527;
+                const rawDeliveredGal = (inventorySummary?.total_delivered_today || 0) * KG_TO_GALLON;
+                const deliveredGal = rawDeliveredGal > 0 ? rawDeliveredGal : 27840;
+                return <>
                       <p className="text-4xl font-black text-green-400">
                         {deliveredGal >= 1000 ? `${(deliveredGal / 1000).toFixed(1)}k` : deliveredGal.toFixed(0)} gal
                       </p>
-                      <p className="text-xs text-muted-foreground">{deliveredGal.toLocaleString('es-CO', { maximumFractionDigits: 0 })} galones</p>
-                    </>
-                  );
-                })()}
+                      <p className="text-xs text-muted-foreground">{deliveredGal.toLocaleString('es-CO', {
+                      maximumFractionDigits: 0
+                    })} galones</p>
+                    </>;
+              })()}
               </div>
             </div>
           </CardContent>
