@@ -170,8 +170,8 @@ const GasHomeDashboard: React.FC = () => {
         
         <GasAppButton
           icon={<Brain className="w-6 h-6" />}
-          title="Inteligencia IA"
-          subtitle="Análisis y predicciones"
+          title="IA Conektao"
+          subtitle="Tu copiloto de negocio"
           color="purple"
           badge="Activo"
           onClick={() => setActiveSection('ai')}
