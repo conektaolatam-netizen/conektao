@@ -170,12 +170,12 @@ const EnvagasMarketplace = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/marketplace')}
+            onClick={() => navigate('/gas')}
             className="text-white/70 hover:text-white hover:bg-white/10"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <span className="text-white/60 text-sm">Volver al Marketplace</span>
+          <span className="text-white/60 text-sm">Volver al Dashboard</span>
         </div>
       </div>
 
