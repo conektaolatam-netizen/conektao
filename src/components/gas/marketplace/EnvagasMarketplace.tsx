@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Home, 
@@ -41,6 +42,7 @@ interface CartItem {
 }
 
 const EnvagasMarketplace = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -162,6 +164,21 @@ const EnvagasMarketplace = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Back Button */}
+      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/marketplace')}
+            className="text-white/70 hover:text-white hover:bg-white/10"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <span className="text-white/60 text-sm">Volver al Marketplace</span>
+        </div>
+      </div>
+
       {/* Header - Envagas Profile */}
       <div className="relative overflow-hidden">
         {/* Background Effects */}
