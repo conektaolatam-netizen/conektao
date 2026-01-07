@@ -241,36 +241,11 @@ async function phase1_OCRWithLayout(imageBase64: string, lovableApiKey: string):
 INSTRUCCIONES CRÍTICAS:
 1. EXTRAE TODO el texto visible, exactamente como aparece
 2. NO interpretes ni normalices el texto - copia exactamente lo que ves
-3. Para cada bloque de texto, indica:
-   - La posición vertical (top/middle/bottom)
-   - La alineación (left/center/right)
-   - El tipo probable (header/table_row/footer/other)
-   - El número de línea aproximado
 
 FORMATO JSON OBLIGATORIO:
 {
-  "blocks": [
-    {
-      "text": "texto exacto como aparece",
-      "position": "top|middle|bottom",
-      "alignment": "left|center|right",
-      "type": "header|table_row|footer|other",
-      "line_index": numero
-    }
-  ],
   "raw_text": "todo el texto concatenado con saltos de línea",
-  "document_type": "invoice|receipt|unknown",
-  "orientation": 0,
-  "is_handwritten": boolean,
-  "quality_score": numero 0-100 (calidad de legibilidad)
-}
-
-REGLAS:
-- Si un texto está borroso pero legible, inclúyelo con quality_score bajo
-- Los headers suelen estar en top con info de empresa/fecha
-- Las filas de tabla están en middle con productos/cantidades/precios
-- Los footers tienen totales/subtotales/impuestos
-- NO inventes texto que no puedas leer`;
+}`;
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -293,7 +268,6 @@ REGLAS:
           ],
         },
       ],
-      max_completion_tokens: 1500,
     }),
   });
 
@@ -303,7 +277,12 @@ REGLAS:
     throw error;
   }
 
+  console.log(response);
+
   const data = await response.json();
+
+  console.log(data);
+
   const content = data?.choices?.[0]?.message?.content || "";
 
   const jsonMatch = content.match(/\{[\s\S]*\}/);
