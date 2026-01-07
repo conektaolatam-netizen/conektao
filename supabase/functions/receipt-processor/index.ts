@@ -11,9 +11,9 @@ const corsHeaders = {
 const CONFIDENCE_WEIGHTS = {
   supplier: 0.25,
   total: 0.25,
-  items: 0.30,
-  totalMatch: 0.10,
-  date: 0.10
+  items: 0.3,
+  totalMatch: 0.1,
+  date: 0.1,
 };
 
 interface ConfidenceBreakdown {
@@ -26,7 +26,7 @@ interface ConfidenceBreakdown {
 }
 
 interface ValidationResult {
-  status: 'valid' | 'needs_review' | 'blocked' | 'error';
+  status: "valid" | "needs_review" | "blocked" | "error";
   realConfidence: number;
   issues: string[];
   canProceed: boolean;
@@ -36,16 +36,16 @@ interface ValidationResult {
 
 interface OCRBlock {
   text: string;
-  position: 'top' | 'middle' | 'bottom';
-  alignment: 'left' | 'center' | 'right';
-  type: 'header' | 'table_row' | 'footer' | 'other';
+  position: "top" | "middle" | "bottom";
+  alignment: "left" | "center" | "right";
+  type: "header" | "table_row" | "footer" | "other";
   line_index: number;
 }
 
 interface OCRResult {
   blocks: OCRBlock[];
   raw_text: string;
-  document_type: 'invoice' | 'receipt' | 'unknown';
+  document_type: "invoice" | "receipt" | "unknown";
   orientation: number;
   is_handwritten: boolean;
   quality_score: number;
@@ -58,12 +58,12 @@ function calculateRealConfidence(extractedData: any): ConfidenceBreakdown {
     items: 0,
     totalMatch: 0,
     date: 0,
-    weighted: 0
+    weighted: 0,
   };
 
   // Validate supplier (25%)
   const supplierName = extractedData?.supplier_name?.trim();
-  if (supplierName && supplierName.length > 2 && supplierName.toLowerCase() !== 'no identificado') {
+  if (supplierName && supplierName.length > 2 && supplierName.toLowerCase() !== "no identificado") {
     breakdown.supplier = 100;
   } else if (supplierName && supplierName.length > 0) {
     breakdown.supplier = 30;
@@ -71,19 +71,17 @@ function calculateRealConfidence(extractedData: any): ConfidenceBreakdown {
 
   // Validate total (25%)
   const total = extractedData?.total;
-  if (typeof total === 'number' && total > 0) {
+  if (typeof total === "number" && total > 0) {
     breakdown.total = 100;
   }
 
   // Validate items (30%)
   const items = extractedData?.items;
   if (Array.isArray(items) && items.length > 0) {
-    const validItems = items.filter((item: any) => 
-      item.description?.trim() && 
-      typeof item.quantity === 'number' && 
-      item.quantity > 0
+    const validItems = items.filter(
+      (item: any) => item.description?.trim() && typeof item.quantity === "number" && item.quantity > 0,
     );
-    
+
     if (validItems.length === items.length) {
       breakdown.items = 100;
     } else if (validItems.length > 0) {
@@ -92,14 +90,15 @@ function calculateRealConfidence(extractedData: any): ConfidenceBreakdown {
   }
 
   // Validate sum matches total (10%)
-  if (Array.isArray(items) && items.length > 0 && typeof total === 'number' && total > 0) {
-    const itemsSum = items.reduce((sum: number, item: any) => 
-      sum + (item.subtotal || (item.quantity * item.unit_price) || 0), 0
+  if (Array.isArray(items) && items.length > 0 && typeof total === "number" && total > 0) {
+    const itemsSum = items.reduce(
+      (sum: number, item: any) => sum + (item.subtotal || item.quantity * item.unit_price || 0),
+      0,
     );
-    
+
     const difference = Math.abs(itemsSum - total);
     const tolerancePercent = (difference / total) * 100;
-    
+
     if (tolerancePercent <= 1) {
       breakdown.totalMatch = 100;
     } else if (tolerancePercent <= 5) {
@@ -119,11 +118,11 @@ function calculateRealConfidence(extractedData: any): ConfidenceBreakdown {
 
   // Calculate weighted score
   breakdown.weighted = Math.round(
-    (breakdown.supplier * CONFIDENCE_WEIGHTS.supplier) +
-    (breakdown.total * CONFIDENCE_WEIGHTS.total) +
-    (breakdown.items * CONFIDENCE_WEIGHTS.items) +
-    (breakdown.totalMatch * CONFIDENCE_WEIGHTS.totalMatch) +
-    (breakdown.date * CONFIDENCE_WEIGHTS.date)
+    breakdown.supplier * CONFIDENCE_WEIGHTS.supplier +
+      breakdown.total * CONFIDENCE_WEIGHTS.total +
+      breakdown.items * CONFIDENCE_WEIGHTS.items +
+      breakdown.totalMatch * CONFIDENCE_WEIGHTS.totalMatch +
+      breakdown.date * CONFIDENCE_WEIGHTS.date,
   );
 
   return breakdown;
@@ -133,93 +132,89 @@ function isValidDate(dateStr: string): boolean {
   if (!dateStr) return false;
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return false;
-  
+
   const now = new Date();
   const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
   const oneMonthAhead = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  
+
   return date >= oneYearAgo && date <= oneMonthAhead;
 }
 
 function validateReceipt(extractedData: any): ValidationResult {
   const issues: string[] = [];
-  
+
   const supplierName = extractedData?.supplier_name?.trim();
   const hasValidSupplier = Boolean(
-    supplierName && 
-    supplierName.length > 2 && 
-    supplierName.toLowerCase() !== 'no identificado'
+    supplierName && supplierName.length > 2 && supplierName.toLowerCase() !== "no identificado",
   );
-  
+
   const total = extractedData?.total;
-  const hasValidTotal = typeof total === 'number' && total > 0;
-  
+  const hasValidTotal = typeof total === "number" && total > 0;
+
   const items = extractedData?.items;
-  const hasValidItems = Array.isArray(items) && items.length > 0 && 
+  const hasValidItems =
+    Array.isArray(items) &&
+    items.length > 0 &&
     items.some((item: any) => item.description?.trim() && item.quantity > 0);
 
   const breakdown = calculateRealConfidence(extractedData);
 
-  if (!hasValidSupplier) issues.push('Proveedor no identificado');
-  if (!hasValidTotal) issues.push('Total no detectado o inválido');
-  if (!hasValidItems) issues.push('No se detectaron productos/items');
+  if (!hasValidSupplier) issues.push("Proveedor no identificado");
+  if (!hasValidTotal) issues.push("Total no detectado o inválido");
+  if (!hasValidItems) issues.push("No se detectaron productos/items");
 
   const isCriticalDataMissing = !hasValidSupplier || !hasValidTotal || !hasValidItems;
 
   if (isCriticalDataMissing) {
     return {
-      status: 'blocked',
+      status: "blocked",
       realConfidence: breakdown.weighted,
       issues,
       canProceed: false,
-      blockingReason: issues.join('. '),
-      breakdown
+      blockingReason: issues.join(". "),
+      breakdown,
     };
   } else if (breakdown.weighted < 60 || issues.length > 0) {
     return {
-      status: 'needs_review',
+      status: "needs_review",
       realConfidence: breakdown.weighted,
       issues,
       canProceed: true,
-      breakdown
+      breakdown,
     };
   }
 
   return {
-    status: 'valid',
+    status: "valid",
     realConfidence: breakdown.weighted,
     issues: [],
     canProceed: true,
-    breakdown
+    breakdown,
   };
 }
 
 // Helper function for retry with exponential backoff
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries: number = 3, baseDelay: number = 1000): Promise<T> {
   let lastError: Error;
-  
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
+
       if (error.status === 402 || (error.status !== 429 && error.status)) {
         throw error;
       }
-      
+
       if (i < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, i);
         console.log(`Rate limited, retrying in ${delay}ms (attempt ${i + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -227,9 +222,9 @@ async function retryWithBackoff<T>(
 async function generateHash(data: string): Promise<string> {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ==================== TWO-PHASE AI PROCESSING ====================
@@ -238,12 +233,9 @@ async function generateHash(data: string): Promise<string> {
  * PHASE 1: Extract raw text with layout/position data
  * Focus ONLY on reading text accurately - no interpretation
  */
-async function phase1_OCRWithLayout(
-  imageBase64: string, 
-  lovableApiKey: string
-): Promise<OCRResult> {
+async function phase1_OCRWithLayout(imageBase64: string, lovableApiKey: string): Promise<OCRResult> {
   console.log("📖 [Phase 1] Starting OCR with layout extraction...");
-  
+
   const ocrPrompt = `Eres un OCR experto. Tu ÚNICO trabajo es LEER todo el texto visible en esta imagen con información de posición.
 
 INSTRUCCIONES CRÍTICAS:
@@ -293,10 +285,13 @@ REGLAS:
         {
           role: "user",
           content: [
-            { type: "text", text: "LEE todo el texto de esta imagen con información de posición. NO interpretes, solo lee." },
-            { type: "image_url", image_url: { url: imageBase64 } }
-          ]
-        }
+            {
+              type: "text",
+              text: "LEE todo el texto de esta imagen con información de posición. NO interpretes, solo lee.",
+            },
+            { type: "image_url", image_url: { url: imageBase64 } },
+          ],
+        },
       ],
       max_completion_tokens: 1500,
     }),
@@ -310,15 +305,17 @@ REGLAS:
 
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content || "";
-  
+
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error("Phase 1: No JSON in OCR response");
   }
-  
+
   const ocrResult = JSON.parse(jsonMatch[0]) as OCRResult;
-  console.log(`✅ [Phase 1] OCR complete: ${ocrResult.blocks?.length || 0} blocks, quality: ${ocrResult.quality_score}`);
-  
+  console.log(
+    `✅ [Phase 1] OCR complete: ${ocrResult.blocks?.length || 0} blocks, quality: ${ocrResult.quality_score}`,
+  );
+
   return ocrResult;
 }
 
@@ -330,26 +327,26 @@ async function phase2_ExtractFields(
   ocrResult: OCRResult,
   ingredientContext: string,
   mappingContext: string,
-  lovableApiKey: string
+  lovableApiKey: string,
 ): Promise<any> {
   console.log("🔍 [Phase 2] Starting field extraction with layout context...");
-  
+
   // Group blocks by position for layout hints
-  const headerBlocks = ocrResult.blocks?.filter(b => b.position === 'top' || b.type === 'header') || [];
-  const tableBlocks = ocrResult.blocks?.filter(b => b.position === 'middle' || b.type === 'table_row') || [];
-  const footerBlocks = ocrResult.blocks?.filter(b => b.position === 'bottom' || b.type === 'footer') || [];
-  
+  const headerBlocks = ocrResult.blocks?.filter((b) => b.position === "top" || b.type === "header") || [];
+  const tableBlocks = ocrResult.blocks?.filter((b) => b.position === "middle" || b.type === "table_row") || [];
+  const footerBlocks = ocrResult.blocks?.filter((b) => b.position === "bottom" || b.type === "footer") || [];
+
   const layoutContext = `
 === DATOS OCR ESTRUCTURADOS POR POSICIÓN ===
 
 ENCABEZADO (top - contiene proveedor, NIT, fecha):
-${headerBlocks.map(b => `[${b.alignment}] ${b.text}`).join('\n') || 'No se detectó encabezado'}
+${headerBlocks.map((b) => `[${b.alignment}] ${b.text}`).join("\n") || "No se detectó encabezado"}
 
 CUERPO/TABLA (middle - contiene productos, cantidades, precios):
-${tableBlocks.map(b => `[línea ${b.line_index}] ${b.text}`).join('\n') || 'No se detectaron productos'}
+${tableBlocks.map((b) => `[línea ${b.line_index}] ${b.text}`).join("\n") || "No se detectaron productos"}
 
 PIE/TOTALES (bottom - contiene subtotal, IVA, total):
-${footerBlocks.map(b => `[${b.alignment}] ${b.text}`).join('\n') || 'No se detectaron totales'}
+${footerBlocks.map((b) => `[${b.alignment}] ${b.text}`).join("\n") || "No se detectaron totales"}
 
 === TEXTO COMPLETO ===
 ${ocrResult.raw_text}
@@ -420,7 +417,10 @@ REGLA CRÍTICA: Si no puedes leer un campo claramente, déjalo null o vacío. NO
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: extractionPrompt },
-        { role: "user", content: "Extrae los datos estructurados de la factura usando la información OCR proporcionada." }
+        {
+          role: "user",
+          content: "Extrae los datos estructurados de la factura usando la información OCR proporcionada.",
+        },
       ],
       max_completion_tokens: 1200,
     }),
@@ -434,15 +434,17 @@ REGLA CRÍTICA: Si no puedes leer un campo claramente, déjalo null o vacío. NO
 
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content || "";
-  
+
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error("Phase 2: No JSON in extraction response");
   }
-  
+
   const extractedData = JSON.parse(jsonMatch[0]);
-  console.log(`✅ [Phase 2] Extraction complete: ${extractedData.items?.length || 0} items, supplier: ${extractedData.supplier_name}`);
-  
+  console.log(
+    `✅ [Phase 2] Extraction complete: ${extractedData.items?.length || 0} items, supplier: ${extractedData.supplier_name}`,
+  );
+
   return extractedData;
 }
 
@@ -467,15 +469,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { 
-      imageBase64, 
-      userId, 
-      conversationId, 
-      userMessage, 
-      receiptUrl, 
-      sourceType,
-      captureHashes 
-    } = await req.json();
+    const { imageBase64, userId, conversationId, userMessage, receiptUrl, sourceType, captureHashes } =
+      await req.json();
 
     // Handle conversation messages (existing logic)
     if (userMessage && conversationId) {
@@ -524,12 +519,12 @@ serve(async (req) => {
       const uniqueHashes = new Set(captureHashes);
       if (uniqueHashes.size !== captureHashes.length) {
         console.warn("FRAUD ALERT: Duplicate images detected in multi-capture");
-        await supabase.from('audit_logs').insert({
+        await supabase.from("audit_logs").insert({
           user_id: userId,
-          table_name: 'receipts',
-          action: 'FRAUD_DUPLICATE_IMAGES',
+          table_name: "receipts",
+          action: "FRAUD_DUPLICATE_IMAGES",
           new_values: { captureHashes, uniqueHashes: Array.from(uniqueHashes) },
-          is_sensitive: true
+          is_sensitive: true,
         });
       }
     }
@@ -547,33 +542,33 @@ serve(async (req) => {
       .eq("user_id", userId);
 
     const ingredientContext = ingredients?.map((i) => `${i.name} (${i.unit})`).join(", ") || "No ingredients found";
-    const mappingContext = mappings?.map((m: any) => `"${m.product_name}" -> ${m.ingredients?.name}`).join(", ") || "No mappings yet";
+    const mappingContext =
+      mappings?.map((m: any) => `"${m.product_name}" -> ${m.ingredients?.name}`).join(", ") || "No mappings yet";
 
     // ==================== TWO-PHASE PROCESSING ====================
-    
+
     let extractedData: any;
     let ocrResult: OCRResult | null = null;
-    
+
     try {
       // PHASE 1: OCR with layout data
-      ocrResult = await retryWithBackoff(() => 
-        phase1_OCRWithLayout(imageBase64, lovableApiKey)
-      );
-      
+      ocrResult = await retryWithBackoff(() => phase1_OCRWithLayout(imageBase64, lovableApiKey));
+
+      console.log(ocrResult);
+
       // PHASE 2: Field extraction with layout context
-      extractedData = await retryWithBackoff(() => 
-        phase2_ExtractFields(ocrResult!, ingredientContext, mappingContext, lovableApiKey)
+      extractedData = await retryWithBackoff(() =>
+        phase2_ExtractFields(ocrResult!, ingredientContext, mappingContext, lovableApiKey),
       );
-      
+
       console.log("✅ [Receipt Processor] Two-phase processing complete");
-      
     } catch (phaseError: any) {
       console.error("❌ [Receipt Processor] Phase processing failed:", phaseError);
-      
+
       if (phaseError.status === 429 || phaseError.status === 402) {
         throw phaseError;
       }
-      
+
       // Return BLOCKED status - cannot proceed without valid data
       return new Response(
         JSON.stringify({
@@ -585,7 +580,7 @@ serve(async (req) => {
             realConfidence: 0,
             issues: ["No se pudo procesar la imagen con IA."],
             canProceed: false,
-            blockingReason: "Error al procesar la imagen"
+            blockingReason: "Error al procesar la imagen",
           },
           message: "⚠️ No pudimos leer esta factura. Usa el modo manual.",
         }),
@@ -595,15 +590,15 @@ serve(async (req) => {
 
     // === VALIDACIÓN REAL OBLIGATORIA ===
     const validation = validateReceipt(extractedData);
-    
+
     // Log AI reported confidence vs real confidence for audit
     console.log(`Confidence - AI reported: ${extractedData.confidence}, Real calculated: ${validation.realConfidence}`);
-    
+
     // Store audit trail with OCR data
-    await supabase.from('audit_logs').insert({
+    await supabase.from("audit_logs").insert({
       user_id: userId,
-      table_name: 'receipts',
-      action: 'AI_EXTRACTION_TWO_PHASE',
+      table_name: "receipts",
+      action: "AI_EXTRACTION_TWO_PHASE",
       new_values: {
         ai_confidence: extractedData.confidence,
         real_confidence: validation.realConfidence,
@@ -616,8 +611,8 @@ serve(async (req) => {
         image_hash: imageHash.substring(0, 32),
         ocr_blocks_count: ocrResult?.blocks?.length || 0,
         ocr_quality: ocrResult?.quality_score || 0,
-        is_handwritten: ocrResult?.is_handwritten || false
-      }
+        is_handwritten: ocrResult?.is_handwritten || false,
+      },
     });
 
     // === RESPUESTA BASADA EN VALIDACIÓN REAL ===
@@ -636,7 +631,7 @@ serve(async (req) => {
       );
     }
 
-    if (validation.status === 'needs_review') {
+    if (validation.status === "needs_review") {
       // NEEDS REVIEW: Partial data, human review required
       return new Response(
         JSON.stringify({
@@ -664,39 +659,47 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error: any) {
     console.error("Error in receipt-processor:", error);
-    
+
     if (error.status === 429) {
-      return new Response(JSON.stringify({ 
-        error: 'Sistema ocupado. Por favor intenta en unos segundos.',
-        code: 'RATE_LIMIT',
-        type: 'error'
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Sistema ocupado. Por favor intenta en unos segundos.",
+          code: "RATE_LIMIT",
+          type: "error",
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
-    
+
     if (error.status === 402) {
-      return new Response(JSON.stringify({ 
-        error: 'Servicio de IA no disponible. Contacta soporte.',
-        code: 'PAYMENT_REQUIRED',
-        type: 'error'
-      }), {
-        status: 402,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Servicio de IA no disponible. Contacta soporte.",
+          code: "PAYMENT_REQUIRED",
+          type: "error",
+        }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
-    
-    return new Response(JSON.stringify({ 
-      error: "Error interno del servidor", 
-      details: error.message,
-      type: 'error'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+    return new Response(
+      JSON.stringify({
+        error: "Error interno del servidor",
+        details: error.message,
+        type: "error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
