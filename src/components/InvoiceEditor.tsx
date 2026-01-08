@@ -70,7 +70,7 @@ const InvoiceEditor = ({ sale, isOpen, onClose, onSaleUpdated }: InvoiceEditorPr
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { profile } = useAuth();
-  const { logDeleteSale } = useAuditLog();
+  const { logDeleteSale, logEditSale } = useAuditLog();
 
   const isOwner = profile?.role === 'owner';
 
@@ -189,6 +189,26 @@ const InvoiceEditor = ({ sale, isOpen, onClose, onSaleUpdated }: InvoiceEditorPr
     try {
       const oldTotal = sale.total_amount;
       const newTotal = calculateNewTotal();
+
+      // Registrar edición en auditoría ANTES de modificar
+      await logEditSale(sale.id, {
+        total_amount: oldTotal,
+        items_count: sale.sale_items.length,
+        items: sale.sale_items.map(i => ({ 
+          product: i.products.name, 
+          qty: i.quantity, 
+          price: i.unit_price 
+        })),
+      }, {
+        total_amount: newTotal,
+        items_count: editedItems.length,
+        items: editedItems.map(i => ({ 
+          product: i.products.name, 
+          qty: i.quantity, 
+          price: i.unit_price 
+        })),
+        difference: newTotal - oldTotal,
+      });
 
       // Update sale total
       const { error: saleError } = await supabase

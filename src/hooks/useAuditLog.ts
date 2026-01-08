@@ -6,6 +6,7 @@ export type SensitiveAction =
   | 'void_invoice'
   | 'void_item'
   | 'delete_sale'
+  | 'edit_sale'
   | 'large_discount'
   | 'cash_discrepancy'
   | 'modify_closed_register'
@@ -93,6 +94,17 @@ export const useAuditLog = () => {
     });
   }, [logAction]);
 
+  const logEditSale = useCallback((saleId: string, oldData: Record<string, any>, newData: Record<string, any>) => {
+    return logAction({
+      action: 'edit_sale',
+      tableName: 'sales',
+      recordId: saleId,
+      oldValues: oldData,
+      newValues: newData,
+      isSensitive: true,
+    });
+  }, [logAction]);
+
   const logLargeDiscount = useCallback((saleId: string, discountInfo: Record<string, any>) => {
     return logAction({
       action: 'large_discount',
@@ -118,6 +130,7 @@ export const useAuditLog = () => {
     logVoidInvoice,
     logVoidItem,
     logDeleteSale,
+    logEditSale,
     logLargeDiscount,
     logCashDiscrepancy,
   };
