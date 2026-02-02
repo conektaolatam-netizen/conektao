@@ -88,10 +88,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
             whileHover={{ scale: 1.03, y: -5 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate(card.id as any)}
-            className={`
-              relative cursor-pointer rounded-2xl overflow-hidden
-              ${card.featured ? 'md:col-span-2 lg:col-span-1' : ''}
-            `}
+            className="relative cursor-pointer rounded-2xl overflow-hidden"
           >
             {/* Card background */}
             <div className={`
@@ -113,11 +110,6 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
                   <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                     <card.icon className="w-6 h-6 text-white" />
                   </div>
-                  {card.featured && (
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-white text-xs font-medium backdrop-blur-sm">
-                      DESTACADO
-                    </span>
-                  )}
                 </div>
                 <h3 className="text-white text-xl font-bold mb-1">{card.title}</h3>
                 <p className="text-white/80 text-sm font-medium mb-2">{card.subtitle}</p>
