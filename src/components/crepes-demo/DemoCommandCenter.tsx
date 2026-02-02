@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, User, Users, Building2, Layers } from 'lucide-react';
+import { User, Users, Building2, Layers } from 'lucide-react';
 
 interface DemoCommandCenterProps {
   onNavigate: (view: 'alicia' | 'branch-manager' | 'regional-manager' | 'general-manager' | 'backstage') => void;
@@ -9,23 +9,13 @@ interface DemoCommandCenterProps {
 const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => {
   const cards = [
     {
-      id: 'alicia',
-      title: 'Experiencia Cliente',
-      subtitle: 'ALICIA',
-      description: 'IA conversacional que transforma pedidos en experiencias',
-      icon: MessageCircle,
-      gradient: 'from-[#FF6B35] to-[#F7931E]',
-      delay: 0.1,
-      featured: true,
-    },
-    {
       id: 'branch-manager',
       title: 'Gerente de Sucursal',
       subtitle: 'Visión Operativa',
       description: 'Control en tiempo real de tu punto de venta',
       icon: User,
       gradient: 'from-[#5C4033] to-[#8B7355]',
-      delay: 0.2,
+      delay: 0.1,
     },
     {
       id: 'regional-manager',
@@ -34,7 +24,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Análisis multi-sucursal y alertas inteligentes',
       icon: Users,
       gradient: 'from-[#2DD4BF] to-[#14B8A6]',
-      delay: 0.3,
+      delay: 0.2,
     },
     {
       id: 'general-manager',
@@ -43,7 +33,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Decisiones estratégicas con IA conversacional',
       icon: Building2,
       gradient: 'from-[#5C4033] to-[#3D2817]',
-      delay: 0.4,
+      delay: 0.3,
     },
     {
       id: 'backstage',
@@ -52,7 +42,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Del cliente al reporte, sin fricciones',
       icon: Layers,
       gradient: 'from-[#6366F1] to-[#8B5CF6]',
-      delay: 0.5,
+      delay: 0.4,
     },
   ];
 
@@ -98,10 +88,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
             whileHover={{ scale: 1.03, y: -5 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onNavigate(card.id as any)}
-            className={`
-              relative cursor-pointer rounded-2xl overflow-hidden
-              ${card.featured ? 'md:col-span-2 lg:col-span-1' : ''}
-            `}
+            className="relative cursor-pointer rounded-2xl overflow-hidden"
           >
             {/* Card background */}
             <div className={`
@@ -123,11 +110,6 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
                   <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                     <card.icon className="w-6 h-6 text-white" />
                   </div>
-                  {card.featured && (
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-white text-xs font-medium backdrop-blur-sm">
-                      DESTACADO
-                    </span>
-                  )}
                 </div>
                 <h3 className="text-white text-xl font-bold mb-1">{card.title}</h3>
                 <p className="text-white/80 text-sm font-medium mb-2">{card.subtitle}</p>
