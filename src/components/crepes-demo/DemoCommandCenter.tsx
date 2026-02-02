@@ -9,23 +9,13 @@ interface DemoCommandCenterProps {
 const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => {
   const cards = [
     {
-      id: 'alicia',
-      title: 'Experiencia Cliente',
-      subtitle: 'ALICIA',
-      description: 'IA conversacional que transforma pedidos en experiencias',
-      icon: MessageCircle,
-      gradient: 'from-[#FF6B35] to-[#F7931E]',
-      delay: 0.1,
-      featured: true,
-    },
-    {
       id: 'branch-manager',
       title: 'Gerente de Sucursal',
       subtitle: 'Visión Operativa',
       description: 'Control en tiempo real de tu punto de venta',
       icon: User,
       gradient: 'from-[#5C4033] to-[#8B7355]',
-      delay: 0.2,
+      delay: 0.1,
     },
     {
       id: 'regional-manager',
@@ -34,7 +24,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Análisis multi-sucursal y alertas inteligentes',
       icon: Users,
       gradient: 'from-[#2DD4BF] to-[#14B8A6]',
-      delay: 0.3,
+      delay: 0.2,
     },
     {
       id: 'general-manager',
@@ -43,7 +33,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Decisiones estratégicas con IA conversacional',
       icon: Building2,
       gradient: 'from-[#5C4033] to-[#3D2817]',
-      delay: 0.4,
+      delay: 0.3,
     },
     {
       id: 'backstage',
@@ -52,7 +42,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       description: 'Del cliente al reporte, sin fricciones',
       icon: Layers,
       gradient: 'from-[#6366F1] to-[#8B5CF6]',
-      delay: 0.5,
+      delay: 0.4,
     },
   ];
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, Send, RotateCcw, Sparkles, TrendingUp, Clock, ShoppingCart } from 'lucide-react';
+import { Bot, Send, RotateCcw, Sparkles, TrendingUp, Clock, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AliciaAvatar from './AliciaAvatar';
 
 interface Message {
   id: string;
@@ -45,7 +46,6 @@ const AliciaExperience = () => {
     setShowImpact(false);
     setIsPlaying(true);
 
-    // Animate traditional chat
     traditionalConversation.forEach((msg, index) => {
       setTimeout(() => {
         setTraditionalMessages(prev => [...prev, msg]);
@@ -55,7 +55,6 @@ const AliciaExperience = () => {
       }, index * 1500);
     });
 
-    // Animate ALICIA chat (faster, more natural)
     aliciaConversation.forEach((msg, index) => {
       setTimeout(() => {
         setAliciaMessages(prev => [...prev, msg]);
@@ -85,9 +84,9 @@ const AliciaExperience = () => {
   ];
 
   return (
-    <div className="min-h-screen p-8 pt-20">
+    <div className="min-h-screen p-4 md:p-8 pt-20">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header with ALICIA Avatar */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -101,138 +100,148 @@ const AliciaExperience = () => {
           </p>
         </motion.div>
 
-        {/* Flip container */}
-        <div className="relative" style={{ perspective: '2000px' }}>
+        {/* Main content grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          
+          {/* Traditional Chatbot */}
           <motion.div
-            animate={{ rotateY: isFlipped ? 180 : 0 }}
-            transition={{ duration: 0.6 }}
-            style={{ transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gray-100 rounded-2xl overflow-hidden shadow-lg"
           >
-            {/* Front - Chat comparison */}
-            <div style={{ backfaceVisibility: 'hidden' }}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Traditional Chatbot */}
-                <motion.div
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-gray-100 rounded-2xl overflow-hidden shadow-lg"
-                >
-                  <div className="bg-gray-300 p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center">
-                      <Bot className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-700">Bot Tradicional</h3>
-                      <p className="text-xs text-gray-500">Flujo rígido por menús</p>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    ref={traditionalRef}
-                    className="h-[400px] overflow-y-auto p-4 space-y-3"
+            <div className="bg-gray-300 p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-gray-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">Bot Tradicional</h3>
+                <p className="text-xs text-gray-500">Flujo rígido por menús</p>
+              </div>
+            </div>
+            
+            <div 
+              ref={traditionalRef}
+              className="h-[350px] md:h-[400px] overflow-y-auto p-4 space-y-3"
+            >
+              <AnimatePresence>
+                {traditionalMessages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <AnimatePresence>
-                      {traditionalMessages.map((msg) => (
-                        <motion.div
-                          key={msg.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`
-                            max-w-[80%] p-3 rounded-lg whitespace-pre-line text-sm
-                            ${msg.role === 'user' 
-                              ? 'bg-gray-400 text-white' 
-                              : 'bg-white text-gray-700 border border-gray-200'}
-                          `}>
-                            {msg.content}
-                          </div>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                  
-                  <div className="bg-gray-200 p-4">
-                    <div className="flex gap-2">
-                      <input 
-                        disabled
-                        placeholder="Escriba un número..."
-                        className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-gray-500 text-sm"
-                      />
-                      <Button disabled variant="secondary" size="icon">
-                        <Send className="w-4 h-4" />
-                      </Button>
+                    <div className={`
+                      max-w-[85%] p-3 rounded-lg whitespace-pre-line text-sm
+                      ${msg.role === 'user' 
+                        ? 'bg-gray-400 text-white' 
+                        : 'bg-white text-gray-700 border border-gray-200'}
+                    `}>
+                      {msg.content}
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            
+            <div className="bg-gray-200 p-3">
+              <div className="flex gap-2">
+                <input 
+                  disabled
+                  placeholder="Escriba un número..."
+                  className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-gray-500 text-sm"
+                />
+                <Button disabled variant="secondary" size="icon">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </motion.div>
 
-                {/* ALICIA Chatbot */}
-                <motion.div
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="bg-white rounded-2xl overflow-hidden shadow-xl border-2 border-[#FF6B35]/20"
-                >
-                  <div className="bg-gradient-to-r from-[#FF6B35] to-[#F7931E] p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white flex items-center gap-2">
-                        ALICIA
-                        <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">IA</span>
-                      </h3>
-                      <p className="text-xs text-white/80">Conversacional · Empática · Inteligente</p>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    ref={aliciaRef}
-                    className="h-[400px] overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-[#FFF9F5] to-white"
+          {/* ALICIA Avatar Center Piece */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="hidden xl:block"
+          >
+            <AliciaAvatar className="h-full min-h-[500px] rounded-3xl" />
+          </motion.div>
+
+          {/* ALICIA Chatbot */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-2xl overflow-hidden shadow-xl border-2 border-[#FF6B35]/20"
+          >
+            <div className="bg-gradient-to-r from-[#FF6B35] to-[#F7931E] p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white flex items-center gap-2">
+                  ALICIA
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">IA</span>
+                </h3>
+                <p className="text-xs text-white/80">Conversacional · Empática · Inteligente</p>
+              </div>
+            </div>
+            
+            <div 
+              ref={aliciaRef}
+              className="h-[350px] md:h-[400px] overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-[#FFF9F5] to-white"
+            >
+              <AnimatePresence>
+                {aliciaMessages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <AnimatePresence>
-                      {aliciaMessages.map((msg) => (
-                        <motion.div
-                          key={msg.id}
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`
-                            max-w-[85%] p-3 rounded-2xl text-sm
-                            ${msg.role === 'user' 
-                              ? 'bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white rounded-br-sm' 
-                              : 'bg-white text-[#5C4033] shadow-sm border border-[#5C4033]/10 rounded-bl-sm'}
-                          `}>
-                            <div className="whitespace-pre-line">{msg.content}</div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                  
-                  <div className="bg-white border-t border-[#5C4033]/10 p-4">
-                    <div className="flex gap-2">
-                      <input 
-                        disabled
-                        placeholder="Escribe naturalmente..."
-                        className="flex-1 px-4 py-2 rounded-full bg-[#F5F0E8] text-[#5C4033] text-sm border border-[#5C4033]/10"
-                      />
-                      <Button 
-                        disabled 
-                        className="rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E]"
-                        size="icon"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
+                    <div className={`
+                      max-w-[85%] p-3 rounded-2xl text-sm
+                      ${msg.role === 'user' 
+                        ? 'bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white rounded-br-sm' 
+                        : 'bg-white text-[#5C4033] shadow-sm border border-[#5C4033]/10 rounded-bl-sm'}
+                    `}>
+                      <div className="whitespace-pre-line">{msg.content}</div>
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            
+            <div className="bg-white border-t border-[#5C4033]/10 p-3">
+              <div className="flex gap-2">
+                <input 
+                  disabled
+                  placeholder="Escribe naturalmente..."
+                  className="flex-1 px-4 py-2 rounded-full bg-[#F5F0E8] text-[#5C4033] text-sm border border-[#5C4033]/10"
+                />
+                <Button 
+                  disabled 
+                  className="rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E]"
+                  size="icon"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           </motion.div>
         </div>
+
+        {/* Mobile ALICIA Avatar (shown below chats on smaller screens) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="xl:hidden mt-6"
+        >
+          <AliciaAvatar className="h-[400px] rounded-3xl" />
+        </motion.div>
 
         {/* Impact Metrics */}
         <AnimatePresence>
@@ -247,7 +256,7 @@ const AliciaExperience = () => {
                 <h3 className="text-center text-lg font-semibold text-[#5C4033] mb-6">
                   Impacto Medido
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   {impactMetrics.map((metric, index) => (
                     <motion.div
                       key={metric.label}
@@ -264,7 +273,7 @@ const AliciaExperience = () => {
                 </div>
               </div>
 
-              <div className="flex justify-center gap-4 mt-6">
+              <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
                 <Button
                   onClick={startDemo}
                   variant="outline"
@@ -284,7 +293,7 @@ const AliciaExperience = () => {
           )}
         </AnimatePresence>
 
-        {/* Replay button while playing */}
+        {/* Replay indicator while playing */}
         {isPlaying && (
           <div className="flex justify-center mt-6">
             <div className="flex items-center gap-2 text-[#5C4033]/50">
