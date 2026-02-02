@@ -24,6 +24,7 @@ const SupportPage = lazy(() => import("./pages/SupportPage"));
 const SupplierMarketplacePage = lazy(() => import("./pages/SupplierMarketplacePage"));
 const EnvagasMarketplacePage = lazy(() => import("./pages/EnvagasMarketplacePage"));
 const MenuOnboardingTest = lazy(() => import("./pages/MenuOnboardingTest"));
+const CrepesWafflesDemo = lazy(() => import("./pages/CrepesWafflesDemo"));
 
 const queryClient = getQueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
                     <Route path="/marketplace/envagas" element={<EnvagasMarketplacePage />} />
                     <Route path="/pre-registro-conektao" element={<PreRegistro />} />
                     <Route path="/menu-onboarding-test" element={<MenuOnboardingTest />} />
+                    <Route path="/crepesywaffles" element={<CrepesWafflesDemo />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
