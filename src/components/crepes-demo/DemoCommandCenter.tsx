@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, User, Users, Building2, Layers } from 'lucide-react';
+import { User, Users, Building2, Layers } from 'lucide-react';
 
 interface DemoCommandCenterProps {
   onNavigate: (view: 'alicia' | 'branch-manager' | 'regional-manager' | 'general-manager' | 'backstage') => void;
