@@ -2,64 +2,58 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { User, Users, Building2, Layers } from 'lucide-react';
 import aliciaImage from '@/assets/alicia-avatar.png';
-
 interface DemoCommandCenterProps {
   onNavigate: (view: 'alicia' | 'branch-manager' | 'regional-manager' | 'general-manager' | 'backstage') => void;
 }
-
-const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => {
-  const cards = [
-    {
-      id: 'branch-manager',
-      title: 'Gerente de Sucursal',
-      subtitle: 'Visión Operativa',
-      description: 'Control en tiempo real de tu punto de venta',
-      icon: User,
-      gradient: 'from-[#5C4033] to-[#8B7355]',
-      delay: 0.2,
-    },
-    {
-      id: 'regional-manager',
-      title: 'Gerente Regional',
-      subtitle: 'Comparativos',
-      description: 'Análisis multi-sucursal y alertas inteligentes',
-      icon: Users,
-      gradient: 'from-[#2DD4BF] to-[#14B8A6]',
-      delay: 0.3,
-    },
-    {
-      id: 'general-manager',
-      title: 'Gerente General',
-      subtitle: 'Visión Global',
-      description: 'Decisiones estratégicas con IA conversacional',
-      icon: Building2,
-      gradient: 'from-[#5C4033] to-[#3D2817]',
-      delay: 0.4,
-    },
-    {
-      id: 'backstage',
-      title: 'Flujo Completo',
-      subtitle: 'Backstage',
-      description: 'Del cliente al reporte, sin fricciones',
-      icon: Layers,
-      gradient: 'from-[#6366F1] to-[#8B5CF6]',
-      delay: 0.5,
-    },
-  ];
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
+  onNavigate
+}) => {
+  const cards = [{
+    id: 'branch-manager',
+    title: 'Gerente de Sucursal',
+    subtitle: 'Visión Operativa',
+    description: 'Control en tiempo real de tu punto de venta',
+    icon: User,
+    gradient: 'from-[#5C4033] to-[#8B7355]',
+    delay: 0.2
+  }, {
+    id: 'regional-manager',
+    title: 'Gerente Regional',
+    subtitle: 'Comparativos',
+    description: 'Análisis multi-sucursal y alertas inteligentes',
+    icon: Users,
+    gradient: 'from-[#2DD4BF] to-[#14B8A6]',
+    delay: 0.3
+  }, {
+    id: 'general-manager',
+    title: 'Gerente General',
+    subtitle: 'Visión Global',
+    description: 'Decisiones estratégicas con IA conversacional',
+    icon: Building2,
+    gradient: 'from-[#5C4033] to-[#3D2817]',
+    delay: 0.4
+  }, {
+    id: 'backstage',
+    title: 'Flujo Completo',
+    subtitle: 'Backstage',
+    description: 'Del cliente al reporte, sin fricciones',
+    icon: Layers,
+    gradient: 'from-[#6366F1] to-[#8B5CF6]',
+    delay: 0.5
+  }];
+  return <div className="min-h-screen flex flex-col items-center justify-center p-8">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="text-center mb-12"
-      >
+      <motion.div initial={{
+      opacity: 0,
+      y: -30
+    }} animate={{
+      opacity: 1,
+      y: 0
+    }} transition={{
+      duration: 0.6
+    }} className="text-center mb-12">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6B35] to-[#2DD4BF] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">C</span>
-          </div>
+          
           <span className="text-xl font-semibold text-[#5C4033]">Conektao</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold text-[#5C4033] mb-3">
@@ -71,213 +65,159 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
       </motion.div>
 
       {/* ALICIA Featured Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: 0.1, duration: 0.5 }}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        onClick={() => onNavigate('alicia')}
-        className="relative cursor-pointer mb-8 max-w-4xl w-full group"
-        style={{
-          background: 'transparent',
-        }}
-      >
+      <motion.div initial={{
+      opacity: 0,
+      y: 30,
+      scale: 0.95
+    }} animate={{
+      opacity: 1,
+      y: 0,
+      scale: 1
+    }} transition={{
+      delay: 0.1,
+      duration: 0.5
+    }} whileHover={{
+      scale: 1.01
+    }} whileTap={{
+      scale: 0.99
+    }} onClick={() => onNavigate('alicia')} className="relative cursor-pointer mb-8 max-w-4xl w-full group" style={{
+      background: 'transparent'
+    }}>
         {/* Outer glow diffuse effect */}
-        <motion.div
-          className="absolute -inset-8 rounded-[60px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(255,107,53,0.08) 0%, rgba(45,212,191,0.05) 40%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-          animate={{
-            opacity: [0.4, 0.7, 0.4],
-            scale: [0.95, 1.02, 0.95],
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        <motion.div className="absolute -inset-8 rounded-[60px] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at center, rgba(255,107,53,0.08) 0%, rgba(45,212,191,0.05) 40%, transparent 70%)',
+        filter: 'blur(40px)'
+      }} animate={{
+        opacity: [0.4, 0.7, 0.4],
+        scale: [0.95, 1.02, 0.95]
+      }} transition={{
+        duration: 6,
+        repeat: Infinity,
+        ease: 'easeInOut'
+      }} />
 
         {/* Inner glass container */}
-        <div 
-          className="relative rounded-[40px] overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, rgba(245,239,230,0.03) 0%, rgba(92,64,51,0.02) 100%)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            boxShadow: '0 0 80px rgba(255,107,53,0.06), 0 0 120px rgba(45,212,191,0.04), inset 0 1px 0 rgba(255,255,255,0.03)',
-          }}
-        >
+        <div className="relative rounded-[40px] overflow-hidden" style={{
+        background: 'linear-gradient(135deg, rgba(245,239,230,0.03) 0%, rgba(92,64,51,0.02) 100%)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 0 80px rgba(255,107,53,0.06), 0 0 120px rgba(45,212,191,0.04), inset 0 1px 0 rgba(255,255,255,0.03)'
+      }}>
           {/* Subtle border glow */}
-          <div 
-            className="absolute inset-0 rounded-[40px] pointer-events-none"
-            style={{
-              border: '1px solid rgba(255,255,255,0.03)',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 50%)',
-            }}
-          />
+          <div className="absolute inset-0 rounded-[40px] pointer-events-none" style={{
+          border: '1px solid rgba(255,255,255,0.03)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 50%)'
+        }} />
 
           {/* Animated energy flows */}
-          <motion.div
-            className="absolute top-0 left-1/4 w-1/2 h-px pointer-events-none"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(255,107,53,0.3), rgba(45,212,191,0.3), transparent)',
-            }}
-            animate={{
-              opacity: [0, 0.6, 0],
-              scaleX: [0.5, 1, 0.5],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
+          <motion.div className="absolute top-0 left-1/4 w-1/2 h-px pointer-events-none" style={{
+          background: 'linear-gradient(90deg, transparent, rgba(255,107,53,0.3), rgba(45,212,191,0.3), transparent)'
+        }} animate={{
+          opacity: [0, 0.6, 0],
+          scaleX: [0.5, 1, 0.5]
+        }} transition={{
+          duration: 4,
+          repeat: Infinity,
+          ease: 'easeInOut'
+        }} />
 
-          <motion.div
-            className="absolute bottom-0 right-1/4 w-1/2 h-px pointer-events-none"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(45,212,191,0.2), rgba(255,107,53,0.2), transparent)',
-            }}
-            animate={{
-              opacity: [0, 0.4, 0],
-              scaleX: [0.5, 1, 0.5],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: 2,
-            }}
-          />
+          <motion.div className="absolute bottom-0 right-1/4 w-1/2 h-px pointer-events-none" style={{
+          background: 'linear-gradient(90deg, transparent, rgba(45,212,191,0.2), rgba(255,107,53,0.2), transparent)'
+        }} animate={{
+          opacity: [0, 0.4, 0],
+          scaleX: [0.5, 1, 0.5]
+        }} transition={{
+          duration: 5,
+          repeat: Infinity,
+          ease: 'easeInOut',
+          delay: 2
+        }} />
 
           {/* Floating ambient orbs */}
-          <motion.div
-            className="absolute -top-32 -right-32 w-96 h-96 rounded-full pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 60%)',
-              filter: 'blur(60px)',
-            }}
-            animate={{
-              x: [0, 20, 0],
-              y: [0, -10, 0],
-              opacity: [0.3, 0.6, 0.3],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
+          <motion.div className="absolute -top-32 -right-32 w-96 h-96 rounded-full pointer-events-none" style={{
+          background: 'radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 60%)',
+          filter: 'blur(60px)'
+        }} animate={{
+          x: [0, 20, 0],
+          y: [0, -10, 0],
+          opacity: [0.3, 0.6, 0.3]
+        }} transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: 'easeInOut'
+        }} />
           
-          <motion.div
-            className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full pointer-events-none"
-            style={{
-              background: 'radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)',
-              filter: 'blur(50px)',
-            }}
-            animate={{
-              x: [0, -15, 0],
-              y: [0, 15, 0],
-              opacity: [0.2, 0.5, 0.2],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: 1,
-            }}
-          />
+          <motion.div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full pointer-events-none" style={{
+          background: 'radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)',
+          filter: 'blur(50px)'
+        }} animate={{
+          x: [0, -15, 0],
+          y: [0, 15, 0],
+          opacity: [0.2, 0.5, 0.2]
+        }} transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: 'easeInOut',
+          delay: 1
+        }} />
 
           {/* Center pulse effect */}
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at 30% 50%, rgba(255,107,53,0.03) 0%, transparent 50%)',
-            }}
-            animate={{
-              opacity: [0.3, 0.6, 0.3],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
+          <motion.div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at 30% 50%, rgba(255,107,53,0.03) 0%, transparent 50%)'
+        }} animate={{
+          opacity: [0.3, 0.6, 0.3]
+        }} transition={{
+          duration: 5,
+          repeat: Infinity,
+          ease: 'easeInOut'
+        }} />
 
         {/* Content */}
         <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
           {/* Avatar with micro-animations */}
-          <motion.div
-            className="relative flex-shrink-0"
-            animate={{
-              y: [0, -4, 0],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          >
+          <motion.div className="relative flex-shrink-0" animate={{
+            y: [0, -4, 0]
+          }} transition={{
+            duration: 5,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}>
             {/* Subtle glow behind avatar */}
-            <motion.div
-              className="absolute inset-0 rounded-full"
-              style={{
-                background: 'radial-gradient(circle, rgba(92,64,51,0.15) 0%, transparent 60%)',
-                filter: 'blur(15px)',
-              }}
-              animate={{
-                opacity: [0.4, 0.7, 0.4],
-                scale: [1, 1.05, 1],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
+            <motion.div className="absolute inset-0 rounded-full" style={{
+              background: 'radial-gradient(circle, rgba(92,64,51,0.15) 0%, transparent 60%)',
+              filter: 'blur(15px)'
+            }} animate={{
+              opacity: [0.4, 0.7, 0.4],
+              scale: [1, 1.05, 1]
+            }} transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }} />
             
-            <motion.img
-              src={aliciaImage}
-              alt="ALICIA"
-              className="w-32 h-32 md:w-44 md:h-44 object-cover object-top rounded-2xl relative z-10"
-              style={{
-                filter: 'drop-shadow(0 8px 25px rgba(92,64,51,0.2))',
-              }}
-              animate={{
-                scale: [1, 1.01, 1],
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
+            <motion.img src={aliciaImage} alt="ALICIA" className="w-32 h-32 md:w-44 md:h-44 object-cover object-top rounded-2xl relative z-10" style={{
+              filter: 'drop-shadow(0 8px 25px rgba(92,64,51,0.2))'
+            }} animate={{
+              scale: [1, 1.01, 1]
+            }} transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }} />
 
             {/* Floating particles */}
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1.5 h-1.5 rounded-full bg-gradient-to-br from-[#FF6B35]/40 to-[#2DD4BF]/40"
-                style={{
-                  top: `${20 + i * 25}%`,
-                  right: `${-5 + i * 10}%`,
-                }}
-                animate={{
-                  y: [-5, 5, -5],
-                  opacity: [0.3, 0.7, 0.3],
-                }}
-                transition={{
-                  duration: 3 + i,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  delay: i * 0.5,
-                }}
-              />
-            ))}
+            {[...Array(3)].map((_, i) => <motion.div key={i} className="absolute w-1.5 h-1.5 rounded-full bg-gradient-to-br from-[#FF6B35]/40 to-[#2DD4BF]/40" style={{
+              top: `${20 + i * 25}%`,
+              right: `${-5 + i * 10}%`
+            }} animate={{
+              y: [-5, 5, -5],
+              opacity: [0.3, 0.7, 0.3]
+            }} transition={{
+              duration: 3 + i,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: i * 0.5
+            }} />)}
           </motion.div>
 
           {/* Text content */}
@@ -295,131 +235,121 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
               Transforma pedidos en experiencias memorables con empatía, velocidad y contexto inteligente
             </p>
             
-            <motion.div 
-              className="relative inline-flex items-center justify-center md:justify-start gap-3 mt-5 px-6 py-3 rounded-full cursor-pointer overflow-hidden group"
-              style={{
-                background: 'linear-gradient(135deg, rgba(92,64,51,0.9) 0%, rgba(139,107,79,0.85) 50%, rgba(92,64,51,0.9) 100%)',
-                boxShadow: '0 4px 30px rgba(92,64,51,0.3), 0 0 40px rgba(139,107,79,0.15)',
-              }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
+            <motion.div className="relative inline-flex items-center justify-center md:justify-start gap-3 mt-5 px-6 py-3 rounded-full cursor-pointer overflow-hidden group" style={{
+              background: 'linear-gradient(135deg, rgba(92,64,51,0.9) 0%, rgba(139,107,79,0.85) 50%, rgba(92,64,51,0.9) 100%)',
+              boxShadow: '0 4px 30px rgba(92,64,51,0.3), 0 0 40px rgba(139,107,79,0.15)'
+            }} whileHover={{
+              scale: 1.03
+            }} whileTap={{
+              scale: 0.98
+            }}>
               {/* Light wave effect 1 */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)',
-                }}
-                animate={{
-                  x: ['-100%', '200%'],
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  repeatDelay: 1,
-                }}
-              />
+              <motion.div className="absolute inset-0 pointer-events-none" style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)'
+              }} animate={{
+                x: ['-100%', '200%']
+              }} transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                repeatDelay: 1
+              }} />
               
               {/* Light wave effect 2 */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
-                }}
-                animate={{
-                  x: ['-100%', '200%'],
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  delay: 1.5,
-                  repeatDelay: 1.5,
-                }}
-              />
+              <motion.div className="absolute inset-0 pointer-events-none" style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)'
+              }} animate={{
+                x: ['-100%', '200%']
+              }} transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: 1.5,
+                repeatDelay: 1.5
+              }} />
 
               {/* Subtle glow pulse */}
-              <motion.div
-                className="absolute inset-0 rounded-full pointer-events-none"
-                style={{
-                  boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1)',
-                }}
-                animate={{
-                  opacity: [0.3, 0.6, 0.3],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              />
+              <motion.div className="absolute inset-0 rounded-full pointer-events-none" style={{
+                boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1)'
+              }} animate={{
+                opacity: [0.3, 0.6, 0.3]
+              }} transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }} />
 
               <span className="relative z-10 text-white/95 font-semibold tracking-wide">
                 Vivir la experiencia
               </span>
-              <motion.span 
-                className="relative z-10 text-white/80"
-                animate={{ x: [0, 4, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-              >
+              <motion.span className="relative z-10 text-white/80" animate={{
+                x: [0, 4, 0]
+              }} transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                ease: 'easeInOut'
+              }}>
                 →
               </motion.span>
             </motion.div>
           </div>
 
           {/* Decorative badge */}
-          <div 
-            className="hidden lg:flex flex-col items-center gap-2 px-6 py-4 rounded-2xl"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.05)',
-            }}
-          >
+          <div className="hidden lg:flex flex-col items-center gap-2 px-6 py-4 rounded-2xl" style={{
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.05)'
+          }}>
             <span className="text-3xl font-bold text-[#FF6B35]">+20%</span>
-            <span className="text-xs text-[#5C4033]/70 text-center">Conversión<br/>en pedidos</span>
+            <span className="text-xs text-[#5C4033]/70 text-center">Conversión<br />en pedidos</span>
           </div>
         </div>
 
         {/* Hover glow effect */}
-        <motion.div
-          className="absolute inset-0 rounded-[40px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at 50% 50%, rgba(255,107,53,0.04) 0%, transparent 60%)',
-          }}
-          initial={{ opacity: 0 }}
-          whileHover={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        />
+        <motion.div className="absolute inset-0 rounded-[40px] pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at 50% 50%, rgba(255,107,53,0.04) 0%, transparent 60%)'
+        }} initial={{
+          opacity: 0
+        }} whileHover={{
+          opacity: 1
+        }} transition={{
+          duration: 0.5
+        }} />
         </div>
       </motion.div>
 
       {/* Other Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full">
-        {cards.map((card) => (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: card.delay, duration: 0.4 }}
-            whileHover={{ scale: 1.03, y: -5 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate(card.id as any)}
-            className="relative cursor-pointer rounded-2xl overflow-hidden"
-          >
+        {cards.map(card => <motion.div key={card.id} initial={{
+        opacity: 0,
+        y: 30,
+        scale: 0.95
+      }} animate={{
+        opacity: 1,
+        y: 0,
+        scale: 1
+      }} transition={{
+        delay: card.delay,
+        duration: 0.4
+      }} whileHover={{
+        scale: 1.03,
+        y: -5
+      }} whileTap={{
+        scale: 0.98
+      }} onClick={() => onNavigate(card.id as any)} className="relative cursor-pointer rounded-2xl overflow-hidden">
             {/* Card background */}
             <div className={`
               absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-90
             `} />
             
             {/* Animated glow effect */}
-            <motion.div
-              className="absolute inset-0 bg-white/10"
-              initial={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            />
+            <motion.div className="absolute inset-0 bg-white/10" initial={{
+          opacity: 0
+        }} whileHover={{
+          opacity: 1
+        }} transition={{
+          duration: 0.3
+        }} />
 
             {/* Content */}
             <div className="relative p-6 min-h-[180px] flex flex-col justify-between">
@@ -436,10 +366,12 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
 
               <div className="flex items-center gap-2 mt-3 text-white/80 text-xs">
                 <span>Explorar</span>
-                <motion.span
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                >
+                <motion.span animate={{
+              x: [0, 5, 0]
+            }} transition={{
+              repeat: Infinity,
+              duration: 1.5
+            }}>
                   →
                 </motion.span>
               </div>
@@ -448,21 +380,19 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
             {/* Decorative elements */}
             <div className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-white/5" />
             <div className="absolute -top-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
-          </motion.div>
-        ))}
+          </motion.div>)}
       </div>
 
       {/* Footer */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-        className="mt-12 text-[#5C4033]/50 text-sm"
-      >
+      <motion.p initial={{
+      opacity: 0
+    }} animate={{
+      opacity: 1
+    }} transition={{
+      delay: 0.8
+    }} className="mt-12 text-[#5C4033]/50 text-sm">
         Demo interactiva · Datos simulados para demostración
       </motion.p>
-    </div>
-  );
+    </div>;
 };
-
 export default DemoCommandCenter;
