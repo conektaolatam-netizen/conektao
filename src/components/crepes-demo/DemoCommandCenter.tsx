@@ -83,23 +83,24 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ delay: 0.1, duration: 0.5 }}
-        whileHover={{ scale: 1.02, y: -5 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
         onClick={() => onNavigate('alicia')}
-        className="relative cursor-pointer rounded-3xl overflow-hidden mb-8 max-w-4xl w-full"
+        className="relative cursor-pointer mb-8 max-w-4xl w-full group"
+        style={{
+          background: 'transparent',
+        }}
       >
-        {/* Background with warm gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F5EFE6] via-[#E8DFD3] to-[#D4C4B5]" />
-        
-        {/* Animated glow orbs */}
+        {/* Outer glow diffuse effect */}
         <motion.div
-          className="absolute -top-20 -right-20 w-80 h-80 rounded-full"
+          className="absolute -inset-8 rounded-[60px] pointer-events-none"
           style={{
-            background: 'radial-gradient(circle, rgba(255,107,53,0.15) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse at center, rgba(255,107,53,0.08) 0%, rgba(45,212,191,0.05) 40%, transparent 70%)',
+            filter: 'blur(40px)',
           }}
           animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.5, 0.8, 0.5],
+            opacity: [0.4, 0.7, 0.4],
+            scale: [0.95, 1.02, 0.95],
           }}
           transition={{
             duration: 6,
@@ -107,23 +108,113 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
             ease: 'easeInOut',
           }}
         />
-        
-        <motion.div
-          className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full"
+
+        {/* Inner glass container */}
+        <div 
+          className="relative rounded-[40px] overflow-hidden"
           style={{
-            background: 'radial-gradient(circle, rgba(45,212,191,0.1) 0%, transparent 70%)',
+            background: 'linear-gradient(135deg, rgba(245,239,230,0.03) 0%, rgba(92,64,51,0.02) 100%)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: '0 0 80px rgba(255,107,53,0.06), 0 0 120px rgba(45,212,191,0.04), inset 0 1px 0 rgba(255,255,255,0.03)',
           }}
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.4, 0.6, 0.4],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 2,
-          }}
-        />
+        >
+          {/* Subtle border glow */}
+          <div 
+            className="absolute inset-0 rounded-[40px] pointer-events-none"
+            style={{
+              border: '1px solid rgba(255,255,255,0.03)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 50%)',
+            }}
+          />
+
+          {/* Animated energy flows */}
+          <motion.div
+            className="absolute top-0 left-1/4 w-1/2 h-px pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(255,107,53,0.3), rgba(45,212,191,0.3), transparent)',
+            }}
+            animate={{
+              opacity: [0, 0.6, 0],
+              scaleX: [0.5, 1, 0.5],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+
+          <motion.div
+            className="absolute bottom-0 right-1/4 w-1/2 h-px pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(45,212,191,0.2), rgba(255,107,53,0.2), transparent)',
+            }}
+            animate={{
+              opacity: [0, 0.4, 0],
+              scaleX: [0.5, 1, 0.5],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: 2,
+            }}
+          />
+
+          {/* Floating ambient orbs */}
+          <motion.div
+            className="absolute -top-32 -right-32 w-96 h-96 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,107,53,0.06) 0%, transparent 60%)',
+              filter: 'blur(60px)',
+            }}
+            animate={{
+              x: [0, 20, 0],
+              y: [0, -10, 0],
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+          
+          <motion.div
+            className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)',
+              filter: 'blur(50px)',
+            }}
+            animate={{
+              x: [0, -15, 0],
+              y: [0, 15, 0],
+              opacity: [0.2, 0.5, 0.2],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: 1,
+            }}
+          />
+
+          {/* Center pulse effect */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at 30% 50%, rgba(255,107,53,0.03) 0%, transparent 50%)',
+            }}
+            animate={{
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
 
         {/* Content */}
         <div className="relative flex flex-col md:flex-row items-center gap-6 p-6 md:p-8">
@@ -223,19 +314,30 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
           </div>
 
           {/* Decorative badge */}
-          <div className="hidden lg:flex flex-col items-center gap-2 px-6 py-4 bg-white/50 backdrop-blur-sm rounded-2xl border border-[#5C4033]/10">
+          <div 
+            className="hidden lg:flex flex-col items-center gap-2 px-6 py-4 rounded-2xl"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
             <span className="text-3xl font-bold text-[#FF6B35]">+20%</span>
             <span className="text-xs text-[#5C4033]/70 text-center">Conversión<br/>en pedidos</span>
           </div>
         </div>
 
-        {/* Hover overlay */}
+        {/* Hover glow effect */}
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-[#FF6B35]/5 to-[#2DD4BF]/5 pointer-events-none"
+          className="absolute inset-0 rounded-[40px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 50%, rgba(255,107,53,0.04) 0%, transparent 60%)',
+          }}
           initial={{ opacity: 0 }}
           whileHover={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.5 }}
         />
+        </div>
       </motion.div>
 
       {/* Other Cards Grid */}
