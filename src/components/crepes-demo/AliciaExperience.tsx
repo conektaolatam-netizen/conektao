@@ -236,7 +236,26 @@ const AliciaExperience = () => {
               </div>
             </div>
             
-            
+            <div ref={aliciaRef} className="h-[350px] md:h-[400px] overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-[#FFF9F5] to-white">
+              <AnimatePresence>
+                {aliciaMessages.map(msg => <motion.div key={msg.id} initial={{
+                opacity: 0,
+                y: 10,
+                scale: 0.95
+              }} animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1
+              }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`
+                      max-w-[85%] p-3 rounded-2xl text-sm
+                      ${msg.role === 'user' ? 'bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white rounded-br-sm' : 'bg-white text-[#5C4033] shadow-sm border border-[#5C4033]/10 rounded-bl-sm'}
+                    `}>
+                      <div className="whitespace-pre-line">{msg.content}</div>
+                    </div>
+                  </motion.div>)}
+              </AnimatePresence>
+            </div>
             
             <div className="bg-white border-t border-[#5C4033]/10 p-3">
               <div className="flex gap-2">
