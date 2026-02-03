@@ -57,11 +57,9 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
         className="text-center mb-12"
       >
         <div className="flex items-center justify-center gap-4 mb-4">
-          <img 
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Crepes_%26_Waffles_logo.svg/2560px-Crepes_%26_Waffles_logo.svg.png" 
-            alt="Crepes & Waffles" 
-            className="h-12 object-contain"
-          />
+          <span className="text-2xl font-serif font-bold text-[#5C4033] tracking-wide">
+            Crepes & Waffles
+          </span>
           <span className="text-[#5C4033]/30 text-3xl font-light">×</span>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6B35] to-[#2DD4BF] flex items-center justify-center">
