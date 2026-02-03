@@ -302,12 +302,75 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
             </p>
             
             <motion.div 
-              className="flex items-center justify-center md:justify-start gap-2 mt-4 text-[#FF6B35] font-medium"
-              animate={{ x: [0, 5, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
+              className="relative inline-flex items-center justify-center md:justify-start gap-3 mt-5 px-6 py-3 rounded-full cursor-pointer overflow-hidden group"
+              style={{
+                background: 'linear-gradient(135deg, rgba(92,64,51,0.9) 0%, rgba(139,107,79,0.85) 50%, rgba(92,64,51,0.9) 100%)',
+                boxShadow: '0 4px 30px rgba(92,64,51,0.3), 0 0 40px rgba(139,107,79,0.15)',
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <span>Vivir la experiencia</span>
-              <span>→</span>
+              {/* Light wave effect 1 */}
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)',
+                }}
+                animate={{
+                  x: ['-100%', '200%'],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  repeatDelay: 1,
+                }}
+              />
+              
+              {/* Light wave effect 2 */}
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
+                }}
+                animate={{
+                  x: ['-100%', '200%'],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: 1.5,
+                  repeatDelay: 1.5,
+                }}
+              />
+
+              {/* Subtle glow pulse */}
+              <motion.div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  boxShadow: 'inset 0 0 20px rgba(255,255,255,0.1)',
+                }}
+                animate={{
+                  opacity: [0.3, 0.6, 0.3],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+
+              <span className="relative z-10 text-white/95 font-semibold tracking-wide">
+                Vivir la experiencia
+              </span>
+              <motion.span 
+                className="relative z-10 text-white/80"
+                animate={{ x: [0, 4, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                →
+              </motion.span>
             </motion.div>
           </div>
 
