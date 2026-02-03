@@ -56,17 +56,11 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({ onNavigate }) => 
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <span className="text-2xl font-serif font-bold text-[#5C4033] tracking-wide">
-            Crepes & Waffles
-          </span>
-          <span className="text-[#5C4033]/30 text-3xl font-light">×</span>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6B35] to-[#2DD4BF] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">C</span>
-            </div>
-            <span className="text-xl font-semibold text-[#5C4033]">Conektao</span>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6B35] to-[#2DD4BF] flex items-center justify-center">
+            <span className="text-white font-bold text-sm">C</span>
           </div>
+          <span className="text-xl font-semibold text-[#5C4033]">Conektao</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold text-[#5C4033] mb-3">
           Centro de Control Inteligente
