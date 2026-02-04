@@ -9,42 +9,6 @@ interface Message {
   content: string;
   timestamp: Date;
 }
-const traditionalConversation: Message[] = [{
-  id: '1',
-  role: 'assistant',
-  content: 'Bienvenido a Crepes & Waffles. Seleccione una opción:\n1. Ver menú\n2. Hacer pedido\n3. Estado de pedido\n4. Hablar con asesor',
-  timestamp: new Date()
-}, {
-  id: '2',
-  role: 'user',
-  content: '2',
-  timestamp: new Date()
-}, {
-  id: '3',
-  role: 'assistant',
-  content: 'Seleccione categoría:\n1. Crepes salados\n2. Crepes dulces\n3. Waffles\n4. Helados\n5. Bebidas',
-  timestamp: new Date()
-}, {
-  id: '4',
-  role: 'user',
-  content: '1',
-  timestamp: new Date()
-}, {
-  id: '5',
-  role: 'assistant',
-  content: 'Crepes salados disponibles:\n1. Crepe de pollo - $28.900\n2. Crepe de champiñones - $26.900\n3. Crepe de carne - $32.900\n4. Crepe de jamón y queso - $24.900',
-  timestamp: new Date()
-}, {
-  id: '6',
-  role: 'user',
-  content: '1',
-  timestamp: new Date()
-}, {
-  id: '7',
-  role: 'assistant',
-  content: 'Ha seleccionado Crepe de pollo. ¿Desea agregarlo al carrito?\n1. Sí\n2. No',
-  timestamp: new Date()
-}];
 
 const aliciaConversation: Message[] = [{
   id: '1',
@@ -83,26 +47,15 @@ const aliciaConversation: Message[] = [{
   timestamp: new Date()
 }];
 const AliciaExperience = () => {
-  const [traditionalMessages, setTraditionalMessages] = useState<Message[]>([]);
   const [aliciaMessages, setAliciaMessages] = useState<Message[]>([]);
   const [showImpact, setShowImpact] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
-  const traditionalRef = useRef<HTMLDivElement>(null);
   const aliciaRef = useRef<HTMLDivElement>(null);
   const startDemo = () => {
-    setTraditionalMessages([]);
     setAliciaMessages([]);
     setShowImpact(false);
     setIsPlaying(true);
-    traditionalConversation.forEach((msg, index) => {
-      setTimeout(() => {
-        setTraditionalMessages(prev => [...prev, msg]);
-        if (traditionalRef.current) {
-          traditionalRef.current.scrollTop = traditionalRef.current.scrollHeight;
-        }
-      }, index * 1500);
-    });
     aliciaConversation.forEach((msg, index) => {
       setTimeout(() => {
         setAliciaMessages(prev => [...prev, msg]);
@@ -190,50 +143,9 @@ const AliciaExperience = () => {
           </p>
         </motion.div>
 
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        {/* Main content grid - ALICIA only */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
           
-          {/* Traditional Chatbot */}
-          <motion.div initial={{
-          opacity: 0,
-          x: -30
-        }} animate={{
-          opacity: 1,
-          x: 0
-        }} transition={{
-          delay: 0.2
-        }} className="bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
-            
-            
-            <div ref={traditionalRef} className="h-[350px] md:h-[400px] overflow-y-auto p-4 space-y-3">
-              <AnimatePresence>
-                {traditionalMessages.map(msg => <motion.div key={msg.id} initial={{
-                opacity: 0,
-                y: 10
-              }} animate={{
-                opacity: 1,
-                y: 0
-              }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`
-                      max-w-[85%] p-3 rounded-lg whitespace-pre-line text-sm
-                      ${msg.role === 'user' ? 'bg-gray-400 text-white' : 'bg-white text-gray-700 border border-gray-200'}
-                    `}>
-                      {msg.content}
-                    </div>
-                  </motion.div>)}
-              </AnimatePresence>
-            </div>
-            
-            <div className="bg-gray-200 p-3">
-              <div className="flex gap-2">
-                <input disabled placeholder="Escriba un número..." className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-gray-500 text-sm" />
-                <Button disabled variant="secondary" size="icon">
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-
           {/* ALICIA Avatar Center Piece */}
           <motion.div initial={{
           opacity: 0,
@@ -242,9 +154,9 @@ const AliciaExperience = () => {
           opacity: 1,
           scale: 1
         }} transition={{
-          delay: 0.3,
+          delay: 0.2,
           duration: 0.5
-        }} className="hidden xl:block">
+        }} className="hidden lg:block">
             <AliciaAvatar className="h-full min-h-[500px] rounded-3xl" />
           </motion.div>
 
@@ -256,7 +168,7 @@ const AliciaExperience = () => {
           opacity: 1,
           x: 0
         }} transition={{
-          delay: 0.4
+          delay: 0.3
         }} className="rounded-2xl overflow-hidden shadow-2xl relative">
             {/* Glassmorphic border glow */}
             <div className="absolute -inset-[1px] bg-gradient-to-br from-[#D4B896]/50 via-[#8B6B4F]/30 to-[#D4B896]/50 rounded-2xl blur-sm" />
@@ -330,7 +242,7 @@ const AliciaExperience = () => {
           </motion.div>
         </div>
 
-        {/* Mobile ALICIA Avatar (shown below chats on smaller screens) */}
+        {/* Mobile ALICIA Avatar (shown below chat on smaller screens) */}
         <motion.div initial={{
         opacity: 0,
         y: 20
@@ -338,8 +250,8 @@ const AliciaExperience = () => {
         opacity: 1,
         y: 0
       }} transition={{
-        delay: 0.5
-      }} className="xl:hidden mt-6">
+        delay: 0.4
+      }} className="lg:hidden mt-6">
           <AliciaAvatar className="h-[400px] rounded-3xl" />
         </motion.div>
 
