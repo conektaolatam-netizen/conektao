@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { User, Users, Building2, Layers } from 'lucide-react';
+import { User, Users, Building2, Sparkles } from 'lucide-react';
 import aliciaImage from '@/assets/alicia-avatar.png';
 interface DemoCommandCenterProps {
   onNavigate: (view: 'alicia' | 'branch-manager' | 'regional-manager' | 'general-manager' | 'backstage') => void;
@@ -12,7 +12,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
     id: 'branch-manager',
     title: 'Gerente de Sucursal',
     subtitle: 'Visión Operativa',
-    description: 'Control en tiempo real de tu punto de venta',
+    description: 'Control en tiempo real',
     icon: User,
     gradient: 'from-[#5C4033] to-[#8B7355]',
     delay: 0.2
@@ -20,26 +20,18 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
     id: 'regional-manager',
     title: 'Gerente Regional',
     subtitle: 'Comparativos',
-    description: 'Análisis multi-sucursal y alertas inteligentes',
+    description: 'Análisis multi-sucursal',
     icon: Users,
-    gradient: 'from-[#2DD4BF] to-[#14B8A6]',
-    delay: 0.3
+    gradient: 'from-[#6B5344] to-[#9B8375]',
+    delay: 0.25
   }, {
     id: 'general-manager',
     title: 'Gerente General',
     subtitle: 'Visión Global',
-    description: 'Decisiones estratégicas con IA conversacional',
+    description: 'Decisiones estratégicas',
     icon: Building2,
-    gradient: 'from-[#5C4033] to-[#3D2817]',
-    delay: 0.4
-  }, {
-    id: 'backstage',
-    title: 'Flujo Completo',
-    subtitle: 'Backstage',
-    description: 'Del cliente al reporte, sin fricciones',
-    icon: Layers,
-    gradient: 'from-[#6366F1] to-[#8B5CF6]',
-    delay: 0.5
+    gradient: 'from-[#4A3525] to-[#6B5344]',
+    delay: 0.3
   }];
   return <div className="min-h-screen flex flex-col items-center justify-center p-8">
       {/* Header */}
@@ -318,69 +310,91 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
         </div>
       </motion.div>
 
-      {/* Other Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full">
-        {cards.map(card => <motion.div key={card.id} initial={{
-        opacity: 0,
-        y: 30,
-        scale: 0.95
-      }} animate={{
-        opacity: 1,
-        y: 0,
-        scale: 1
-      }} transition={{
-        delay: card.delay,
-        duration: 0.4
-      }} whileHover={{
-        scale: 1.03,
-        y: -5
-      }} whileTap={{
-        scale: 0.98
-      }} onClick={() => onNavigate(card.id as any)} className="relative cursor-pointer rounded-2xl overflow-hidden">
-            {/* Card background */}
-            <div className={`
-              absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-90
-            `} />
-            
-            {/* Animated glow effect */}
-            <motion.div className="absolute inset-0 bg-white/10" initial={{
-          opacity: 0
-        }} whileHover={{
-          opacity: 1
-        }} transition={{
-          duration: 0.3
-        }} />
+      {/* Role Cards - Compact horizontal layout */}
+      <div className="flex flex-wrap justify-center gap-4 max-w-4xl w-full">
+        {cards.map(card => (
+          <motion.div 
+            key={card.id} 
+            initial={{
+              opacity: 0,
+              y: 20,
+              scale: 0.95
+            }} 
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1
+            }} 
+            transition={{
+              delay: card.delay,
+              duration: 0.4
+            }} 
+            whileHover={{
+              scale: 1.05,
+              y: -3
+            }} 
+            whileTap={{
+              scale: 0.97
+            }} 
+            onClick={() => onNavigate(card.id as any)} 
+            className="relative cursor-pointer group"
+          >
+            {/* Glassmorphic card */}
+            <div className="relative flex items-center gap-3 px-5 py-3 rounded-2xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(92,64,51,0.85) 0%, rgba(139,115,85,0.75) 100%)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 20px rgba(92,64,51,0.25), inset 0 1px 0 rgba(255,255,255,0.1)'
+              }}
+            >
+              {/* Subtle hover glow */}
+              <motion.div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)'
+                }}
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              />
 
-            {/* Content */}
-            <div className="relative p-6 min-h-[180px] flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <card.icon className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-white text-lg font-bold mb-1">{card.title}</h3>
-                <p className="text-white/80 text-xs font-medium mb-1">{card.subtitle}</p>
-                <p className="text-white/70 text-xs">{card.description}</p>
+              {/* Icon */}
+              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/10">
+                <card.icon className="w-5 h-5 text-white" />
               </div>
 
-              <div className="flex items-center gap-2 mt-3 text-white/80 text-xs">
-                <span>Explorar</span>
-                <motion.span animate={{
-              x: [0, 5, 0]
-            }} transition={{
-              repeat: Infinity,
-              duration: 1.5
-            }}>
-                  →
-                </motion.span>
+              {/* Text content */}
+              <div className="flex flex-col min-w-0">
+                <h3 className="text-white text-sm font-semibold leading-tight">{card.title}</h3>
+                <p className="text-white/60 text-xs">{card.subtitle}</p>
               </div>
+
+              {/* Arrow */}
+              <motion.span 
+                className="text-white/70 ml-2"
+                animate={{ x: [0, 4, 0] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+              >
+                →
+              </motion.span>
             </div>
+          </motion.div>
+        ))}
 
-            {/* Decorative elements */}
-            <div className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-white/5" />
-            <div className="absolute -top-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
-          </motion.div>)}
+        {/* Backstage inside ALICIA indicator */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.1) 100%)',
+            border: '1px solid rgba(139,92,246,0.2)'
+          }}
+        >
+          <Sparkles className="w-4 h-4 text-purple-400" />
+          <span className="text-purple-300/80 text-xs">Flujo Backstage dentro de ALICIA</span>
+        </motion.div>
       </div>
 
       {/* Footer */}
