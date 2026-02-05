@@ -34,15 +34,16 @@ const CrepesWafflesDemo = () => {
       <AnimatePresence mode="wait">
         {currentView !== 'command-center' && (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="fixed top-6 left-6 z-50"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#F5F0E8] via-[#F5F0E8]/90 to-transparent py-3 px-6"
           >
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={handleBack}
-              className="bg-white/90 backdrop-blur-sm border-[#5C4033]/20 text-[#5C4033] hover:bg-[#5C4033] hover:text-white transition-all duration-300"
+              className="text-[#5C4033]/70 hover:text-[#5C4033] hover:bg-[#E8DFD4]/50 transition-all duration-300"
+              size="sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Volver al Centro de Control
