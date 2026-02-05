@@ -228,15 +228,27 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
         <CardContent className="p-4">
           {activeTab === 'overview' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-[#4A3728]">Métricas del Día</h3>
+              <h3 className="font-semibold text-[#4A3728]">📈 Métricas del Día</h3>
               <div className="grid grid-cols-2 gap-4">
-                {Object.entries(auditData.scoreBreakdown).map(([key, value]) => (
-                  <div key={key}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-[#6B5744] capitalize">{key}</span>
-                      <span className={`font-medium ${getScoreColor(value)}`}>{value}%</span>
+                {[
+                  { key: 'staff', label: '👥 Personal', value: auditData.scoreBreakdown.staff },
+                  { key: 'operations', label: '⚙️ Operaciones', value: auditData.scoreBreakdown.operations },
+                  { key: 'quality', label: '✨ Calidad', value: auditData.scoreBreakdown.quality },
+                  { key: 'efficiency', label: '⚡ Eficiencia', value: auditData.scoreBreakdown.efficiency },
+                ].map(({ key, label, value }) => (
+                  <div key={key} className="p-3 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-[#5C4033] font-medium">{label}</span>
+                      <span className={`font-bold ${getScoreColor(value)}`}>{value}%</span>
                     </div>
-                    <Progress value={value} className="h-2" />
+                    <div className="h-2 bg-[#E8DFD4] rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${value}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className={`h-full rounded-full bg-gradient-to-r ${getScoreBackground(value)}`}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
