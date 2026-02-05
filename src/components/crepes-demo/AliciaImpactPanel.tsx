@@ -3,14 +3,13 @@ import { motion } from 'framer-motion';
 import { 
   X, 
   TrendingUp, 
-  DollarSign, 
   ShoppingCart, 
   Phone, 
   Percent, 
   Target,
-  Users,
-  Clock,
-  Award
+  ArrowDownRight,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,54 +21,62 @@ interface AliciaImpactPanelProps {
 const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
   if (!isOpen) return null;
 
-  const mainImpact = {
-    total: '$40.710M',
-    currency: 'COP/año',
-    description: 'Impacto Total Proyectado'
-  };
-
-  const breakdownMetrics = [
+  const impactMetrics = [
     {
       icon: TrendingUp,
-      label: 'Ventas adicionales',
-      value: '$32.400M',
-      sublabel: 'Por mayor conversión',
-      color: 'from-green-500 to-emerald-600'
+      label: 'Conversión',
+      value: '+67% - 133%',
+      sublabel: 'Chat a pedido completado',
+      color: 'from-green-500 to-emerald-600',
+      isPositive: true
     },
     {
       icon: ShoppingCart,
-      label: 'Revenue por upselling',
-      value: '$4.680M',
-      sublabel: '31% de clientes añaden productos',
-      color: 'from-blue-500 to-cyan-600'
+      label: 'Ticket Promedio',
+      value: '+15%',
+      sublabel: 'Por recomendaciones inteligentes',
+      color: 'from-blue-500 to-cyan-600',
+      isPositive: true
     },
     {
-      icon: Percent,
-      label: 'Ahorro comisiones',
-      value: '$2.160M',
-      sublabel: 'Migración desde Rappi/iFood',
-      color: 'from-purple-500 to-violet-600'
+      icon: Sparkles,
+      label: 'Upselling',
+      value: '+14%',
+      sublabel: 'Revenue adicional por sugerencias',
+      color: 'from-purple-500 to-violet-600',
+      isPositive: true
+    },
+    {
+      icon: ArrowDownRight,
+      label: 'Abandono',
+      value: '-29% - 34%',
+      sublabel: 'Recuperación de carritos',
+      color: 'from-amber-500 to-orange-600',
+      isPositive: false
     },
     {
       icon: Phone,
-      label: 'Ahorro call center',
-      value: '$1.470M',
-      sublabel: '70% llamadas migradas a WhatsApp',
-      color: 'from-orange-500 to-amber-600'
+      label: 'Call Center',
+      value: '-70% - 80%',
+      sublabel: 'Reducción de costos operativos',
+      color: 'from-rose-500 to-pink-600',
+      isPositive: false
+    },
+    {
+      icon: Percent,
+      label: 'Comisiones Terceros',
+      value: '-15% - 30%',
+      sublabel: 'Ahorro vs Rappi/iFood',
+      color: 'from-teal-500 to-cyan-600',
+      isPositive: false
     }
   ];
 
-  const conversionStats = [
-    { label: 'Conversión actual', value: '15%', icon: Target },
-    { label: 'Con ALICIA', value: '35%', icon: Award },
-    { label: 'Mejora', value: '+133%', icon: TrendingUp }
-  ];
-
-  const operationalStats = [
-    { label: 'Pedidos diarios adicionales', value: '+2.000' },
-    { label: 'Sucursales proyectadas', value: '200' },
-    { label: 'Ticket promedio', value: '$45.000' },
-    { label: 'Tiempo implementación', value: '16 semanas' }
+  const sources = [
+    { name: 'Conferbot', year: '2024' },
+    { name: 'Marketing LTB', year: '2025' },
+    { name: 'IBM/Gartner', year: '2024' },
+    { name: 'Gallabox', year: '2025' }
   ];
 
   return (
@@ -90,7 +97,7 @@ const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl"
+        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl"
       >
         {/* Background with gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#3D2914] via-[#5C4033] to-[#4A3525] rounded-3xl" />
@@ -115,46 +122,22 @@ const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
               animate={{ opacity: 1, y: 0 }}
               className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-[#F5E6D3] via-[#D4B896] to-[#F5E6D3] bg-clip-text text-transparent mb-2"
             >
-              Impacto de ALICIA
+              Impacto Proyectado de ALICIA
             </motion.h2>
-            <p className="text-[#D4B896]/80">
-              Proyección financiera para Crepes & Waffles (200 sucursales)
+            <p className="text-[#D4B896]/80 text-sm">
+              Basado en +1,200 negocios verificados
             </p>
           </div>
 
-          {/* Main Impact Number */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="relative mb-8 p-6 rounded-2xl overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#D4B896]/20 via-[#8B6B4F]/10 to-[#D4B896]/20" />
-            <div className="absolute inset-0 border border-[#D4B896]/30 rounded-2xl" />
-            <div className="relative text-center">
-              <p className="text-[#D4B896] text-sm uppercase tracking-wider mb-2">
-                {mainImpact.description}
-              </p>
-              <div className="flex items-baseline justify-center gap-2">
-                <span className="text-5xl md:text-6xl font-bold text-[#F5E6D3]">
-                  {mainImpact.total}
-                </span>
-                <span className="text-xl text-[#D4B896]/80">
-                  {mainImpact.currency}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Breakdown Grid */}
+          {/* Impact Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {breakdownMetrics.map((metric, index) => (
+            {impactMetrics.map((metric, index) => (
               <motion.div
                 key={metric.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
-                className="relative p-4 rounded-xl overflow-hidden group"
+                transition={{ delay: 0.1 + index * 0.08 }}
+                className="relative p-5 rounded-xl overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-[#5C4033]/40 group-hover:bg-[#5C4033]/60 transition-colors" />
                 <div className="absolute inset-0 border border-[#D4B896]/20 rounded-xl" />
@@ -163,7 +146,9 @@ const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
                     <metric.icon className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-2xl font-bold text-[#F5E6D3]">{metric.value}</p>
+                    <p className={`text-2xl font-bold ${metric.isPositive ? 'text-green-400' : 'text-[#F5E6D3]'}`}>
+                      {metric.value}
+                    </p>
                     <p className="text-sm font-medium text-[#D4B896]">{metric.label}</p>
                     <p className="text-xs text-[#D4B896]/60 mt-1">{metric.sublabel}</p>
                   </div>
@@ -172,53 +157,45 @@ const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
             ))}
           </div>
 
-          {/* Conversion Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mb-8"
-          >
-            <h3 className="text-lg font-semibold text-[#F5E6D3] mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5 text-[#D4B896]" />
-              Mejora en Conversión
-            </h3>
-            <div className="grid grid-cols-3 gap-3">
-              {conversionStats.map((stat, index) => (
-                <div 
-                  key={stat.label}
-                  className="text-center p-4 rounded-xl bg-[#5C4033]/30 border border-[#D4B896]/20"
-                >
-                  <stat.icon className="w-6 h-6 mx-auto mb-2 text-[#D4B896]" />
-                  <p className={`text-2xl font-bold ${index === 2 ? 'text-green-400' : 'text-[#F5E6D3]'}`}>
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-[#D4B896]/70 mt-1">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Operational Stats */}
+          {/* How to interpret */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="mb-6"
+            className="mb-6 p-4 rounded-xl bg-[#5C4033]/30 border border-[#D4B896]/20"
           >
-            <h3 className="text-lg font-semibold text-[#F5E6D3] mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#D4B896]" />
-              Métricas Operativas
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {operationalStats.map((stat) => (
-                <div 
-                  key={stat.label}
-                  className="text-center p-3 rounded-xl bg-[#5C4033]/20 border border-[#D4B896]/10"
+            <div className="flex items-start gap-3">
+              <Target className="w-5 h-5 text-[#D4B896] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-[#D4B896] font-medium mb-1">
+                  ¿Cómo interpretar estos datos?
+                </p>
+                <p className="text-xs text-[#D4B896]/70">
+                  Estos rangos reflejan resultados reales en empresas similares. 
+                  El impacto específico para Crepes & Waffles dependerá de su volumen actual, 
+                  canales activos y velocidad de adopción.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Sources */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="text-center mb-6"
+          >
+            <p className="text-xs text-[#D4B896]/50 mb-2">Fuentes de industria:</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {sources.map((source) => (
+                <span
+                  key={source.name}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#5C4033]/30 border border-[#D4B896]/10 text-xs text-[#D4B896]/70"
                 >
-                  <p className="text-xl font-bold text-[#F5E6D3]">{stat.value}</p>
-                  <p className="text-xs text-[#D4B896]/60 mt-1">{stat.label}</p>
-                </div>
+                  {source.name} {source.year}
+                  <ExternalLink className="w-3 h-3 opacity-50" />
+                </span>
               ))}
             </div>
           </motion.div>
@@ -227,12 +204,12 @@ const AliciaImpactPanel = ({ isOpen, onClose }: AliciaImpactPanelProps) => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
+            transition={{ delay: 0.8 }}
             className="text-center p-4 rounded-xl bg-gradient-to-r from-[#D4B896]/10 via-[#8B6B4F]/5 to-[#D4B896]/10 border border-[#D4B896]/20"
           >
-            <p className="text-[#D4B896] italic">
-              "La calidez de un humano, sin el riesgo emocional.<br />
-              La eficiencia de un bot, sin la frialdad robótica."
+            <p className="text-[#D4B896] italic text-sm">
+              "Ustedes ponen los números de hoy.<br />
+              ALICIA proyecta el impacto de mañana."
             </p>
           </motion.div>
 
