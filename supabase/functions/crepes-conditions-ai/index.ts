@@ -233,8 +233,8 @@ async function getNewsData(city: string): Promise<NewsData> {
   // For demo, use realistic simulated events that are impactful
   const simulatedEvents: NewsEvent[] = [
     {
-      title: "Final Liga BetPlay: Millonarios vs Santa Fe",
-      description: "El clásico capitalino se juega hoy a las 8:00 PM en El Campín. Se esperan más de 36,000 aficionados en la zona.",
+      title: "Final Liga BetPlay: Millonarios vs Tolima",
+      description: "El partido se juega hoy a las 8:00 PM en El Campín. Se esperan más de 36,000 aficionados en la zona.",
       category: "deportes",
       impactProbability: 92,
       source: "El Tiempo",
