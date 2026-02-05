@@ -92,3 +92,12 @@ verify_jwt = true
 
 [functions.gas-ai-copilot]
 verify_jwt = true
+
+[functions.crepes-conditions-ai]
+verify_jwt = false
+
+[functions.crepes-branch-audit]
+verify_jwt = false
+
+[functions.crepes-chat-ai]
+verify_jwt = false
