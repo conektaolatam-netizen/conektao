@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, RefreshCw, TrendingUp, TrendingDown, Users, AlertCircle, Package, Clock } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 
@@ -94,22 +94,22 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
   }, [branchId]);
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-green-600';
+    if (score >= 85) return 'text-emerald-600';
     if (score >= 70) return 'text-amber-600';
-    return 'text-red-600';
+    return 'text-rose-600';
   };
 
   const getScoreBackground = (score: number) => {
-    if (score >= 85) return 'from-green-500 to-emerald-600';
-    if (score >= 70) return 'from-amber-500 to-orange-600';
-    return 'from-red-500 to-rose-600';
+    if (score >= 85) return 'from-emerald-500 to-emerald-600';
+    if (score >= 70) return 'from-amber-500 to-amber-600';
+    return 'from-rose-500 to-rose-600';
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-700 border-red-200';
-      case 'warning': return 'bg-amber-100 text-amber-700 border-amber-200';
-      default: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'critical': return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'warning': return 'bg-amber-50 text-amber-700 border-amber-200';
+      default: return 'bg-sky-50 text-sky-700 border-sky-200';
     }
   };
 
@@ -122,12 +122,12 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
   if (isLoading) {
     return (
-      <Card className="bg-white border-[#5C4033]/10">
+      <Card className="bg-white border-[#D4C4B0] shadow-sm">
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 w-32 bg-[#5C4033]/10 rounded" />
-            <div className="h-32 bg-[#5C4033]/10 rounded" />
-            <div className="h-24 bg-[#5C4033]/10 rounded" />
+            <div className="h-8 w-32 bg-[#E8DFD4] rounded" />
+            <div className="h-32 bg-[#E8DFD4] rounded" />
+            <div className="h-24 bg-[#E8DFD4] rounded" />
           </div>
         </CardContent>
       </Card>
@@ -146,20 +146,20 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <motion.div
-            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getScoreBackground(auditData.overallScore)} flex items-center justify-center shadow-lg`}
+            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getScoreBackground(auditData.overallScore)} flex items-center justify-center shadow-md`}
           >
             <Shield className="w-6 h-6 text-white" />
           </motion.div>
           <div>
-            <h2 className="text-xl font-bold text-[#5C4033]">Auditoría</h2>
-            <p className="text-sm text-[#5C4033]/60">Estado de la sucursal</p>
+            <h2 className="text-xl font-bold text-[#4A3728]">Auditoría</h2>
+            <p className="text-sm text-[#8B7355]">Estado de la sucursal</p>
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={fetchAudit}
-          className="border-[#5C4033]/20 text-[#5C4033] hover:bg-[#5C4033]/5"
+          className="border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Actualizar
@@ -167,11 +167,11 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
       </div>
 
       {/* Score Card */}
-      <Card className="bg-gradient-to-br from-[#5C4033]/5 to-[#8B7355]/10 border-[#5C4033]/10 overflow-hidden">
+      <Card className="bg-white border-[#D4C4B0] shadow-sm overflow-hidden">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm text-[#5C4033]/60 mb-1">Estado General</p>
+              <p className="text-sm text-[#8B7355] mb-1">Estado General</p>
               <motion.p
                 className={`text-5xl font-bold ${getScoreColor(auditData.overallScore)}`}
                 initial={{ scale: 0.5 }}
@@ -184,7 +184,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
             <div className="grid grid-cols-2 gap-3">
               {Object.entries(auditData.scoreBreakdown).map(([key, value]) => (
                 <div key={key} className="text-center">
-                  <p className="text-xs text-[#5C4033]/50 capitalize">{key}</p>
+                  <p className="text-xs text-[#8B7355] capitalize">{key}</p>
                   <p className={`text-lg font-bold ${getScoreColor(value)}`}>{value}%</p>
                 </div>
               ))}
@@ -192,8 +192,8 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
           </div>
 
           {/* AI Summary */}
-          <div className="p-4 bg-white/50 rounded-lg border border-[#5C4033]/10">
-            <p className="text-sm text-[#5C4033] leading-relaxed">{auditData.dailySummary}</p>
+          <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
+            <p className="text-sm text-[#4A3728] leading-relaxed">{auditData.dailySummary}</p>
           </div>
         </CardContent>
       </Card>
@@ -207,8 +207,8 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
             size="sm"
             onClick={() => setActiveTab(tab.id as any)}
             className={activeTab === tab.id 
-              ? "bg-[#5C4033] hover:bg-[#5C4033]/90" 
-              : "border-[#5C4033]/20 text-[#5C4033]"
+              ? "bg-[#5C4033] hover:bg-[#4A3728] text-white" 
+              : "border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
             }
           >
             <tab.icon className="w-4 h-4 mr-2" />
@@ -218,16 +218,16 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
       </div>
 
       {/* Tab Content */}
-      <Card className="bg-white border-[#5C4033]/10">
+      <Card className="bg-white border-[#D4C4B0] shadow-sm">
         <CardContent className="p-4">
           {activeTab === 'overview' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-[#5C4033]">Métricas del Día</h3>
+              <h3 className="font-semibold text-[#4A3728]">Métricas del Día</h3>
               <div className="grid grid-cols-2 gap-4">
                 {Object.entries(auditData.scoreBreakdown).map(([key, value]) => (
                   <div key={key}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-[#5C4033]/70 capitalize">{key}</span>
+                      <span className="text-[#6B5744] capitalize">{key}</span>
                       <span className={`font-medium ${getScoreColor(value)}`}>{value}%</span>
                     </div>
                     <Progress value={value} className="h-2" />
@@ -239,7 +239,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
           {activeTab === 'staff' && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-[#5C4033] mb-3">Alertas de Personal</h3>
+              <h3 className="font-semibold text-[#4A3728] mb-3">Alertas de Personal</h3>
               {auditData.staffAlerts.map((alert, index) => (
                 <motion.div
                   key={index}
@@ -258,7 +258,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                         <p className="text-xs opacity-70 mt-1">{alert.employee}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-mono bg-white/50 px-2 py-1 rounded">
+                    <span className="text-xs font-mono bg-white/70 px-2 py-1 rounded border">
                       {alert.metric}
                     </span>
                   </div>
@@ -269,30 +269,30 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
           {activeTab === 'errors' && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-[#5C4033] mb-3">Patrones de Errores</h3>
+              <h3 className="font-semibold text-[#4A3728] mb-3">Patrones de Errores</h3>
               {auditData.errorPatterns.map((error, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="p-3 rounded-lg bg-red-50 border border-red-100"
+                  className="p-3 rounded-lg bg-rose-50 border border-rose-200"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-medium text-[#5C4033]">{error.product}</p>
-                      <p className="text-sm text-[#5C4033]/70">{error.errorType}</p>
+                      <p className="font-medium text-[#4A3728]">{error.product}</p>
+                      <p className="text-sm text-[#6B5744]">{error.errorType}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-red-600">{error.count}</span>
+                      <span className="text-lg font-bold text-rose-600">{error.count}</span>
                       {error.trend === 'increasing' ? (
-                        <TrendingUp className="w-4 h-4 text-red-500" />
+                        <TrendingUp className="w-4 h-4 text-rose-500" />
                       ) : error.trend === 'decreasing' ? (
-                        <TrendingDown className="w-4 h-4 text-green-500" />
+                        <TrendingDown className="w-4 h-4 text-emerald-500" />
                       ) : null}
                     </div>
                   </div>
-                  <p className="text-xs text-[#5C4033]/60 bg-white/50 p-2 rounded">
+                  <p className="text-xs text-[#5C4033] bg-white/70 p-2 rounded border border-rose-100">
                     💡 {error.recommendation}
                   </p>
                 </motion.div>
@@ -302,7 +302,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
           {activeTab === 'rotation' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-[#5C4033]">Productos con Baja Rotación</h3>
+              <h3 className="font-semibold text-[#4A3728]">Productos con Baja Rotación</h3>
               <div className="space-y-2">
                 {auditData.productRotation.underperforming.map((product, index) => (
                   <motion.div
@@ -310,24 +310,24 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100"
+                    className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
                   >
                     <div>
-                      <p className="font-medium text-[#5C4033]">{product.product}</p>
-                      <p className="text-xs text-[#5C4033]/60">{product.category}</p>
+                      <p className="font-medium text-[#4A3728]">{product.product}</p>
+                      <p className="text-xs text-[#6B5744]">{product.category}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm">
-                        <span className="text-[#5C4033]/60">{product.currentSales}</span>
-                        <span className="text-[#5C4033]/40"> / {product.expectedSales}</span>
+                        <span className="text-[#5C4033]">{product.currentSales}</span>
+                        <span className="text-[#8B7355]"> / {product.expectedSales}</span>
                       </p>
-                      <p className="text-sm font-bold text-red-600">{product.variance}%</p>
+                      <p className="text-sm font-bold text-rose-600">{product.variance}%</p>
                     </div>
                   </motion.div>
                 ))}
               </div>
-              <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-100">
-                <p className="text-sm text-[#5C4033] leading-relaxed">
+              <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
+                <p className="text-sm text-[#4A3728] leading-relaxed">
                   {auditData.productRotation.recommendation}
                 </p>
               </div>

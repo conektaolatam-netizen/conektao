@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, RefreshCw, MapPin } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WeatherCard from './WeatherCard';
 import CalendarCard from './CalendarCard';
@@ -77,17 +77,17 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <motion.div
-            className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600 flex items-center justify-center shadow-lg"
+            className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center shadow-lg"
             animate={{ 
-              boxShadow: ['0 0 20px rgba(251,146,60,0.3)', '0 0 40px rgba(251,146,60,0.5)', '0 0 20px rgba(251,146,60,0.3)']
+              boxShadow: ['0 4px 20px rgba(92,64,51,0.2)', '0 4px 30px rgba(92,64,51,0.35)', '0 4px 20px rgba(92,64,51,0.2)']
             }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <Sparkles className="w-6 h-6 text-white" />
+            <Sparkles className="w-6 h-6 text-[#F5EDE4]" />
           </motion.div>
           <div>
-            <h2 className="text-xl font-bold text-[#5C4033]">IA de Condiciones</h2>
-            <div className="flex items-center gap-1 text-sm text-[#5C4033]/60">
+            <h2 className="text-xl font-bold text-[#4A3728]">IA de Condiciones</h2>
+            <div className="flex items-center gap-1 text-sm text-[#8B7355]">
               <MapPin className="w-3 h-3" />
               <span>{city}</span>
             </div>
@@ -98,7 +98,7 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
           size="sm"
           onClick={fetchConditions}
           disabled={isLoading}
-          className="border-[#5C4033]/20 text-[#5C4033] hover:bg-[#5C4033]/5"
+          className="border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
           Actualizar
@@ -112,18 +112,18 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-gradient-to-r from-[#5C4033] to-[#8B7355] text-white border-0 overflow-hidden relative">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
+          <Card className="bg-gradient-to-r from-[#5C4033] to-[#6B5744] text-white border-0 overflow-hidden relative shadow-lg">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
             <CardContent className="p-6 relative">
               <div className="flex items-start gap-3">
                 <motion.div
                   animate={{ rotate: [0, 360] }}
                   transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 >
-                  <Sparkles className="w-6 h-6 text-orange-300" />
+                  <Sparkles className="w-6 h-6 text-[#E8DFD4]" />
                 </motion.div>
                 <div>
-                  <p className="text-sm font-medium text-white/70 mb-2">Resumen del Día con IA</p>
+                  <p className="text-sm font-medium text-[#E8DFD4]/80 mb-2">Resumen del Día con IA</p>
                   <p className="text-white leading-relaxed">{conditions.aiSummary}</p>
                 </div>
               </div>
@@ -134,9 +134,9 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
 
       {/* Error State */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-rose-200 bg-rose-50">
           <CardContent className="p-4">
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-rose-700 text-sm">{error}</p>
           </CardContent>
         </Card>
       )}

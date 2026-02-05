@@ -15,10 +15,10 @@ interface ConektaoChatProps {
 }
 
 const suggestedQuestions = [
-  { icon: TrendingUp, text: "¿Cómo van las ventas hoy?", color: "text-green-600" },
-  { icon: ShoppingBag, text: "¿Cuáles son los productos más vendidos?", color: "text-blue-600" },
-  { icon: Users, text: "¿Cómo está el rendimiento del personal?", color: "text-purple-600" },
-  { icon: Lightbulb, text: "¿Qué puedo mejorar hoy?", color: "text-orange-600" },
+  { icon: TrendingUp, text: "¿Cómo van las ventas hoy?", color: "text-emerald-600" },
+  { icon: ShoppingBag, text: "¿Cuáles son los productos más vendidos?", color: "text-sky-600" },
+  { icon: Users, text: "¿Cómo está el rendimiento del personal?", color: "text-violet-600" },
+  { icon: Lightbulb, text: "¿Qué puedo mejorar hoy?", color: "text-amber-600" },
 ];
 
 const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
@@ -142,22 +142,22 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <motion.div
-          className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 flex items-center justify-center shadow-lg"
+          className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center shadow-lg"
           animate={{ 
-            boxShadow: ['0 0 20px rgba(59,130,246,0.3)', '0 0 40px rgba(59,130,246,0.5)', '0 0 20px rgba(59,130,246,0.3)']
+            boxShadow: ['0 4px 20px rgba(92,64,51,0.2)', '0 4px 30px rgba(92,64,51,0.35)', '0 4px 20px rgba(92,64,51,0.2)']
           }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <Sparkles className="w-6 h-6 text-white" />
+          <Sparkles className="w-6 h-6 text-[#F5EDE4]" />
         </motion.div>
         <div>
-          <h2 className="text-xl font-bold text-[#5C4033]">Conektao AI</h2>
-          <p className="text-sm text-[#5C4033]/60">Chat conectado a datos reales</p>
+          <h2 className="text-xl font-bold text-[#4A3728]">Conektao AI</h2>
+          <p className="text-sm text-[#8B7355]">Chat conectado a datos reales</p>
         </div>
       </div>
 
       {/* Chat Container */}
-      <Card className="flex-1 bg-gradient-to-br from-[#5C4033]/5 to-[#8B7355]/5 border-[#5C4033]/10 overflow-hidden flex flex-col">
+      <Card className="flex-1 bg-white border-[#D4C4B0] shadow-sm overflow-hidden flex flex-col">
         <CardContent className="flex-1 flex flex-col p-4 min-h-0">
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto space-y-4 mb-4">
@@ -166,14 +166,14 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center mb-4 shadow-lg"
+                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center mb-4 shadow-lg"
                 >
-                  <Bot className="w-8 h-8 text-white" />
+                  <Bot className="w-8 h-8 text-[#F5EDE4]" />
                 </motion.div>
-                <h3 className="text-lg font-semibold text-[#5C4033] mb-2">
+                <h3 className="text-lg font-semibold text-[#4A3728] mb-2">
                   ¡Hola! Soy tu asistente de inteligencia
                 </h3>
-                <p className="text-sm text-[#5C4033]/60 mb-6 max-w-sm">
+                <p className="text-sm text-[#8B7355] mb-6 max-w-sm">
                   Estoy conectado a los datos reales de tu sucursal. Pregúntame lo que quieras.
                 </p>
                 
@@ -186,10 +186,10 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 * index }}
                       onClick={() => handleSend(question.text)}
-                      className="flex items-center gap-2 p-3 bg-white rounded-lg border border-[#5C4033]/10 hover:border-[#5C4033]/30 hover:bg-[#5C4033]/5 transition-all text-left group"
+                      className="flex items-center gap-2 p-3 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4] hover:border-[#D4C4B0] hover:bg-[#F5EDE4] transition-all text-left group"
                     >
                       <question.icon className={`w-4 h-4 ${question.color} group-hover:scale-110 transition-transform`} />
-                      <span className="text-xs text-[#5C4033]">{question.text}</span>
+                      <span className="text-xs text-[#4A3728]">{question.text}</span>
                     </motion.button>
                   ))}
                 </div>
@@ -206,21 +206,21 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
                       className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {message.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center flex-shrink-0">
-                          <Bot className="w-4 h-4 text-white" />
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-[#F5EDE4]" />
                         </div>
                       )}
                       <div
                         className={`max-w-[80%] p-3 rounded-2xl ${
                           message.role === 'user'
                             ? 'bg-[#5C4033] text-white rounded-br-md'
-                            : 'bg-white border border-[#5C4033]/10 text-[#5C4033] rounded-bl-md'
+                            : 'bg-[#FDF8F3] border border-[#E8DFD4] text-[#4A3728] rounded-bl-md'
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       </div>
                       {message.role === 'user' && (
-                        <div className="w-8 h-8 rounded-lg bg-[#5C4033]/20 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-[#E8DFD4] flex items-center justify-center flex-shrink-0">
                           <User className="w-4 h-4 text-[#5C4033]" />
                         </div>
                       )}
@@ -233,14 +233,14 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
                     animate={{ opacity: 1 }}
                     className="flex gap-3"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 text-[#F5EDE4] animate-spin" />
                     </div>
-                    <div className="bg-white border border-[#5C4033]/10 p-3 rounded-2xl rounded-bl-md">
+                    <div className="bg-[#FDF8F3] border border-[#E8DFD4] p-3 rounded-2xl rounded-bl-md">
                       <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-[#5C4033]/30 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-[#5C4033]/30 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-[#5C4033]/30 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <div className="w-2 h-2 bg-[#8B7355] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-[#8B7355] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-[#8B7355] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   </motion.div>
@@ -258,13 +258,13 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Pregunta sobre tu sucursal..."
-              className="flex-1 min-h-[44px] max-h-32 resize-none border-[#5C4033]/20 focus:border-[#5C4033]/40 bg-white"
+              className="flex-1 min-h-[44px] max-h-32 resize-none border-[#D4C4B0] focus:border-[#8B7355] bg-white"
               rows={1}
             />
             <Button
               onClick={() => handleSend()}
               disabled={!input.trim() || isLoading}
-              className="bg-[#5C4033] hover:bg-[#5C4033]/90 h-auto"
+              className="bg-[#5C4033] hover:bg-[#4A3728] h-auto text-white"
             >
               <Send className="w-4 h-4" />
             </Button>
