@@ -38,7 +38,7 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
   };
 
   const getImpactColor = (probability: number) => {
-    if (probability >= 80) return 'text-rose-700 bg-rose-50 border-rose-200';
+    if (probability >= 80) return 'text-[#4A3728] bg-gradient-to-br from-[#FDF8F3] to-[#F5EDE4] border-2 border-[#8B7355] shadow-[0_0_15px_rgba(139,115,85,0.2)]';
     if (probability >= 60) return 'text-amber-700 bg-amber-50 border-amber-200';
     if (probability >= 40) return 'text-yellow-700 bg-yellow-50 border-yellow-200';
     return 'text-emerald-700 bg-emerald-50 border-emerald-200';
@@ -78,7 +78,7 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: "spring" }}
-                className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-1 rounded-full text-xs font-medium border border-rose-200"
+                className="flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-md"
               >
                 <AlertTriangle className="w-3 h-3" />
                 Alto Impacto
