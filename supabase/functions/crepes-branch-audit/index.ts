@@ -179,23 +179,28 @@ serve(async (req) => {
         const summaryPrompt = `Eres el auditor de IA de Crepes & Waffles para la sucursal ${branch_id}. 
 Genera un resumen ejecutivo de 3-4 oraciones basado en estos datos:
 
-ESTADO GENERAL: ${auditData.overallScore}%
-- Personal: ${auditData.scoreBreakdown.staff}%
-- Operaciones: ${auditData.scoreBreakdown.operations}%
-- Calidad: ${auditData.scoreBreakdown.quality}%
-- Eficiencia: ${auditData.scoreBreakdown.efficiency}%
+📊 ESTADO GENERAL: ${auditData.overallScore}%
+👥 Personal: ${auditData.scoreBreakdown.staff}%
+⚙️ Operaciones: ${auditData.scoreBreakdown.operations}%
+✨ Calidad: ${auditData.scoreBreakdown.quality}%
+⚡ Eficiencia: ${auditData.scoreBreakdown.efficiency}%
 
-ALERTAS DE PERSONAL:
-${auditData.staffAlerts.map(a => `- ${a.message}`).join('\n')}
+⚠️ ALERTAS DE PERSONAL:
+${auditData.staffAlerts.map(a => `• ${a.message}`).join('\n')}
 
-PATRONES DE ERROR:
-${auditData.errorPatterns.map(e => `- ${e.product}: ${e.count} ${e.errorType}`).join('\n')}
+🔴 PATRONES DE ERROR:
+${auditData.errorPatterns.map(e => `• ${e.product}: ${e.count} ${e.errorType}`).join('\n')}
 
-PRODUCTOS CON BAJA ROTACIÓN:
-${auditData.productRotation.underperforming.map(p => `- ${p.product}: ${p.variance}%`).join('\n')}
+📦 PRODUCTOS CON BAJA ROTACIÓN:
+${auditData.productRotation.underperforming.map(p => `• ${p.product}: ${p.variance}%`).join('\n')}
 
-El resumen debe ser directo, identificar las 2 prioridades principales del día, y dar acciones concretas.
-NO menciones inventario ni stock - eso lo maneja otro sistema.`;
+INSTRUCCIONES DE FORMATO:
+- NUNCA uses asteriscos dobles (**) ni markdown de negritas
+- Usa emojis al inicio de cada punto clave para hacerlo visual
+- Escribe en un tono profesional pero cercano
+- El resumen debe ser directo, identificar las 2 prioridades principales del día, y dar acciones concretas
+- NO menciones inventario ni stock - eso lo maneja otro sistema
+- Estructura: 1) Estado actual breve 2) Dos prioridades con emoji 3) Acción concreta`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
