@@ -177,7 +177,7 @@ serve(async (req) => {
     if (LOVABLE_API_KEY) {
       try {
         const summaryPrompt = `Eres el auditor de IA de Crepes & Waffles para la sucursal ${branch_id}. 
-Genera un resumen ejecutivo de 3-4 oraciones basado en estos datos:
+Genera un resumen ejecutivo estructurado basado en estos datos:
 
 📊 ESTADO GENERAL: ${auditData.overallScore}%
 👥 Personal: ${auditData.scoreBreakdown.staff}%
@@ -194,13 +194,25 @@ ${auditData.errorPatterns.map(e => `• ${e.product}: ${e.count} ${e.errorType}`
 📦 PRODUCTOS CON BAJA ROTACIÓN:
 ${auditData.productRotation.underperforming.map(p => `• ${p.product}: ${p.variance}%`).join('\n')}
 
-INSTRUCCIONES DE FORMATO:
-- NUNCA uses asteriscos dobles (**) ni markdown de negritas
-- Usa emojis al inicio de cada punto clave para hacerlo visual
-- Escribe en un tono profesional pero cercano
-- El resumen debe ser directo, identificar las 2 prioridades principales del día, y dar acciones concretas
-- NO menciones inventario ni stock - eso lo maneja otro sistema
-- Estructura: 1) Estado actual breve 2) Dos prioridades con emoji 3) Acción concreta`;
+INSTRUCCIONES DE FORMATO OBLIGATORIO:
+1. NUNCA uses asteriscos (**) ni markdown
+2. SIEMPRE usa este formato EXACTO con saltos de línea entre cada bloque:
+
+📊 Estado: [Una oración sobre el estado general]
+
+🎯 Prioridad 1: [Título corto]
+[Una oración explicando el problema y qué hacer]
+
+🎯 Prioridad 2: [Título corto]
+[Una oración explicando el problema y qué hacer]
+
+✅ Acción inmediata: [Una acción concreta para hoy]
+
+IMPORTANTE: 
+- Cada bloque debe estar separado por una línea vacía
+- Los emojis van al inicio de cada bloque
+- NO menciones inventario ni stock
+- Máximo 4-5 líneas de contenido real`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
