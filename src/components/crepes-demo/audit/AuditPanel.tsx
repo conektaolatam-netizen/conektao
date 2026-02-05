@@ -155,14 +155,13 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
             <p className="text-sm text-[#8B7355]">Estado de la sucursal</p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={fetchAudit}
-          className="text-[#D4C4B0]/60 hover:text-[#8B7355] hover:bg-transparent opacity-40 hover:opacity-100 transition-opacity"
+          className="p-1.5 text-[#D4C4B0]/30 hover:text-[#8B7355]/50 transition-colors"
+          title="Actualizar"
         >
-          <RefreshCw className="w-4 h-4" />
-        </Button>
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Score Card */}
