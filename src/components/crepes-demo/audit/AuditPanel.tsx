@@ -114,10 +114,10 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Resumen', icon: Shield },
-    { id: 'staff', label: 'Personal', icon: Users },
-    { id: 'errors', label: 'Errores', icon: AlertCircle },
-    { id: 'rotation', label: 'Rotación', icon: Package },
+    { id: 'overview', label: '📊 Resumen', icon: Shield },
+    { id: 'staff', label: '👥 Personal', icon: Users },
+    { id: 'errors', label: '⚠️ Errores', icon: AlertCircle },
+    { id: 'rotation', label: '📦 Rotación', icon: Package },
   ];
 
   if (isLoading) {
@@ -156,13 +156,12 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
           </div>
         </div>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={fetchAudit}
-          className="border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
+          className="text-[#D4C4B0]/60 hover:text-[#8B7355] hover:bg-transparent opacity-40 hover:opacity-100 transition-opacity"
         >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Actualizar
+          <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
 
@@ -171,7 +170,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm text-[#8B7355] mb-1">Estado General</p>
+              <p className="text-sm text-[#8B7355] mb-1">🏥 Estado General</p>
               <motion.p
                 className={`text-5xl font-bold ${getScoreColor(auditData.overallScore)}`}
                 initial={{ scale: 0.5 }}
@@ -181,11 +180,18 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 {auditData.overallScore}%
               </motion.p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(auditData.scoreBreakdown).map(([key, value]) => (
-                <div key={key} className="text-center">
-                  <p className="text-xs text-[#8B7355] capitalize">{key}</p>
-                  <p className={`text-lg font-bold ${getScoreColor(value)}`}>{value}%</p>
+            <div className="grid grid-cols-2 gap-3 text-center">
+              {[
+                { key: 'staff', label: '👥 Personal' },
+                { key: 'operations', label: '⚙️ Operaciones' },
+                { key: 'quality', label: '✨ Calidad' },
+                { key: 'efficiency', label: '⚡ Eficiencia' },
+              ].map(({ key, label }) => (
+                <div key={key}>
+                  <p className="text-xs text-[#8B7355]">{label}</p>
+                  <p className={`text-lg font-bold ${getScoreColor(auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown])}`}>
+                    {auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown]}%
+                  </p>
                 </div>
               ))}
             </div>
@@ -198,7 +204,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
         </CardContent>
       </Card>
 
-      {/* Tabs */}
+      {/* Tabs - lighter colors for better readability */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {tabs.map((tab) => (
           <Button
@@ -208,7 +214,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
             onClick={() => setActiveTab(tab.id as any)}
             className={activeTab === tab.id 
               ? "bg-[#5C4033] hover:bg-[#4A3728] text-white" 
-              : "border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
+              : "border-[#E8DFD4] bg-[#FDF8F3] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#D4C4B0]"
             }
           >
             <tab.icon className="w-4 h-4 mr-2" />

@@ -29,11 +29,13 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const handleSend = async (messageText?: string) => {
