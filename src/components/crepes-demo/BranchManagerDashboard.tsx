@@ -17,7 +17,7 @@ const BranchManagerDashboard = () => {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-br from-[#E8DFD4]/40 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto p-6 pt-16">
+      <div className="relative max-w-7xl mx-auto p-6 pt-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
