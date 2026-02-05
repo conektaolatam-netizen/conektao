@@ -197,9 +197,20 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
             </div>
           </div>
 
-          {/* AI Summary */}
-          <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
-            <p className="text-sm text-[#4A3728] leading-relaxed">{auditData.dailySummary}</p>
+          {/* AI Summary - structured blocks */}
+          <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4] space-y-3">
+            {auditData.dailySummary.split('\n\n').filter(block => block.trim()).map((block, index) => (
+              <div 
+                key={index} 
+                className={`text-sm text-[#4A3728] leading-relaxed ${index > 0 ? 'pt-3 border-t border-[#E8DFD4]/50' : ''}`}
+              >
+                {block.split('\n').map((line, lineIndex) => (
+                  <p key={lineIndex} className={lineIndex > 0 ? 'mt-1 text-[#6B5744]' : 'font-medium'}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
