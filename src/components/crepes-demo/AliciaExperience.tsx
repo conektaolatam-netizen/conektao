@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Send, RotateCcw, Sparkles, TrendingUp, Clock, ShoppingCart } from 'lucide-react';
+import { Bot, Send, RotateCcw, Sparkles, TrendingUp, Clock, ShoppingCart, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AliciaAvatar from './AliciaAvatar';
+import AliciaImpactPanel from './AliciaImpactPanel';
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -49,6 +50,7 @@ const aliciaConversation: Message[] = [{
 const AliciaExperience = () => {
   const [aliciaMessages, setAliciaMessages] = useState<Message[]>([]);
   const [showImpact, setShowImpact] = useState(false);
+  const [showImpactPanel, setShowImpactPanel] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const aliciaRef = useRef<HTMLDivElement>(null);
@@ -300,10 +302,23 @@ const AliciaExperience = () => {
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Repetir Demo
                 </Button>
+                <Button 
+                  onClick={() => setShowImpactPanel(true)} 
+                  className="bg-gradient-to-r from-[#D4B896] to-[#8B6B4F] text-[#3D2914] shadow-lg hover:shadow-[#D4B896]/30 font-semibold"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Ver Impacto de ALICIA
+                </Button>
                 <Button onClick={() => setIsFlipped(!isFlipped)} className="bg-gradient-to-r from-[#5C4033] to-[#8B6B4F] text-[#F5E6D3] shadow-lg hover:shadow-[#D4B896]/20">
                   Ver Flujo Backend →
                 </Button>
               </div>
+
+              {/* Impact Panel Modal */}
+              <AliciaImpactPanel 
+                isOpen={showImpactPanel} 
+                onClose={() => setShowImpactPanel(false)} 
+              />
             </motion.div>}
         </AnimatePresence>
 
