@@ -1,107 +1,68 @@
 
+# Fix ALICIA Connection Stability - Root Cause Analysis and Solution
 
-## Boton de Conversacion con ALICIA (ElevenLabs Voice Agent)
+## Root Cause
 
-### Que se va a construir
+The frequent disconnections are caused by **two compounding bugs**:
 
-Un boton flotante en el dashboard de Crepes & Waffles que al hacer click abre un panel/rectangulo con:
-- **Video de ALICIA** moviendo la boca cuando ella esta hablando
-- **Imagen estatica de ALICIA** cuando esta en silencio/escuchando
-- Conversacion de voz en tiempo real usando ElevenLabs Conversational AI (WebRTC)
-- Boton para cerrar la conversacion
+1. **Unstable Effect Dependencies**: The keepalive `useEffect` depends on `[status, conversation]`. The `conversation` object returned by `useConversation` may create a new reference on re-renders, causing the effect to tear down and re-create the interval constantly -- effectively breaking the keepalive.
 
-### Estado actual (ya listo)
+2. **Auto-restart Loop**: When ElevenLabs disconnects, `onDisconnect` sets `status = 'idle'`. Because `isOpen` is still `true`, the component shows the "Reconectar" button. Any interaction or re-render can trigger another connection attempt, creating a connect-disconnect-connect loop.
 
-- Edge function `elevenlabs-conversation-token` ya existe y funciona
-- Secrets `ELEVENLABS_API_KEY` y `ELEVENLABS_AGENT_ID` ya configurados
-- Paquete `@elevenlabs/react` ya instalado
+3. **Mute button does nothing**: The current mute toggle only changes a visual state variable but doesn't actually mute the microphone. The SDK has a built-in `micMuted` controlled state that should be used instead.
 
-### Pendiente del usuario
+## Solution
 
-Necesito que subas dos archivos:
-1. **Video de ALICIA** hablando (moviendo la boca) - formato MP4 o WebM
-2. **Imagen de ALICIA** en reposo (quieta) - formato PNG, JPG o WebP
+### 1. Stabilize the keepalive with a ref
 
-### Arquitectura del componente
+Store the conversation object in a ref so the keepalive interval is created once and never torn down until status truly changes.
 
 ```text
-BranchManagerDashboard
-  |
-  +-- [Boton flotante "Hablar con ALICIA"]  (esquina inferior derecha)
-  |
-  +-- AliciaVoicePanel (se abre al click)
-       |
-       +-- Video (cuando isSpeaking = true)
-       +-- Imagen (cuando isSpeaking = false)
-       +-- Indicador de estado (Conectando / Escuchando / Hablando)
-       +-- Boton cerrar conversacion
+const conversationRef = useRef(conversation);
+conversationRef.current = conversation;
+
+// Keepalive depends ONLY on status, not conversation
+useEffect(() => {
+  if (status === 'connected') {
+    keepaliveRef.current = setInterval(() => {
+      try { conversationRef.current.sendUserActivity(); } catch {}
+    }, 10000); // 10s is sufficient
+  }
+  return () => clearInterval(keepaliveRef.current);
+}, [status]); // <-- no conversation dependency
 ```
 
-### Flujo de interaccion
+### 2. Prevent auto-restart loop
 
-1. Usuario ve boton flotante con icono/avatar de ALICIA en esquina inferior derecha
-2. Click en el boton: se abre un panel rectangular (aprox 400x500px)
-3. Se solicita permiso de microfono
-4. Se obtiene token via edge function `elevenlabs-conversation-token`
-5. Se inicia sesion WebRTC con ElevenLabs
-6. **Cuando ALICIA habla** (`isSpeaking = true`): se muestra el video en loop
-7. **Cuando ALICIA escucha** (`isSpeaking = false`): se muestra la imagen estatica
-8. Usuario puede cerrar el panel en cualquier momento (termina la sesion)
+Remove the auto-start effect entirely. Instead, call `startConversation()` only once when the panel first opens (via a `hasStartedRef`). If disconnected, show the reconnect button but never auto-restart.
 
-### Archivos a crear/modificar
+### 3. Use SDK's built-in micMuted
 
-1. **Crear `src/components/crepes-demo/voice/AliciaVoiceButton.tsx`**
-   - Boton flotante con avatar mini de ALICIA
-   - Usa estetica futurista (borde glow turquesa/naranja)
-   - Al click abre el panel
+Pass `micMuted` as a controlled prop to `useConversation` so the SDK handles actual audio muting:
 
-2. **Crear `src/components/crepes-demo/voice/AliciaVoicePanel.tsx`**
-   - Panel rectangular con fondo oscuro (`#1a1a2e`) consistente con las secciones IA
-   - Usa `useConversation` de `@elevenlabs/react`
-   - Alterna entre `<video>` y `<img>` segun `conversation.isSpeaking`
-   - Indicador de estado con animaciones sutiles
-   - Boton de cerrar/terminar
-
-3. **Modificar `src/components/crepes-demo/BranchManagerDashboard.tsx`**
-   - Agregar `AliciaVoiceButton` como componente flotante (fixed position)
-
-### Seccion tecnica
-
-**Logica principal del panel:**
-
-```typescript
-import { useConversation } from "@elevenlabs/react";
-
+```text
 const conversation = useConversation({
-  onConnect: () => setStatus('connected'),
-  onDisconnect: () => setStatus('disconnected'),
-  onError: (error) => toast.error("Error de conexion"),
+  micMuted: isMicMuted,
+  onConnect: () => { ... },
+  ...
 });
-
-// Alternar video/imagen
-{conversation.isSpeaking ? (
-  <video src={aliciaVideoUrl} autoPlay loop muted={false} />
-) : (
-  <img src={aliciaImageUrl} alt="ALICIA" />
-)}
 ```
 
-**Conexion con token:**
+### 4. Remove noisy console logs
 
-```typescript
-const startConversation = async () => {
-  await navigator.mediaDevices.getUserMedia({ audio: true });
-  const { data } = await supabase.functions.invoke("elevenlabs-conversation-token");
-  await conversation.startSession({
-    conversationToken: data.token,
-    connectionType: "webrtc",
-  });
-};
-```
+Remove the keepalive log that fires every 3 seconds, keeping only connect/disconnect logs.
 
-**Estetica del boton flotante:**
-- Position fixed, bottom-6 right-6
-- Circulo con avatar de ALICIA o icono de microfono
-- Borde con gradiente turquesa/naranja (AIGlowBorder)
-- Animacion de pulse sutil para indicar que esta disponible
+### 5. Reduce keepalive frequency
 
+Change from 3s to 10s. The current 3s interval is unnecessarily aggressive and generates noise. ElevenLabs WebRTC connections typically have a ~30s inactivity timeout.
+
+## Files to Modify
+
+- **`src/components/crepes-demo/voice/AliciaVoicePanel.tsx`** -- All changes are in this single file
+
+## Expected Result
+
+- ALICIA stays connected throughout the entire conversation without dropping
+- If a rare network issue causes a disconnect, user sees a clean "Reconectar" button (no loop)
+- Mute button actually mutes the microphone via the SDK
+- No console spam from keepalive logs
