@@ -36,7 +36,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
       await conversation.startSession({
-        agentId: 'qzds6hwn',
+        agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
         connectionType: 'webrtc',
       });
     } catch (err) {
