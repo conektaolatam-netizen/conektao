@@ -65,7 +65,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Control video playback based on speaking state
+  // Control video playback based on speaking state - always muted
   useEffect(() => {
     if (videoRef.current) {
       if (conversation.isSpeaking) {
@@ -84,138 +84,148 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     error: 'Error de conexión',
   }[status];
 
-  const statusColor = {
-    idle: 'text-gray-400',
-    connecting: 'text-amber-400',
-    connected: conversation.isSpeaking ? 'text-[#00D4AA]' : 'text-[#FF6B35]',
-    error: 'text-red-400',
-  }[status];
-
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ duration: 0.25 }}
-          className="fixed bottom-24 right-6 z-50 w-[360px] rounded-2xl overflow-hidden shadow-2xl"
-          style={{
-            background: 'linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%)',
-            border: '1px solid rgba(0, 212, 170, 0.3)',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2.5 h-2.5 rounded-full"
-                style={{
-                  backgroundColor: status === 'connected' ? '#00D4AA' : status === 'connecting' ? '#FFB020' : '#666',
-                  boxShadow: status === 'connected' ? '0 0 8px #00D4AA' : 'none',
-                }}
-              />
-              <span className="text-white/90 text-sm font-medium">ALICIA</span>
-              <span className={`text-xs ${statusColor}`}>{statusLabel}</span>
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-1 rounded-full hover:bg-white/10 transition-colors"
+        <>
+          {/* Full-screen overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            onClick={handleClose}
+          />
+
+          {/* Centered large panel */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none"
+          >
+            <div
+              className="relative w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl pointer-events-auto"
+              style={{
+                background: 'linear-gradient(180deg, #3D2914 0%, #2A1A0A 100%)',
+                border: '1px solid rgba(212, 184, 150, 0.3)',
+              }}
             >
-              <X className="w-4 h-4 text-white/60" />
-            </button>
-          </div>
-
-          {/* Avatar area */}
-          <div className="relative flex items-center justify-center py-8 px-4">
-            <div className="relative w-48 h-48 rounded-full overflow-hidden" style={{
-              boxShadow: conversation.isSpeaking
-                ? '0 0 40px rgba(0, 212, 170, 0.4), 0 0 80px rgba(0, 212, 170, 0.15)'
-                : '0 0 20px rgba(255, 107, 53, 0.2)',
-              transition: 'box-shadow 0.5s ease',
-            }}>
-              {/* Video for speaking */}
-              <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
-                loop
-                playsInline
-                muted={false}
-                style={{
-                  opacity: conversation.isSpeaking ? 1 : 0,
-                  transition: 'opacity 0.3s ease',
-                }}
+              {/* Close button */}
+              <button
+                onClick={handleClose}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
               >
-                {/* User will upload video - placeholder source */}
-                <source src="/alicia-speaking.mp4" type="video/mp4" />
-              </video>
+                <X className="w-5 h-5 text-[#F5E6D3]/80" />
+              </button>
 
-              {/* Static image for listening */}
-              <img
-                src="/alicia-idle.png"
-                alt="ALICIA"
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{
-                  opacity: conversation.isSpeaking ? 0 : 1,
-                  transition: 'opacity 0.3s ease',
-                }}
-              />
-
-              {/* Connecting overlay */}
-              {status === 'connecting' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <Loader2 className="w-8 h-8 text-[#00D4AA] animate-spin" />
+              {/* Large avatar area */}
+              <div className="relative flex flex-col items-center justify-center pt-10 pb-6 px-6">
+                {/* Status indicator */}
+                <div className="flex items-center gap-2 mb-6">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{
+                      backgroundColor: status === 'connected' ? '#00D4AA' : status === 'connecting' ? '#FFB020' : '#666',
+                      boxShadow: status === 'connected' ? '0 0 8px #00D4AA' : 'none',
+                    }}
+                  />
+                  <span className="text-[#F5E6D3] text-sm font-medium">ALICIA</span>
+                  <span className="text-[#D4B896]/70 text-xs">{statusLabel}</span>
                 </div>
-              )}
+
+                {/* Large circular avatar */}
+                <div className="relative w-64 h-64 md:w-72 md:h-72 rounded-full overflow-hidden" style={{
+                  boxShadow: conversation.isSpeaking
+                    ? '0 0 60px rgba(212, 184, 150, 0.4), 0 0 120px rgba(212, 184, 150, 0.15)'
+                    : '0 0 30px rgba(212, 184, 150, 0.2)',
+                  transition: 'box-shadow 0.5s ease',
+                }}>
+                  {/* Video for speaking - MUTED so it doesn't interfere with ElevenLabs audio */}
+                  <video
+                    ref={videoRef}
+                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    loop
+                    playsInline
+                    muted
+                    style={{
+                      opacity: conversation.isSpeaking ? 1 : 0,
+                      transition: 'opacity 0.3s ease',
+                    }}
+                  >
+                    <source src="/alicia-speaking.mp4" type="video/mp4" />
+                  </video>
+
+                  {/* Static image for listening */}
+                  <img
+                    src="/alicia-idle.png"
+                    alt="ALICIA"
+                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    style={{
+                      opacity: conversation.isSpeaking ? 0 : 1,
+                      transition: 'opacity 0.3s ease',
+                    }}
+                  />
+
+                  {/* Connecting overlay */}
+                  {status === 'connecting' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      <Loader2 className="w-10 h-10 text-[#D4B896] animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Pulse ring when speaking */}
+                {conversation.isSpeaking && (
+                  <motion.div
+                    animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2.5, repeat: Infinity }}
+                    className="absolute w-72 h-72 md:w-80 md:h-80 rounded-full border-2 border-[#D4B896]/30"
+                    style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+                  />
+                )}
+              </div>
+
+              {/* Bottom controls */}
+              <div className="px-6 pb-6 flex flex-col items-center gap-3">
+                {status === 'connected' && (
+                  <button
+                    onClick={endConversation}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
+                    style={{
+                      background: 'rgba(255, 107, 53, 0.15)',
+                      color: '#FF6B35',
+                      border: '1px solid rgba(255, 107, 53, 0.3)',
+                    }}
+                  >
+                    <MicOff className="w-4 h-4" />
+                    Terminar conversación
+                  </button>
+                )}
+
+                {status === 'error' && (
+                  <button
+                    onClick={startConversation}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
+                    style={{
+                      background: 'rgba(212, 184, 150, 0.15)',
+                      color: '#D4B896',
+                      border: '1px solid rgba(212, 184, 150, 0.3)',
+                    }}
+                  >
+                    <Mic className="w-4 h-4" />
+                    Reintentar
+                  </button>
+                )}
+
+                <p className="text-[#D4B896]/30 text-[10px] text-center">
+                  Powered by Conektao AI × ElevenLabs
+                </p>
+              </div>
             </div>
-
-            {/* Pulse ring when speaking */}
-            {conversation.isSpeaking && (
-              <motion.div
-                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute w-52 h-52 rounded-full border-2 border-[#00D4AA]/30"
-              />
-            )}
-          </div>
-
-          {/* Bottom controls */}
-          <div className="px-4 pb-4 flex flex-col items-center gap-3">
-            {status === 'connected' && (
-              <button
-                onClick={endConversation}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all"
-                style={{
-                  background: 'rgba(255, 107, 53, 0.15)',
-                  color: '#FF6B35',
-                  border: '1px solid rgba(255, 107, 53, 0.3)',
-                }}
-              >
-                <MicOff className="w-4 h-4" />
-                Terminar conversación
-              </button>
-            )}
-
-            {status === 'error' && (
-              <button
-                onClick={startConversation}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all"
-                style={{
-                  background: 'rgba(0, 212, 170, 0.15)',
-                  color: '#00D4AA',
-                  border: '1px solid rgba(0, 212, 170, 0.3)',
-                }}
-              >
-                <Mic className="w-4 h-4" />
-                Reintentar
-              </button>
-            )}
-
-            <p className="text-white/30 text-[10px] text-center">
-              Powered by Conektao AI × ElevenLabs
-            </p>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
