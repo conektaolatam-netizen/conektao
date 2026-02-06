@@ -4,6 +4,7 @@ import { MapPin } from 'lucide-react';
 import ConditionsAIPanel from './conditions/ConditionsAIPanel';
 import AuditPanel from './audit/AuditPanel';
 import ConektaoChat from './chat/ConektaoChat';
+import StaffSchedulePanel from './schedule/StaffSchedulePanel';
 
 const BranchManagerDashboard = () => {
   const branchId = "zona-t";
@@ -52,6 +53,15 @@ const BranchManagerDashboard = () => {
             transition={{ delay: 0.1 }}
           >
             <ConditionsAIPanel branchId={branchId} city={city} />
+          </motion.section>
+
+          {/* Staff Schedule */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <StaffSchedulePanel />
           </motion.section>
 
           {/* Two Column Layout: Chat + Audit */}
