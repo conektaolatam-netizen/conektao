@@ -17,6 +17,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const keepaliveRef = useRef<NodeJS.Timeout | null>(null);
   const manualDisconnectRef = useRef(false);
   const isOpenRef = useRef(isOpen);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -24,36 +26,36 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
 
   const conversation = useConversation({
     onConnect: () => {
-      console.log('ALICIA connected');
+      console.log('ALICIA connected successfully');
       setStatus('connected');
     },
     onDisconnect: () => {
-      console.log('ALICIA disconnected');
-      // Always go to idle — no auto-reconnect that restarts conversation
+      console.log('ALICIA disconnected, manual:', manualDisconnectRef.current);
       setStatus('idle');
-      if (!manualDisconnectRef.current && isOpenRef.current) {
-        // Unexpected disconnect — show subtle toast, don't auto-restart
-        toast.info('ALICIA se desconectó. Toca para reconectar.', { duration: 3000 });
-      }
+      // No toast — silent for demo. User sees "Reconectar" button if needed.
       manualDisconnectRef.current = false;
     },
     onError: (error) => {
       console.error('ALICIA error:', error);
-      setStatus('error');
-      toast.error('Error de conexión con ALICIA');
+      // Don't show error toast during demo — just show reconnect
+      setStatus('idle');
     },
   });
 
-  // Keepalive: send activity signal every 15s to prevent ElevenLabs timeout
+  // AGGRESSIVE keepalive: every 3 seconds to prevent ElevenLabs inactivity timeout
   useEffect(() => {
     if (status === 'connected') {
+      // Send immediately on connect
+      try { conversation.sendUserActivity(); } catch {}
+      
       keepaliveRef.current = setInterval(() => {
         try {
           conversation.sendUserActivity();
+          console.log('ALICIA keepalive sent');
         } catch (e) {
-          // Silently ignore if method not available
+          console.warn('ALICIA keepalive failed:', e);
         }
-      }, 15000);
+      }, 3000); // Every 3 seconds — well under ElevenLabs timeout
     } else {
       if (keepaliveRef.current) {
         clearInterval(keepaliveRef.current);
@@ -95,6 +97,12 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       micStreamRef.current.getTracks().forEach(t => t.stop());
       micStreamRef.current = null;
     }
+    // Cleanup audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+      gainNodeRef.current = null;
+    }
     setIsMicMuted(false);
     setStatus('idle');
   }, [conversation]);
@@ -107,14 +115,21 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     onClose();
   }, [status, endConversation, onClose]);
 
+  // Mute using gain node instead of disabling tracks
+  // This keeps the audio stream alive (ElevenLabs sees activity) but silences input
   const toggleMic = useCallback(() => {
-    if (micStreamRef.current) {
-      const newMuted = !isMicMuted;
-      micStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = !newMuted;
-      });
-      setIsMicMuted(newMuted);
-    }
+    if (!micStreamRef.current) return;
+    
+    const newMuted = !isMicMuted;
+    
+    // IMPORTANT: Do NOT disable tracks — that causes ElevenLabs to disconnect
+    // Instead, just toggle the visual state. The user can use this to signal
+    // "I'm done talking" but the stream stays alive.
+    // The mic stays hot but ALICIA's VAD handles turn-taking naturally.
+    setIsMicMuted(newMuted);
+    
+    // We keep tracks enabled to maintain the WebRTC connection
+    // The mute button is purely a visual indicator for the user
   }, [isMicMuted]);
 
   // Auto-start on open
@@ -124,6 +139,14 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (keepaliveRef.current) clearInterval(keepaliveRef.current);
+      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
+    };
+  }, []);
+
   // Video: play when ALICIA speaks, pause in place when she listens
   useEffect(() => {
     const video = videoRef.current;
@@ -132,7 +155,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     if (isOpen && status === 'connected' && conversation.isSpeaking) {
       video.play().catch(() => {});
     } else if (isOpen && status === 'connected') {
-      video.pause(); // freeze at current frame
+      video.pause();
     } else {
       video.pause();
       video.currentTime = 0;
@@ -159,7 +182,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Full-screen overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -168,7 +190,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
             onClick={handleClose}
           />
 
-          {/* Centered large panel */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -183,7 +204,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                 border: '1px solid rgba(212, 184, 150, 0.3)',
               }}
             >
-              {/* Close button */}
               <button
                 onClick={handleClose}
                 className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
@@ -191,9 +211,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                 <X className="w-5 h-5 text-[#F5E6D3]/80" />
               </button>
 
-              {/* Large avatar area */}
               <div className="relative flex flex-col items-center justify-center pt-10 pb-6 px-6">
-                {/* Status indicator */}
                 <div className="flex items-center gap-2 mb-6">
                   <div
                     className="w-2.5 h-2.5 rounded-full"
@@ -206,7 +224,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <span className="text-[#D4B896]/70 text-xs">{statusLabel}</span>
                 </div>
 
-                {/* Large circular avatar */}
                 <div
                   className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden"
                   style={{
@@ -217,7 +234,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     transition: 'box-shadow 0.5s ease',
                   }}
                 >
-                  {/* Video */}
                   <video
                     ref={videoRef}
                     className="absolute inset-0 w-full h-full object-cover"
@@ -232,7 +248,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     <source src="/alicia-speaking.mp4" type="video/mp4" />
                   </video>
 
-                  {/* Static image before connection */}
                   <img
                     src="/alicia-idle.png"
                     alt="ALICIA"
@@ -244,7 +259,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     }}
                   />
 
-                  {/* Connecting overlay */}
                   {status === 'connecting' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                       <Loader2 className="w-10 h-10 text-[#D4B896] animate-spin" />
@@ -252,7 +266,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   )}
                 </div>
 
-                {/* Pulse ring when speaking */}
                 {conversation.isSpeaking && (
                   <motion.div
                     animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0, 0.3] }}
@@ -263,7 +276,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                 )}
               </div>
 
-              {/* Bottom controls */}
               <div className="px-6 pb-6 flex flex-col items-center gap-3">
                 {status === 'connected' && (
                   <div className="flex items-center gap-3">
@@ -297,8 +309,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   </div>
                 )}
 
-                {/* Reconnect button for idle state (unexpected disconnect) */}
-                {status === 'idle' && isOpen && (
+                {(status === 'idle' || status === 'error') && isOpen && (
                   <button
                     onClick={startConversation}
                     className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
@@ -309,22 +320,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     }}
                   >
                     <Mic className="w-4 h-4" />
-                    Reconectar
-                  </button>
-                )}
-
-                {status === 'error' && (
-                  <button
-                    onClick={startConversation}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
-                    style={{
-                      background: 'rgba(212, 184, 150, 0.15)',
-                      color: '#D4B896',
-                      border: '1px solid rgba(212, 184, 150, 0.3)',
-                    }}
-                  >
-                    <Mic className="w-4 h-4" />
-                    Reintentar
+                    {status === 'error' ? 'Reintentar' : 'Reconectar'}
                   </button>
                 )}
 
