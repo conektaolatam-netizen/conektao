@@ -83,29 +83,26 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Control video playback - loop full 16s video while speaking
+  // Video plays continuously while panel is open - never stops/resets
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (conversation.isSpeaking) {
-      video.currentTime = 0;
+    if (isOpen && status === 'connected') {
       video.play().catch(() => {});
     } else {
       video.pause();
-      video.currentTime = 0;
     }
 
-    // When video ends and still speaking, restart from beginning
     const handleEnded = () => {
-      if (conversation.isSpeaking && video) {
+      if (video) {
         video.currentTime = 0;
         video.play().catch(() => {});
       }
     };
     video.addEventListener('ended', handleEnded);
     return () => video.removeEventListener('ended', handleEnded);
-  }, [conversation.isSpeaking]);
+  }, [isOpen, status]);
 
   const statusLabel = {
     idle: 'Desconectada',
@@ -169,37 +166,37 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                 <div
                   className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden"
                   style={{
-                    backgroundColor: '#F5E6D3',
+                    backgroundColor: '#FFFFFF',
                     boxShadow: conversation.isSpeaking
                       ? '0 0 60px rgba(212, 184, 150, 0.4), 0 0 120px rgba(212, 184, 150, 0.15)'
                       : '0 0 30px rgba(212, 184, 150, 0.2)',
                     transition: 'box-shadow 0.5s ease',
                   }}
                 >
-                  {/* Video for speaking - MUTED, NO loop (manual restart for full 16s) */}
+                  {/* Video always visible when connected - plays continuously */}
                   <video
                     ref={videoRef}
                     className="absolute inset-0 w-full h-full object-cover"
                     playsInline
                     muted
                     style={{
-                      opacity: conversation.isSpeaking ? 1 : 0,
+                      opacity: status === 'connected' ? 1 : 0,
                       transition: 'opacity 0.3s ease',
-                      objectPosition: 'center 15%',
+                      objectPosition: 'center 18%',
                     }}
                   >
                     <source src="/alicia-speaking.mp4" type="video/mp4" />
                   </video>
 
-                  {/* Static image for listening */}
+                  {/* Static image only shown before connection */}
                   <img
                     src="/alicia-idle.png"
                     alt="ALICIA"
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{
-                      opacity: conversation.isSpeaking ? 0 : 1,
+                      opacity: status === 'connected' ? 0 : 1,
                       transition: 'opacity 0.3s ease',
-                      objectPosition: 'center 15%',
+                      objectPosition: 'center 18%',
                     }}
                   />
 
