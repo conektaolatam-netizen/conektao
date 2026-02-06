@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 interface AIGlowBorderProps {
   children: React.ReactNode;
@@ -10,20 +9,18 @@ interface AIGlowBorderProps {
 const AIGlowBorder: React.FC<AIGlowBorderProps> = ({ children, className = '', borderRadius = 'rounded-2xl' }) => {
   return (
     <div className={`relative ${className}`}>
-      {/* Animated gradient border */}
-      <motion.div
-        className={`absolute -inset-[1px] ${borderRadius} overflow-hidden`}
-        style={{
-          background: 'conic-gradient(from 0deg, #00D4AA, #FF6B35, #00D4AA)',
-        }}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-      />
-      {/* Glow effect */}
+      {/* Static gradient border */}
       <div
-        className={`absolute -inset-[1px] ${borderRadius} blur-md opacity-30`}
+        className={`absolute -inset-[1px] ${borderRadius}`}
         style={{
-          background: 'conic-gradient(from 0deg, #00D4AA, #FF6B35, #00D4AA)',
+          background: 'linear-gradient(135deg, #00D4AA, #FF6B35, #00D4AA)',
+        }}
+      />
+      {/* Subtle glow */}
+      <div
+        className={`absolute -inset-[1px] ${borderRadius} blur-sm opacity-20`}
+        style={{
+          background: 'linear-gradient(135deg, #00D4AA, #FF6B35)',
         }}
       />
       {/* Inner content */}
