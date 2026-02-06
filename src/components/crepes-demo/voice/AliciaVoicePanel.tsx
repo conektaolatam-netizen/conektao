@@ -11,7 +11,9 @@ interface AliciaVoicePanelProps {
 
 const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) => {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [isMicMuted, setIsMicMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -33,7 +35,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     if (status === 'connecting' || status === 'connected') return;
     setStatus('connecting');
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
 
       await conversation.startSession({
         agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
@@ -48,6 +51,11 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
 
   const endConversation = useCallback(async () => {
     await conversation.endSession();
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
+    }
+    setIsMicMuted(false);
     setStatus('idle');
   }, [conversation]);
 
@@ -58,6 +66,16 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     onClose();
   }, [status, endConversation, onClose]);
 
+  const toggleMic = useCallback(() => {
+    if (micStreamRef.current) {
+      const enabled = !isMicMuted;
+      micStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = enabled; // muted = tracks disabled
+      });
+      setIsMicMuted(!isMicMuted);
+    }
+  }, [isMicMuted]);
+
   // Auto-start on open
   useEffect(() => {
     if (isOpen && status === 'idle') {
@@ -65,7 +83,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Control video playback based on speaking state - always muted
+  // Control video playback based on speaking state
   useEffect(() => {
     if (videoRef.current) {
       if (conversation.isSpeaking) {
@@ -80,7 +98,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const statusLabel = {
     idle: 'Desconectada',
     connecting: 'Conectando...',
-    connected: conversation.isSpeaking ? 'Hablando...' : 'Escuchando...',
+    connected: conversation.isSpeaking ? 'Hablando...' : (isMicMuted ? 'Micrófono silenciado' : 'Escuchando...'),
     error: 'Error de conexión',
   }[status];
 
@@ -135,23 +153,29 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <span className="text-[#D4B896]/70 text-xs">{statusLabel}</span>
                 </div>
 
-                {/* Large circular avatar */}
-                <div className="relative w-64 h-64 md:w-72 md:h-72 rounded-full overflow-hidden" style={{
-                  boxShadow: conversation.isSpeaking
-                    ? '0 0 60px rgba(212, 184, 150, 0.4), 0 0 120px rgba(212, 184, 150, 0.15)'
-                    : '0 0 30px rgba(212, 184, 150, 0.2)',
-                  transition: 'box-shadow 0.5s ease',
-                }}>
-                  {/* Video for speaking - MUTED so it doesn't interfere with ElevenLabs audio */}
+                {/* Large circular avatar - bigger with white bg to avoid black edges */}
+                <div
+                  className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden"
+                  style={{
+                    backgroundColor: '#F5E6D3',
+                    boxShadow: conversation.isSpeaking
+                      ? '0 0 60px rgba(212, 184, 150, 0.4), 0 0 120px rgba(212, 184, 150, 0.15)'
+                      : '0 0 30px rgba(212, 184, 150, 0.2)',
+                    transition: 'box-shadow 0.5s ease',
+                  }}
+                >
+                  {/* Video for speaking - MUTED, scaled up to fill and avoid black borders */}
                   <video
                     ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    className="absolute inset-0 w-full h-full object-cover"
                     loop
                     playsInline
                     muted
                     style={{
                       opacity: conversation.isSpeaking ? 1 : 0,
                       transition: 'opacity 0.3s ease',
+                      transform: 'scale(1.15)',
+                      objectPosition: 'center 20%',
                     }}
                   >
                     <source src="/alicia-speaking.mp4" type="video/mp4" />
@@ -161,10 +185,12 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <img
                     src="/alicia-idle.png"
                     alt="ALICIA"
-                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    className="absolute inset-0 w-full h-full object-cover"
                     style={{
                       opacity: conversation.isSpeaking ? 0 : 1,
                       transition: 'opacity 0.3s ease',
+                      transform: 'scale(1.15)',
+                      objectPosition: 'center 20%',
                     }}
                   />
 
@@ -181,7 +207,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <motion.div
                     animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0, 0.3] }}
                     transition={{ duration: 2.5, repeat: Infinity }}
-                    className="absolute w-72 h-72 md:w-80 md:h-80 rounded-full border-2 border-[#D4B896]/30"
+                    className="absolute w-80 h-80 md:w-[22rem] md:h-[22rem] rounded-full border-2 border-[#D4B896]/30 pointer-events-none"
                     style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
                   />
                 )}
@@ -190,18 +216,37 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
               {/* Bottom controls */}
               <div className="px-6 pb-6 flex flex-col items-center gap-3">
                 {status === 'connected' && (
-                  <button
-                    onClick={endConversation}
-                    className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
-                    style={{
-                      background: 'rgba(255, 107, 53, 0.15)',
-                      color: '#FF6B35',
-                      border: '1px solid rgba(255, 107, 53, 0.3)',
-                    }}
-                  >
-                    <MicOff className="w-4 h-4" />
-                    Terminar conversación
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* Mute/unmute mic button */}
+                    <button
+                      onClick={toggleMic}
+                      className="flex items-center justify-center w-12 h-12 rounded-full transition-all"
+                      style={{
+                        background: isMicMuted ? 'rgba(255, 107, 53, 0.2)' : 'rgba(0, 212, 170, 0.15)',
+                        border: `1px solid ${isMicMuted ? 'rgba(255, 107, 53, 0.4)' : 'rgba(0, 212, 170, 0.3)'}`,
+                      }}
+                      title={isMicMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
+                    >
+                      {isMicMuted ? (
+                        <MicOff className="w-5 h-5 text-[#FF6B35]" />
+                      ) : (
+                        <Mic className="w-5 h-5 text-[#00D4AA]" />
+                      )}
+                    </button>
+
+                    {/* End conversation button */}
+                    <button
+                      onClick={endConversation}
+                      className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium transition-all"
+                      style={{
+                        background: 'rgba(255, 107, 53, 0.15)',
+                        color: '#FF6B35',
+                        border: '1px solid rgba(255, 107, 53, 0.3)',
+                      }}
+                    >
+                      Terminar conversación
+                    </button>
+                  </div>
                 )}
 
                 {status === 'error' && (
