@@ -6,6 +6,7 @@ import BranchManagerDashboard from '@/components/crepes-demo/BranchManagerDashbo
 import RegionalManagerDashboard from '@/components/crepes-demo/RegionalManagerDashboard';
 import GeneralManagerDashboard from '@/components/crepes-demo/GeneralManagerDashboard';
 import BackstageFlow from '@/components/crepes-demo/BackstageFlow';
+import AliciaVoiceButton from '@/components/crepes-demo/voice/AliciaVoiceButton';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -121,6 +122,9 @@ const CrepesWafflesDemo = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ALICIA Voice Agent - Available on all views */}
+      <AliciaVoiceButton />
     </div>
   );
 };
