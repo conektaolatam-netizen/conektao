@@ -83,26 +83,32 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Video plays continuously while panel is open - never stops/resets
+  // Video plays when ALICIA speaks, pauses in place when she listens
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isOpen && status === 'connected') {
+    if (isOpen && status === 'connected' && conversation.isSpeaking) {
+      // Resume from current frame when she starts speaking
       video.play().catch(() => {});
+    } else if (isOpen && status === 'connected') {
+      // Pause at current frame — she "listens" frozen naturally
+      video.pause();
     } else {
       video.pause();
+      video.currentTime = 0;
     }
 
+    // Loop: when video ends and still speaking, restart
     const handleEnded = () => {
-      if (video) {
+      if (video && conversation.isSpeaking) {
         video.currentTime = 0;
         video.play().catch(() => {});
       }
     };
     video.addEventListener('ended', handleEnded);
     return () => video.removeEventListener('ended', handleEnded);
-  }, [isOpen, status]);
+  }, [isOpen, status, conversation.isSpeaking]);
 
   const statusLabel = {
     idle: 'Desconectada',
