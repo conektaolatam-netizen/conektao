@@ -4,6 +4,7 @@ import { Bot, Send, RotateCcw, Sparkles, TrendingUp, Clock, ShoppingCart, BarCha
 import { Button } from '@/components/ui/button';
 import AliciaAvatar from './AliciaAvatar';
 import AliciaImpactPanel from './AliciaImpactPanel';
+import AliciaVoiceButton from './voice/AliciaVoiceButton';
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -336,6 +337,7 @@ const AliciaExperience = () => {
             </div>
           </div>}
       </div>
+      <AliciaVoiceButton />
     </div>;
 };
 export default AliciaExperience;
