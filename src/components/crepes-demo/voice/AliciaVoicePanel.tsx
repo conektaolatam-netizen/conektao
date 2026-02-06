@@ -13,54 +13,36 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isMicMuted, setIsMicMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const keepaliveRef = useRef<NodeJS.Timeout | null>(null);
-  const manualDisconnectRef = useRef(false);
-  const isOpenRef = useRef(isOpen);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const keepaliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasStartedRef = useRef(false);
 
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
-
+  // SDK handles muting natively via micMuted prop
   const conversation = useConversation({
+    micMuted: isMicMuted,
     onConnect: () => {
-      console.log('ALICIA connected successfully');
+      console.log('ALICIA connected');
       setStatus('connected');
     },
     onDisconnect: () => {
-      console.log('ALICIA disconnected, manual:', manualDisconnectRef.current);
+      console.log('ALICIA disconnected');
       setStatus('idle');
-      // No toast — silent for demo. User sees "Reconectar" button if needed.
-      manualDisconnectRef.current = false;
     },
     onError: (error) => {
       console.error('ALICIA error:', error);
-      // Don't show error toast during demo — just show reconnect
       setStatus('idle');
     },
   });
 
-  // AGGRESSIVE keepalive: every 3 seconds to prevent ElevenLabs inactivity timeout
+  // Store conversation in a ref so keepalive never tears down from ref changes
+  const conversationRef = useRef(conversation);
+  conversationRef.current = conversation;
+
+  // Keepalive: depends ONLY on status, uses ref for conversation
   useEffect(() => {
     if (status === 'connected') {
-      // Send immediately on connect
-      try { conversation.sendUserActivity(); } catch {}
-      
       keepaliveRef.current = setInterval(() => {
-        try {
-          conversation.sendUserActivity();
-          console.log('ALICIA keepalive sent');
-        } catch (e) {
-          console.warn('ALICIA keepalive failed:', e);
-        }
-      }, 3000); // Every 3 seconds — well under ElevenLabs timeout
-    } else {
-      if (keepaliveRef.current) {
-        clearInterval(keepaliveRef.current);
-        keepaliveRef.current = null;
-      }
+        try { conversationRef.current.sendUserActivity(); } catch {}
+      }, 10000);
     }
     return () => {
       if (keepaliveRef.current) {
@@ -68,17 +50,13 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
         keepaliveRef.current = null;
       }
     };
-  }, [status, conversation]);
+  }, [status]);
 
   const startConversation = useCallback(async () => {
     if (status === 'connecting' || status === 'connected') return;
-    manualDisconnectRef.current = false;
     setStatus('connecting');
     try {
-      if (!micStreamRef.current || micStreamRef.current.getTracks().every(t => t.readyState === 'ended')) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        micStreamRef.current = stream;
-      }
+      await navigator.mediaDevices.getUserMedia({ audio: true });
       await conversation.startSession({
         agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
         connectionType: 'webrtc',
@@ -91,63 +69,32 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   }, [conversation, status]);
 
   const endConversation = useCallback(async () => {
-    manualDisconnectRef.current = true;
     await conversation.endSession();
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(t => t.stop());
-      micStreamRef.current = null;
-    }
-    // Cleanup audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-      gainNodeRef.current = null;
-    }
     setIsMicMuted(false);
     setStatus('idle');
   }, [conversation]);
 
   const handleClose = useCallback(async () => {
-    manualDisconnectRef.current = true;
     if (status === 'connected' || status === 'connecting') {
       await endConversation();
     }
+    hasStartedRef.current = false;
     onClose();
   }, [status, endConversation, onClose]);
 
-  // Mute using gain node instead of disabling tracks
-  // This keeps the audio stream alive (ElevenLabs sees activity) but silences input
   const toggleMic = useCallback(() => {
-    if (!micStreamRef.current) return;
-    
-    const newMuted = !isMicMuted;
-    
-    // IMPORTANT: Do NOT disable tracks — that causes ElevenLabs to disconnect
-    // Instead, just toggle the visual state. The user can use this to signal
-    // "I'm done talking" but the stream stays alive.
-    // The mic stays hot but ALICIA's VAD handles turn-taking naturally.
-    setIsMicMuted(newMuted);
-    
-    // We keep tracks enabled to maintain the WebRTC connection
-    // The mute button is purely a visual indicator for the user
-  }, [isMicMuted]);
-
-  // Auto-start on open
-  useEffect(() => {
-    if (isOpen && status === 'idle') {
-      startConversation();
-    }
-  }, [isOpen]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (keepaliveRef.current) clearInterval(keepaliveRef.current);
-      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
-    };
+    setIsMicMuted(prev => !prev);
   }, []);
 
-  // Video: play when ALICIA speaks, pause in place when she listens
+  // Start ONCE when panel opens — never auto-restart
+  useEffect(() => {
+    if (isOpen && !hasStartedRef.current) {
+      hasStartedRef.current = true;
+      startConversation();
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Video: play when speaking, pause when listening
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
