@@ -11,17 +11,28 @@ interface AliciaVoicePanelProps {
 
 const ALICIA_AGENT_ID = 'agent_9401kcyypg67eb6v07dnqzds6hwn';
 
+// Coffee-tone wave colors for Crepes & Waffles
+const WAVE_COLORS = [
+  'rgba(74, 55, 40, 0.6)',    // Dark coffee
+  'rgba(92, 64, 51, 0.5)',    // Medium coffee
+  'rgba(139, 90, 43, 0.4)',   // Caramel
+  'rgba(166, 124, 82, 0.35)', // Light brown
+  'rgba(212, 184, 150, 0.3)', // Beige/cream
+  'rgba(120, 75, 40, 0.45)',  // Rich brown
+];
+
 const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) => {
-  // Only local state: connecting flag + mic mute. Everything else comes from SDK.
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const keepaliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasStartedRef = useRef(false);
-  const isConnectingRef = useRef(false); // lock to prevent overlapping startSession
+  const isConnectingRef = useRef(false);
 
+  // Pass micMuted as controlled state to SDK — this mutes the USER's microphone
   const conversation = useConversation({
+    micMuted: isMicMuted,
     onConnect: () => {
       console.log('ALICIA connected');
       isConnectingRef.current = false;
@@ -39,7 +50,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     },
   });
 
-  // Stable ref for keepalive — never causes effect re-runs
   const conversationRef = useRef(conversation);
   conversationRef.current = conversation;
 
@@ -58,15 +68,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     };
   }, [conversation.status]);
 
-  // Mute: toggle SDK's setMicMuted when isMicMuted changes
-  useEffect(() => {
-    if (conversation.status === 'connected') {
-      try { conversationRef.current.setVolume({ volume: isMicMuted ? 0 : 1 }); } catch {}
-    }
-  }, [isMicMuted, conversation.status]);
-
   const startConversation = useCallback(async () => {
-    // Guard: prevent overlapping calls
     if (isConnectingRef.current || conversation.status === 'connected') return;
     isConnectingRef.current = true;
     setIsConnecting(true);
@@ -82,11 +84,9 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       setIsConnecting(false);
       toast.error('No se pudo conectar con ALICIA. Verifica el micrófono.');
     }
-    // Note: on success, onConnect callback handles clearing the lock
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endConversation = useCallback(async () => {
-    // ONLY end if truly connected — never during connecting
     if (conversation.status === 'connected') {
       try { await conversation.endSession(); } catch {}
     }
@@ -94,7 +94,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = useCallback(async () => {
-    // If connecting, just close the panel — don't call endSession mid-handshake
     if (conversationRef.current.status === 'connected') {
       try { await conversationRef.current.endSession(); } catch {}
     }
@@ -109,7 +108,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     setIsMicMuted(prev => !prev);
   }, []);
 
-  // Start ONCE when panel opens — never auto-restart
+  // Start ONCE when panel opens
   useEffect(() => {
     if (isOpen && !hasStartedRef.current) {
       hasStartedRef.current = true;
@@ -143,7 +142,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     return () => video.removeEventListener('ended', handleEnded);
   }, [isOpen, conversation.status, conversation.isSpeaking]);
 
-  // Derive display status from SDK + local connecting flag
   const isConnected = conversation.status === 'connected';
   const isDisconnected = conversation.status === 'disconnected';
 
@@ -177,19 +175,20 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
             <div
               className="relative w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl pointer-events-auto"
               style={{
-                background: 'linear-gradient(180deg, #3D2914 0%, #2A1A0A 100%)',
-                border: '1px solid rgba(212, 184, 150, 0.3)',
+                background: '#FFFFFF',
+                border: '1px solid rgba(212, 184, 150, 0.4)',
               }}
             >
               <button
                 onClick={handleClose}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-[#4A3728]/10 hover:bg-[#4A3728]/20 transition-colors"
               >
-                <X className="w-5 h-5 text-[#F5E6D3]/80" />
+                <X className="w-5 h-5 text-[#4A3728]/70" />
               </button>
 
               <div className="relative flex flex-col items-center justify-center pt-10 pb-6 px-6">
-                <div className="flex items-center gap-2 mb-6">
+                {/* Status bar */}
+                <div className="flex items-center gap-2 mb-8">
                   <div
                     className="w-2.5 h-2.5 rounded-full"
                     style={{
@@ -197,62 +196,104 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                       boxShadow: isConnected ? '0 0 8px #00D4AA' : 'none',
                     }}
                   />
-                  <span className="text-[#F5E6D3] text-sm font-medium">ALICIA</span>
-                  <span className="text-[#D4B896]/70 text-xs">{statusLabel}</span>
+                  <span className="text-[#4A3728] text-sm font-semibold tracking-wide">ALICIA</span>
+                  <span className="text-[#8B5A2B]/60 text-xs">{statusLabel}</span>
                 </div>
 
-                <div
-                  className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden"
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    boxShadow: conversation.isSpeaking
-                      ? '0 0 60px rgba(212, 184, 150, 0.4), 0 0 120px rgba(212, 184, 150, 0.15)'
-                      : '0 0 30px rgba(212, 184, 150, 0.2)',
-                    transition: 'box-shadow 0.5s ease',
-                  }}
-                >
-                  <video
-                    ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    playsInline
-                    muted
+                {/* ALICIA circle with animated waves */}
+                <div className="relative w-80 h-80 md:w-[22rem] md:h-[22rem] flex items-center justify-center">
+                  
+                  {/* Animated coffee waves */}
+                  {WAVE_COLORS.map((color, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        width: `${100 + (i + 1) * 8}%`,
+                        height: `${100 + (i + 1) * 8}%`,
+                        border: `${2 - i * 0.15}px solid ${color}`,
+                        background: `radial-gradient(circle, transparent 60%, ${color.replace(/[\d.]+\)$/, '0.05)')})`,
+                      }}
+                      animate={{
+                        scale: conversation.isSpeaking 
+                          ? [1, 1.03 + i * 0.008, 1, 0.97 - i * 0.005, 1]
+                          : [1, 1.01 + i * 0.003, 1],
+                        rotate: i % 2 === 0 ? [0, 360] : [360, 0],
+                        opacity: conversation.isSpeaking
+                          ? [0.4 + i * 0.08, 0.8 - i * 0.05, 0.4 + i * 0.08]
+                          : [0.3, 0.5, 0.3],
+                      }}
+                      transition={{
+                        duration: conversation.isSpeaking ? 3 + i * 0.7 : 8 + i * 2,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                    />
+                  ))}
+
+                  {/* Pulsing glow behind circle when speaking */}
+                  {conversation.isSpeaking && (
+                    <motion.div
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        width: '95%',
+                        height: '95%',
+                        background: 'radial-gradient(circle, rgba(139, 90, 43, 0.15) 0%, transparent 70%)',
+                      }}
+                      animate={{
+                        scale: [1, 1.15, 1],
+                        opacity: [0.3, 0.6, 0.3],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
+
+                  {/* ALICIA avatar circle */}
+                  <div
+                    className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden z-10"
                     style={{
-                      opacity: isConnected ? 1 : 0,
-                      transition: 'opacity 0.3s ease',
-                      objectPosition: 'center 18%',
+                      boxShadow: conversation.isSpeaking
+                        ? '0 0 40px rgba(139, 90, 43, 0.3), 0 0 80px rgba(139, 90, 43, 0.1)'
+                        : '0 0 20px rgba(74, 55, 40, 0.15)',
+                      transition: 'box-shadow 0.5s ease',
+                      border: '3px solid rgba(212, 184, 150, 0.5)',
                     }}
                   >
-                    <source src="/alicia-speaking.mp4" type="video/mp4" />
-                  </video>
+                    <video
+                      ref={videoRef}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      playsInline
+                      muted
+                      style={{
+                        opacity: isConnected ? 1 : 0,
+                        transition: 'opacity 0.3s ease',
+                        objectPosition: 'center 18%',
+                      }}
+                    >
+                      <source src="/alicia-speaking.mp4" type="video/mp4" />
+                    </video>
 
-                  <img
-                    src="/alicia-idle.png"
-                    alt="ALICIA"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{
-                      opacity: isConnected ? 0 : 1,
-                      transition: 'opacity 0.3s ease',
-                      objectPosition: 'center 18%',
-                    }}
-                  />
+                    <img
+                      src="/alicia-idle.png"
+                      alt="ALICIA"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{
+                        opacity: isConnected ? 0 : 1,
+                        transition: 'opacity 0.3s ease',
+                        objectPosition: 'center 18%',
+                      }}
+                    />
 
-                  {isConnecting && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <Loader2 className="w-10 h-10 text-[#D4B896] animate-spin" />
-                    </div>
-                  )}
+                    {isConnecting && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+                        <Loader2 className="w-10 h-10 text-[#8B5A2B] animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {conversation.isSpeaking && (
-                  <motion.div
-                    animate={{ scale: [1, 1.12, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ duration: 2.5, repeat: Infinity }}
-                    className="absolute w-80 h-80 md:w-[22rem] md:h-[22rem] rounded-full border-2 border-[#D4B896]/30 pointer-events-none"
-                    style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
-                  />
-                )}
               </div>
 
+              {/* Controls */}
               <div className="px-6 pb-6 flex flex-col items-center gap-3">
                 {isConnected && (
                   <div className="flex items-center gap-3">
@@ -260,8 +301,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                       onClick={toggleMic}
                       className="flex items-center justify-center w-12 h-12 rounded-full transition-all"
                       style={{
-                        background: isMicMuted ? 'rgba(255, 107, 53, 0.2)' : 'rgba(0, 212, 170, 0.15)',
-                        border: `1px solid ${isMicMuted ? 'rgba(255, 107, 53, 0.4)' : 'rgba(0, 212, 170, 0.3)'}`,
+                        background: isMicMuted ? 'rgba(255, 107, 53, 0.12)' : 'rgba(0, 212, 170, 0.1)',
+                        border: `1.5px solid ${isMicMuted ? 'rgba(255, 107, 53, 0.35)' : 'rgba(0, 212, 170, 0.25)'}`,
                       }}
                       title={isMicMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
                     >
@@ -276,9 +317,9 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                       onClick={endConversation}
                       className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium transition-all"
                       style={{
-                        background: 'rgba(255, 107, 53, 0.15)',
-                        color: '#FF6B35',
-                        border: '1px solid rgba(255, 107, 53, 0.3)',
+                        background: 'rgba(74, 55, 40, 0.08)',
+                        color: '#4A3728',
+                        border: '1px solid rgba(74, 55, 40, 0.2)',
                       }}
                     >
                       Terminar conversación
@@ -291,7 +332,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     onClick={startConversation}
                     className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
                     style={{
-                      background: 'rgba(0, 212, 170, 0.15)',
+                      background: 'rgba(0, 212, 170, 0.1)',
                       color: '#00D4AA',
                       border: '1px solid rgba(0, 212, 170, 0.3)',
                     }}
@@ -301,7 +342,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   </button>
                 )}
 
-                <p className="text-[#D4B896]/30 text-[10px] text-center">
+                <p className="text-[#8B5A2B]/30 text-[10px] text-center">
                   Powered by Conektao AI × ElevenLabs
                 </p>
               </div>
