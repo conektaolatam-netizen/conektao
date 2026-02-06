@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, RefreshCw, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import WeatherCard from './WeatherCard';
 import CalendarCard from './CalendarCard';
 import NewsImpactCard from './NewsImpactCard';
+import AIGlowBorder from '../ui/AIGlowBorder';
 
 interface ConditionsData {
   weather: any;
@@ -71,65 +71,59 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-5"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <motion.div
-            className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8B7355] to-[#5C4033] flex items-center justify-center shadow-lg"
+            className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4AA] to-[#FF6B35] flex items-center justify-center shadow-lg"
             animate={{ 
-              boxShadow: ['0 4px 20px rgba(92,64,51,0.2)', '0 4px 30px rgba(92,64,51,0.35)', '0 4px 20px rgba(92,64,51,0.2)']
+              boxShadow: ['0 4px 20px rgba(0,212,170,0.2)', '0 4px 30px rgba(255,107,53,0.3)', '0 4px 20px rgba(0,212,170,0.2)']
             }}
-            transition={{ duration: 2, repeat: Infinity }}
+            transition={{ duration: 3, repeat: Infinity }}
           >
-            <Sparkles className="w-6 h-6 text-[#F5EDE4]" />
+            <Sparkles className="w-5 h-5 text-white" />
           </motion.div>
           <div>
-            <h2 className="text-xl font-bold text-[#4A3728]">IA de Condiciones</h2>
-            <div className="flex items-center gap-1 text-sm text-[#8B7355]">
+            <h2 className="text-lg font-bold text-[#4A3728]">IA de Condiciones</h2>
+            <div className="flex items-center gap-1 text-xs text-[#8B7355]">
               <MapPin className="w-3 h-3" />
               <span>{city}</span>
             </div>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={fetchConditions}
           disabled={isLoading}
-          className="border-[#D4C4B0] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#8B7355]"
+          className="p-2 text-[#8B7355]/40 hover:text-[#8B7355] transition-colors"
+          title="Actualizar"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
-      {/* AI Summary */}
+      {/* AI Summary - Dark Futuristic Card */}
       {conditions?.aiSummary && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="bg-gradient-to-r from-[#5C4033] to-[#6B5744] text-white border-0 overflow-hidden relative shadow-lg">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-start gap-3">
-                <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                >
-                  <Sparkles className="w-6 h-6 text-[#E8DFD4]" />
-                </motion.div>
-                <div>
-                  <p className="text-sm font-medium text-[#E8DFD4]/80 mb-2">Resumen del Día con IA</p>
-                  <p className="text-white leading-relaxed">{conditions.aiSummary}</p>
-                </div>
+        <AIGlowBorder>
+          <div className="bg-[#1a1a2e] p-5 relative overflow-hidden">
+            {/* Subtle grid pattern */}
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
+            <div className="relative flex items-start gap-3">
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="mt-0.5"
+              >
+                <Sparkles className="w-5 h-5 text-[#00D4AA]" />
+              </motion.div>
+              <div>
+                <p className="text-xs font-medium text-[#00D4AA]/70 mb-1.5 uppercase tracking-wider">Resumen del Día con IA</p>
+                <p className="text-white/90 text-sm leading-relaxed">{conditions.aiSummary}</p>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </div>
+        </AIGlowBorder>
       )}
 
       {/* Error State */}
