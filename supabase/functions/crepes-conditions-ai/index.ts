@@ -234,7 +234,7 @@ async function getNewsData(city: string): Promise<NewsData> {
   const simulatedEvents: NewsEvent[] = [
     {
       title: "Final Liga BetPlay: Millonarios vs Tolima",
-      description: "El partido se juega hoy a las 8:00 PM en El Campín. Se esperan más de 36,000 aficionados en la zona.",
+      description: "El partido se juega hoy a las 8:00 PM en El Campín. Crepes & Waffles no transmite partidos en local — históricamente las ventas en salón caen hasta un 35% durante partidos importantes.",
       category: "deportes",
       impactProbability: 92,
       source: "El Tiempo",
@@ -252,7 +252,7 @@ async function getNewsData(city: string): Promise<NewsData> {
     return {
       events: simulatedEvents,
       topEvent: simulatedEvents[0],
-      recommendation: "⚽ Final Liga BetPlay hoy a las 8PM - 92% probabilidad de afectar el tráfico en zona norte. Prepárate para una reducción de clientes en mesa durante el partido pero posible aumento de domicilios con pedidos grupales.",
+      recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — como no se transmite en el local, las ventas en salón bajan hasta 35%. Considera reducir personal en mesa desde las 7PM y reforzar domicilios: los pedidos grupales suben un 20% durante partidos.",
     };
   }
 
@@ -265,7 +265,7 @@ async function getNewsData(city: string): Promise<NewsData> {
       return {
         events: simulatedEvents,
         topEvent: simulatedEvents[0],
-        recommendation: "⚽ Final Liga BetPlay hoy a las 8PM - 92% probabilidad de afectar el tráfico. Prepárate para una reducción de clientes en mesa durante el partido.",
+        recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — ventas en salón bajan ~35% al no transmitir. Reduce personal en mesa y refuerza domicilios.",
       };
     }
 
@@ -296,7 +296,7 @@ async function getNewsData(city: string): Promise<NewsData> {
     return {
       events: simulatedEvents,
       topEvent: simulatedEvents[0],
-      recommendation: "⚽ Final Liga BetPlay hoy - Alto impacto esperado en zona norte.",
+      recommendation: "⚽ Final Liga BetPlay hoy — ventas en salón bajan ~35% al no transmitir. Refuerza domicilios.",
     };
   }
 }
