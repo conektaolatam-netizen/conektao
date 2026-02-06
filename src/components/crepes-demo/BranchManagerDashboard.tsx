@@ -5,6 +5,7 @@ import ConditionsAIPanel from './conditions/ConditionsAIPanel';
 import AuditPanel from './audit/AuditPanel';
 import ConektaoChat from './chat/ConektaoChat';
 import StaffSchedulePanel from './schedule/StaffSchedulePanel';
+import AliciaVoiceButton from './voice/AliciaVoiceButton';
 
 const BranchManagerDashboard = () => {
   const branchId = "zona-t";
@@ -94,6 +95,9 @@ const BranchManagerDashboard = () => {
           </p>
         </motion.div>
       </div>
+
+      {/* ALICIA Voice Agent - Floating Button */}
+      <AliciaVoiceButton />
     </div>
   );
 };
