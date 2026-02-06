@@ -70,12 +70,13 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   }, [conversation.status]);
 
   const startConversation = useCallback(async () => {
-    if (isConnectingRef.current || conversation.status === 'connected') return;
+    const conv = conversationRef.current;
+    if (isConnectingRef.current || conv.status === 'connected') return;
     isConnectingRef.current = true;
     setIsConnecting(true);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      await conversation.startSession({
+      await conv.startSession({
         agentId: ALICIA_AGENT_ID,
         connectionType: 'webrtc',
       });
@@ -85,14 +86,15 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       setIsConnecting(false);
       toast.error('No se pudo conectar con ALICIA. Verifica el micrófono.');
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const endConversation = useCallback(async () => {
-    if (conversation.status === 'connected') {
-      try { await conversation.endSession(); } catch {}
+    const conv = conversationRef.current;
+    if (conv.status === 'connected') {
+      try { await conv.endSession(); } catch {}
     }
     setIsMicMuted(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClose = useCallback(async () => {
     if (conversationRef.current.status === 'connected') {
