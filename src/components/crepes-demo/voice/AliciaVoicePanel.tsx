@@ -14,11 +14,10 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
-  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isOpenRef = useRef(isOpen);
+  const keepaliveRef = useRef<NodeJS.Timeout | null>(null);
   const manualDisconnectRef = useRef(false);
+  const isOpenRef = useRef(isOpen);
 
-  // Keep ref in sync
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
@@ -30,41 +29,54 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     },
     onDisconnect: () => {
       console.log('ALICIA disconnected');
-      // If panel is still open and user didn't manually disconnect, auto-reconnect
-      if (isOpenRef.current && !manualDisconnectRef.current) {
-        console.log('ALICIA: unexpected disconnect, reconnecting in 1.5s...');
-        setStatus('connecting');
-        reconnectTimerRef.current = setTimeout(() => {
-          doStartConversation();
-        }, 1500);
-      } else {
-        setStatus('idle');
-        manualDisconnectRef.current = false;
+      // Always go to idle — no auto-reconnect that restarts conversation
+      setStatus('idle');
+      if (!manualDisconnectRef.current && isOpenRef.current) {
+        // Unexpected disconnect — show subtle toast, don't auto-restart
+        toast.info('ALICIA se desconectó. Toca para reconectar.', { duration: 3000 });
       }
+      manualDisconnectRef.current = false;
     },
     onError: (error) => {
       console.error('ALICIA error:', error);
-      // Auto-reconnect on error too if panel is open
-      if (isOpenRef.current && !manualDisconnectRef.current) {
-        setStatus('connecting');
-        reconnectTimerRef.current = setTimeout(() => {
-          doStartConversation();
-        }, 2500);
-      } else {
-        setStatus('error');
-        toast.error('Error de conexión con ALICIA');
-      }
+      setStatus('error');
+      toast.error('Error de conexión con ALICIA');
     },
   });
 
-  const doStartConversation = useCallback(async () => {
+  // Keepalive: send activity signal every 15s to prevent ElevenLabs timeout
+  useEffect(() => {
+    if (status === 'connected') {
+      keepaliveRef.current = setInterval(() => {
+        try {
+          conversation.sendUserActivity();
+        } catch (e) {
+          // Silently ignore if method not available
+        }
+      }, 15000);
+    } else {
+      if (keepaliveRef.current) {
+        clearInterval(keepaliveRef.current);
+        keepaliveRef.current = null;
+      }
+    }
+    return () => {
+      if (keepaliveRef.current) {
+        clearInterval(keepaliveRef.current);
+        keepaliveRef.current = null;
+      }
+    };
+  }, [status, conversation]);
+
+  const startConversation = useCallback(async () => {
+    if (status === 'connecting' || status === 'connected') return;
+    manualDisconnectRef.current = false;
+    setStatus('connecting');
     try {
-      // Reuse existing mic stream or get new one
       if (!micStreamRef.current || micStreamRef.current.getTracks().every(t => t.readyState === 'ended')) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micStreamRef.current = stream;
       }
-
       await conversation.startSession({
         agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
         connectionType: 'webrtc',
@@ -74,21 +86,10 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       setStatus('error');
       toast.error('No se pudo conectar con ALICIA. Verifica el micrófono.');
     }
-  }, [conversation]);
-
-  const startConversation = useCallback(async () => {
-    if (status === 'connecting' || status === 'connected') return;
-    manualDisconnectRef.current = false;
-    setStatus('connecting');
-    await doStartConversation();
-  }, [doStartConversation, status]);
+  }, [conversation, status]);
 
   const endConversation = useCallback(async () => {
     manualDisconnectRef.current = true;
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
     await conversation.endSession();
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
@@ -100,32 +101,19 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
 
   const handleClose = useCallback(async () => {
     manualDisconnectRef.current = true;
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
     if (status === 'connected' || status === 'connecting') {
       await endConversation();
     }
     onClose();
   }, [status, endConversation, onClose]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-    };
-  }, []);
-
   const toggleMic = useCallback(() => {
     if (micStreamRef.current) {
-      const enabled = !isMicMuted;
+      const newMuted = !isMicMuted;
       micStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = enabled; // muted = tracks disabled
+        track.enabled = !newMuted;
       });
-      setIsMicMuted(!isMicMuted);
+      setIsMicMuted(newMuted);
     }
   }, [isMicMuted]);
 
@@ -136,23 +124,20 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Video plays when ALICIA speaks, pauses in place when she listens
+  // Video: play when ALICIA speaks, pause in place when she listens
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isOpen && status === 'connected' && conversation.isSpeaking) {
-      // Resume from current frame when she starts speaking
       video.play().catch(() => {});
     } else if (isOpen && status === 'connected') {
-      // Pause at current frame — she "listens" frozen naturally
-      video.pause();
+      video.pause(); // freeze at current frame
     } else {
       video.pause();
       video.currentTime = 0;
     }
 
-    // Loop: when video ends and still speaking, restart
     const handleEnded = () => {
       if (video && conversation.isSpeaking) {
         video.currentTime = 0;
@@ -221,7 +206,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <span className="text-[#D4B896]/70 text-xs">{statusLabel}</span>
                 </div>
 
-                {/* Large circular avatar - bigger with white bg to avoid black edges */}
+                {/* Large circular avatar */}
                 <div
                   className="relative w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden"
                   style={{
@@ -232,7 +217,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     transition: 'box-shadow 0.5s ease',
                   }}
                 >
-                  {/* Video always visible when connected - plays continuously */}
+                  {/* Video */}
                   <video
                     ref={videoRef}
                     className="absolute inset-0 w-full h-full object-cover"
@@ -247,7 +232,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     <source src="/alicia-speaking.mp4" type="video/mp4" />
                   </video>
 
-                  {/* Static image only shown before connection */}
+                  {/* Static image before connection */}
                   <img
                     src="/alicia-idle.png"
                     alt="ALICIA"
@@ -282,7 +267,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
               <div className="px-6 pb-6 flex flex-col items-center gap-3">
                 {status === 'connected' && (
                   <div className="flex items-center gap-3">
-                    {/* Mute/unmute mic button */}
                     <button
                       onClick={toggleMic}
                       className="flex items-center justify-center w-12 h-12 rounded-full transition-all"
@@ -299,7 +283,6 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                       )}
                     </button>
 
-                    {/* End conversation button */}
                     <button
                       onClick={endConversation}
                       className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium transition-all"
@@ -312,6 +295,22 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                       Terminar conversación
                     </button>
                   </div>
+                )}
+
+                {/* Reconnect button for idle state (unexpected disconnect) */}
+                {status === 'idle' && isOpen && (
+                  <button
+                    onClick={startConversation}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
+                    style={{
+                      background: 'rgba(0, 212, 170, 0.15)',
+                      color: '#00D4AA',
+                      border: '1px solid rgba(0, 212, 170, 0.3)',
+                    }}
+                  >
+                    <Mic className="w-4 h-4" />
+                    Reconectar
+                  </button>
                 )}
 
                 {status === 'error' && (
