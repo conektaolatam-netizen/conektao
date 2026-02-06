@@ -1,95 +1,107 @@
 
 
-## Rediseno UX del Dashboard de Gerente de Sucursal
+## Boton de Conversacion con ALICIA (ElevenLabs Voice Agent)
 
-### Diagnostico actual
+### Que se va a construir
 
-El dashboard tiene 4 secciones grandes apiladas verticalmente, lo que crea una pagina muy larga y dificil de escanear. Los problemas principales son:
+Un boton flotante en el dashboard de Crepes & Waffles que al hacer click abre un panel/rectangulo con:
+- **Video de ALICIA** moviendo la boca cuando ella esta hablando
+- **Imagen estatica de ALICIA** cuando esta en silencio/escuchando
+- Conversacion de voz en tiempo real usando ElevenLabs Conversational AI (WebRTC)
+- Boton para cerrar la conversacion
 
-1. **Todo es vertical y del mismo ancho** - no hay jerarquia visual entre secciones
-2. **Los colores son monotonos** - todo cafe/beige se mezcla y nada destaca
-3. **Las secciones de IA parecen tarjetas normales** - no transmiten que hay inteligencia artificial detras
-4. **El fondo es muy pesado** - el beige oscuro (#F5EDE4) cansa la vista
-5. **Demasiado scroll** - para ver todo hay que bajar mucho
+### Estado actual (ya listo)
 
-### Propuesta de rediseno
+- Edge function `elevenlabs-conversation-token` ya existe y funciona
+- Secrets `ELEVENLABS_API_KEY` y `ELEVENLABS_AGENT_ID` ya configurados
+- Paquete `@elevenlabs/react` ya instalado
 
-#### 1. Fondo mas limpio y claro
-- Cambiar de `#FDF8F3 / #F5EDE4` a un fondo casi blanco: `#FAFAF8` con un toque cremoso apenas perceptible
-- Eliminar los blobs decorativos difuminados del fondo (son innecesarios y ensucian)
+### Pendiente del usuario
 
-#### 2. Nueva organizacion del layout (menos scroll, mejor uso del espacio)
+Necesito que subas dos archivos:
+1. **Video de ALICIA** hablando (moviendo la boca) - formato MP4 o WebM
+2. **Imagen de ALICIA** en reposo (quieta) - formato PNG, JPG o WebP
+
+### Arquitectura del componente
 
 ```text
-+--------------------------------------------------+
-|  Header: Sucursal Zona T       [En linea]        |
-+--------------------------------------------------+
-|                                                    |
-|  [IA de Condiciones - Resumen del Dia]            |
-|  Tarjeta oscura premium con glow sutil            |
-|                                                    |
-|  [Clima]  [Calendario]  [Noticias]  (3 columnas)  |
-|                                                    |
-+--------------------------------------------------+
-|                                                    |
-|  [Programacion Semanal]        [Auditoria]        |
-|  (60% del ancho)               (40% del ancho)    |
-|                                                    |
-+--------------------------------------------------+
-|                                                    |
-|  [Conektao AI Chat]                               |
-|  Ancho completo, aspecto futurista                |
-|                                                    |
-+--------------------------------------------------+
+BranchManagerDashboard
+  |
+  +-- [Boton flotante "Hablar con ALICIA"]  (esquina inferior derecha)
+  |
+  +-- AliciaVoicePanel (se abre al click)
+       |
+       +-- Video (cuando isSpeaking = true)
+       +-- Imagen (cuando isSpeaking = false)
+       +-- Indicador de estado (Conectando / Escuchando / Hablando)
+       +-- Boton cerrar conversacion
 ```
 
-Cambios clave:
-- **Programacion Semanal + Auditoria** pasan a compartir fila (grid 60/40) en lugar de estar apilados
-- **Conektao AI Chat** va al final, ancho completo, como la herramienta de consulta que es
-- Menos scroll total al aprovechar mejor el espacio horizontal
+### Flujo de interaccion
 
-#### 3. Secciones de IA con estetica futurista
+1. Usuario ve boton flotante con icono/avatar de ALICIA en esquina inferior derecha
+2. Click en el boton: se abre un panel rectangular (aprox 400x500px)
+3. Se solicita permiso de microfono
+4. Se obtiene token via edge function `elevenlabs-conversation-token`
+5. Se inicia sesion WebRTC con ElevenLabs
+6. **Cuando ALICIA habla** (`isSpeaking = true`): se muestra el video en loop
+7. **Cuando ALICIA escucha** (`isSpeaking = false`): se muestra la imagen estatica
+8. Usuario puede cerrar el panel en cualquier momento (termina la sesion)
 
-Para todo lo que sea "IA", aplicar un tratamiento visual diferenciado:
+### Archivos a crear/modificar
 
-- **Tarjeta de resumen IA (Condiciones)**: Fondo oscuro (`#1a1a2e` o similar) con borde sutil que tiene un gradiente animado (turquesa → naranja, los colores Conektao). Texto blanco. Icono de Sparkles con glow.
-- **Insight de IA en Horarios**: Borde con gradiente animado turquesa/naranja en lugar del borde plano actual
-- **Conektao Chat**: Header con fondo oscuro y efecto de glow sutil. El icono del bot con un anillo de luz animado. El area de input con borde que hace un shimmer sutil.
+1. **Crear `src/components/crepes-demo/voice/AliciaVoiceButton.tsx`**
+   - Boton flotante con avatar mini de ALICIA
+   - Usa estetica futurista (borde glow turquesa/naranja)
+   - Al click abre el panel
 
-Esto crea un contraste visual claro: "lo cafe/crema es la marca Crepes & Waffles, lo oscuro con glow es la IA Conektao".
+2. **Crear `src/components/crepes-demo/voice/AliciaVoicePanel.tsx`**
+   - Panel rectangular con fondo oscuro (`#1a1a2e`) consistente con las secciones IA
+   - Usa `useConversation` de `@elevenlabs/react`
+   - Alterna entre `<video>` y `<img>` segun `conversation.isSpeaking`
+   - Indicador de estado con animaciones sutiles
+   - Boton de cerrar/terminar
 
-#### 4. Mejoras de color en tarjetas regulares
-
-- Tarjetas con fondo `white` puro en lugar de `bg-white` con borde beige pesado
-- Bordes mas sutiles: `border-[#E8E4DE]` en lugar de `border-[#D4C4B0]`
-- Sombras mas suaves y modernas: `shadow-[0_1px_3px_rgba(0,0,0,0.04)]`
-- Los badges de estado (trafico alto/medio/bajo) con colores mas vibrantes y legibles
-
-#### 5. Header simplificado
-- Reducir margen inferior del header
-- Badge "En linea" mas compacto
-
-### Archivos a modificar
-
-1. **`BranchManagerDashboard.tsx`**: Nuevo layout (fondo claro, grid reorganizado, eliminar blobs)
-2. **`ConditionsAIPanel.tsx`**: Tarjeta de resumen IA con estetica dark/futurista con borde animado
-3. **`ConektaoChat.tsx`**: Header del chat con tratamiento futurista oscuro, glow en icono del bot
-4. **`AuditPanel.tsx`**: Ajustar bordes y sombras a la nueva paleta mas limpia
-5. **`StaffSchedulePanel.tsx`**: Ajustar bordes/sombras, insight de IA con borde gradiente animado
+3. **Modificar `src/components/crepes-demo/BranchManagerDashboard.tsx`**
+   - Agregar `AliciaVoiceButton` como componente flotante (fixed position)
 
 ### Seccion tecnica
 
-**Gradiente animado para IA** (CSS con Tailwind + framer-motion):
-- Se usara un `div` envolvente con `background: conic-gradient(...)` animado para crear el efecto de borde brillante
-- Colores del gradiente: `#00D4AA` (turquesa Conektao) → `#FF6B35` (naranja Conektao)
-- La animacion rota el gradiente lentamente con `animate={{ rotate: 360 }}` en loop
+**Logica principal del panel:**
 
-**Nuevo fondo global**:
-- `bg-[#FAFAF8]` como color base (casi blanco con calidez minima)
-- Sin blobs decorativos
+```typescript
+import { useConversation } from "@elevenlabs/react";
 
-**Layout grid para horarios + auditoria**:
-- `grid grid-cols-1 lg:grid-cols-5 gap-6`
-- Horarios: `lg:col-span-3`
-- Auditoria: `lg:col-span-2`
+const conversation = useConversation({
+  onConnect: () => setStatus('connected'),
+  onDisconnect: () => setStatus('disconnected'),
+  onError: (error) => toast.error("Error de conexion"),
+});
+
+// Alternar video/imagen
+{conversation.isSpeaking ? (
+  <video src={aliciaVideoUrl} autoPlay loop muted={false} />
+) : (
+  <img src={aliciaImageUrl} alt="ALICIA" />
+)}
+```
+
+**Conexion con token:**
+
+```typescript
+const startConversation = async () => {
+  await navigator.mediaDevices.getUserMedia({ audio: true });
+  const { data } = await supabase.functions.invoke("elevenlabs-conversation-token");
+  await conversation.startSession({
+    conversationToken: data.token,
+    connectionType: "webrtc",
+  });
+};
+```
+
+**Estetica del boton flotante:**
+- Position fixed, bottom-6 right-6
+- Circulo con avatar de ALICIA o icono de microfono
+- Borde con gradiente turquesa/naranja (AIGlowBorder)
+- Animacion de pulse sutil para indicar que esta disponible
 
