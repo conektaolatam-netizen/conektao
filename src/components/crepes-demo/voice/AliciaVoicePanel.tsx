@@ -14,6 +14,14 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isOpenRef = useRef(isOpen);
+  const manualDisconnectRef = useRef(false);
+
+  // Keep ref in sync
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -22,21 +30,40 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     },
     onDisconnect: () => {
       console.log('ALICIA disconnected');
-      setStatus('idle');
+      // If panel is still open and user didn't manually disconnect, auto-reconnect
+      if (isOpenRef.current && !manualDisconnectRef.current) {
+        console.log('ALICIA: unexpected disconnect, reconnecting in 1.5s...');
+        setStatus('connecting');
+        reconnectTimerRef.current = setTimeout(() => {
+          doStartConversation();
+        }, 1500);
+      } else {
+        setStatus('idle');
+        manualDisconnectRef.current = false;
+      }
     },
     onError: (error) => {
       console.error('ALICIA error:', error);
-      setStatus('error');
-      toast.error('Error de conexión con ALICIA');
+      // Auto-reconnect on error too if panel is open
+      if (isOpenRef.current && !manualDisconnectRef.current) {
+        setStatus('connecting');
+        reconnectTimerRef.current = setTimeout(() => {
+          doStartConversation();
+        }, 2500);
+      } else {
+        setStatus('error');
+        toast.error('Error de conexión con ALICIA');
+      }
     },
   });
 
-  const startConversation = useCallback(async () => {
-    if (status === 'connecting' || status === 'connected') return;
-    setStatus('connecting');
+  const doStartConversation = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
+      // Reuse existing mic stream or get new one
+      if (!micStreamRef.current || micStreamRef.current.getTracks().every(t => t.readyState === 'ended')) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+      }
 
       await conversation.startSession({
         agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
@@ -47,9 +74,21 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
       setStatus('error');
       toast.error('No se pudo conectar con ALICIA. Verifica el micrófono.');
     }
-  }, [conversation, status]);
+  }, [conversation]);
+
+  const startConversation = useCallback(async () => {
+    if (status === 'connecting' || status === 'connected') return;
+    manualDisconnectRef.current = false;
+    setStatus('connecting');
+    await doStartConversation();
+  }, [doStartConversation, status]);
 
   const endConversation = useCallback(async () => {
+    manualDisconnectRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     await conversation.endSession();
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
@@ -60,11 +99,25 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   }, [conversation]);
 
   const handleClose = useCallback(async () => {
-    if (status === 'connected') {
+    manualDisconnectRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (status === 'connected' || status === 'connecting') {
       await endConversation();
     }
     onClose();
   }, [status, endConversation, onClose]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleMic = useCallback(() => {
     if (micStreamRef.current) {
