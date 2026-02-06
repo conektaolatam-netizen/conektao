@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, CloudRain, Sun, CloudSun, Cloud, 
   Users, ChefHat, IceCream, Coffee, UtensilsCrossed,
-  Sparkles, TrendingUp, TrendingDown, AlertTriangle,
-  Moon
+  Sparkles, Moon
 } from 'lucide-react';
+import AIGlowBorder from '../ui/AIGlowBorder';
 
 type Area = {
   id: string;
@@ -33,13 +33,13 @@ type DaySchedule = {
 };
 
 const areas: Area[] = [
-  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200' },
-  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-orange-700', bgColor: 'bg-orange-50 border-orange-200' },
-  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-rose-700', bgColor: 'bg-rose-50 border-rose-200' },
-  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-yellow-700', bgColor: 'bg-yellow-50 border-yellow-200' },
-  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-pink-700', bgColor: 'bg-pink-50 border-pink-200' },
-  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-sky-700', bgColor: 'bg-sky-50 border-sky-200' },
-  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200' },
+  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-amber-700', bgColor: 'bg-amber-50/80 border-amber-200/60' },
+  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-orange-700', bgColor: 'bg-orange-50/80 border-orange-200/60' },
+  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-rose-700', bgColor: 'bg-rose-50/80 border-rose-200/60' },
+  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-yellow-700', bgColor: 'bg-yellow-50/80 border-yellow-200/60' },
+  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-pink-700', bgColor: 'bg-pink-50/80 border-pink-200/60' },
+  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-sky-700', bgColor: 'bg-sky-50/80 border-sky-200/60' },
+  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-emerald-700', bgColor: 'bg-emerald-50/80 border-emerald-200/60' },
 ];
 
 const allStaff = [
@@ -285,15 +285,9 @@ const weekSchedule: DaySchedule[] = [
 ];
 
 const trafficColors = {
-  alto: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Alto' },
-  medio: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', label: 'Medio' },
-  bajo: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Bajo' },
-};
-
-const insightColors = {
-  positive: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  warning: 'bg-amber-50 border-amber-200 text-amber-800',
-  neutral: 'bg-[#F5EDE4] border-[#D4C4B0] text-[#5C4033]',
+  alto: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', label: 'Alto' },
+  medio: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', label: 'Medio' },
+  bajo: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', label: 'Bajo' },
 };
 
 const StaffSchedulePanel = () => {
@@ -306,9 +300,9 @@ const StaffSchedulePanel = () => {
   const getStaffByArea = (areaId: string) => activeStaff.filter(s => s.area === areaId);
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-[#E8DFD4] shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
-      <div className="px-5 pt-5 pb-4 border-b border-[#E8DFD4]/60">
+      <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5C4033] to-[#8B7355] flex items-center justify-center">
@@ -320,10 +314,10 @@ const StaffSchedulePanel = () => {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${traffic.bg} ${traffic.text} ${traffic.border}`}>
-              Tráfico {traffic.label}
+            <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${traffic.bg} ${traffic.text} ${traffic.border}`}>
+              {traffic.label}
             </span>
-            <span className="text-xs text-[#8B7355] bg-[#F5EDE4] px-2.5 py-1 rounded-full">
+            <span className="text-[10px] text-[#8B7355] bg-[#F0ECE6] px-2 py-1 rounded-full">
               {activeStaff.length} activas
             </span>
           </div>
@@ -340,10 +334,10 @@ const StaffSchedulePanel = () => {
                 onClick={() => setSelectedDay(i)}
                 className={`flex-1 py-2 px-1 rounded-xl text-center transition-all duration-200 ${
                   isSelected
-                    ? 'bg-[#5C4033] text-white shadow-md'
+                    ? 'bg-[#4A3728] text-white shadow-md'
                     : isWeekend
-                    ? 'bg-[#F5EDE4]/80 text-[#5C4033] hover:bg-[#E8DFD4]'
-                    : 'bg-transparent text-[#8B7355] hover:bg-[#F5EDE4]'
+                    ? 'bg-[#F0ECE6] text-[#5C4033] hover:bg-[#E8E4DE]'
+                    : 'bg-transparent text-[#8B7355] hover:bg-[#F0ECE6]'
                 }`}
               >
                 <div className="text-[10px] font-medium">{day.dayShort}</div>
@@ -374,16 +368,18 @@ const StaffSchedulePanel = () => {
             </div>
           </div>
 
-          {/* AI Insight */}
-          <div className={`p-3.5 rounded-xl border text-sm leading-relaxed ${insightColors[today.insightType]}`}>
-            <div className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" />
-              <p>{today.insight}</p>
+          {/* AI Insight with glow border */}
+          <AIGlowBorder borderRadius="rounded-xl">
+            <div className="bg-[#1a1a2e] p-3.5">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#00D4AA]" />
+                <p className="text-sm text-white/85 leading-relaxed">{today.insight}</p>
+              </div>
             </div>
-          </div>
+          </AIGlowBorder>
 
           {/* Areas with staff */}
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {areas.map(area => {
               const areaStaff = getStaffByArea(area.id);
               if (areaStaff.length === 0) return null;
@@ -395,7 +391,7 @@ const StaffSchedulePanel = () => {
                       <span className={`text-xs font-semibold ${area.color}`}>{area.name}</span>
                     </div>
                     <span className="text-[10px] text-[#8B7355] bg-white/60 px-2 py-0.5 rounded-full">
-                      {areaStaff.length} {areaStaff.length === 1 ? 'persona' : 'personas'}
+                      {areaStaff.length}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -415,7 +411,7 @@ const StaffSchedulePanel = () => {
 
           {/* Resting staff */}
           {restingStaff.length > 0 && (
-            <div className="rounded-xl border border-[#E8DFD4] bg-[#FDF8F3] p-3">
+            <div className="rounded-xl border border-[#F0ECE6] bg-[#FAFAF8] p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Moon className="w-3.5 h-3.5 text-[#8B7355]" />
                 <span className="text-xs font-semibold text-[#8B7355]">Descanso ({restingStaff.length})</span>
@@ -424,7 +420,7 @@ const StaffSchedulePanel = () => {
                 {restingStaff.map(s => (
                   <span
                     key={s.name}
-                    className="text-xs bg-[#E8DFD4]/50 text-[#8B7355] px-2.5 py-1 rounded-lg"
+                    className="text-xs bg-[#F0ECE6]/70 text-[#8B7355] px-2.5 py-1 rounded-lg"
                   >
                     {s.name}
                   </span>
@@ -434,7 +430,7 @@ const StaffSchedulePanel = () => {
           )}
 
           {/* Summary bar */}
-          <div className="flex items-center justify-between pt-2 border-t border-[#E8DFD4]/60">
+          <div className="flex items-center justify-between pt-2 border-t border-[#F0ECE6]">
             <div className="flex items-center gap-4 text-[11px] text-[#8B7355]">
               <span className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />

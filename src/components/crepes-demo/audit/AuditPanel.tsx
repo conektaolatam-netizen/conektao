@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Shield, RefreshCw, TrendingUp, TrendingDown, Users, AlertCircle, Package, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 
 interface StaffAlert {
   type: string;
@@ -114,23 +113,21 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
   };
 
   const tabs = [
-    { id: 'overview', label: '📊 Resumen', icon: Shield },
-    { id: 'staff', label: '👥 Personal', icon: Users },
-    { id: 'errors', label: '⚠️ Errores', icon: AlertCircle },
-    { id: 'rotation', label: '📦 Rotación', icon: Package },
+    { id: 'overview', label: '📊', icon: Shield },
+    { id: 'staff', label: '👥', icon: Users },
+    { id: 'errors', label: '⚠️', icon: AlertCircle },
+    { id: 'rotation', label: '📦', icon: Package },
   ];
 
   if (isLoading) {
     return (
-      <Card className="bg-white border-[#D4C4B0] shadow-sm">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 w-32 bg-[#E8DFD4] rounded" />
-            <div className="h-32 bg-[#E8DFD4] rounded" />
-            <div className="h-24 bg-[#E8DFD4] rounded" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-32 bg-[#F0ECE6] rounded" />
+          <div className="h-32 bg-[#F0ECE6] rounded" />
+          <div className="h-24 bg-[#F0ECE6] rounded" />
+        </div>
+      </div>
     );
   }
 
@@ -140,229 +137,215 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
+      className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <motion.div
-            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getScoreBackground(auditData.overallScore)} flex items-center justify-center shadow-md`}
-          >
-            <Shield className="w-6 h-6 text-white" />
-          </motion.div>
-          <div>
-            <h2 className="text-xl font-bold text-[#4A3728]">Auditoría</h2>
-            <p className="text-sm text-[#8B7355]">Estado de la sucursal</p>
+      <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getScoreBackground(auditData.overallScore)} flex items-center justify-center shadow-sm`}>
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-[#4A3728]">Auditoría</h2>
+              <p className="text-xs text-[#8B7355]">Estado de la sucursal</p>
+            </div>
           </div>
+          <button
+            onClick={fetchAudit}
+            className="p-1.5 text-[#D4C4B0]/30 hover:text-[#8B7355]/50 transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button
-          onClick={fetchAudit}
-          className="p-1.5 text-[#D4C4B0]/30 hover:text-[#8B7355]/50 transition-colors"
-          title="Actualizar"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
       </div>
 
-      {/* Score Card */}
-      <Card className="bg-white border-[#D4C4B0] shadow-sm overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-[#8B7355] mb-1">🏥 Estado General</p>
-              <motion.p
-                className={`text-5xl font-bold ${getScoreColor(auditData.overallScore)}`}
-                initial={{ scale: 0.5 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring" }}
-              >
-                {auditData.overallScore}%
-              </motion.p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-center">
-              {[
-                { key: 'staff', label: '👥 Personal' },
-                { key: 'operations', label: '⚙️ Operaciones' },
-                { key: 'quality', label: '✨ Calidad' },
-                { key: 'efficiency', label: '⚡ Eficiencia' },
-              ].map(({ key, label }) => (
-                <div key={key}>
-                  <p className="text-xs text-[#8B7355]">{label}</p>
-                  <p className={`text-lg font-bold ${getScoreColor(auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown])}`}>
-                    {auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown]}%
-                  </p>
-                </div>
-              ))}
-            </div>
+      {/* Score */}
+      <div className="px-5 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs text-[#8B7355] mb-1">🏥 Estado General</p>
+            <motion.p
+              className={`text-4xl font-bold ${getScoreColor(auditData.overallScore)}`}
+              initial={{ scale: 0.5 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring" }}
+            >
+              {auditData.overallScore}%
+            </motion.p>
           </div>
-
-          {/* AI Summary - structured blocks */}
-          <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4] space-y-3">
-            {auditData.dailySummary.split('\n\n').filter(block => block.trim()).map((block, index) => (
-              <div 
-                key={index} 
-                className={`text-sm text-[#4A3728] leading-relaxed ${index > 0 ? 'pt-3 border-t border-[#E8DFD4]/50' : ''}`}
-              >
-                {block.split('\n').map((line, lineIndex) => (
-                  <p key={lineIndex} className={lineIndex > 0 ? 'mt-1 text-[#6B5744]' : 'font-medium'}>
-                    {line}
-                  </p>
-                ))}
+          <div className="grid grid-cols-2 gap-2 text-center">
+            {[
+              { key: 'staff', label: '👥' },
+              { key: 'operations', label: '⚙️' },
+              { key: 'quality', label: '✨' },
+              { key: 'efficiency', label: '⚡' },
+            ].map(({ key, label }) => (
+              <div key={key} className="text-center">
+                <p className="text-[10px] text-[#8B7355]">{label}</p>
+                <p className={`text-sm font-bold ${getScoreColor(auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown])}`}>
+                  {auditData.scoreBreakdown[key as keyof typeof auditData.scoreBreakdown]}%
+                </p>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Tabs - lighter colors for better readability */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+        {/* AI Summary */}
+        <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6] space-y-2">
+          {auditData.dailySummary.split('\n\n').filter(block => block.trim()).map((block, index) => (
+            <div 
+              key={index} 
+              className={`text-xs text-[#4A3728] leading-relaxed ${index > 0 ? 'pt-2 border-t border-[#F0ECE6]' : ''}`}
+            >
+              {block.split('\n').map((line, lineIndex) => (
+                <p key={lineIndex} className={lineIndex > 0 ? 'mt-0.5 text-[#6B5744]' : 'font-medium'}>
+                  {line}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 px-5 pb-3">
         {tabs.map((tab) => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeTab === tab.id ? "default" : "outline"}
-            size="sm"
             onClick={() => setActiveTab(tab.id as any)}
-            className={activeTab === tab.id 
-              ? "bg-[#5C4033] hover:bg-[#4A3728] text-white" 
-              : "border-[#E8DFD4] bg-[#FDF8F3] text-[#5C4033] hover:bg-[#F5EDE4] hover:border-[#D4C4B0]"
-            }
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab.id 
+                ? 'bg-[#4A3728] text-white shadow-sm' 
+                : 'text-[#8B7355] hover:bg-[#F0ECE6]'
+            }`}
           >
-            <tab.icon className="w-4 h-4 mr-2" />
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <Card className="bg-white border-[#D4C4B0] shadow-sm">
-        <CardContent className="p-4">
-          {activeTab === 'overview' && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-[#4A3728]">📈 Métricas del Día</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: 'staff', label: '👥 Personal', value: auditData.scoreBreakdown.staff },
-                  { key: 'operations', label: '⚙️ Operaciones', value: auditData.scoreBreakdown.operations },
-                  { key: 'quality', label: '✨ Calidad', value: auditData.scoreBreakdown.quality },
-                  { key: 'efficiency', label: '⚡ Eficiencia', value: auditData.scoreBreakdown.efficiency },
-                ].map(({ key, label, value }) => (
-                  <div key={key} className="p-3 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-[#5C4033] font-medium">{label}</span>
-                      <span className={`font-bold ${getScoreColor(value)}`}>{value}%</span>
-                    </div>
-                    <div className="h-2 bg-[#E8DFD4] rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${value}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className={`h-full rounded-full bg-gradient-to-r ${getScoreBackground(value)}`}
-                      />
-                    </div>
-                  </div>
-                ))}
+      <div className="px-5 pb-5">
+        {activeTab === 'overview' && (
+          <div className="space-y-2">
+            {[
+              { key: 'staff', label: '👥 Personal', value: auditData.scoreBreakdown.staff },
+              { key: 'operations', label: '⚙️ Operaciones', value: auditData.scoreBreakdown.operations },
+              { key: 'quality', label: '✨ Calidad', value: auditData.scoreBreakdown.quality },
+              { key: 'efficiency', label: '⚡ Eficiencia', value: auditData.scoreBreakdown.efficiency },
+            ].map(({ key, label, value }) => (
+              <div key={key} className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6]">
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-[#5C4033] font-medium">{label}</span>
+                  <span className={`font-bold ${getScoreColor(value)}`}>{value}%</span>
+                </div>
+                <div className="h-1.5 bg-[#F0ECE6] rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${value}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className={`h-full rounded-full bg-gradient-to-r ${getScoreBackground(value)}`}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {activeTab === 'staff' && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-[#4A3728] mb-3">Alertas de Personal</h3>
-              {auditData.staffAlerts.map((alert, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`p-3 rounded-lg border ${getSeverityColor(alert.severity)}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-2">
-                      {alert.type === 'lateness' && <Clock className="w-4 h-4 mt-0.5" />}
-                      {alert.type === 'absence' && <Users className="w-4 h-4 mt-0.5" />}
-                      {alert.type === 'performance' && <TrendingDown className="w-4 h-4 mt-0.5" />}
-                      <div>
-                        <p className="text-sm font-medium">{alert.message}</p>
-                        <p className="text-xs opacity-70 mt-1">{alert.employee}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-mono bg-white/70 px-2 py-1 rounded border">
-                      {alert.metric}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {activeTab === 'errors' && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-[#4A3728] mb-3">Patrones de Errores</h3>
-              {auditData.errorPatterns.map((error, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="p-3 rounded-lg bg-rose-50 border border-rose-200"
-                >
-                  <div className="flex items-start justify-between mb-2">
+        {activeTab === 'staff' && (
+          <div className="space-y-2">
+            {auditData.staffAlerts.map((alert, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={`p-3 rounded-xl border ${getSeverityColor(alert.severity)}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-2">
+                    {alert.type === 'lateness' && <Clock className="w-3.5 h-3.5 mt-0.5" />}
+                    {alert.type === 'absence' && <Users className="w-3.5 h-3.5 mt-0.5" />}
+                    {alert.type === 'performance' && <TrendingDown className="w-3.5 h-3.5 mt-0.5" />}
                     <div>
-                      <p className="font-medium text-[#4A3728]">{error.product}</p>
-                      <p className="text-sm text-[#6B5744]">{error.errorType}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-rose-600">{error.count}</span>
-                      {error.trend === 'increasing' ? (
-                        <TrendingUp className="w-4 h-4 text-rose-500" />
-                      ) : error.trend === 'decreasing' ? (
-                        <TrendingDown className="w-4 h-4 text-emerald-500" />
-                      ) : null}
+                      <p className="text-xs font-medium">{alert.message}</p>
+                      <p className="text-[10px] opacity-70 mt-0.5">{alert.employee}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-[#5C4033] bg-white/70 p-2 rounded border border-rose-100">
-                    💡 {error.recommendation}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                  <span className="text-[10px] font-mono bg-white/70 px-1.5 py-0.5 rounded border">
+                    {alert.metric}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-          {activeTab === 'rotation' && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-[#4A3728]">Productos con Baja Rotación</h3>
-              <div className="space-y-2">
-                {auditData.productRotation.underperforming.map((product, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
-                  >
-                    <div>
-                      <p className="font-medium text-[#4A3728]">{product.product}</p>
-                      <p className="text-xs text-[#6B5744]">{product.category}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm">
-                        <span className="text-[#5C4033]">{product.currentSales}</span>
-                        <span className="text-[#8B7355]"> / {product.expectedSales}</span>
-                      </p>
-                      <p className="text-sm font-bold text-rose-600">{product.variance}%</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="p-4 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]">
-                <p className="text-sm text-[#4A3728] leading-relaxed">
-                  {auditData.productRotation.recommendation}
+        {activeTab === 'errors' && (
+          <div className="space-y-2">
+            {auditData.errorPatterns.map((error, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="p-3 rounded-xl bg-rose-50 border border-rose-200"
+              >
+                <div className="flex items-start justify-between mb-1.5">
+                  <div>
+                    <p className="font-medium text-xs text-[#4A3728]">{error.product}</p>
+                    <p className="text-[10px] text-[#6B5744]">{error.errorType}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-base font-bold text-rose-600">{error.count}</span>
+                    {error.trend === 'increasing' ? (
+                      <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
+                    ) : error.trend === 'decreasing' ? (
+                      <TrendingDown className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : null}
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#5C4033] bg-white/70 p-1.5 rounded border border-rose-100">
+                  💡 {error.recommendation}
                 </p>
-              </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'rotation' && (
+          <div className="space-y-2">
+            {auditData.productRotation.underperforming.map((product, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-200"
+              >
+                <div>
+                  <p className="font-medium text-xs text-[#4A3728]">{product.product}</p>
+                  <p className="text-[10px] text-[#6B5744]">{product.category}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px]">
+                    <span className="text-[#5C4033]">{product.currentSales}</span>
+                    <span className="text-[#8B7355]"> / {product.expectedSales}</span>
+                  </p>
+                  <p className="text-xs font-bold text-rose-600">{product.variance}%</p>
+                </div>
+              </motion.div>
+            ))}
+            <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6]">
+              <p className="text-xs text-[#4A3728] leading-relaxed">
+                {auditData.productRotation.recommendation}
+              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 };
