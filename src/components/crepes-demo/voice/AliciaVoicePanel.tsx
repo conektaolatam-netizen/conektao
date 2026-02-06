@@ -9,37 +9,43 @@ interface AliciaVoicePanelProps {
   onClose: () => void;
 }
 
+const ALICIA_AGENT_ID = 'agent_9401kcyypg67eb6v07dnqzds6hwn';
+
 const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) => {
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  // Only local state: connecting flag + mic mute. Everything else comes from SDK.
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const keepaliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasStartedRef = useRef(false);
+  const isConnectingRef = useRef(false); // lock to prevent overlapping startSession
 
-  // SDK handles muting natively via micMuted prop
   const conversation = useConversation({
-    micMuted: isMicMuted,
     onConnect: () => {
       console.log('ALICIA connected');
-      setStatus('connected');
+      isConnectingRef.current = false;
+      setIsConnecting(false);
     },
     onDisconnect: () => {
       console.log('ALICIA disconnected');
-      setStatus('idle');
+      isConnectingRef.current = false;
+      setIsConnecting(false);
     },
     onError: (error) => {
       console.error('ALICIA error:', error);
-      setStatus('idle');
+      isConnectingRef.current = false;
+      setIsConnecting(false);
     },
   });
 
-  // Store conversation in a ref so keepalive never tears down from ref changes
+  // Stable ref for keepalive — never causes effect re-runs
   const conversationRef = useRef(conversation);
   conversationRef.current = conversation;
 
-  // Keepalive: depends ONLY on status, uses ref for conversation
+  // Keepalive: depends ONLY on conversation.status (SDK value)
   useEffect(() => {
-    if (status === 'connected') {
+    if (conversation.status === 'connected') {
       keepaliveRef.current = setInterval(() => {
         try { conversationRef.current.sendUserActivity(); } catch {}
       }, 10000);
@@ -50,37 +56,54 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
         keepaliveRef.current = null;
       }
     };
-  }, [status]);
+  }, [conversation.status]);
+
+  // Mute: toggle SDK's setMicMuted when isMicMuted changes
+  useEffect(() => {
+    if (conversation.status === 'connected') {
+      try { conversationRef.current.setVolume({ volume: isMicMuted ? 0 : 1 }); } catch {}
+    }
+  }, [isMicMuted, conversation.status]);
 
   const startConversation = useCallback(async () => {
-    if (status === 'connecting' || status === 'connected') return;
-    setStatus('connecting');
+    // Guard: prevent overlapping calls
+    if (isConnectingRef.current || conversation.status === 'connected') return;
+    isConnectingRef.current = true;
+    setIsConnecting(true);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       await conversation.startSession({
-        agentId: 'agent_9401kcyypg67eb6v07dnqzds6hwn',
+        agentId: ALICIA_AGENT_ID,
         connectionType: 'webrtc',
       });
     } catch (err) {
       console.error('Failed to start ALICIA:', err);
-      setStatus('error');
+      isConnectingRef.current = false;
+      setIsConnecting(false);
       toast.error('No se pudo conectar con ALICIA. Verifica el micrófono.');
     }
-  }, [conversation, status]);
+    // Note: on success, onConnect callback handles clearing the lock
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const endConversation = useCallback(async () => {
-    await conversation.endSession();
+    // ONLY end if truly connected — never during connecting
+    if (conversation.status === 'connected') {
+      try { await conversation.endSession(); } catch {}
+    }
     setIsMicMuted(false);
-    setStatus('idle');
-  }, [conversation]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = useCallback(async () => {
-    if (status === 'connected' || status === 'connecting') {
-      await endConversation();
+    // If connecting, just close the panel — don't call endSession mid-handshake
+    if (conversationRef.current.status === 'connected') {
+      try { await conversationRef.current.endSession(); } catch {}
     }
+    isConnectingRef.current = false;
+    setIsConnecting(false);
+    setIsMicMuted(false);
     hasStartedRef.current = false;
     onClose();
-  }, [status, endConversation, onClose]);
+  }, [onClose]);
 
   const toggleMic = useCallback(() => {
     setIsMicMuted(prev => !prev);
@@ -99,9 +122,11 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     const video = videoRef.current;
     if (!video) return;
 
-    if (isOpen && status === 'connected' && conversation.isSpeaking) {
+    const isConnected = conversation.status === 'connected';
+
+    if (isOpen && isConnected && conversation.isSpeaking) {
       video.play().catch(() => {});
-    } else if (isOpen && status === 'connected') {
+    } else if (isOpen && isConnected) {
       video.pause();
     } else {
       video.pause();
@@ -116,14 +141,19 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     };
     video.addEventListener('ended', handleEnded);
     return () => video.removeEventListener('ended', handleEnded);
-  }, [isOpen, status, conversation.isSpeaking]);
+  }, [isOpen, conversation.status, conversation.isSpeaking]);
 
-  const statusLabel = {
-    idle: 'Desconectada',
-    connecting: 'Conectando...',
-    connected: conversation.isSpeaking ? 'Hablando...' : (isMicMuted ? 'Micrófono silenciado' : 'Escuchando...'),
-    error: 'Error de conexión',
-  }[status];
+  // Derive display status from SDK + local connecting flag
+  const isConnected = conversation.status === 'connected';
+  const isDisconnected = conversation.status === 'disconnected';
+
+  const statusLabel = isConnecting
+    ? 'Conectando...'
+    : isConnected
+      ? conversation.isSpeaking ? 'Hablando...' : (isMicMuted ? 'Micrófono silenciado' : 'Escuchando...')
+      : 'Desconectada';
+
+  const dotColor = isConnected ? '#00D4AA' : isConnecting ? '#FFB020' : '#666';
 
   return (
     <AnimatePresence>
@@ -163,8 +193,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   <div
                     className="w-2.5 h-2.5 rounded-full"
                     style={{
-                      backgroundColor: status === 'connected' ? '#00D4AA' : status === 'connecting' ? '#FFB020' : '#666',
-                      boxShadow: status === 'connected' ? '0 0 8px #00D4AA' : 'none',
+                      backgroundColor: dotColor,
+                      boxShadow: isConnected ? '0 0 8px #00D4AA' : 'none',
                     }}
                   />
                   <span className="text-[#F5E6D3] text-sm font-medium">ALICIA</span>
@@ -187,7 +217,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     playsInline
                     muted
                     style={{
-                      opacity: status === 'connected' ? 1 : 0,
+                      opacity: isConnected ? 1 : 0,
                       transition: 'opacity 0.3s ease',
                       objectPosition: 'center 18%',
                     }}
@@ -200,13 +230,13 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     alt="ALICIA"
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{
-                      opacity: status === 'connected' ? 0 : 1,
+                      opacity: isConnected ? 0 : 1,
                       transition: 'opacity 0.3s ease',
                       objectPosition: 'center 18%',
                     }}
                   />
 
-                  {status === 'connecting' && (
+                  {isConnecting && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                       <Loader2 className="w-10 h-10 text-[#D4B896] animate-spin" />
                     </div>
@@ -224,7 +254,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
               </div>
 
               <div className="px-6 pb-6 flex flex-col items-center gap-3">
-                {status === 'connected' && (
+                {isConnected && (
                   <div className="flex items-center gap-3">
                     <button
                       onClick={toggleMic}
@@ -256,7 +286,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   </div>
                 )}
 
-                {(status === 'idle' || status === 'error') && isOpen && (
+                {isDisconnected && !isConnecting && isOpen && hasStartedRef.current && (
                   <button
                     onClick={startConversation}
                     className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all"
@@ -267,7 +297,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     }}
                   >
                     <Mic className="w-4 h-4" />
-                    {status === 'error' ? 'Reintentar' : 'Reconectar'}
+                    Reconectar
                   </button>
                 )}
 
