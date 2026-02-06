@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { X, Mic, MicOff, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -36,14 +35,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      const { data, error } = await supabase.functions.invoke('elevenlabs-conversation-token');
-
-      if (error || !data?.token) {
-        throw new Error(error?.message || 'No se recibió token');
-      }
-
       await conversation.startSession({
-        conversationToken: data.token,
+        agentId: 'qzds6hwn',
         connectionType: 'webrtc',
       });
     } catch (err) {
