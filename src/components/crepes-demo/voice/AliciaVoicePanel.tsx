@@ -83,16 +83,28 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
     }
   }, [isOpen]);
 
-  // Control video playback based on speaking state
+  // Control video playback - loop full 16s video while speaking
   useEffect(() => {
-    if (videoRef.current) {
-      if (conversation.isSpeaking) {
-        videoRef.current.play().catch(() => {});
-      } else {
-        videoRef.current.pause();
-        videoRef.current.currentTime = 0;
-      }
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (conversation.isSpeaking) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+      video.currentTime = 0;
     }
+
+    // When video ends and still speaking, restart from beginning
+    const handleEnded = () => {
+      if (conversation.isSpeaking && video) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      }
+    };
+    video.addEventListener('ended', handleEnded);
+    return () => video.removeEventListener('ended', handleEnded);
   }, [conversation.isSpeaking]);
 
   const statusLabel = {
@@ -164,18 +176,16 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     transition: 'box-shadow 0.5s ease',
                   }}
                 >
-                  {/* Video for speaking - MUTED, scaled up to fill and avoid black borders */}
+                  {/* Video for speaking - MUTED, NO loop (manual restart for full 16s) */}
                   <video
                     ref={videoRef}
                     className="absolute inset-0 w-full h-full object-cover"
-                    loop
                     playsInline
                     muted
                     style={{
                       opacity: conversation.isSpeaking ? 1 : 0,
                       transition: 'opacity 0.3s ease',
-                      transform: 'scale(1.15)',
-                      objectPosition: 'center 20%',
+                      objectPosition: 'center 15%',
                     }}
                   >
                     <source src="/alicia-speaking.mp4" type="video/mp4" />
@@ -189,8 +199,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     style={{
                       opacity: conversation.isSpeaking ? 0 : 1,
                       transition: 'opacity 0.3s ease',
-                      transform: 'scale(1.15)',
-                      objectPosition: 'center 20%',
+                      objectPosition: 'center 15%',
                     }}
                   />
 
