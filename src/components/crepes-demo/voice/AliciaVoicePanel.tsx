@@ -30,9 +30,10 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   const hasStartedRef = useRef(false);
   const isConnectingRef = useRef(false);
 
-  // Pass micMuted as controlled state to SDK — this mutes the USER's microphone
+  // micMuted = mutes USER's mic; volume = ALICIA's output (always 1)
   const conversation = useConversation({
     micMuted: isMicMuted,
+    volume: 1,
     onConnect: () => {
       console.log('ALICIA connected');
       isConnectingRef.current = false;
