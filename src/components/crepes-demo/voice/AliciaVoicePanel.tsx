@@ -264,13 +264,13 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                   >
                     <video
                       ref={videoRef}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain"
                       playsInline
                       muted
                       style={{
                         opacity: isConnected ? 1 : 0,
                         transition: 'opacity 0.3s ease',
-                        objectPosition: 'center 18%',
+                        backgroundColor: 'white',
                       }}
                     >
                       <source src="/alicia-speaking.mov" type="video/quicktime" />
@@ -280,11 +280,11 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                     <img
                       src="/alicia-idle.png"
                       alt="ALICIA"
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain"
                       style={{
                         opacity: isConnected ? 0 : 1,
                         transition: 'opacity 0.3s ease',
-                        objectPosition: 'center 18%',
+                        backgroundColor: 'white',
                       }}
                     />
 
