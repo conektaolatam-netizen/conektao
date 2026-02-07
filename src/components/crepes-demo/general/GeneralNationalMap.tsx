@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, X, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, OverlayViewF, OverlayView } from '@react-google-maps/api';
+
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDBPW9xami4sYbNYOniQh4dstgT9J943_0';
 
 interface RegionMapData {
   id: string;
   name: string;
   shortName: string;
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   score: number;
   status: 'healthy' | 'warning' | 'critical';
   branches: number;
@@ -22,7 +25,8 @@ const regions: RegionMapData[] = [
     id: 'costa',
     name: 'Costa Caribe',
     shortName: 'Costa',
-    x: 220, y: 55,
+    lat: 10.4,
+    lng: -75.5,
     score: 83,
     status: 'healthy',
     branches: 5,
@@ -35,7 +39,8 @@ const regions: RegionMapData[] = [
     id: 'santanderes',
     name: 'Santanderes',
     shortName: 'Santanderes',
-    x: 200, y: 140,
+    lat: 7.13,
+    lng: -73.13,
     score: 87,
     status: 'healthy',
     branches: 3,
@@ -48,7 +53,8 @@ const regions: RegionMapData[] = [
     id: 'medellin',
     name: 'Medellín',
     shortName: 'Medellín',
-    x: 140, y: 175,
+    lat: 6.25,
+    lng: -75.56,
     score: 90,
     status: 'healthy',
     branches: 6,
@@ -61,7 +67,8 @@ const regions: RegionMapData[] = [
     id: 'eje-cafetero',
     name: 'Eje Cafetero',
     shortName: 'Eje Cafetero',
-    x: 155, y: 225,
+    lat: 4.81,
+    lng: -75.69,
     score: 68,
     status: 'critical',
     branches: 4,
@@ -74,7 +81,8 @@ const regions: RegionMapData[] = [
     id: 'bogota-norte',
     name: 'Bogotá Norte',
     shortName: 'Bog. Norte',
-    x: 235, y: 200,
+    lat: 4.72,
+    lng: -74.05,
     score: 81,
     status: 'warning',
     branches: 5,
@@ -87,7 +95,8 @@ const regions: RegionMapData[] = [
     id: 'bogota-sur',
     name: 'Bogotá Sur',
     shortName: 'Bog. Sur',
-    x: 250, y: 230,
+    lat: 4.58,
+    lng: -74.1,
     score: 85,
     status: 'healthy',
     branches: 4,
@@ -100,7 +109,8 @@ const regions: RegionMapData[] = [
     id: 'bogota-centro',
     name: 'Bogotá Centro',
     shortName: 'Bog. Centro',
-    x: 270, y: 210,
+    lat: 4.65,
+    lng: -74.07,
     score: 88,
     status: 'warning',
     branches: 3,
@@ -113,7 +123,8 @@ const regions: RegionMapData[] = [
     id: 'cali',
     name: 'Cali',
     shortName: 'Cali',
-    x: 120, y: 275,
+    lat: 3.45,
+    lng: -76.53,
     score: 86,
     status: 'healthy',
     branches: 4,
@@ -130,10 +141,110 @@ const getStatusColor = (status: string) => {
   return '#10B981';
 };
 
+const mapContainerStyle: React.CSSProperties = {
+  width: '100%',
+  height: '420px',
+  borderRadius: '0 0 16px 16px',
+};
+
+const colombiaCenter = { lat: 5.5, lng: -74.5 };
+
+const mapStyles: google.maps.MapTypeStyle[] = [
+  { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#E8E4DE' }] },
+  { featureType: 'landscape', elementType: 'geometry.fill', stylers: [{ color: '#FAFAF8' }] },
+  { featureType: 'road', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#D4C4B0' }, { weight: 1.5 }] },
+  { featureType: 'administrative.province', elementType: 'geometry.stroke', stylers: [{ color: '#E8E4DE' }, { weight: 0.5 }] },
+  { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: '#8B7355' }] },
+  { featureType: 'administrative.locality', elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
+];
+
+const RegionPin: React.FC<{
+  region: RegionMapData;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ region, isSelected, onClick }) => {
+  const color = getStatusColor(region.status);
+
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="cursor-pointer flex flex-col items-center"
+      style={{ transform: 'translate(-50%, -50%)' }}
+    >
+      {/* Pulse ring */}
+      <div className="relative flex items-center justify-center">
+        <div
+          className="absolute rounded-full animate-ping"
+          style={{
+            width: isSelected ? 48 : 32,
+            height: isSelected ? 48 : 32,
+            backgroundColor: `${color}20`,
+          }}
+        />
+        {/* Outer glow */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: isSelected ? 40 : 28,
+            height: isSelected ? 40 : 28,
+            backgroundColor: `${color}15`,
+          }}
+        />
+        {/* Main circle */}
+        <div
+          className="relative rounded-full flex items-center justify-center shadow-lg border-2 border-white"
+          style={{
+            width: isSelected ? 32 : 22,
+            height: isSelected ? 32 : 22,
+            backgroundColor: color,
+          }}
+        >
+          <span className="text-white font-bold" style={{ fontSize: isSelected ? 11 : 8 }}>
+            {region.score}
+          </span>
+        </div>
+      </div>
+      {/* Label */}
+      <div
+        className="mt-1 px-2 py-0.5 rounded-md bg-white/95 border shadow-sm text-center whitespace-nowrap"
+        style={{ borderColor: `${color}40` }}
+      >
+        <span className="text-[10px] font-semibold text-[#4A3728]">{region.shortName}</span>
+      </div>
+    </div>
+  );
+};
+
 const GeneralNationalMap: React.FC = () => {
   const [selectedRegion, setSelectedRegion] = useState<RegionMapData | null>(null);
-  const mapWidth = 420;
-  const mapHeight = 380;
+  const mapRef = useRef<google.maps.Map | null>(null);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
+
+  const onLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  const handlePinClick = (region: RegionMapData) => {
+    const isAlreadySelected = selectedRegion?.id === region.id;
+    setSelectedRegion(isAlreadySelected ? null : region);
+    if (!isAlreadySelected && mapRef.current) {
+      mapRef.current.panTo({ lat: region.lat, lng: region.lng });
+    }
+  };
+
+  if (loadError) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm p-8 text-center">
+        <p className="text-sm text-rose-600">Error al cargar Google Maps</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm overflow-hidden">
@@ -149,51 +260,47 @@ const GeneralNationalMap: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative px-3 py-3">
-        <svg viewBox={`0 0 ${mapWidth} ${mapHeight}`} className="w-full h-auto" style={{ maxHeight: '380px' }}>
-          <defs>
-            <radialGradient id="nationalMapBg" cx="50%" cy="50%" r="70%">
-              <stop offset="0%" stopColor="#FAFAF8" />
-              <stop offset="100%" stopColor="#F5EDE4" />
-            </radialGradient>
-          </defs>
-          <rect width={mapWidth} height={mapHeight} fill="url(#nationalMapBg)" rx="12" />
-
-          {/* Simplified Colombia silhouette */}
-          <path
-            d="M180,30 Q220,25 260,40 Q300,55 310,80 Q315,110 300,130 Q290,150 280,170 Q275,190 280,210 Q285,230 270,255 Q260,275 240,290 Q220,305 200,320 Q180,335 160,330 Q140,320 120,300 Q105,280 100,260 Q95,240 100,220 Q108,200 115,185 Q120,170 115,150 Q110,130 120,110 Q130,90 145,70 Q155,55 170,40 Z"
-            fill="#F0ECE6"
-            stroke="#D4C4B0"
-            strokeWidth="1.5"
-          />
-
-          {/* Region pins */}
-          {regions.map((region) => {
-            const color = getStatusColor(region.status);
-            const isSelected = selectedRegion?.id === region.id;
-
-            return (
-              <g key={region.id} onClick={() => setSelectedRegion(isSelected ? null : region)} className="cursor-pointer">
-                <motion.circle
-                  cx={region.x} cy={region.y}
-                  r={isSelected ? 30 : 20}
-                  fill="none" stroke={color} strokeWidth={1} opacity={0.3}
-                  animate={{ r: isSelected ? [30, 38] : [20, 27], opacity: [0.3, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
+      <div className="relative">
+        {!isLoaded ? (
+          <div className="flex items-center justify-center" style={{ height: 420 }}>
+            <div className="animate-spin w-8 h-8 border-2 border-[#D4C4B0] border-t-[#4A3728] rounded-full" />
+          </div>
+        ) : (
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={colombiaCenter}
+            zoom={5.8}
+            onLoad={onLoad}
+            onClick={() => setSelectedRegion(null)}
+            options={{
+              styles: mapStyles,
+              disableDefaultUI: true,
+              zoomControl: true,
+              zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+              gestureHandling: 'cooperative',
+              minZoom: 5,
+              maxZoom: 10,
+              restriction: {
+                latLngBounds: { north: 14, south: -5, west: -82, east: -66 },
+                strictBounds: false,
+              },
+            }}
+          >
+            {regions.map((region) => (
+              <OverlayViewF
+                key={region.id}
+                position={{ lat: region.lat, lng: region.lng }}
+                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+              >
+                <RegionPin
+                  region={region}
+                  isSelected={selectedRegion?.id === region.id}
+                  onClick={() => handlePinClick(region)}
                 />
-                <circle cx={region.x} cy={region.y} r={isSelected ? 16 : 10} fill={`${color}20`} />
-                <circle cx={region.x} cy={region.y} r={isSelected ? 10 : 7} fill={color} stroke="white" strokeWidth={2} />
-                <text x={region.x} y={region.y + 1} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize={isSelected ? 7 : 5.5} fontWeight="bold">
-                  {region.score}
-                </text>
-                <rect x={region.x - 28} y={region.y + (isSelected ? 16 : 12)} width={56} height={14} rx={3} fill="white" stroke={color} strokeWidth={0.5} opacity={0.95} />
-                <text x={region.x} y={region.y + (isSelected ? 24 : 20)} textAnchor="middle" dominantBaseline="middle" fill="#4A3728" fontSize={6} fontWeight="600">
-                  {region.shortName}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+              </OverlayViewF>
+            ))}
+          </GoogleMap>
+        )}
 
         {/* Region Popup */}
         <AnimatePresence>
@@ -202,7 +309,7 @@ const GeneralNationalMap: React.FC = () => {
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-4 left-4 right-4 bg-white rounded-xl border border-[#E8E4DE] shadow-lg p-4 z-10"
+              className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl border border-[#E8E4DE] shadow-lg p-4 z-10"
             >
               <button onClick={() => setSelectedRegion(null)} className="absolute top-3 right-3 p-1 text-[#8B7355] hover:text-[#4A3728]">
                 <X className="w-4 h-4" />
