@@ -273,7 +273,8 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
                         objectPosition: 'center 18%',
                       }}
                     >
-                      <source src="/alicia-speaking.mp4" type="video/mp4" />
+                      <source src="/alicia-speaking.mov" type="video/quicktime" />
+                      <source src="/alicia-speaking.mov" type="video/mp4" />
                     </video>
 
                     <img
