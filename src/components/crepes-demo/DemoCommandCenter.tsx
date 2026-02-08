@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { User, Users, Building2, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Users, Building2, Sparkles, ChevronDown } from 'lucide-react';
 import aliciaImage from '@/assets/alicia-avatar.png';
 interface DemoCommandCenterProps {
   onNavigate: (view: 'alicia' | 'branch-manager' | 'regional-manager' | 'general-manager' | 'backstage') => void;
@@ -8,6 +8,7 @@ interface DemoCommandCenterProps {
 const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
   onNavigate
 }) => {
+  const [showPricing, setShowPricing] = useState(false);
   const cards = [{
     id: 'branch-manager',
     title: 'Gerente de Sucursal',
@@ -335,6 +336,109 @@ Domicilios<br />en pedidos</span>
           duration: 0.5
         }} />
         </div>
+      </motion.div>
+
+      {/* Pricing & Scale Button */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="max-w-4xl w-full mb-8"
+      >
+        <motion.button
+          onClick={() => setShowPricing(!showPricing)}
+          className="mx-auto flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-[#5C4033]/70 hover:text-[#5C4033] transition-colors"
+          style={{
+            background: 'rgba(92,64,51,0.06)',
+            border: '1px solid rgba(92,64,51,0.1)',
+          }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <Sparkles className="w-4 h-4" />
+          Pricing & Escala
+          <motion.span
+            animate={{ rotate: showPricing ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronDown className="w-4 h-4" />
+          </motion.span>
+        </motion.button>
+
+        <AnimatePresence>
+          {showPricing && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {/* Escala de precios */}
+                <div
+                  className="rounded-2xl p-5"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(92,64,51,0.05) 0%, rgba(139,107,79,0.03) 100%)',
+                    border: '1px solid rgba(92,64,51,0.1)',
+                  }}
+                >
+                  <h4 className="text-sm font-semibold text-[#5C4033] mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E]" />
+                    ALICIA · Escala por Sucursales
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { range: '0 – 20', price: '2.500.000' },
+                      { range: '21 – 50', price: '2.250.000' },
+                      { range: '50 – 100', price: '2.000.000' },
+                      { range: '100 – 200', price: '1.500.000' },
+                    ].map((tier) => (
+                      <div key={tier.range} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[#5C4033]/5 transition-colors">
+                        <span className="text-sm text-[#5C4033]/70">{tier.range} sucursales</span>
+                        <span className="text-sm font-semibold text-[#5C4033]">${tier.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-[#5C4033]/10">
+                    <p className="text-xs text-[#5C4033]/50 text-center">COP / sucursal / mes</p>
+                  </div>
+                </div>
+
+                {/* Justificación con porcentajes */}
+                <div
+                  className="rounded-2xl p-5"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(255,107,53,0.03) 100%)',
+                    border: '1px solid rgba(92,64,51,0.1)',
+                  }}
+                >
+                  <h4 className="text-sm font-semibold text-[#5C4033] mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[#2DD4BF] to-[#FF6B35]" />
+                    ¿Por qué este precio?
+                  </h4>
+                  <div className="space-y-2.5">
+                    {[
+                      { label: 'Conversión de pedidos', value: '+67–133%', icon: '📈' },
+                      { label: 'Ticket promedio', value: '+15%', icon: '🎯' },
+                      { label: 'Costos call center', value: '−70–80%', icon: '📞' },
+                      { label: 'Abandono WhatsApp', value: '−30%', icon: '💬' },
+                      { label: 'Tiempo de cierre', value: '−35%', icon: '⚡' },
+                    ].map((metric) => (
+                      <div key={metric.label} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[#5C4033]/5 transition-colors">
+                        <span className="text-sm text-[#5C4033]/70 flex items-center gap-2">
+                          <span className="text-base">{metric.icon}</span>
+                          {metric.label}
+                        </span>
+                        <span className="text-sm font-bold text-[#5C4033]">{metric.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Role Cards - Compact horizontal layout */}
