@@ -106,9 +106,9 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-rose-50 text-rose-700 border-rose-200';
-      case 'warning': return 'bg-amber-50 text-amber-700 border-amber-200';
-      default: return 'bg-sky-50 text-sky-700 border-sky-200';
+      case 'critical': return 'bg-white text-rose-600 border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]';
+      case 'warning': return 'bg-white text-amber-600 border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]';
+      default: return 'bg-white text-sky-600 border-sky-400/60 shadow-[0_0_8px_rgba(14,165,233,0.15)]';
     }
   };
 
@@ -291,7 +291,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-3 rounded-xl bg-rose-50 border border-rose-200"
+                className="p-3 rounded-xl bg-white border border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]"
               >
                 <div className="flex items-start justify-between mb-1.5">
                   <div>
@@ -307,7 +307,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                     ) : null}
                   </div>
                 </div>
-                <p className="text-[10px] text-[#5C4033] bg-white/70 p-1.5 rounded border border-rose-100">
+                <p className="text-[10px] text-[#5C4033] bg-[#FAFAF8] p-1.5 rounded border border-rose-200/40">
                   💡 {error.recommendation}
                 </p>
               </motion.div>
@@ -323,7 +323,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-200"
+                className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
               >
                 <div>
                   <p className="font-medium text-xs text-[#4A3728]">{product.product}</p>

@@ -143,7 +143,7 @@ const GeneralAuditPanel: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.08 }}
               className={`p-3 rounded-xl border ${
-                issue.severity === 'critical' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'
+                issue.severity === 'critical' ? 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]' : 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
               }`}
             >
               <div className="flex items-center justify-between">
