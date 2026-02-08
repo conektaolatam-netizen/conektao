@@ -50,30 +50,30 @@ const getSeverityStyles = (severity: string) => {
   switch (severity) {
     case 'critical':
       return {
-        bg: 'bg-gradient-to-r from-rose-50 to-rose-100/50',
-        border: 'border-rose-200',
-        iconBg: 'bg-rose-500',
-        titleColor: 'text-rose-800',
-        actionBg: 'bg-rose-100 border-rose-200',
-        actionText: 'text-rose-700',
+        bg: 'bg-white',
+        border: 'border-rose-400/60 shadow-[0_0_12px_rgba(244,63,94,0.12)]',
+        iconBg: 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]',
+        titleColor: 'text-[#1a1a2e]',
+        actionBg: 'bg-[#1a1a2e]/5 border-[#1a1a2e]/10',
+        actionText: 'text-[#1a1a2e]',
       };
     case 'warning':
       return {
-        bg: 'bg-gradient-to-r from-amber-50 to-amber-100/50',
-        border: 'border-amber-200',
-        iconBg: 'bg-amber-500',
-        titleColor: 'text-amber-800',
-        actionBg: 'bg-amber-100 border-amber-200',
-        actionText: 'text-amber-700',
+        bg: 'bg-white',
+        border: 'border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.12)]',
+        iconBg: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]',
+        titleColor: 'text-[#1a1a2e]',
+        actionBg: 'bg-[#1a1a2e]/5 border-[#1a1a2e]/10',
+        actionText: 'text-[#1a1a2e]',
       };
     default:
       return {
-        bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100/50',
-        border: 'border-emerald-200',
-        iconBg: 'bg-emerald-500',
-        titleColor: 'text-emerald-800',
-        actionBg: 'bg-emerald-100 border-emerald-200',
-        actionText: 'text-emerald-700',
+        bg: 'bg-white',
+        border: 'border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.12)]',
+        iconBg: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]',
+        titleColor: 'text-[#1a1a2e]',
+        actionBg: 'bg-[#1a1a2e]/5 border-[#1a1a2e]/10',
+        actionText: 'text-[#1a1a2e]',
       };
   }
 };
