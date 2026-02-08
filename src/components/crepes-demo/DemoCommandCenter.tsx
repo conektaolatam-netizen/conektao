@@ -217,12 +217,11 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
               <h3 className="text-2xl md:text-3xl font-bold text-[#5C4033]">
                 ALIC<span className="relative inline-block">
-                  <span className="relative z-10 bg-gradient-to-r from-[#FF6B35] to-[#F7931E] bg-clip-text text-transparent">IA</span>
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#FF6B35] to-[#F7931E] bg-clip-text text-transparent blur-[6px] animate-pulse opacity-60">IA</span>
+                  <span className="relative z-10 text-[#5C4033]" style={{ textShadow: '0 0 8px rgba(92,64,51,0.4), 0 0 16px rgba(92,64,51,0.2)' }}>IA</span>
                   <span 
-                    className="absolute -inset-x-2 inset-y-0 opacity-30 blur-md rounded-full"
+                    className="absolute -inset-x-1 inset-y-0 opacity-25 blur-sm rounded-full"
                     style={{
-                      background: 'linear-gradient(90deg, transparent, #FF6B35, #F7931E, transparent)',
+                      background: 'linear-gradient(90deg, transparent, rgba(92,64,51,0.5), transparent)',
                       animation: 'shimmer 2.5s ease-in-out infinite',
                     }}
                   />
