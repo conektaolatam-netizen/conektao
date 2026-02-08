@@ -215,17 +215,32 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
           {/* Text content */}
           <div className="flex-1 text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-              <h3 className="text-2xl md:text-3xl font-bold text-[#5C4033]">
-                ALIC<span className="relative inline-block">
-                  <span className="relative z-10 text-[#5C4033]" style={{ textShadow: '0 0 8px rgba(92,64,51,0.4), 0 0 16px rgba(92,64,51,0.2)' }}>IA</span>
-                  <span 
-                    className="absolute -inset-x-1 inset-y-0 opacity-25 blur-sm rounded-full"
+              <h3 className="text-2xl md:text-3xl font-bold">
+                <span className="text-[#5C4033]">ALIC</span>
+                <motion.span 
+                  className="relative inline-block"
+                  style={{
+                    background: 'linear-gradient(135deg, #8B6B4F, #A0845C, #8B6B4F)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  IA
+                  <motion.span
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      background: 'linear-gradient(90deg, transparent, rgba(92,64,51,0.5), transparent)',
-                      animation: 'shimmer 2.5s ease-in-out infinite',
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
                     }}
-                  />
-                </span>
+                    animate={{ x: ['-100%', '200%'] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+                  >
+                    IA
+                  </motion.span>
+                </motion.span>
               </h3>
               <span className="px-3 py-1 bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white text-xs font-medium rounded-full">
                 IA Conversacional
