@@ -128,7 +128,7 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
 
       {/* Error State */}
       {error && (
-        <Card className="border-rose-200 bg-rose-50">
+        <Card className="border-rose-400/60 bg-white shadow-[0_0_10px_rgba(244,63,94,0.12)]">
           <CardContent className="p-4">
             <p className="text-rose-700 text-sm">{error}</p>
           </CardContent>

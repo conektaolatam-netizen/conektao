@@ -286,9 +286,9 @@ const weekSchedule: DaySchedule[] = [
 ];
 
 const trafficColors = {
-  alto: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', label: 'Alto' },
-  medio: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', label: 'Medio' },
-  bajo: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', label: 'Bajo' },
+  alto: { bg: 'bg-white', text: 'text-red-600', border: 'border-red-400/60 shadow-[0_0_8px_rgba(239,68,68,0.15)]', label: 'Alto' },
+  medio: { bg: 'bg-white', text: 'text-amber-600', border: 'border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]', label: 'Medio' },
+  bajo: { bg: 'bg-white', text: 'text-emerald-600', border: 'border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.15)]', label: 'Bajo' },
 };
 
 const SUNDAY_INDEX = 6;

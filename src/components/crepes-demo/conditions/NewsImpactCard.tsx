@@ -38,10 +38,10 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
   };
 
   const getImpactColor = (probability: number) => {
-    if (probability >= 80) return 'text-[#4A3728] bg-gradient-to-br from-[#FDF8F3] to-[#F5EDE4] border-2 border-[#8B7355] shadow-[0_0_15px_rgba(139,115,85,0.2)]';
-    if (probability >= 60) return 'text-amber-700 bg-amber-50 border-amber-200';
-    if (probability >= 40) return 'text-yellow-700 bg-yellow-50 border-yellow-200';
-    return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+    if (probability >= 80) return 'text-[#4A3728] bg-white border-2 border-[#8B7355] shadow-[0_0_15px_rgba(139,115,85,0.2)]';
+    if (probability >= 60) return 'text-amber-600 bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]';
+    if (probability >= 40) return 'text-yellow-600 bg-white border-yellow-400/60 shadow-[0_0_8px_rgba(234,179,8,0.15)]';
+    return 'text-emerald-600 bg-white border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.15)]';
   };
 
   if (isLoading) {
@@ -157,8 +157,8 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
                 >
                   {getCategoryIcon(event.category)}
                   <span className="text-xs text-[#4A3728] flex-1 truncate">{event.title}</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    event.impactProbability >= 50 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-[#E8DFD4] text-[#6B5744]'
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                    event.impactProbability >= 50 ? 'bg-white text-amber-600 border-amber-400/60 shadow-[0_0_6px_rgba(245,158,11,0.12)]' : 'bg-[#E8DFD4] text-[#6B5744]'
                   }`}>
                     {event.impactProbability}%
                   </span>

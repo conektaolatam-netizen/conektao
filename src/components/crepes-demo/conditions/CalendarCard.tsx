@@ -86,7 +86,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ calendar, isLoading }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"
+              className="mb-4 p-3 bg-white rounded-lg border border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
             >
               <div className="flex items-center gap-2">
                 <PartyPopper className="w-5 h-5 text-amber-600" />
@@ -113,7 +113,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ calendar, isLoading }) => {
 
           {/* Sales Impact */}
           {calendar.salesImpact !== 0 && (
-            <div className="flex items-center gap-2 mb-4 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div className="flex items-center gap-2 mb-4 p-2 bg-white rounded-lg border border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
               <TrendingUp className="w-4 h-4 text-emerald-600" />
               <span className="text-sm text-emerald-700">
                 Ventas proyectadas: <span className="font-bold">+{calendar.salesImpact}%</span>

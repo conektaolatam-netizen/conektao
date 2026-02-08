@@ -81,9 +81,9 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
   };
 
   const getStatusBg = (status: string) => {
-    if (status === 'critical') return 'bg-rose-50 border-rose-200 hover:bg-rose-100';
-    if (status === 'warning') return 'bg-amber-50 border-amber-200 hover:bg-amber-100';
-    return 'bg-emerald-50/50 border-[#E8E4DE] hover:bg-emerald-50';
+    if (status === 'critical') return 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)] hover:shadow-[0_0_12px_rgba(244,63,94,0.2)]';
+    if (status === 'warning') return 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)] hover:shadow-[0_0_12px_rgba(245,158,11,0.2)]';
+    return 'bg-white border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.12)] hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]';
   };
 
   if (isLoading) {
@@ -172,8 +172,8 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`p-3 rounded-xl border ${
-                  issue.severity === 'critical' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'
+               className={`p-3 rounded-xl border ${
+                  issue.severity === 'critical' ? 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]' : 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -247,17 +247,17 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
             </motion.p>
           </div>
           <div className="flex gap-2 text-center">
-            <div className="px-3 py-2 bg-emerald-50 rounded-xl border border-emerald-200">
+            <div className="px-3 py-2 bg-white rounded-xl border border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.12)]">
               <p className="text-lg font-bold text-emerald-600">{data.healthyBranches}</p>
-              <p className="text-[10px] text-emerald-700">Saludables</p>
+              <p className="text-[10px] text-emerald-600">Saludables</p>
             </div>
-            <div className="px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
+            <div className="px-3 py-2 bg-white rounded-xl border border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.12)]">
               <p className="text-lg font-bold text-amber-600">{data.warningBranches}</p>
-              <p className="text-[10px] text-amber-700">Atención</p>
+              <p className="text-[10px] text-amber-600">Atención</p>
             </div>
-            <div className="px-3 py-2 bg-rose-50 rounded-xl border border-rose-200">
+            <div className="px-3 py-2 bg-white rounded-xl border border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.12)]">
               <p className="text-lg font-bold text-rose-600">{data.criticalBranches}</p>
-              <p className="text-[10px] text-rose-700">Críticas</p>
+              <p className="text-[10px] text-rose-600">Críticas</p>
             </div>
           </div>
         </div>
