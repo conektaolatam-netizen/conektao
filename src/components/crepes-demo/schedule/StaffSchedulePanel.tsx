@@ -34,13 +34,13 @@ type DaySchedule = {
 };
 
 const areas: Area[] = [
-  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-amber-700', bgColor: 'bg-amber-50/80 border-amber-200/60' },
-  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-orange-700', bgColor: 'bg-orange-50/80 border-orange-200/60' },
-  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-rose-700', bgColor: 'bg-rose-50/80 border-rose-200/60' },
-  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-yellow-700', bgColor: 'bg-yellow-50/80 border-yellow-200/60' },
-  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-pink-700', bgColor: 'bg-pink-50/80 border-pink-200/60' },
-  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-sky-700', bgColor: 'bg-sky-50/80 border-sky-200/60' },
-  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-emerald-700', bgColor: 'bg-emerald-50/80 border-emerald-200/60' },
+  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
+  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
+  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
+  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
+  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
+  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
+  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
 ];
 
 const allStaff = [
@@ -321,13 +321,13 @@ const DayContent = ({ staff, insight }: { staff: StaffMember[]; insight: string 
                   <span className={area.color}>{area.icon}</span>
                   <span className={`text-xs font-semibold ${area.color}`}>{area.name}</span>
                 </div>
-                <span className="text-[10px] text-[#8B7355] bg-white/60 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] text-[#1a1a2e]/60 bg-[#1a1a2e]/5 px-2 py-0.5 rounded-full font-medium">
                   {areaStaff.length}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {areaStaff.map(s => (
-                  <span key={s.name} className="text-xs bg-white/70 text-[#4A3728] px-2.5 py-1 rounded-lg font-medium">
+                  <span key={s.name} className="text-xs bg-[#1a1a2e]/5 text-[#1a1a2e] px-2.5 py-1 rounded-lg font-medium border border-[#1a1a2e]/10">
                     {s.name}
                   </span>
                 ))}
@@ -426,7 +426,7 @@ const SundayAIContent = ({
                   <span className={`text-xs font-semibold ${area.color}`}>{area.name}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-[#8B7355] bg-white/60 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] text-[#1a1a2e]/60 bg-[#1a1a2e]/5 px-2 py-0.5 rounded-full font-medium">
                     {areaStaff.length}
                   </span>
                   <button
@@ -439,7 +439,7 @@ const SundayAIContent = ({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {areaStaff.map(s => (
-                  <span key={s.name} className="text-xs bg-white/70 text-[#4A3728] px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 group">
+                  <span key={s.name} className="text-xs bg-[#1a1a2e]/5 text-[#1a1a2e] px-2.5 py-1 rounded-lg font-medium border border-[#1a1a2e]/10 flex items-center gap-1.5 group">
                     {s.name}
                     <button
                       onClick={() => onMoveToRest(s.name)}
