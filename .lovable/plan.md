@@ -1,70 +1,77 @@
 
+# Rediseno UX - Programacion Semanal con Dias Colapsables y Domingo Asistido por IA
 
-# Plan: Fix ALICIA Connection Stability (Final)
+## Problema actual
+El panel muestra los 7 dias como tabs en la parte superior y el contenido se reemplaza al hacer clic. No se puede ver de un vistazo que dias ya estan programados ni comparar entre ellos. Todo se ve igual, incluyendo el domingo que deberia ser diferente.
 
-## Root Cause (from console logs)
+## Nueva experiencia propuesta
 
-The logs show this pattern:
-```
-ALICIA connected
-ALICIA disconnected
-ALICIA connected
-ALICIA disconnected
-Failed to start ALICIA: Session cancelled during connection
-ALICIA connected
-ALICIA disconnected
-```
-
-**"Session cancelled during connection"** means `endSession()` is being called while `startSession()` is still connecting. This happens because:
-
-1. **Duplicate status management**: The component maintains its OWN `status` state (`useState`) while the SDK already provides `conversation.status`. These get out of sync, causing conflicting state transitions.
-
-2. **Unstable `startConversation` callback**: It depends on `[conversation, status]`. When `isMicMuted` changes, `useConversation` re-renders and may produce a new `conversation` reference, invalidating the callback and potentially triggering re-connection logic.
-
-3. **`endConversation` called during connect**: When `handleClose` or any state change fires while status is `'connecting'`, it calls `endSession()` mid-handshake, producing the "Session cancelled" error.
-
-## Solution
-
-### 1. Remove duplicate status -- use SDK's built-in `conversation.status`
-
-The SDK already returns `status: 'connected' | 'disconnected'`. We only need a small local flag for `'connecting'` state. This eliminates all sync conflicts.
-
-### 2. Guard `startSession` with a connecting lock
-
-Use a ref (`isConnectingRef`) to prevent overlapping calls. If a connection attempt is already in progress, ignore new requests.
-
-### 3. Guard `endSession` -- never call during connecting
-
-Only call `endSession()` when `conversation.status === 'connected'`. During connecting, just close the panel without trying to tear down a half-open session.
-
-### 4. Stabilize all refs and callbacks
-
-- Store `conversation` in a ref for keepalive (already done, keep it)
-- Remove `conversation` and `status` from callback dependencies
-- Keepalive depends only on `conversation.status` (SDK value), not our state
-
-### 5. Keep the keepalive at 10s (already correct)
-
-## File to Modify
-
-**`src/components/crepes-demo/voice/AliciaVoicePanel.tsx`** -- single file, complete rewrite of state logic:
+### Estructura: Lista vertical de dias colapsables
+En lugar de tabs horizontales, cada dia sera un boton/fila colapsable (estilo acordeon):
 
 ```text
-Key changes:
-- Remove: const [status, setStatus] = useState(...)
-- Add: const [isConnecting, setIsConnecting] = useState(false)
-- Use: conversation.status throughout ('connected' | 'disconnected')
-- Add: isConnectingRef to prevent overlapping startSession calls
-- Guard: endSession only when conversation.status === 'connected'
-- Keepalive: depends on [conversation.status] not custom state
-- Video: uses conversation.status + conversation.isSpeaking
++------------------------------------------+
+| Lun 3   | Soleado 21C | 19 activas | [v] |  <-- clic para expandir
+|------------------------------------------|
+|  (contenido colapsado: areas + staff)     |
++------------------------------------------+
+| Mar 4   | Parcial 19C | 19 activas | [v] |
++------------------------------------------+
+| Mie 5   | Nublado 17C | 20 activas | [v] |
++------------------------------------------+
+| ...                                       |
++------------------------------------------+
+| Sab 8   | Soleado 22C | 24 activas | [v] |
++------------------------------------------+
+| Dom 9   | SIN PROGRAMAR - IA disponible   |  <-- visualmente diferente
+|  [Sparkles] Programar con IA              |
++------------------------------------------+
 ```
 
-## Expected Result
+### Lunes a Sabado: dias ya programados
+- Cada fila muestra: dia, clima, cantidad de staff activo, indicador de trafico
+- Al hacer clic se expande y muestra el detalle (areas con nombres, descansos, insight de IA) exactamente como se ve hoy
+- Se puede tener mas de un dia abierto a la vez
+- El contenido expandido es identico al actual (areas coloreadas, nombres, insight con glow border)
 
-- No more "Session cancelled during connection" errors
-- No reconnect loops -- session starts once, stays connected
-- If a genuine network drop occurs, user sees "Reconectar" button (no auto-loop)
-- Mute works natively via SDK
-- Video pauses when listening, plays when ALICIA speaks
+### Domingo: programacion asistida por IA
+El domingo se muestra visualmente distinto (borde con glow turquesa/naranja, fondo ligeramente diferente) indicando que aun no esta programado.
 
+Al hacer clic en "Programar con IA":
+1. Se expande mostrando una **propuesta de la IA** (staff pre-asignado basado en el insight del domingo: "Domingo familiar, pico 12-3 PM")
+2. La propuesta muestra las mismas areas con nombres asignados, pero cada nombre tiene un boton "X" para quitarlo
+3. Hay un boton "+ Agregar" en cada area para anadir staff de los disponibles
+4. Un insight de IA explica por que propuso esa distribucion
+5. Boton "Confirmar programacion" al final que "guarda" y convierte el domingo en un dia programado normal
+
+### Interaccion del domingo con IA
+- La propuesta inicial usa los mismos datos que ya existen en `weekSchedule[6]` (domingo)
+- El usuario puede quitar personas (X), moverlas a descanso, o agregar desde una lista
+- La IA muestra un mensaje contextual: "Propongo 7 meseras para el pico del mediodia. Despues de las 4 PM puedes liberar 2."
+- Al confirmar, el domingo pasa a verse como los demas dias (programado, colapsable)
+
+## Detalles tecnicos
+
+### Cambios en StaffSchedulePanel.tsx
+
+1. **Estado**: Reemplazar `selectedDay` (single index) por `expandedDays` (Set de indices abiertos) y `sundayConfirmed` (boolean) y `sundayStaff` (array editable)
+
+2. **Layout**: Cambiar de tabs + contenido unico a lista vertical de `Collapsible` components (ya existe en el proyecto: `@radix-ui/react-collapsible`)
+
+3. **Dia colapsable (Lun-Sab)**: Cada fila es un `Collapsible` con:
+   - Trigger: fila compacta con dia, clima, badge de trafico, conteo staff
+   - Content: el mismo contenido actual (areas + staff + insight + descansos)
+
+4. **Domingo especial**: 
+   - Mientras `sundayConfirmed === false`: muestra UI de edicion con glow border, propuesta IA, botones X en cada nombre, botones + agregar, boton confirmar
+   - Mientras `sundayConfirmed === true`: se comporta como los demas dias
+
+5. **Estado editable del domingo**: `sundayStaff` se inicializa con los datos de `weekSchedule[6].staff` y se puede modificar (quitar/agregar) antes de confirmar
+
+6. **Animaciones**: Usar `framer-motion` + `AnimatePresence` para expandir/colapsar suavemente (ya se usa en el componente)
+
+### Archivos a modificar
+- `src/components/crepes-demo/schedule/StaffSchedulePanel.tsx` - refactor completo del layout y logica
+
+### Sin dependencias nuevas
+Todo se construye con componentes existentes: Collapsible de Radix, framer-motion, AIGlowBorder.
