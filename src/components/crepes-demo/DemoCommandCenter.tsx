@@ -292,8 +292,9 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255,255,255,0.05)'
           }}>
-            <span className="text-3xl font-bold text-[#FF6B35]">+20%</span>
-            <span className="text-xs text-[#5C4033]/70 text-center">Conversión<br />en pedidos</span>
+            <span className="text-3xl font-bold text-[#FF6B35]">+15%</span>
+            <span className="text-xs text-[#5C4033]/70 text-center">Ticket Promedio 
+Domicilios<br />en pedidos</span>
           </div>
         </div>
 
@@ -312,51 +313,39 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
 
       {/* Role Cards - Compact horizontal layout */}
       <div className="flex flex-wrap justify-center gap-4 max-w-4xl w-full">
-        {cards.map(card => (
-          <motion.div 
-            key={card.id} 
-            initial={{
-              opacity: 0,
-              y: 20,
-              scale: 0.95
-            }} 
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1
-            }} 
-            transition={{
-              delay: card.delay,
-              duration: 0.4
-            }} 
-            whileHover={{
-              scale: 1.05,
-              y: -3
-            }} 
-            whileTap={{
-              scale: 0.97
-            }} 
-            onClick={() => onNavigate(card.id as any)} 
-            className="relative cursor-pointer group"
-          >
+        {cards.map(card => <motion.div key={card.id} initial={{
+        opacity: 0,
+        y: 20,
+        scale: 0.95
+      }} animate={{
+        opacity: 1,
+        y: 0,
+        scale: 1
+      }} transition={{
+        delay: card.delay,
+        duration: 0.4
+      }} whileHover={{
+        scale: 1.05,
+        y: -3
+      }} whileTap={{
+        scale: 0.97
+      }} onClick={() => onNavigate(card.id as any)} className="relative cursor-pointer group">
             {/* Glassmorphic card */}
-            <div className="relative flex items-center gap-3 px-5 py-3 rounded-2xl overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, rgba(92,64,51,0.85) 0%, rgba(139,115,85,0.75) 100%)',
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 20px rgba(92,64,51,0.25), inset 0 1px 0 rgba(255,255,255,0.1)'
-              }}
-            >
+            <div className="relative flex items-center gap-3 px-5 py-3 rounded-2xl overflow-hidden" style={{
+          background: 'linear-gradient(135deg, rgba(92,64,51,0.85) 0%, rgba(139,115,85,0.75) 100%)',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 20px rgba(92,64,51,0.25), inset 0 1px 0 rgba(255,255,255,0.1)'
+        }}>
               {/* Subtle hover glow */}
-              <motion.div 
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)'
-                }}
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
+              <motion.div className="absolute inset-0 pointer-events-none" style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)'
+          }} initial={{
+            opacity: 0
+          }} whileHover={{
+            opacity: 1
+          }} transition={{
+            duration: 0.3
+          }} />
 
               {/* Icon */}
               <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0 border border-white/10">
@@ -370,31 +359,19 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
               </div>
 
               {/* Arrow */}
-              <motion.span 
-                className="text-white/70 ml-2"
-                animate={{ x: [0, 4, 0] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-              >
+              <motion.span className="text-white/70 ml-2" animate={{
+            x: [0, 4, 0]
+          }} transition={{
+            repeat: Infinity,
+            duration: 1.5
+          }}>
                 →
               </motion.span>
             </div>
-          </motion.div>
-        ))}
+          </motion.div>)}
 
         {/* Backstage inside ALICIA indicator */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl"
-          style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.1) 100%)',
-            border: '1px solid rgba(139,92,246,0.2)'
-          }}
-        >
-          <Sparkles className="w-4 h-4 text-purple-400" />
-          <span className="text-purple-300/80 text-xs">Flujo Backstage dentro de ALICIA</span>
-        </motion.div>
+        
       </div>
 
       {/* Footer */}
