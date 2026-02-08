@@ -217,10 +217,10 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
               <h3 className="text-2xl md:text-3xl font-bold">
                 <span className="text-[#5C4033]">ALIC</span>
-                <motion.span 
-                  className="relative inline-block"
+                <span 
+                  className="relative inline-block overflow-hidden"
                   style={{
-                    background: 'linear-gradient(135deg, #8B6B4F, #A0845C, #8B6B4F)',
+                    background: 'linear-gradient(135deg, #6B4F3A, #7A5C45, #6B4F3A)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -230,17 +230,17 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
                   <motion.span
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+                      background: 'linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.25) 50%, transparent 80%)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                       backgroundClip: 'text',
                     }}
-                    animate={{ x: ['-100%', '200%'] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+                    animate={{ x: ['-100%', '100%'] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
                   >
                     IA
                   </motion.span>
-                </motion.span>
+                </span>
               </h3>
               <span className="px-3 py-1 bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white text-xs font-medium rounded-full">
                 IA Conversacional
