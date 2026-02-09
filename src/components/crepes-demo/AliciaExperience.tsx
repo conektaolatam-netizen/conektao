@@ -12,42 +12,40 @@ interface Message {
   timestamp: Date;
 }
 
-const aliciaConversation: Message[] = [{
-  id: '1',
-  role: 'assistant',
-  content: '¡Hola! 👋 Soy ALICIA, tu asistente de Crepes & Waffles. Veo que nos escribes desde la zona norte de Bogotá. ¿Qué se te antoja hoy? 🥞',
-  timestamp: new Date()
-}, {
-  id: '2',
-  role: 'user',
-  content: 'Hola! Quiero pedir algo rico para almorzar',
-  timestamp: new Date()
-}, {
-  id: '3',
-  role: 'assistant',
-  content: '¡Perfecto para el almuerzo! 🌟 \n\nBasándome en lo más pedido a esta hora, te recomiendo nuestro Crepe de Pollo con ensalada de la casa. Es el favorito del mediodía.\n\n¿Te gustaría ese, o prefieres que te cuente otras opciones?',
-  timestamp: new Date()
-}, {
-  id: '4',
-  role: 'user',
-  content: 'Suena bien! Pero algo de tomar también',
-  timestamp: new Date()
-}, {
-  id: '5',
-  role: 'assistant',
-  content: '¡Excelente elección! 😊\n\nPara acompañar tu crepe, te sugiero nuestra Limonada de Coco bien fría, es la combinación perfecta.\n\n📝 Tu pedido:\n• Crepe de Pollo - $28.900\n• Limonada de Coco - $12.900\n\nTotal: $41.800\n\n¿Lo confirmo para entrega en tu ubicación? 🛵',
-  timestamp: new Date()
-}, {
-  id: '6',
-  role: 'user',
-  content: 'Sí, perfecto!',
-  timestamp: new Date()
-}, {
-  id: '7',
-  role: 'assistant',
-  content: '¡Listo! ✅ Tu pedido está confirmado.\n\n🕐 Tiempo estimado: 25-30 min\n📍 Dirección: Cra 15 #93-75 (la que tienes guardada)\n💳 Pago: Al recibir o en línea\n\n¿Deseas pagar ahora con tu tarjeta guardada? Te ahorra tiempo en la entrega 😉',
-  timestamp: new Date()
-}];
+const aliciaConversation: { msg: Message; delay?: number }[] = [
+  {
+    msg: { id: '1', role: 'user', content: 'Hola, quiero pedir algo para almorzar', timestamp: new Date() },
+  },
+  {
+    msg: { id: '2', role: 'assistant', content: '¡Hola! 😊\nQué gusto atenderte. Perfecto para el almuerzo.\n\nPara ayudarte mejor, ¿me compartes tu ubicación o me escribes la dirección donde quieres recibir el pedido?', timestamp: new Date() },
+  },
+  {
+    msg: { id: '3', role: 'user', content: 'Calle 93 con 15, en Chicó', timestamp: new Date() },
+  },
+  {
+    msg: { id: '4', role: 'assistant', content: '¡Perfecto!\nTu pedido lo preparará nuestro Crepes & Waffles de Zona T, que es el más cercano a ti.\n\nTe comparto nuestro menú para que lo revises con calma 👇\nhttps://domicilios.crepesywaffles.com/catalogo/crepes-waffles/', timestamp: new Date() },
+  },
+  {
+    msg: { id: '5', role: 'assistant', content: 'Mientras lo revisas, te cuento lo que más están pidiendo a esta hora en tu zona 👀\n\nEl favorito del mediodía es el Crepe de Pollo Trufa Mexicana, con ensalada de la casa.\nPara tomar, la Limonada de Coco es la combinación más pedida al almuerzo.\n\nY como postre, esta semana el helado de temporada Café Vietnamita es el más solicitado.\n\n¿Qué se te antoja?', timestamp: new Date() },
+    delay: 800,
+  },
+  {
+    msg: { id: '6', role: 'user', content: 'Me antoja el Crepe Mar Encocado, la limonada y el helado', timestamp: new Date() },
+  },
+  {
+    msg: { id: '7', role: 'assistant', content: '¡Qué buena elección! 😍\nTe resumo tu pedido para confirmar:\n\n— Crepe Mar Encocado\n— Limonada de Coco\n— Helado de temporada Café Vietnamita\n\n¿Lo confirmamos así?', timestamp: new Date() },
+  },
+  {
+    msg: { id: '8', role: 'user', content: 'Sí, contra entrega por favor', timestamp: new Date() },
+  },
+  {
+    msg: { id: '9', role: 'assistant', content: '¡Listo! 😊\nYa estamos preparando tu pedido.\n\nTiempo estimado: 25–30 minutos\nPago: Contra entrega', timestamp: new Date() },
+  },
+  {
+    msg: { id: '10', role: 'assistant', content: 'Eduardo, ya vamos en camino con tu pedido 🚲\nCualquier cosa que necesites, escríbeme con confianza.', timestamp: new Date() },
+    delay: 800,
+  },
+];
 const AliciaExperience = () => {
   const [aliciaMessages, setAliciaMessages] = useState<Message[]>([]);
   const [showImpact, setShowImpact] = useState(false);
@@ -59,9 +57,12 @@ const AliciaExperience = () => {
     setAliciaMessages([]);
     setShowImpact(false);
     setIsPlaying(true);
-    aliciaConversation.forEach((msg, index) => {
+    let cumulativeDelay = 0;
+    aliciaConversation.forEach((entry, index) => {
+      cumulativeDelay += entry.delay ?? 1200;
+      const timeout = cumulativeDelay;
       setTimeout(() => {
-        setAliciaMessages(prev => [...prev, msg]);
+        setAliciaMessages(prev => [...prev, entry.msg]);
         if (aliciaRef.current) {
           aliciaRef.current.scrollTop = aliciaRef.current.scrollHeight;
         }
@@ -71,7 +72,7 @@ const AliciaExperience = () => {
             setIsPlaying(false);
           }, 1000);
         }
-      }, index * 1200);
+      }, timeout);
     });
   };
   useEffect(() => {
