@@ -99,7 +99,7 @@ async function getWeatherData(city: string): Promise<WeatherData> {
     icon: "10d",
     recommendation: "🌧️ Va a llover buena parte del día. Según el histórico de esta sucursal, cuando llueve las mesas bajan -15% pero domicilios suben +19%. Prepara la operación para recibir más pedidos a domicilio desde temprano.",
     operationalActions: [
-      { area: "empaques", icon: "📦", action: "Alista +30% de empaques ya — bolsas impermeables y contenedores sellados listos antes de las 11AM", direction: "up" },
+      { area: "empaques", icon: "📦", action: "Alista +30% de empaques listos para servir antes de las 11AM", direction: "up" },
       { area: "delivery", icon: "🛵", action: "Llama 2 repartidores extra desde las 10:30AM. Domicilios van a subir fuerte después de mediodía", direction: "up" },
       { area: "cocina", icon: "👨‍🍳", action: "Prioriza la línea de domicilios. Prepara sopas, chocolate caliente y platos que viajan bien", direction: "up" },
       { area: "meseros", icon: "🍽️", action: "Reduce 1 mesero del salón y reasígnalo a empaque y apoyo en despacho", direction: "down" },
