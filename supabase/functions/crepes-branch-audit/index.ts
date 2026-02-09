@@ -115,7 +115,7 @@ function getSimulatedBranchData(branchId: string): AuditResult {
       trend: "down",
     },
     {
-      product: "Waffle de Pollo y Champiñones",
+      product: "Crepe de Pollo y Champiñones",
       category: "Platos Salados",
       currentSales: 5,
       expectedSales: 10,
@@ -152,7 +152,7 @@ function getSimulatedBranchData(branchId: string): AuditResult {
     errorPatterns,
     productRotation: {
       underperforming: underperformingProducts,
-      recommendation: "🎯 Hoy impulsa con las meseras: Crepe de Pollo (-33%), Helado de Pistacho (-47%) y Waffle de Pollo (-50%). La rotación baja de estos productos afecta el margen general.",
+      recommendation: "🎯 Hoy impulsa con las meseras: Crepe de Pollo (-33%), Helado de Pistacho (-47%) y Crepe de Pollo y Champiñones (-50%). La rotación baja de estos productos afecta el margen general.",
     },
     dailySummary: "",
   };
