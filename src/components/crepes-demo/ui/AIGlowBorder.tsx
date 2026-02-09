@@ -18,7 +18,7 @@ const AIGlowBorder: React.FC<AIGlowBorderProps> = ({ children, className = '', b
       />
       {/* Subtle glow */}
       <div
-        className={`absolute -inset-[1px] ${borderRadius} blur-sm opacity-20`}
+        className={`absolute -inset-[0.5px] ${borderRadius} blur-[2px] opacity-10`}
         style={{
           background: 'linear-gradient(135deg, #00D4AA, #FF6B35)',
         }}
