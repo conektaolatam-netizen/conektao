@@ -135,9 +135,11 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
         </Card>
       )}
 
-      {/* Conditions Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <WeatherCard weather={conditions?.weather} isLoading={isLoading} />
+      {/* Weather Card - Full Width with operational actions */}
+      <WeatherCard weather={conditions?.weather} isLoading={isLoading} />
+
+      {/* Calendar + News Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CalendarCard calendar={conditions?.calendar} isLoading={isLoading} />
         <NewsImpactCard news={conditions?.news} isLoading={isLoading} />
       </div>
