@@ -37,7 +37,7 @@ const GeneralManagerDashboard = () => {
             </div>
             <div className="text-right">
               <p className="text-xs text-[#8B7355]">Ventas del día (nacional)</p>
-              <p className="text-2xl font-bold text-[#4A3728]">{formatCurrency(123500000)}</p>
+              <p className="text-2xl font-bold text-[#4A3728]">{formatCurrency(3479000000)}</p>
               <p className="text-xs text-rose-600 flex items-center justify-end gap-1">
                 <TrendingDown className="w-3 h-3" />
                 -3.5% vs semana pasada
