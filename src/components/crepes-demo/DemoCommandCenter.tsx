@@ -9,6 +9,7 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
   onNavigate
 }) => {
   const [showPricing, setShowPricing] = useState(false);
+  const [showDashboardPricing, setShowDashboardPricing] = useState(false);
   const cards = [{
     id: 'branch-manager',
     title: 'Gerente de Sucursal',
@@ -475,6 +476,98 @@ Domicilios<br />en pedidos</span>
 
         {/* Backstage inside ALICIA indicator */}
         
+      </div>
+
+      {/* Dashboard Pricing & Scale */}
+      <div className="max-w-2xl w-full">
+        <motion.button
+          onClick={() => setShowDashboardPricing(!showDashboardPricing)}
+          className="mx-auto flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-colors"
+          style={{
+            color: 'rgba(92,64,51,0.6)',
+            background: 'rgba(92,64,51,0.04)',
+            border: '1px solid rgba(92,64,51,0.08)',
+          }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Pricing Dashboards
+          <motion.span
+            animate={{ rotate: showDashboardPricing ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </motion.span>
+        </motion.button>
+
+        <AnimatePresence>
+          {showDashboardPricing && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                {/* Escala Gerente de Sucursal */}
+                <div className="rounded-xl p-4" style={{
+                  background: 'rgba(92,64,51,0.04)',
+                  border: '1px solid rgba(92,64,51,0.08)',
+                }}>
+                  <h4 className="text-xs font-semibold text-[#5C4033]/80 mb-2.5 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E]" />
+                    Gerente de Sucursal
+                  </h4>
+                  <div className="space-y-1.5">
+                    {[
+                      { range: '1 – 20', price: '800.000' },
+                      { range: '50 – 100', price: '500.000' },
+                      { range: '100 – 200', price: '450.000' },
+                    ].map((tier) => (
+                      <div key={tier.range} className="flex items-center justify-between py-1 px-2.5 rounded-lg" style={{ background: 'rgba(92,64,51,0.03)' }}>
+                        <span className="text-xs text-[#5C4033]/60">{tier.range} sucursales</span>
+                        <span className="text-xs font-semibold text-[#5C4033]/80">${tier.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[#5C4033]/40 text-center mt-2">COP / sucursal / mes</p>
+                </div>
+
+                {/* Regional & General - Gratis */}
+                <div className="rounded-xl p-4" style={{
+                  background: 'rgba(45,212,191,0.03)',
+                  border: '1px solid rgba(92,64,51,0.08)',
+                }}>
+                  <h4 className="text-xs font-semibold text-[#5C4033]/80 mb-2.5 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#2DD4BF] to-[#FF6B35]" />
+                    Regional & General
+                  </h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg" style={{ background: 'rgba(92,64,51,0.03)' }}>
+                      <span className="text-xs text-[#5C4033]/60 flex items-center gap-1.5">
+                        <span className="text-sm">👥</span>
+                        Gerente Regional
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600">Incluido</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg" style={{ background: 'rgba(92,64,51,0.03)' }}>
+                      <span className="text-xs text-[#5C4033]/60 flex items-center gap-1.5">
+                        <span className="text-sm">🏢</span>
+                        Gerente General
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600">Incluido</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[#5C4033]/40 text-center mt-3">
+                    Se activan sin costo adicional al contratar dashboards de sucursal
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Footer */}
