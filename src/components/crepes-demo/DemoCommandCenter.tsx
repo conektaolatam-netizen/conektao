@@ -216,34 +216,16 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
           {/* Text content */}
           <div className="flex-1 text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-              <h3 className="text-2xl md:text-3xl font-bold">
-                <span className="text-[#5C4033]">ALIC</span>
-                <span 
-                  className="relative inline-block overflow-hidden"
+              <h3 className="text-2xl md:text-3xl font-bold leading-none">
+                <span className="text-[#5C4033]">ALIC</span><span 
+                  className="relative overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #6B4F3A, #7A5C45, #6B4F3A)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
-                    verticalAlign: 'baseline',
-                    lineHeight: 'inherit',
                   }}
-                >
-                  IA
-                  <motion.span
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: 'linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.25) 50%, transparent 80%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                    animate={{ x: ['-100%', '100%'] }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
-                  >
-                    IA
-                  </motion.span>
-                </span>
+                >IA</span>
               </h3>
               <span className="px-3 py-1 bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white text-xs font-medium rounded-full">
                 IA Conversacional
