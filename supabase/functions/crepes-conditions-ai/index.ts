@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface OperationalAction {
-  area: string; // "empaques" | "delivery" | "cocina" | "meseros" | "inventario"
+  area: string;
   icon: string;
   action: string;
   direction: "up" | "down" | "neutral";
@@ -90,114 +90,24 @@ const colombianHolidays: { [key: string]: string } = {
 };
 
 async function getWeatherData(city: string): Promise<WeatherData> {
-  const apiKey = Deno.env.get("OPENWEATHERMAP_API_KEY");
-  
-  if (!apiKey) {
-    // Fallback with realistic simulated data for Bogotá
-    return getSimulatedWeather(city);
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},CO&appid=${apiKey}&units=metric&lang=es`
-    );
-
-    if (!response.ok) {
-      console.log("Weather API error, using fallback:", response.status);
-      return getSimulatedWeather(city);
-    }
-
-    const data = await response.json();
-    
-    const condition = data.weather[0].main.toLowerCase();
-    const isRainy = condition.includes("rain") || condition.includes("drizzle") || condition.includes("thunderstorm");
-    const isCloudy = condition.includes("cloud");
-    const isSunny = condition.includes("clear") || condition.includes("sun");
-
-    let recommendation = "";
-    let dineInImpact = 0;
-    let deliveryImpact = 0;
-    let operationalActions: OperationalAction[] = [];
-
-    if (isRainy) {
-      recommendation = "🌧️ Día lluvioso. Según histórico de los últimos 6 meses, las ventas en mesa caen -22% y domicilios suben +38%. Activa protocolo de lluvia.";
-      dineInImpact = -22;
-      deliveryImpact = 38;
-      operationalActions = [
-        { area: "empaques", icon: "📦", action: "Alistar +40% empaques para domicilio (bolsas impermeables, contenedores sellados)", direction: "up" },
-        { area: "delivery", icon: "🛵", action: "Reforzar equipo delivery: llamar 2 repartidores adicionales desde las 11AM", direction: "up" },
-        { area: "cocina", icon: "👨‍🍳", action: "Priorizar línea de producción para domicilios. Preparar sopas y bebidas calientes", direction: "up" },
-        { area: "meseros", icon: "🍽️", action: "Reducir 2 meseros del turno — reasignar a empaque y apoyo cocina", direction: "down" },
-        { area: "inventario", icon: "📋", action: "Verificar stock de sopas, chocolate caliente y productos de temporada fría", direction: "neutral" },
-      ];
-    } else if (isCloudy) {
-      recommendation = "☁️ Día nublado. Histórico indica flujo normal con +12% en bebidas calientes. Promover cafés especiales y sopas.";
-      dineInImpact = -3;
-      deliveryImpact = 12;
-      operationalActions = [
-        { area: "empaques", icon: "📦", action: "Preparar +15% empaques estándar — domicilios subirán levemente", direction: "up" },
-        { area: "delivery", icon: "🛵", action: "Equipo delivery normal, tener 1 repartidor en standby", direction: "neutral" },
-        { area: "cocina", icon: "👨‍🍳", action: "Promover cafés especiales, sopas del día y chocolate caliente", direction: "up" },
-        { area: "meseros", icon: "🍽️", action: "Mantener dotación estándar de meseros", direction: "neutral" },
-      ];
-    } else if (isSunny) {
-      recommendation = "☀️ Día soleado. Según histórico, mesas suben +18% y domicilios bajan -8%. Reforzar salón y postres fríos.";
-      dineInImpact = 18;
-      deliveryImpact = -8;
-      operationalActions = [
-        { area: "empaques", icon: "📦", action: "Empaques en nivel normal — domicilios bajarán", direction: "down" },
-        { area: "delivery", icon: "🛵", action: "Reducir 1 repartidor del turno, reasignar a apoyo en sala", direction: "down" },
-        { area: "cocina", icon: "👨‍🍳", action: "Preparar stock extra de helados, smoothies y ensaladas frías", direction: "up" },
-        { area: "meseros", icon: "🍽️", action: "Reforzar con +2 meseros — alta ocupación esperada en terraza", direction: "up" },
-        { area: "inventario", icon: "📋", action: "Verificar stock de frutas frescas, helados y jugos naturales", direction: "neutral" },
-      ];
-    } else {
-      recommendation = "Clima moderado. Operación estándar esperada según histórico.";
-      operationalActions = [
-        { area: "empaques", icon: "📦", action: "Nivel estándar de empaques", direction: "neutral" },
-        { area: "cocina", icon: "👨‍🍳", action: "Producción normal — sin ajustes requeridos", direction: "neutral" },
-        { area: "meseros", icon: "🍽️", action: "Dotación estándar de personal", direction: "neutral" },
-      ];
-    }
-
-    return {
-      condition: data.weather[0].main,
-      description: data.weather[0].description,
-      temp: Math.round(data.main.temp),
-      humidity: data.main.humidity,
-      icon: data.weather[0].icon,
-      recommendation,
-      operationalActions,
-      salesImpact: {
-        dineIn: dineInImpact,
-        delivery: deliveryImpact,
-      },
-    };
-  } catch (error) {
-    console.error("Error fetching weather:", error);
-    return getSimulatedWeather(city);
-  }
-}
-
-function getSimulatedWeather(city: string): WeatherData {
-  // Simulate rainy weather for demo purposes (most impactful scenario)
+  // Enterprise demo: always show rainy day scenario for maximum operational impact
   return {
     condition: "Rain",
     description: "lluvia moderada",
     temp: 14,
     humidity: 85,
     icon: "10d",
-    recommendation: "🌧️ Día lluvioso en " + city + ". Según histórico de los últimos 6 meses, ventas en mesa caen -22% y domicilios suben +38%. Activa protocolo de lluvia.",
+    recommendation: "🌧️ Va a llover buena parte del día. Según el histórico de esta sucursal, cuando llueve las mesas bajan -15% pero domicilios suben +19%. Prepara la operación para recibir más pedidos a domicilio desde temprano.",
     operationalActions: [
-      { area: "empaques", icon: "📦", action: "Alistar +40% empaques para domicilio (bolsas impermeables, contenedores sellados)", direction: "up" },
-      { area: "delivery", icon: "🛵", action: "Reforzar equipo delivery: llamar 2 repartidores adicionales desde las 11AM", direction: "up" },
-      { area: "cocina", icon: "👨‍🍳", action: "Priorizar línea de producción para domicilios. Preparar sopas y bebidas calientes", direction: "up" },
-      { area: "meseros", icon: "🍽️", action: "Reducir 2 meseros del turno — reasignar a empaque y apoyo cocina", direction: "down" },
-      { area: "inventario", icon: "📋", action: "Verificar stock de sopas, chocolate caliente y productos de temporada fría", direction: "neutral" },
+      { area: "empaques", icon: "📦", action: "Alista +30% de empaques ya — bolsas impermeables y contenedores sellados listos antes de las 11AM", direction: "up" },
+      { area: "delivery", icon: "🛵", action: "Llama 2 repartidores extra desde las 10:30AM. Domicilios van a subir fuerte después de mediodía", direction: "up" },
+      { area: "cocina", icon: "👨‍🍳", action: "Prioriza la línea de domicilios. Prepara sopas, chocolate caliente y platos que viajan bien", direction: "up" },
+      { area: "meseros", icon: "🍽️", action: "Reduce 1 mesero del salón y reasígnalo a empaque y apoyo en despacho", direction: "down" },
+      { area: "inventario", icon: "📋", action: "Revisa stock de sopas, chocolate y productos de temporada fría antes de las 11AM", direction: "neutral" },
     ],
     salesImpact: {
-      dineIn: -22,
-      delivery: 38,
+      dineIn: -15,
+      delivery: 19,
     },
   };
 }
@@ -233,7 +143,6 @@ function getCalendarData(): CalendarData {
   let recommendation = "";
   let salesImpact = 0;
 
-  // Check if tomorrow is Friday and today is Thursday (puente potential)
   const dayOfWeek = today.getDay();
   const isFriday = dayOfWeek === 5;
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -272,7 +181,6 @@ function getCalendarData(): CalendarData {
 async function getNewsData(city: string): Promise<NewsData> {
   const apiKey = Deno.env.get("NEWSAPI_KEY");
   
-  // For demo, use realistic simulated events that are impactful
   const simulatedEvents: NewsEvent[] = [
     {
       title: "Final Liga BetPlay: Millonarios vs Tolima",
@@ -317,11 +225,10 @@ async function getNewsData(city: string): Promise<NewsData> {
       title: article.title,
       description: article.description || "",
       category: "noticias",
-      impactProbability: Math.floor(Math.random() * 40) + 30, // 30-70%
+      impactProbability: Math.floor(Math.random() * 40) + 30,
       source: article.source?.name || "Noticias",
     })) || simulatedEvents;
 
-    // Add our simulated high-impact event for demo
     events.unshift(simulatedEvents[0]);
 
     const topEvent = events[0];
@@ -353,29 +260,29 @@ serve(async (req) => {
 
     console.log(`Fetching conditions for ${city}, branch: ${branch_id}`);
 
-    // Fetch all data in parallel
     const [weather, calendar, news] = await Promise.all([
       getWeatherData(city),
       getCalendarData(),
       getNewsData(city),
     ]);
 
-    // Generate AI summary using Gemini
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     let aiSummary = "";
     
     if (LOVABLE_API_KEY) {
       try {
-        const summaryPrompt = `Eres el asistente de IA de una sucursal de Crepes & Waffles en ${city}. 
-Basándote en las siguientes condiciones del día, genera un resumen ejecutivo breve para el gerente.
+        const summaryPrompt = `Eres el copiloto de IA de una sucursal de Crepes & Waffles en ${city}. 
+Basándote en las condiciones del día, genera un resumen ejecutivo breve para el gerente.
 
 REGLAS DE FORMATO OBLIGATORIAS:
 - PROHIBIDO usar asteriscos (**), markdown o formato técnico
-- USA emojis al inicio de cada idea para dar estructura visual (☁️ 🌡️ ⚽ 📊 💡 🎯 📦 🛵)
-- Máximo 3 ideas separadas por punto y seguido
-- Lenguaje natural, directo, como si le hablaras al gerente en persona
+- USA emojis al inicio de cada bloque para dar estructura visual
+- Separa cada bloque con doble salto de línea
+- Máximo 3 bloques
+- Habla directo, como un copiloto que conoce el negocio hace años
 - Incluye números concretos (porcentajes, cantidades)
+- Tono: seguro, práctico, cero técnico
 
 CLIMA: ${weather.condition} (${weather.temp}°C) - ${weather.recommendation}
 
@@ -383,8 +290,13 @@ CALENDARIO: ${calendar.recommendation}
 
 NOTICIAS/EVENTOS: ${news.recommendation}
 
-Ejemplo de formato correcto:
-☁️ Día nublado a 15°C, las bebidas calientes suben un 12% — promueve cafés especiales y sopas. ⚽ La Final Liga BetPlay a las 8PM puede bajar ventas en salón hasta 35%, refuerza domicilios desde las 7PM. 🎯 Prepara la operación para un impacto combinado del 92%.`;
+Formato esperado (3 bloques separados por doble salto de línea):
+
+🌧️ Lluvia todo el día, 14°C. Según el histórico de esta sede, las mesas bajan -15% y domicilios suben +19%. Prepara empaques extra y refuerza delivery desde las 10:30AM.
+
+⚽ Final Liga BetPlay a las 8PM. Como no transmitimos, el salón se vacía hasta -35% desde las 7PM. Mueve 1 mesero a despacho y activa promoción de domicilios grupales.
+
+🎯 Impacto combinado del día: alto. Prioridad es domicilios. Asegura stock de sopas, chocolate y empaques impermeables antes del mediodía.`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -395,7 +307,7 @@ Ejemplo de formato correcto:
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "Eres un asistente de gerencia para Crepes & Waffles. Responde conciso, con emojis para estructura. PROHIBIDO usar asteriscos o markdown. Habla natural, como un copiloto inteligente." },
+              { role: "system", content: "Eres el copiloto de IA para gerentes de Crepes & Waffles. Hablas directo, con datos, sin adornos. PROHIBIDO usar asteriscos o markdown. Usa emojis para estructura. Cada bloque separado por doble salto de línea. Tono: como un gerente experimentado hablándole a otro gerente." },
               { role: "user", content: summaryPrompt },
             ],
           }),
@@ -411,7 +323,7 @@ Ejemplo de formato correcto:
     }
 
     if (!aiSummary) {
-      aiSummary = `📊 Resumen del día: ${weather.condition === "Rain" ? "Día lluvioso - prioriza domicilios." : "Operación normal."} ${calendar.salesImpact > 0 ? `Ventas esperadas +${calendar.salesImpact}%.` : ""} ${news.topEvent?.impactProbability || 0 > 70 ? "Evento deportivo puede afectar tráfico." : ""}`;
+      aiSummary = `🌧️ Día lluvioso en ${city}. Mesas bajan -15%, domicilios suben +19%. Prioriza delivery y empaques.\n\n⚽ Final Liga BetPlay a las 8PM — salón baja -35%. Refuerza domicilios desde las 7PM.\n\n🎯 Impacto combinado alto. Foco total en domicilios hoy.`;
     }
 
     const result = {
