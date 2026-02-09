@@ -368,7 +368,14 @@ serve(async (req) => {
     if (LOVABLE_API_KEY) {
       try {
         const summaryPrompt = `Eres el asistente de IA de una sucursal de Crepes & Waffles en ${city}. 
-Basándote en las siguientes condiciones del día, genera un resumen ejecutivo de 2-3 oraciones para el gerente:
+Basándote en las siguientes condiciones del día, genera un resumen ejecutivo breve para el gerente.
+
+REGLAS DE FORMATO OBLIGATORIAS:
+- PROHIBIDO usar asteriscos (**), markdown o formato técnico
+- USA emojis al inicio de cada idea para dar estructura visual (☁️ 🌡️ ⚽ 📊 💡 🎯 📦 🛵)
+- Máximo 3 ideas separadas por punto y seguido
+- Lenguaje natural, directo, como si le hablaras al gerente en persona
+- Incluye números concretos (porcentajes, cantidades)
 
 CLIMA: ${weather.condition} (${weather.temp}°C) - ${weather.recommendation}
 
@@ -376,7 +383,8 @@ CALENDARIO: ${calendar.recommendation}
 
 NOTICIAS/EVENTOS: ${news.recommendation}
 
-El resumen debe ser directo, práctico y enfocado en acciones concretas para optimizar la operación del día.`;
+Ejemplo de formato correcto:
+☁️ Día nublado a 15°C, las bebidas calientes suben un 12% — promueve cafés especiales y sopas. ⚽ La Final Liga BetPlay a las 8PM puede bajar ventas en salón hasta 35%, refuerza domicilios desde las 7PM. 🎯 Prepara la operación para un impacto combinado del 92%.`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -387,7 +395,7 @@ El resumen debe ser directo, práctico y enfocado en acciones concretas para opt
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "Eres un asistente de gerencia para restaurantes. Responde de forma concisa y práctica." },
+              { role: "system", content: "Eres un asistente de gerencia para Crepes & Waffles. Responde conciso, con emojis para estructura. PROHIBIDO usar asteriscos o markdown. Habla natural, como un copiloto inteligente." },
               { role: "user", content: summaryPrompt },
             ],
           }),
