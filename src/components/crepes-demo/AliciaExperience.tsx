@@ -27,7 +27,7 @@ const aliciaConversation: { msg: Message; delay?: number }[] = [
   },
   {
     msg: { id: '5', role: 'assistant', content: 'Mientras lo revisas, te cuento lo que más están pidiendo a esta hora en tu zona 👀\n\nEl favorito del mediodía es el Crepe de Pollo Trufa Mexicana, con ensalada de la casa.\nPara tomar, la Limonada de Coco es la combinación más pedida al almuerzo.\n\nY como postre, esta semana el helado de temporada Café Vietnamita es el más solicitado.\n\n¿Qué se te antoja?', timestamp: new Date() },
-    delay: 800,
+    delay: 1500,
   },
   {
     msg: { id: '6', role: 'user', content: 'Me antoja el Crepe Mar Encocado, la limonada y el helado', timestamp: new Date() },
@@ -43,7 +43,7 @@ const aliciaConversation: { msg: Message; delay?: number }[] = [
   },
   {
     msg: { id: '10', role: 'assistant', content: 'Eduardo, ya vamos en camino con tu pedido 🚲\nCualquier cosa que necesites, escríbeme con confianza.', timestamp: new Date() },
-    delay: 800,
+    delay: 1500,
   },
 ];
 const AliciaExperience = () => {
@@ -59,7 +59,7 @@ const AliciaExperience = () => {
     setIsPlaying(true);
     let cumulativeDelay = 0;
     aliciaConversation.forEach((entry, index) => {
-      cumulativeDelay += entry.delay ?? 1200;
+      cumulativeDelay += entry.delay ?? 2500;
       const timeout = cumulativeDelay;
       setTimeout(() => {
         setAliciaMessages(prev => [...prev, entry.msg]);
