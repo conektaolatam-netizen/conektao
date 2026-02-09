@@ -13,12 +13,14 @@ const nationalData = {
   regions: {
     "bogota-norte": {
       name: "Bogotá Norte",
-      manager: "Carlos Mendoza",
+      manager: "Carolina Mendoza",
       branches: 5,
       salesToday: 20100000,
       salesYesterday: 74000000,
       auditScore: 81,
       alerts: ["San Martín: score 62%, 3 ausencias, errores de preparación"],
+      posErrors: { voidsSuspicious: 7, discountsNoAuth: 3, cashDiff: 185000, kitchenCancels: 4 },
+      staffIssues: { lateArrivals: 2, absences: 3, overtime: 14 },
     },
     "bogota-sur": {
       name: "Bogotá Sur",
@@ -28,15 +30,19 @@ const nationalData = {
       salesYesterday: 58000000,
       auditScore: 85,
       alerts: [],
+      posErrors: { voidsSuspicious: 1, discountsNoAuth: 0, cashDiff: 0, kitchenCancels: 2 },
+      staffIssues: { lateArrivals: 1, absences: 0, overtime: 6 },
     },
     "bogota-centro": {
       name: "Bogotá Centro",
-      manager: "Felipe Herrera",
+      manager: "Valentina Herrera",
       branches: 3,
       salesToday: 11800000,
       salesYesterday: 45000000,
       auditScore: 88,
       alerts: ["Calle 90: score 71%, tiempo de servicio 16min promedio"],
+      posErrors: { voidsSuspicious: 3, discountsNoAuth: 1, cashDiff: 42000, kitchenCancels: 6 },
+      staffIssues: { lateArrivals: 0, absences: 1, overtime: 8 },
     },
     "medellin": {
       name: "Medellín",
@@ -46,15 +52,19 @@ const nationalData = {
       salesYesterday: 89000000,
       auditScore: 90,
       alerts: [],
+      posErrors: { voidsSuspicious: 0, discountsNoAuth: 0, cashDiff: 0, kitchenCancels: 1 },
+      staffIssues: { lateArrivals: 0, absences: 0, overtime: 3 },
     },
     "cali": {
       name: "Cali",
-      manager: "Roberto Caicedo",
+      manager: "Marcela Caicedo",
       branches: 4,
       salesToday: 14800000,
       salesYesterday: 56000000,
       auditScore: 86,
       alerts: [],
+      posErrors: { voidsSuspicious: 2, discountsNoAuth: 1, cashDiff: 75000, kitchenCancels: 3 },
+      staffIssues: { lateArrivals: 1, absences: 0, overtime: 5 },
     },
     "eje-cafetero": {
       name: "Eje Cafetero",
@@ -64,18 +74,22 @@ const nationalData = {
       salesYesterday: 38000000,
       auditScore: 68,
       alerts: [
-        "Pereira: score 58%, 4 empleados ausentes, inventario crítico en 6 productos",
+        "Pereira: score 58%, 4 empleadas ausentes, inventario crítico en 6 productos",
         "Armenia: score 65%, errores de preparación recurrentes, diferencia de caja $320,000",
       ],
+      posErrors: { voidsSuspicious: 14, discountsNoAuth: 8, cashDiff: 520000, kitchenCancels: 11 },
+      staffIssues: { lateArrivals: 6, absences: 4, overtime: 28 },
     },
     "costa": {
       name: "Costa Caribe",
-      manager: "Andrés Marín",
+      manager: "María Fernanda Marín",
       branches: 5,
       salesToday: 18300000,
       salesYesterday: 67000000,
       auditScore: 83,
       alerts: [],
+      posErrors: { voidsSuspicious: 3, discountsNoAuth: 2, cashDiff: 95000, kitchenCancels: 2 },
+      staffIssues: { lateArrivals: 2, absences: 1, overtime: 10 },
     },
     "santanderes": {
       name: "Santanderes",
@@ -85,6 +99,8 @@ const nationalData = {
       salesYesterday: 36000000,
       auditScore: 87,
       alerts: [],
+      posErrors: { voidsSuspicious: 1, discountsNoAuth: 0, cashDiff: 0, kitchenCancels: 1 },
+      staffIssues: { lateArrivals: 0, absences: 0, overtime: 4 },
     },
   },
   criticalBranches: [
@@ -92,19 +108,22 @@ const nationalData = {
       name: "Crepes & Waffles Pereira",
       region: "Eje Cafetero",
       score: 58,
-      issues: ["4 empleados ausentes sin justificación", "6 productos de inventario bajo mínimo", "Satisfacción del cliente: 72%", "12 errores de preparación esta semana"],
+      issues: ["4 empleadas ausentes sin justificación", "6 productos bajo mínimo", "NPS: 72%", "12 errores de preparación esta semana"],
+      posDetail: "14 anulaciones sospechosas en 3 días. 8 descuentos sin autorización. Una cajera del turno tarde concentra 9 de las 14 anulaciones. Patrón detectado: anulaciones justo antes de cierre de caja.",
     },
     {
       name: "Crepes & Waffles Armenia",
       region: "Eje Cafetero",
       score: 65,
-      issues: ["Errores de preparación recurrentes (9 esta semana)", "Diferencia de caja de $320,000 COP", "Tiempo de servicio: 18 min promedio"],
+      issues: ["9 errores de preparación esta semana", "Diferencia de caja: $320,000 COP", "Tiempo de servicio: 18 min promedio"],
+      posDetail: "Diferencia de caja concentrada en turno mañana (misma cajera 3 días seguidos). 5 órdenes canceladas después de preparadas. Desperdicio estimado: $180,000 COP en ingredientes.",
     },
     {
       name: "Crepes & Waffles Calle 90",
       region: "Bogotá Centro",
       score: 71,
-      issues: ["Tiempo de servicio elevado (16 min)", "2 reclamos de clientes por demora", "Rotación de personal alta: 3 renuncias este mes"],
+      issues: ["Tiempo de servicio: 16 min", "2 reclamos por demora", "3 renuncias este mes"],
+      posDetail: "Ticket promedio cayó 12% vs mes pasado ($34,200 vs $38,900). 3 empleadas nuevas en curva de aprendizaje. Ventas por empleada 22% por debajo de la media regional.",
     },
   ],
   nationalKPIs: {
@@ -120,6 +139,11 @@ const nationalData = {
     staffPresent: 1187,
     deliveryPercent: 32,
     salesChangeWeek: -3.5,
+    totalVoidsSuspicious: 31,
+    totalCashDifference: 917000,
+    totalKitchenCancels: 30,
+    topPerformer: "Juliana Restrepo (Medellín) — 0 errores POS, score 90%, ventas por empleada más altas del país",
+    worstPerformer: "Pereira turno tarde — 1 cajera con 9 anulaciones sospechosas concentradas antes de cierre",
   },
 };
 
@@ -140,51 +164,65 @@ serve(async (req) => {
     }
 
     const regionSummaries = Object.values(nationalData.regions)
-      .map((r) => `
-📍 ${r.name} (${r.manager}):
+      .map((r: any) => `
+📍 ${r.name} (Gerente: ${r.manager}):
 - ${r.branches} sucursales | Ventas hoy: $${r.salesToday.toLocaleString()} COP | Ayer: $${r.salesYesterday.toLocaleString()} COP
 - Score auditoría: ${r.auditScore}%
+- POS: ${r.posErrors.voidsSuspicious} anulaciones sospechosas, ${r.posErrors.discountsNoAuth} descuentos no autorizados, diferencia caja $${r.posErrors.cashDiff.toLocaleString()}, ${r.posErrors.kitchenCancels} cancelaciones cocina
+- Personal: ${r.staffIssues.lateArrivals} llegadas tarde, ${r.staffIssues.absences} ausencias, ${r.staffIssues.overtime}h extras
 ${r.alerts.length > 0 ? `⚠️ Alertas: ${r.alerts.join('; ')}` : '✅ Sin alertas'}`)
       .join('\n');
 
     const criticalSummary = nationalData.criticalBranches
-      .map((b) => `🔴 ${b.name} (${b.region}) - Score: ${b.score}%\n   Problemas: ${b.issues.join(', ')}`)
-      .join('\n');
+      .map((b) => `🔴 ${b.name} (${b.region}) — Score: ${b.score}%\n   Problemas: ${b.issues.join(', ')}\n   Análisis POS: ${b.posDetail}`)
+      .join('\n\n');
 
     const kpis = nationalData.nationalKPIs;
 
-    const systemPrompt = `Eres Conektao AI, el asistente ejecutivo de inteligencia de negocios del Gerente General de Crepes & Waffles.
-El Gerente General se llama Rodrigo. Trátalo con cercanía pero profesionalismo. Usa un tono colombiano cálido y directo.
+    const systemPrompt = `Eres Conektao AI, el copiloto ejecutivo de inteligencia de negocios del Gerente General de Crepes & Waffles.
+El Gerente General se llama Rodrigo. Trátalo con cercanía colombiana pero siendo directo y preciso.
+
+CONTEXTO CULTURAL IMPORTANTE:
+- En Crepes & Waffles TODAS las gerentes regionales son mujeres. Refiérete a ellas siempre en femenino: "la gerente", "ella", "su equipo".
+- La gran mayoría de empleadas también son mujeres. Usa femenino por defecto: "las empleadas", "las cajeras", "las meseras".
+- Solo usa masculino cuando te refieras a Rodrigo u otro hombre específico.
 
 DATOS NACIONALES EN TIEMPO REAL:
-🏢 Total sucursales: ${nationalData.totalBranches} en ${nationalData.totalRegions} regiones
-💰 Ventas hoy: $${kpis.totalSalesToday.toLocaleString()} COP
-💰 Ventas ayer: $${kpis.totalSalesYesterday.toLocaleString()} COP
-💰 Ventas semana: $${kpis.totalSalesWeek.toLocaleString()} COP
-💰 Ventas mes: $${kpis.totalSalesMonth.toLocaleString()} COP
-📊 Cambio semanal: ${kpis.salesChangeWeek}%
-📦 Pedidos hoy: ${kpis.totalOrders} | Ticket promedio: $${kpis.avgTicket.toLocaleString()} COP
-🏥 Score auditoría promedio nacional: ${kpis.avgAuditScore}%
-😊 NPS: ${kpis.nps}
+🏢 ${nationalData.totalBranches} sucursales en ${nationalData.totalRegions} regiones
+💰 Ventas hoy: $${kpis.totalSalesToday.toLocaleString()} COP | Ayer: $${kpis.totalSalesYesterday.toLocaleString()} COP
+💰 Semana: $${kpis.totalSalesWeek.toLocaleString()} COP (${kpis.salesChangeWeek}% vs semana pasada) | Mes: $${kpis.totalSalesMonth.toLocaleString()} COP
+📦 ${kpis.totalOrders} pedidos hoy | Ticket: $${kpis.avgTicket.toLocaleString()} COP
+🏥 Score auditoría nacional: ${kpis.avgAuditScore}% | NPS: ${kpis.nps}
 👥 Personal: ${kpis.staffPresent}/${kpis.staffTotal} presentes (${Math.round((kpis.staffPresent/kpis.staffTotal)*100)}%)
 🛵 Domicilios: ${kpis.deliveryPercent}%
+
+DETECCIÓN DE ERRORES Y ANOMALÍAS (esto es lo que impresiona a Rodrigo):
+🚨 Total anulaciones sospechosas nacional: ${kpis.totalVoidsSuspicious} esta semana
+🚨 Diferencia de caja acumulada: $${kpis.totalCashDifference.toLocaleString()} COP
+🚨 Cancelaciones de cocina: ${kpis.totalKitchenCancels}
+🏆 Mejor rendimiento: ${kpis.topPerformer}
+⚠️ Peor señal: ${kpis.worstPerformer}
 
 DETALLE POR REGIÓN:
 ${regionSummaries}
 
-SUCURSALES CRÍTICAS:
+SUCURSALES CRÍTICAS (análisis profundo):
 ${criticalSummary}
 
-INSTRUCCIONES DE FORMATO Y ESTILO:
-1. Siempre responde con datos concretos. Si no tienes un dato exacto, estima basándote en tendencias y dilo: "estimado según tendencia".
-2. NUNCA uses asteriscos (**) ni markdown. Usa emojis para dar estructura: 📊 📈 📉 💡 ⚠️ ✅ 🎯 🔥 💰 👥 🏢
-3. Sé conciso. Máximo 3-4 bloques cortos. Rodrigo no tiene tiempo para leer novelas.
-4. Tono: colombiano profesional cercano. "Rodrigo, ¡ojo con el Eje Cafetero!" no "Estimado señor gerente".
-5. Las ventas han bajado 3.5% esta semana — esto es crítico, menciónalo si es relevante.
-6. El Eje Cafetero es la región más problemática (Pereira 58% y Armenia 65%).
-7. Si Rodrigo pregunta algo fuera de los datos, responde con estimaciones lógicas. SIEMPRE responde, nunca digas "no tengo ese dato".
-8. Nunca uses frases genéricas motivacionales. Solo datos y acciones concretas.
-9. Formato: emojis al inicio de cada punto, texto limpio después. Nada de listas largas.`;
+REGLAS DE RESPUESTA (OBLIGATORIAS):
+1. PROHIBIDO usar asteriscos, negritas, markdown o cualquier formato técnico. Solo texto limpio con emojis.
+2. Usa emojis al inicio de cada bloque para dar estructura visual: 📊 💡 🎯 ⚠️ 🔥 💰 👥 🏢 📈 📉
+3. Tu superpoder es DETECTAR PATRONES que un humano no ve fácilmente. Cruza datos de POS + personal + ventas para encontrar correlaciones. Ejemplos:
+   — "En Pereira, 1 cajera concentra el 64% de las anulaciones y todas ocurren antes de cierre. Eso no es error, es un patrón."
+   — "Armenia pierde $320,000 en caja y $180,000 en desperdicio por cancelaciones. Son $500,000 diarios que se van."
+   — "Calle 90 perdió 3 empleadas y el ticket promedio cayó 12%. La rotación está costando ventas."
+4. Sé conciso y brutal con los datos. Máximo 3-4 bloques. Rodrigo no lee novelas.
+5. Tono: colombiano directo. "Rodrigo, ojo con esto" no "Estimado señor gerente".
+6. Si no tienes un dato exacto, estima basándote en tendencias y dilo claramente.
+7. NUNCA uses frases genéricas motivacionales ni felicitaciones vacías.
+8. Cada respuesta debe tener al menos UN insight que haga decir "wow, no había visto eso". Cruza datos, detecta patrones, calcula pérdidas ocultas.
+9. PROHIBIDO usar la palabra "salón" — di "mesas". PROHIBIDO "caldos" — di "sopas".
+10. Cuando hables de una gerente regional, SIEMPRE usa femenino. Ejemplo: "Natalia está teniendo problemas en su región" no "el gerente tiene problemas".`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
