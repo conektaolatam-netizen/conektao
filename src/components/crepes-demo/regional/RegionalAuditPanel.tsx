@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, AlertTriangle, AlertCircle, ChevronRight, CheckCircle, ArrowLeft, Lightbulb, Users, Package, DollarSign, X } from 'lucide-react';
-
 interface BranchAudit {
   id: string;
   name: string;
@@ -13,13 +12,17 @@ interface BranchAudit {
   topIssue: string | null;
   aiSummary: string;
   details?: {
-    issues: Array<{ type: string; severity: string; message: string; metric: string }>;
+    issues: Array<{
+      type: string;
+      severity: string;
+      message: string;
+      metric: string;
+    }>;
     recommendations: string[];
   };
   lat: number;
   lng: number;
 }
-
 interface RegionalAuditData {
   regionalScore: number;
   totalBranches: number;
@@ -29,30 +32,26 @@ interface RegionalAuditData {
   summary: string;
   branches: BranchAudit[];
 }
-
 interface RegionalAuditPanelProps {
   onBranchSelect?: (branch: BranchAudit) => void;
 }
-
-const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect }) => {
+const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({
+  onBranchSelect
+}) => {
   const [data, setData] = useState<RegionalAuditData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState<BranchAudit | null>(null);
-
   useEffect(() => {
     const fetchAudit = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crepes-regional-audit`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({}),
-          }
-        );
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crepes-regional-audit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({})
+        });
         if (!response.ok) throw new Error('Error');
         const result = await response.json();
         setData(result);
@@ -64,57 +63,50 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
     };
     fetchAudit();
   }, []);
-
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
-
+  const formatCurrency = (v: number) => new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0
+  }).format(v);
   const getScoreColor = (score: number) => {
     if (score >= 85) return 'text-emerald-600';
     if (score >= 70) return 'text-amber-600';
     return 'text-rose-600';
   };
-
   const getStatusIcon = (status: string) => {
     if (status === 'critical') return <AlertTriangle className="w-4 h-4 text-rose-500" />;
     if (status === 'warning') return <AlertCircle className="w-4 h-4 text-amber-500" />;
     return <CheckCircle className="w-4 h-4 text-emerald-500" />;
   };
-
   const getStatusBg = (status: string) => {
     if (status === 'critical') return 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)] hover:shadow-[0_0_12px_rgba(244,63,94,0.2)]';
     if (status === 'warning') return 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)] hover:shadow-[0_0_12px_rgba(245,158,11,0.2)]';
     return 'bg-white border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.12)] hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]';
   };
-
   if (isLoading) {
-    return (
-      <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6">
+    return <div className="bg-white rounded-2xl border border-[#E8E4DE] p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 bg-[#F0ECE6] rounded" />
           <div className="h-24 bg-[#F0ECE6] rounded" />
           <div className="h-20 bg-[#F0ECE6] rounded" />
           <div className="h-20 bg-[#F0ECE6] rounded" />
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!data) return null;
 
   // Branch detail view
   if (selectedBranch) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm overflow-hidden"
-      >
+    return <motion.div initial={{
+      opacity: 0,
+      x: 20
+    }} animate={{
+      opacity: 1,
+      x: 0
+    }} className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm overflow-hidden">
         {/* Detail Header */}
         <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
-          <button
-            onClick={() => setSelectedBranch(null)}
-            className="flex items-center gap-1.5 text-xs text-[#8B7355] hover:text-[#4A3728] mb-3 transition-colors"
-          >
+          <button onClick={() => setSelectedBranch(null)} className="flex items-center gap-1.5 text-xs text-[#8B7355] hover:text-[#4A3728] mb-3 transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             Volver a la región
           </button>
@@ -163,19 +155,17 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
         </div>
 
         {/* Issues (if any) */}
-        {selectedBranch.details?.issues && (
-          <div className="px-5 pb-4 space-y-2">
+        {selectedBranch.details?.issues && <div className="px-5 pb-4 space-y-2">
             <p className="text-xs font-semibold text-[#4A3728]">⚠️ Problemas detectados</p>
-            {selectedBranch.details.issues.map((issue, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-               className={`p-3 rounded-xl border ${
-                  issue.severity === 'critical' ? 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]' : 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
-                }`}
-              >
+            {selectedBranch.details.issues.map((issue, i) => <motion.div key={i} initial={{
+          opacity: 0,
+          x: -10
+        }} animate={{
+          opacity: 1,
+          x: 0
+        }} transition={{
+          delay: i * 0.1
+        }} className={`p-3 rounded-xl border ${issue.severity === 'critical' ? 'bg-white border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]' : 'bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]'}`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-2">
                     {issue.type === 'staff' && <Users className="w-3.5 h-3.5 mt-0.5 text-rose-500" />}
@@ -188,45 +178,37 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
                     {issue.metric}
                   </span>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              </motion.div>)}
+          </div>}
 
         {/* Recommendations */}
-        {selectedBranch.details?.recommendations && (
-          <div className="px-5 pb-5 space-y-2">
+        {selectedBranch.details?.recommendations && <div className="px-5 pb-5 space-y-2">
             <p className="text-xs font-semibold text-[#4A3728]">💡 Recomendaciones IA</p>
-            {selectedBranch.details.recommendations.map((rec, i) => (
-              <div key={i} className="p-3 bg-sky-50 border border-sky-200 rounded-xl">
+            {selectedBranch.details.recommendations.map((rec, i) => <div key={i} className="p-3 bg-sky-50 border border-sky-200 rounded-xl">
                 <p className="text-xs text-sky-800">
                   <span className="font-semibold">{i + 1}.</span> {rec}
                 </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-    );
+              </div>)}
+          </div>}
+      </motion.div>;
   }
 
   // Main overview
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm overflow-hidden"
-    >
+  return <motion.div initial={{
+    opacity: 0,
+    y: 20
+  }} animate={{
+    opacity: 1,
+    y: 0
+  }} className="bg-white rounded-2xl border border-[#E8E4DE] shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${
-            data.regionalScore >= 80 ? 'from-emerald-500 to-emerald-600' : 'from-amber-500 to-amber-600'
-          } flex items-center justify-center shadow-sm`}>
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${data.regionalScore >= 80 ? 'from-emerald-500 to-emerald-600' : 'from-amber-500 to-amber-600'} flex items-center justify-center shadow-sm`}>
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#4A3728]">Auditoría Regional</h2>
+            <h2 className="text-lg font-bold text-[#4A3728]">AuditorIA Regional</h2>
             <p className="text-xs text-[#8B7355]">{data.totalBranches} sucursales monitoreadas</p>
           </div>
         </div>
@@ -237,12 +219,13 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-xs text-[#8B7355]">Salud regional</p>
-            <motion.p
-              className={`text-4xl font-bold ${getScoreColor(data.regionalScore)}`}
-              initial={{ scale: 0.5 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring' }}
-            >
+            <motion.p className={`text-4xl font-bold ${getScoreColor(data.regionalScore)}`} initial={{
+            scale: 0.5
+          }} animate={{
+            scale: 1
+          }} transition={{
+            type: 'spring'
+          }}>
               {data.regionalScore}%
             </motion.p>
           </div>
@@ -269,17 +252,15 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
       {/* Branch List */}
       <div className="px-5 pb-5 space-y-2">
         <p className="text-xs font-semibold text-[#8B7355] mb-1">Sucursales</p>
-        {data.branches
-          .sort((a, b) => a.score - b.score)
-          .map((branch, i) => (
-            <motion.button
-              key={branch.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => setSelectedBranch(branch)}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${getStatusBg(branch.status)}`}
-            >
+        {data.branches.sort((a, b) => a.score - b.score).map((branch, i) => <motion.button key={branch.id} initial={{
+        opacity: 0,
+        x: -10
+      }} animate={{
+        opacity: 1,
+        x: 0
+      }} transition={{
+        delay: i * 0.05
+      }} onClick={() => setSelectedBranch(branch)} className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${getStatusBg(branch.status)}`}>
               <div className="flex items-center gap-3">
                 {getStatusIcon(branch.status)}
                 <div className="text-left">
@@ -295,11 +276,8 @@ const RegionalAuditPanel: React.FC<RegionalAuditPanelProps> = ({ onBranchSelect 
                 </span>
                 <ChevronRight className="w-4 h-4 text-[#D4C4B0]" />
               </div>
-            </motion.button>
-          ))}
+            </motion.button>)}
       </div>
-    </motion.div>
-  );
+    </motion.div>;
 };
-
 export default RegionalAuditPanel;
