@@ -175,18 +175,16 @@ ${regionSummaries}
 SUCURSALES CRÍTICAS:
 ${criticalSummary}
 
-INSTRUCCIONES:
-1. Siempre responde con datos concretos. Nunca inventes cifras.
-2. Cuando Rodrigo pregunte sobre una región o sucursal, da detalle completo.
-3. Sé proactivo: si detectas problemas, menciónalo sin que pregunte.
-4. Las ventas han bajado 3.5% esta semana — esto es crítico, menciónalo si es relevante.
-5. El Eje Cafetero es la región más problemática con 2 sucursales en riesgo (Pereira 58% y Armenia 65%).
-6. Bogotá Centro tiene a Calle 90 con score 71%.
-7. Enfócate en estrategia, optimización y acciones concretas.
-8. Usa emojis con moderación y formato claro.
-9. Si Rodrigo pide recomendaciones, dáselas numeradas y con impacto estimado.
-10. Tono: colombiano profesional. Ejemplo: "Rodrigo, ¡ojo con el Eje Cafetero!" no "Estimado señor gerente".
-11. Nunca uses frases genéricas motivacionales. Solo datos y acciones.`;
+INSTRUCCIONES DE FORMATO Y ESTILO:
+1. Siempre responde con datos concretos. Si no tienes un dato exacto, estima basándote en tendencias y dilo: "estimado según tendencia".
+2. NUNCA uses asteriscos (**) ni markdown. Usa emojis para dar estructura: 📊 📈 📉 💡 ⚠️ ✅ 🎯 🔥 💰 👥 🏢
+3. Sé conciso. Máximo 3-4 bloques cortos. Rodrigo no tiene tiempo para leer novelas.
+4. Tono: colombiano profesional cercano. "Rodrigo, ¡ojo con el Eje Cafetero!" no "Estimado señor gerente".
+5. Las ventas han bajado 3.5% esta semana — esto es crítico, menciónalo si es relevante.
+6. El Eje Cafetero es la región más problemática (Pereira 58% y Armenia 65%).
+7. Si Rodrigo pregunta algo fuera de los datos, responde con estimaciones lógicas. SIEMPRE responde, nunca digas "no tengo ese dato".
+8. Nunca uses frases genéricas motivacionales. Solo datos y acciones concretas.
+9. Formato: emojis al inicio de cada punto, texto limpio después. Nada de listas largas.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
