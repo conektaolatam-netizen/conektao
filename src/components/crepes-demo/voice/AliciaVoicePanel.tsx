@@ -97,27 +97,41 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
   }, []);
 
   const handleClose = useCallback(async () => {
-    if (conversationRef.current.status === 'connected') {
-      try { await conversationRef.current.endSession(); } catch {}
-    }
+    try {
+      const conv = conversationRef.current;
+      if (conv.status === 'connected') {
+        await conv.endSession();
+      }
+    } catch {}
     isConnectingRef.current = false;
     setIsConnecting(false);
     setIsMicMuted(false);
     hasStartedRef.current = false;
-    onClose();
+    // Small delay before closing UI to let session cleanup finish
+    setTimeout(() => onClose(), 100);
   }, [onClose]);
 
   const toggleMic = useCallback(() => {
     setIsMicMuted(prev => !prev);
   }, []);
 
-  // Start ONCE when panel opens
+  // Start conversation every time panel opens
   useEffect(() => {
-    if (isOpen && !hasStartedRef.current) {
-      hasStartedRef.current = true;
-      startConversation();
+    if (isOpen) {
+      // Small delay to ensure DOM is ready and previous session is fully cleaned up
+      const timer = setTimeout(() => {
+        const conv = conversationRef.current;
+        if (conv.status === 'disconnected' && !isConnectingRef.current) {
+          startConversation();
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      // Reset refs when panel closes so next open works cleanly
+      hasStartedRef.current = false;
+      isConnectingRef.current = false;
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, startConversation]);
 
   // Video: play when speaking, pause when listening
   useEffect(() => {
@@ -164,7 +178,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-[#3D2914]"
             onClick={handleClose}
           />
 
@@ -173,7 +187,7 @@ const AliciaVoicePanel: React.FC<AliciaVoicePanelProps> = ({ isOpen, onClose }) 
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-6 pointer-events-none"
           >
             <div
               className="relative w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl pointer-events-auto"
