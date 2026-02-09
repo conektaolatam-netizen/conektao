@@ -26,7 +26,7 @@ const branchData = {
     lowProducts: [
       { name: "Crepe de Pollo", quantity: 12, expected: 18, variance: -33 },
       { name: "Helado de Pistacho", quantity: 8, expected: 15, variance: -47 },
-      { name: "Waffle de Pollo", quantity: 5, expected: 10, variance: -50 },
+      { name: "Crepe de Pollo y Champiñones", quantity: 5, expected: 10, variance: -50 },
     ],
     staffActive: 8,
     staffTotal: 10,
