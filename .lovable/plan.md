@@ -1,77 +1,42 @@
 
-# Rediseno UX - Programacion Semanal con Dias Colapsables y Domingo Asistido por IA
 
-## Problema actual
-El panel muestra los 7 dias como tabs en la parte superior y el contenido se reemplaza al hacer clic. No se puede ver de un vistazo que dias ya estan programados ni comparar entre ellos. Todo se ve igual, incluyendo el domingo que deberia ser diferente.
+# Ajuste del flujo conversacional de ALICIA
 
-## Nueva experiencia propuesta
+## Que cambia
+Se reemplaza la conversacion simulada en el chat de ALICIA (archivo `AliciaExperience.tsx`) por el nuevo flujo de 9 pasos que refleja una interaccion real, humana y progresiva.
 
-### Estructura: Lista vertical de dias colapsables
-En lugar de tabs horizontales, cada dia sera un boton/fila colapsable (estilo acordeon):
+## Flujo actual vs nuevo
 
-```text
-+------------------------------------------+
-| Lun 3   | Soleado 21C | 19 activas | [v] |  <-- clic para expandir
-|------------------------------------------|
-|  (contenido colapsado: areas + staff)     |
-+------------------------------------------+
-| Mar 4   | Parcial 19C | 19 activas | [v] |
-+------------------------------------------+
-| Mie 5   | Nublado 17C | 20 activas | [v] |
-+------------------------------------------+
-| ...                                       |
-+------------------------------------------+
-| Sab 8   | Soleado 22C | 24 activas | [v] |
-+------------------------------------------+
-| Dom 9   | SIN PROGRAMAR - IA disponible   |  <-- visualmente diferente
-|  [Sparkles] Programar con IA              |
-+------------------------------------------+
-```
+| Paso | Actual | Nuevo |
+|------|--------|-------|
+| 1 | ALICIA saluda primero (bot inicia) | Cliente inicia la conversacion |
+| 2 | Cliente dice que quiere almorzar | ALICIA saluda calido, pide ubicacion |
+| 3 | ALICIA recomienda de inmediato | Cliente envia direccion |
+| 4 | Cliente pide bebida | ALICIA confirma sucursal + envia menu |
+| 5 | ALICIA resume pedido con precios | ALICIA recomienda segun hora/zona |
+| 6 | Cliente confirma | Cliente elige su pedido |
+| 7 | ALICIA confirma envio | ALICIA celebra y resume pedido |
+| 8 | - | Cliente indica pago contra entrega |
+| 9 | - | ALICIA confirma preparacion + seguimiento final |
 
-### Lunes a Sabado: dias ya programados
-- Cada fila muestra: dia, clima, cantidad de staff activo, indicador de trafico
-- Al hacer clic se expande y muestra el detalle (areas con nombres, descansos, insight de IA) exactamente como se ve hoy
-- Se puede tener mas de un dia abierto a la vez
-- El contenido expandido es identico al actual (areas coloreadas, nombres, insight con glow border)
+## Mensajes exactos del nuevo flujo
 
-### Domingo: programacion asistida por IA
-El domingo se muestra visualmente distinto (borde con glow turquesa/naranja, fondo ligeramente diferente) indicando que aun no esta programado.
-
-Al hacer clic en "Programar con IA":
-1. Se expande mostrando una **propuesta de la IA** (staff pre-asignado basado en el insight del domingo: "Domingo familiar, pico 12-3 PM")
-2. La propuesta muestra las mismas areas con nombres asignados, pero cada nombre tiene un boton "X" para quitarlo
-3. Hay un boton "+ Agregar" en cada area para anadir staff de los disponibles
-4. Un insight de IA explica por que propuso esa distribucion
-5. Boton "Confirmar programacion" al final que "guarda" y convierte el domingo en un dia programado normal
-
-### Interaccion del domingo con IA
-- La propuesta inicial usa los mismos datos que ya existen en `weekSchedule[6]` (domingo)
-- El usuario puede quitar personas (X), moverlas a descanso, o agregar desde una lista
-- La IA muestra un mensaje contextual: "Propongo 7 meseras para el pico del mediodia. Despues de las 4 PM puedes liberar 2."
-- Al confirmar, el domingo pasa a verse como los demas dias (programado, colapsable)
+1. **Cliente**: "Hola, quiero pedir algo para almorzar"
+2. **ALICIA**: Saludo calido + pide ubicacion (sin recomendar aun)
+3. **Cliente**: "Calle 93 con 15, en Chicó"
+4. **ALICIA**: Confirma sucursal Zona T + envia link del menu
+5. **ALICIA**: Recomienda Crepe Pollo Trufa Mexicana, Limonada de Coco, Helado Cafe Vietnamita (basado en hora/zona)
+6. **Cliente**: "Me antoja el Crepe Mar Encocado, la limonada y el helado"
+7. **ALICIA**: Celebra eleccion + resume pedido + pregunta confirmacion
+8. **Cliente**: "Si, contra entrega por favor"
+9. **ALICIA**: Confirma pedido, tiempo estimado, forma de pago
+10. **ALICIA**: Mensaje de seguimiento final personalizado con nombre
 
 ## Detalles tecnicos
 
-### Cambios en StaffSchedulePanel.tsx
+- **Archivo**: `src/components/crepes-demo/AliciaExperience.tsx`
+- **Cambio**: Solo el array `aliciaConversation` (lineas 15-50)
+- **Timing**: Se ajusta el delay entre mensajes. Los mensajes consecutivos de ALICIA (pasos 4-5 y 9-10) tendran un delay menor (800ms) para simular que son parte del mismo turno
+- **Sin cambios en**: integraciones, logica de reproduccion, estilos, componentes de voz, avatar, ni metricas de impacto
+- Maximo 1 emoji por mensaje de ALICIA, tono natural colombiano
 
-1. **Estado**: Reemplazar `selectedDay` (single index) por `expandedDays` (Set de indices abiertos) y `sundayConfirmed` (boolean) y `sundayStaff` (array editable)
-
-2. **Layout**: Cambiar de tabs + contenido unico a lista vertical de `Collapsible` components (ya existe en el proyecto: `@radix-ui/react-collapsible`)
-
-3. **Dia colapsable (Lun-Sab)**: Cada fila es un `Collapsible` con:
-   - Trigger: fila compacta con dia, clima, badge de trafico, conteo staff
-   - Content: el mismo contenido actual (areas + staff + insight + descansos)
-
-4. **Domingo especial**: 
-   - Mientras `sundayConfirmed === false`: muestra UI de edicion con glow border, propuesta IA, botones X en cada nombre, botones + agregar, boton confirmar
-   - Mientras `sundayConfirmed === true`: se comporta como los demas dias
-
-5. **Estado editable del domingo**: `sundayStaff` se inicializa con los datos de `weekSchedule[6].staff` y se puede modificar (quitar/agregar) antes de confirmar
-
-6. **Animaciones**: Usar `framer-motion` + `AnimatePresence` para expandir/colapsar suavemente (ya se usa en el componente)
-
-### Archivos a modificar
-- `src/components/crepes-demo/schedule/StaffSchedulePanel.tsx` - refactor completo del layout y logica
-
-### Sin dependencias nuevas
-Todo se construye con componentes existentes: Collapsible de Radix, framer-motion, AIGlowBorder.
