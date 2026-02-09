@@ -184,7 +184,7 @@ async function getNewsData(city: string): Promise<NewsData> {
   const simulatedEvents: NewsEvent[] = [
     {
       title: "Final Liga BetPlay: Millonarios vs Tolima",
-      description: "El partido se juega hoy a las 8:00 PM en El Campín. Crepes & Waffles no transmite partidos en local — históricamente las ventas en salón caen hasta un 35% durante partidos importantes.",
+      description: "El partido se juega hoy a las 8:00 PM en El Campín. Crepes & Waffles no transmite partidos — históricamente las mesas caen hasta un 35% durante partidos importantes.",
       category: "deportes",
       impactProbability: 92,
       source: "El Tiempo",
@@ -202,7 +202,7 @@ async function getNewsData(city: string): Promise<NewsData> {
     return {
       events: simulatedEvents,
       topEvent: simulatedEvents[0],
-      recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — como no se transmite en el local, las ventas en salón bajan hasta 35%. Considera reducir personal en mesa desde las 7PM y reforzar domicilios: los pedidos grupales suben un 20% durante partidos.",
+      recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — como no se transmite, las mesas bajan hasta 35%. Reduce personal en mesa desde las 7PM y refuerza domicilios: los pedidos grupales suben un 20% durante partidos.",
     };
   }
 
@@ -215,7 +215,7 @@ async function getNewsData(city: string): Promise<NewsData> {
       return {
         events: simulatedEvents,
         topEvent: simulatedEvents[0],
-        recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — ventas en salón bajan ~35% al no transmitir. Reduce personal en mesa y refuerza domicilios.",
+        recommendation: "⚽ Final Liga BetPlay hoy a las 8PM — mesas bajan ~35% al no transmitir. Reduce personal en mesa y refuerza domicilios.",
       };
     }
 
@@ -245,7 +245,7 @@ async function getNewsData(city: string): Promise<NewsData> {
     return {
       events: simulatedEvents,
       topEvent: simulatedEvents[0],
-      recommendation: "⚽ Final Liga BetPlay hoy — ventas en salón bajan ~35% al no transmitir. Refuerza domicilios.",
+      recommendation: "⚽ Final Liga BetPlay hoy — mesas bajan ~35% al no transmitir. Refuerza domicilios.",
     };
   }
 }
@@ -277,6 +277,8 @@ Basándote en las condiciones del día, genera un resumen ejecutivo breve para e
 
 REGLAS DE FORMATO OBLIGATORIAS:
 - PROHIBIDO usar asteriscos (**), markdown o formato técnico
+- PROHIBIDO usar la palabra "salón" — siempre di "mesas"
+- PROHIBIDO usar la palabra "caldos" — siempre di "sopas"
 - USA emojis al inicio de cada bloque para dar estructura visual
 - Separa cada bloque con doble salto de línea
 - Máximo 3 bloques
@@ -294,9 +296,9 @@ Formato esperado (3 bloques separados por doble salto de línea):
 
 🌧️ Lluvia todo el día, 14°C. Según el histórico de esta sede, las mesas bajan -15% y domicilios suben +19%. Prepara empaques extra y refuerza delivery desde las 10:30AM.
 
-⚽ Final Liga BetPlay a las 8PM. Como no transmitimos, el salón se vacía hasta -35% desde las 7PM. Mueve 1 mesero a despacho y activa promoción de domicilios grupales.
+⚽ Final Liga BetPlay a las 8PM. Como no transmitimos, las mesas bajan hasta -35% desde las 7PM. Mueve 1 mesero a despacho y activa promoción de domicilios grupales.
 
-🎯 Impacto combinado del día: alto. Prioridad es domicilios. Asegura stock de sopas, chocolate y empaques impermeables antes del mediodía.`;
+🎯 Impacto combinado del día: alto. Prioridad es domicilios. Asegura stock de sopas, chocolate y empaques antes del mediodía.`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -323,7 +325,7 @@ Formato esperado (3 bloques separados por doble salto de línea):
     }
 
     if (!aiSummary) {
-      aiSummary = `🌧️ Día lluvioso en ${city}. Mesas bajan -15%, domicilios suben +19%. Prioriza delivery y empaques.\n\n⚽ Final Liga BetPlay a las 8PM — salón baja -35%. Refuerza domicilios desde las 7PM.\n\n🎯 Impacto combinado alto. Foco total en domicilios hoy.`;
+      aiSummary = `🌧️ Día lluvioso en ${city}. Mesas bajan -15%, domicilios suben +19%. Prioriza delivery y empaques.\n\n⚽ Final Liga BetPlay a las 8PM — mesas bajan -35%. Refuerza domicilios desde las 7PM.\n\n🎯 Impacto combinado alto. Foco total en domicilios hoy.`;
     }
 
     const result = {
