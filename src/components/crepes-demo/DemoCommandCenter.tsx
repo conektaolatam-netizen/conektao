@@ -502,7 +502,7 @@ Domicilios<br />en pedidos</span>
       </div>
 
       {/* Dashboard Pricing & Scale */}
-      <div className="max-w-2xl w-full">
+      <div className="max-w-2xl w-full mt-8">
         <motion.button onClick={() => setShowDashboardPricing(!showDashboardPricing)} className="mx-auto flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-colors" style={{
         color: 'rgba(92,64,51,0.6)',
         background: 'rgba(92,64,51,0.04)',
