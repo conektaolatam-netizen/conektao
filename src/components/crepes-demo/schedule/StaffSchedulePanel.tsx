@@ -34,13 +34,13 @@ type DaySchedule = {
 };
 
 const areas: Area[] = [
-  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
-  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
-  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
-  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
-  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
-  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(255,107,53,0.08)]' },
-  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#1a1a2e]', bgColor: 'bg-white border-[#1a1a2e]/20 shadow-[0_0_8px_rgba(0,212,170,0.08)]' },
+  { id: 'meseras', name: 'Meseras', icon: <Users className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'cocina-interna', name: 'Cocina Interna', icon: <ChefHat className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'estacion-crepes', name: 'Estación Crepes', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'estacion-waffles', name: 'Estación Waffles', icon: <UtensilsCrossed className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'postres', name: 'Postres y Dulces', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'heladeria', name: 'Heladería', icon: <IceCream className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
+  { id: 'caja', name: 'Caja Principal', icon: <Coffee className="w-3.5 h-3.5" />, color: 'text-[#4A3728]', bgColor: 'bg-white border-[#E8DFD4]' },
 ];
 
 const allStaff = [
@@ -286,9 +286,9 @@ const weekSchedule: DaySchedule[] = [
 ];
 
 const trafficColors = {
-  alto: { bg: 'bg-white', text: 'text-red-600', border: 'border-red-400/60 shadow-[0_0_8px_rgba(239,68,68,0.15)]', label: 'Alto' },
-  medio: { bg: 'bg-white', text: 'text-amber-600', border: 'border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]', label: 'Medio' },
-  bajo: { bg: 'bg-white', text: 'text-emerald-600', border: 'border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.15)]', label: 'Bajo' },
+  alto: { bg: 'bg-white', text: 'text-[#8B2500]', border: 'border-[#8B2500]/30', label: 'Alto' },
+  medio: { bg: 'bg-white', text: 'text-[#8B6914]', border: 'border-[#8B6914]/30', label: 'Medio' },
+  bajo: { bg: 'bg-white', text: 'text-[#2D5F2D]', border: 'border-[#2D5F2D]/30', label: 'Bajo' },
 };
 
 const SUNDAY_INDEX = 6;
@@ -301,14 +301,13 @@ const DayContent = ({ staff, insight }: { staff: StaffMember[]; insight: string 
 
   return (
     <div className="space-y-3 pt-1">
-      <AIGlowBorder borderRadius="rounded-xl">
-        <div className="bg-[#1a1a2e] p-3.5">
-          <div className="flex items-start gap-2">
-            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#00D4AA]" />
-            <p className="text-sm text-white/85 leading-relaxed">{insight}</p>
-          </div>
+      {/* AI Insight — white card with coffee left border */}
+      <div className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden">
+        <div className="border-l-[3px] border-l-[#4A3728] p-3.5 flex items-start gap-2">
+          <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#5C4033]" />
+          <p className="text-sm text-[#4A3728] leading-relaxed">{insight}</p>
         </div>
-      </AIGlowBorder>
+      </div>
 
       <div className="space-y-2">
         {areas.map(area => {
@@ -321,13 +320,13 @@ const DayContent = ({ staff, insight }: { staff: StaffMember[]; insight: string 
                   <span className={area.color}>{area.icon}</span>
                   <span className={`text-xs font-semibold ${area.color}`}>{area.name}</span>
                 </div>
-                <span className="text-[10px] text-[#1a1a2e]/60 bg-[#1a1a2e]/5 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-[10px] text-[#8B7355] bg-[#F5EDE4] px-2 py-0.5 rounded-full font-medium">
                   {areaStaff.length}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {areaStaff.map(s => (
-                  <span key={s.name} className="text-xs bg-[#1a1a2e]/5 text-[#1a1a2e] px-2.5 py-1 rounded-lg font-medium border border-[#1a1a2e]/10">
+                  <span key={s.name} className="text-xs bg-[#F5EDE4] text-[#4A3728] px-2.5 py-1 rounded-lg font-medium border border-[#E8DFD4]">
                     {s.name}
                   </span>
                 ))}
@@ -398,20 +397,20 @@ const SundayAIContent = ({
 
   return (
     <div className="space-y-3 pt-1">
-      {/* AI proposal insight */}
-      <AIGlowBorder borderRadius="rounded-xl">
-        <div className="bg-[#1a1a2e] p-3.5">
+      {/* AI proposal insight — white card with coffee left border */}
+      <div className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden">
+        <div className="border-l-[3px] border-l-[#4A3728] p-3.5">
           <div className="flex items-start gap-2">
-            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#00D4AA]" />
+            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#5C4033]" />
             <div>
-              <p className="text-sm text-white/85 leading-relaxed mb-2">{insight}</p>
-              <p className="text-xs text-[#00D4AA]/70 leading-relaxed">
+              <p className="text-sm text-[#4A3728] leading-relaxed mb-2">{insight}</p>
+              <p className="text-xs text-[#8B7355] leading-relaxed">
                 💡 Propongo {activeStaff.filter(s => s.area === 'meseras').length} meseras para el pico del mediodía. Después de las 4 PM puedes liberar 2.
               </p>
             </div>
           </div>
         </div>
-      </AIGlowBorder>
+      </div>
 
       {/* Editable areas */}
       <div className="space-y-2">
@@ -426,7 +425,7 @@ const SundayAIContent = ({
                   <span className={`text-xs font-semibold ${area.color}`}>{area.name}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-[#1a1a2e]/60 bg-[#1a1a2e]/5 px-2 py-0.5 rounded-full font-medium">
+                  <span className="text-[10px] text-[#8B7355] bg-[#F5EDE4] px-2 py-0.5 rounded-full font-medium">
                     {areaStaff.length}
                   </span>
                   <button
@@ -439,7 +438,7 @@ const SundayAIContent = ({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {areaStaff.map(s => (
-                  <span key={s.name} className="text-xs bg-[#1a1a2e]/5 text-[#1a1a2e] px-2.5 py-1 rounded-lg font-medium border border-[#1a1a2e]/10 flex items-center gap-1.5 group">
+                  <span key={s.name} className="text-xs bg-[#F5EDE4] text-[#4A3728] px-2.5 py-1 rounded-lg font-medium border border-[#E8DFD4] flex items-center gap-1.5 group">
                     {s.name}
                     <button
                       onClick={() => onMoveToRest(s.name)}
@@ -520,7 +519,7 @@ const SundayAIContent = ({
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.98 }}
         onClick={onConfirm}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00D4AA] to-[#FF6B35] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg"
+        className="w-full py-3 rounded-xl bg-[#4A3728] hover:bg-[#5C4033] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
       >
         <Check className="w-4 h-4" />
         Confirmar programación
@@ -563,7 +562,7 @@ const StaffSchedulePanel = () => {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
         <div className="flex items-center gap-3">

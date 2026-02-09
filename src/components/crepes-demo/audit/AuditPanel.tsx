@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, RefreshCw, TrendingUp, TrendingDown, Users, AlertCircle, Package, Clock } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 interface StaffAlert {
   type: string;
@@ -93,22 +91,36 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
   }, [branchId]);
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-emerald-600';
-    if (score >= 70) return 'text-amber-600';
-    return 'text-rose-600';
+    if (score >= 85) return 'text-[#2D5F2D]';
+    if (score >= 70) return 'text-[#8B6914]';
+    return 'text-[#8B2500]';
   };
 
-  const getScoreBackground = (score: number) => {
-    if (score >= 85) return 'from-emerald-500 to-emerald-600';
-    if (score >= 70) return 'from-amber-500 to-amber-600';
-    return 'from-rose-500 to-rose-600';
+  const getScoreBarColor = (score: number) => {
+    if (score >= 85) return 'bg-[#2D5F2D]';
+    if (score >= 70) return 'bg-[#8B6914]';
+    return 'bg-[#8B2500]';
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getScoreIconBg = (score: number) => {
+    if (score >= 85) return 'bg-[#2D5F2D]';
+    if (score >= 70) return 'bg-[#8B6914]';
+    return 'bg-[#8B2500]';
+  };
+
+  const getSeverityBorder = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-white text-rose-600 border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]';
-      case 'warning': return 'bg-white text-amber-600 border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]';
-      default: return 'bg-white text-sky-600 border-sky-400/60 shadow-[0_0_8px_rgba(14,165,233,0.15)]';
+      case 'critical': return 'border-l-[#8B2500]';
+      case 'warning': return 'border-l-[#8B6914]';
+      default: return 'border-l-[#5C4033]';
+    }
+  };
+
+  const getSeverityText = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'text-[#8B2500]';
+      case 'warning': return 'text-[#8B6914]';
+      default: return 'text-[#5C4033]';
     }
   };
 
@@ -121,7 +133,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
+      <div className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-32 bg-[#F0ECE6] rounded" />
           <div className="h-32 bg-[#F0ECE6] rounded" />
@@ -137,13 +149,13 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-[#E8E4DE] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
+      className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm overflow-hidden"
     >
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-[#F0ECE6]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getScoreBackground(auditData.overallScore)} flex items-center justify-center shadow-sm`}>
+            <div className={`w-10 h-10 rounded-xl ${getScoreIconBg(auditData.overallScore)} flex items-center justify-center shadow-sm`}>
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -165,7 +177,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
       <div className="px-5 py-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-[#8B7355] mb-1">🏥 Estado General</p>
+            <p className="text-xs text-[#8B7355] mb-1">Estado General</p>
             <motion.p
               className={`text-4xl font-bold ${getScoreColor(auditData.overallScore)}`}
               initial={{ scale: 0.5 }}
@@ -193,19 +205,21 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
         </div>
 
         {/* AI Summary */}
-        <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6] space-y-2">
-          {auditData.dailySummary.split('\n\n').filter(block => block.trim()).map((block, index) => (
-            <div 
-              key={index} 
-              className={`text-xs text-[#4A3728] leading-relaxed ${index > 0 ? 'pt-2 border-t border-[#F0ECE6]' : ''}`}
-            >
-              {block.split('\n').map((line, lineIndex) => (
-                <p key={lineIndex} className={lineIndex > 0 ? 'mt-0.5 text-[#6B5744]' : 'font-medium'}>
-                  {line}
-                </p>
-              ))}
-            </div>
-          ))}
+        <div className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden">
+          <div className="border-l-[3px] border-l-[#4A3728] p-3 space-y-2">
+            {auditData.dailySummary.split('\n\n').filter(block => block.trim()).map((block, index) => (
+              <div 
+                key={index} 
+                className={`text-xs text-[#4A3728] leading-relaxed ${index > 0 ? 'pt-2 border-t border-[#F0ECE6]' : ''}`}
+              >
+                {block.split('\n').map((line, lineIndex) => (
+                  <p key={lineIndex} className={lineIndex > 0 ? 'mt-0.5 text-[#6B5744]' : 'font-medium'}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -236,7 +250,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
               { key: 'quality', label: '✨ Calidad', value: auditData.scoreBreakdown.quality },
               { key: 'efficiency', label: '⚡ Eficiencia', value: auditData.scoreBreakdown.efficiency },
             ].map(({ key, label, value }) => (
-              <div key={key} className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6]">
+              <div key={key} className="p-3 bg-white rounded-lg border border-[#E8DFD4]">
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="text-[#5C4033] font-medium">{label}</span>
                   <span className={`font-bold ${getScoreColor(value)}`}>{value}%</span>
@@ -246,7 +260,7 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                     initial={{ width: 0 }}
                     animate={{ width: `${value}%` }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
-                    className={`h-full rounded-full bg-gradient-to-r ${getScoreBackground(value)}`}
+                    className={`h-full rounded-full ${getScoreBarColor(value)}`}
                   />
                 </div>
               </div>
@@ -262,21 +276,23 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`p-3 rounded-xl border ${getSeverityColor(alert.severity)}`}
+                className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-2">
-                    {alert.type === 'lateness' && <Clock className="w-3.5 h-3.5 mt-0.5" />}
-                    {alert.type === 'absence' && <Users className="w-3.5 h-3.5 mt-0.5" />}
-                    {alert.type === 'performance' && <TrendingDown className="w-3.5 h-3.5 mt-0.5" />}
-                    <div>
-                      <p className="text-xs font-medium">{alert.message}</p>
-                      <p className="text-[10px] opacity-70 mt-0.5">{alert.employee}</p>
+                <div className={`border-l-[3px] ${getSeverityBorder(alert.severity)} p-3`}>
+                  <div className="flex items-start justify-between">
+                    <div className={`flex items-start gap-2 ${getSeverityText(alert.severity)}`}>
+                      {alert.type === 'lateness' && <Clock className="w-3.5 h-3.5 mt-0.5" />}
+                      {alert.type === 'absence' && <Users className="w-3.5 h-3.5 mt-0.5" />}
+                      {alert.type === 'performance' && <TrendingDown className="w-3.5 h-3.5 mt-0.5" />}
+                      <div>
+                        <p className="text-xs font-medium">{alert.message}</p>
+                        <p className="text-[10px] opacity-70 mt-0.5">{alert.employee}</p>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-mono text-[#8B7355] bg-[#F5EDE4] px-1.5 py-0.5 rounded border border-[#E8DFD4]">
+                      {alert.metric}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono bg-white/70 px-1.5 py-0.5 rounded border">
-                    {alert.metric}
-                  </span>
                 </div>
               </motion.div>
             ))}
@@ -291,25 +307,29 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-3 rounded-xl bg-white border border-rose-400/60 shadow-[0_0_8px_rgba(244,63,94,0.15)]"
+                className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden"
               >
-                <div className="flex items-start justify-between mb-1.5">
-                  <div>
-                    <p className="font-medium text-xs text-[#4A3728]">{error.product}</p>
-                    <p className="text-[10px] text-[#6B5744]">{error.errorType}</p>
+                <div className="border-l-[3px] border-l-[#8B2500] p-3">
+                  <div className="flex items-start justify-between mb-1.5">
+                    <div>
+                      <p className="font-medium text-xs text-[#4A3728]">{error.product}</p>
+                      <p className="text-[10px] text-[#6B5744]">{error.errorType}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-base font-bold text-[#8B2500]">{error.count}</span>
+                      {error.trend === 'increasing' ? (
+                        <TrendingUp className="w-3.5 h-3.5 text-[#8B2500]" />
+                      ) : error.trend === 'decreasing' ? (
+                        <TrendingDown className="w-3.5 h-3.5 text-[#2D5F2D]" />
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-base font-bold text-rose-600">{error.count}</span>
-                    {error.trend === 'increasing' ? (
-                      <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
-                    ) : error.trend === 'decreasing' ? (
-                      <TrendingDown className="w-3.5 h-3.5 text-emerald-500" />
-                    ) : null}
+                  <div className="bg-[#F5EDE4] rounded p-1.5 border border-[#E8DFD4]">
+                    <p className="text-[10px] text-[#5C4033]">
+                      💡 {error.recommendation}
+                    </p>
                   </div>
                 </div>
-                <p className="text-[10px] text-[#5C4033] bg-[#FAFAF8] p-1.5 rounded border border-rose-200/40">
-                  💡 {error.recommendation}
-                </p>
               </motion.div>
             ))}
           </div>
@@ -323,25 +343,29 @@ const AuditPanel: React.FC<AuditPanelProps> = ({ branchId = "zona-t" }) => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+                className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden"
               >
-                <div>
-                  <p className="font-medium text-xs text-[#4A3728]">{product.product}</p>
-                  <p className="text-[10px] text-[#6B5744]">{product.category}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px]">
-                    <span className="text-[#5C4033]">{product.currentSales}</span>
-                    <span className="text-[#8B7355]"> / {product.expectedSales}</span>
-                  </p>
-                  <p className="text-xs font-bold text-rose-600">{product.variance}%</p>
+                <div className="border-l-[3px] border-l-[#8B6914] p-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-xs text-[#4A3728]">{product.product}</p>
+                    <p className="text-[10px] text-[#6B5744]">{product.category}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px]">
+                      <span className="text-[#5C4033]">{product.currentSales}</span>
+                      <span className="text-[#8B7355]"> / {product.expectedSales}</span>
+                    </p>
+                    <p className="text-xs font-bold text-[#8B2500]">{product.variance}%</p>
+                  </div>
                 </div>
               </motion.div>
             ))}
-            <div className="p-3 bg-[#FAFAF8] rounded-xl border border-[#F0ECE6]">
-              <p className="text-xs text-[#4A3728] leading-relaxed">
-                {auditData.productRotation.recommendation}
-              </p>
+            <div className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden">
+              <div className="border-l-[3px] border-l-[#5C4033] p-3">
+                <p className="text-xs text-[#4A3728] leading-relaxed">
+                  {auditData.productRotation.recommendation}
+                </p>
+              </div>
             </div>
           </div>
         )}

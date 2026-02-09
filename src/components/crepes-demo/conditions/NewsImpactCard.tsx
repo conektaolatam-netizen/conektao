@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Newspaper, AlertTriangle, Trophy, Music, Users } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 
 interface NewsEvent {
   title: string;
@@ -26,35 +25,39 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'deportes':
-        return <Trophy className="w-5 h-5 text-emerald-600" />;
+        return <Trophy className="w-5 h-5 text-[#2D5F2D]" />;
       case 'entretenimiento':
-        return <Music className="w-5 h-5 text-violet-600" />;
+        return <Music className="w-5 h-5 text-[#5C4033]" />;
       case 'protesta':
       case 'manifestación':
-        return <Users className="w-5 h-5 text-rose-600" />;
+        return <Users className="w-5 h-5 text-[#8B2500]" />;
       default:
-        return <Newspaper className="w-5 h-5 text-sky-600" />;
+        return <Newspaper className="w-5 h-5 text-[#5C4033]" />;
     }
   };
 
-  const getImpactColor = (probability: number) => {
-    if (probability >= 80) return 'text-[#4A3728] bg-white border-2 border-[#8B7355] shadow-[0_0_15px_rgba(139,115,85,0.2)]';
-    if (probability >= 60) return 'text-amber-600 bg-white border-amber-400/60 shadow-[0_0_8px_rgba(245,158,11,0.15)]';
-    if (probability >= 40) return 'text-yellow-600 bg-white border-yellow-400/60 shadow-[0_0_8px_rgba(234,179,8,0.15)]';
-    return 'text-emerald-600 bg-white border-emerald-400/60 shadow-[0_0_8px_rgba(16,185,129,0.15)]';
+  const getImpactBorder = (probability: number) => {
+    if (probability >= 80) return 'border-l-[#8B2500]';
+    if (probability >= 60) return 'border-l-[#8B6914]';
+    if (probability >= 40) return 'border-l-[#8B6914]';
+    return 'border-l-[#2D5F2D]';
+  };
+
+  const getImpactTextColor = (probability: number) => {
+    if (probability >= 70) return 'text-[#8B2500]';
+    if (probability >= 50) return 'text-[#8B6914]';
+    return 'text-[#2D5F2D]';
   };
 
   if (isLoading) {
     return (
-      <Card className="bg-white border-[#D4C4B0] shadow-sm">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 w-6 bg-[#E8DFD4] rounded" />
-            <div className="h-4 w-48 bg-[#E8DFD4] rounded" />
-            <div className="h-20 bg-[#E8DFD4] rounded" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 w-6 bg-[#F0ECE6] rounded" />
+          <div className="h-4 w-48 bg-[#F0ECE6] rounded" />
+          <div className="h-20 bg-[#F0ECE6] rounded" />
+        </div>
+      </div>
     );
   }
 
@@ -66,19 +69,19 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
-      <Card className="bg-white border-[#D4C4B0] shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-        <CardContent className="p-6">
+      <div className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+        <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Newspaper className="w-5 h-5 text-[#5C4033]" />
-              <p className="text-sm text-[#8B7355] font-medium">Eventos & Noticias</p>
+              <p className="text-xs font-semibold text-[#8B7355] uppercase tracking-wider">Eventos & Noticias</p>
             </div>
             {news.topEvent && news.topEvent.impactProbability >= 70 && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.3, type: "spring" }}
-                className="flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-md"
+                className="flex items-center gap-1 bg-white border border-[#8B2500]/30 text-[#8B2500] px-2.5 py-1 rounded-full text-xs font-semibold"
               >
                 <AlertTriangle className="w-3 h-3" />
                 Alto Impacto
@@ -92,29 +95,28 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
-              className={`p-4 rounded-lg border mb-4 ${getImpactColor(news.topEvent.impactProbability)}`}
+              className="mb-4 bg-white rounded-lg border border-[#E8DFD4] overflow-hidden"
             >
-              <div className="flex items-start gap-3">
-                {getCategoryIcon(news.topEvent.category)}
-                <div className="flex-1">
-                  <h4 className="font-semibold text-[#4A3728] text-sm mb-1">
-                    {news.topEvent.title}
-                  </h4>
-                  <p className="text-xs text-[#6B5744] mb-2">
-                    {news.topEvent.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#8B7355]">
-                      Fuente: {news.topEvent.source}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-[#8B7355]">Impacto:</span>
-                      <span className={`text-sm font-bold ${
-                        news.topEvent.impactProbability >= 70 ? 'text-rose-600' : 
-                        news.topEvent.impactProbability >= 50 ? 'text-amber-600' : 'text-emerald-600'
-                      }`}>
-                        {news.topEvent.impactProbability}%
+              <div className={`border-l-[3px] ${getImpactBorder(news.topEvent.impactProbability)} p-4`}>
+                <div className="flex items-start gap-3">
+                  {getCategoryIcon(news.topEvent.category)}
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-[#4A3728] text-sm mb-1">
+                      {news.topEvent.title}
+                    </h4>
+                    <p className="text-xs text-[#6B5744] mb-2">
+                      {news.topEvent.description}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#8B7355]">
+                        Fuente: {news.topEvent.source}
                       </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-[#8B7355]">Impacto:</span>
+                        <span className={`text-sm font-bold ${getImpactTextColor(news.topEvent.impactProbability)}`}>
+                          {news.topEvent.impactProbability}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -129,15 +131,15 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
                 <span>Probabilidad de afectar ventas</span>
                 <span className="font-medium">{news.topEvent.impactProbability}%</span>
               </div>
-              <div className="h-2 bg-[#E8DFD4] rounded-full overflow-hidden">
+              <div className="h-1.5 bg-[#F0ECE6] rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${news.topEvent.impactProbability}%` }}
                   transition={{ delay: 0.5, duration: 0.8 }}
                   className={`h-full rounded-full ${
-                    news.topEvent.impactProbability >= 70 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
-                    news.topEvent.impactProbability >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
-                    'bg-gradient-to-r from-emerald-400 to-emerald-600'
+                    news.topEvent.impactProbability >= 70 ? 'bg-[#8B2500]' :
+                    news.topEvent.impactProbability >= 50 ? 'bg-[#8B6914]' :
+                    'bg-[#2D5F2D]'
                   }`}
                 />
               </div>
@@ -153,13 +155,11 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 + index * 0.1 }}
-                  className="flex items-center gap-2 p-2 bg-[#F5EDE4] rounded-lg border border-[#E8DFD4]"
+                  className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-[#E8DFD4]"
                 >
                   {getCategoryIcon(event.category)}
                   <span className="text-xs text-[#4A3728] flex-1 truncate">{event.title}</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                    event.impactProbability >= 50 ? 'bg-white text-amber-600 border-amber-400/60 shadow-[0_0_6px_rgba(245,158,11,0.12)]' : 'bg-[#E8DFD4] text-[#6B5744]'
-                  }`}>
+                  <span className={`text-xs font-semibold ${getImpactTextColor(event.impactProbability)}`}>
                     {event.impactProbability}%
                   </span>
                 </motion.div>
@@ -172,14 +172,16 @@ const NewsImpactCard: React.FC<NewsImpactCardProps> = ({ news, isLoading }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="p-3 bg-[#FDF8F3] rounded-lg border border-[#E8DFD4]"
+            className="bg-white rounded-lg border border-[#E8DFD4] overflow-hidden"
           >
-            <p className="text-sm text-[#4A3728] leading-relaxed">
-              {news.recommendation}
-            </p>
+            <div className="border-l-[3px] border-l-[#5C4033] p-3">
+              <p className="text-sm text-[#4A3728] leading-relaxed">
+                {news.recommendation}
+              </p>
+            </div>
           </motion.div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </motion.div>
   );
 };
