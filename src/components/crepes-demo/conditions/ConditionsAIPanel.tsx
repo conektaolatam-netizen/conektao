@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import WeatherCard from './WeatherCard';
 import CalendarCard from './CalendarCard';
 import NewsImpactCard from './NewsImpactCard';
-import AIGlowBorder from '../ui/AIGlowBorder';
 
 interface ConditionsData {
   weather: any;
@@ -76,15 +75,9 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <motion.div
-            className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4AA] to-[#FF6B35] flex items-center justify-center shadow-lg"
-            animate={{ 
-              boxShadow: ['0 4px 20px rgba(0,212,170,0.2)', '0 4px 30px rgba(255,107,53,0.3)', '0 4px 20px rgba(0,212,170,0.2)']
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            <Sparkles className="w-5 h-5 text-white" />
-          </motion.div>
+          <div className="w-10 h-10 rounded-xl bg-[#4A3728] flex items-center justify-center shadow-sm">
+            <Sparkles className="w-5 h-5 text-[#F5EDE4]" />
+          </div>
           <div>
             <h2 className="text-lg font-bold text-[#4A3728]">IA de Condiciones</h2>
             <div className="flex items-center gap-1 text-xs text-[#8B7355]">
@@ -103,36 +96,38 @@ const ConditionsAIPanel: React.FC<ConditionsAIPanelProps> = ({
         </button>
       </div>
 
-      {/* AI Summary - Dark Futuristic Card */}
+      {/* AI Summary — White card, coffee left border */}
       {conditions?.aiSummary && (
-        <AIGlowBorder>
-          <div className="bg-[#1a1a2e] p-5 relative overflow-hidden">
-            {/* Subtle grid pattern */}
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
-            <div className="relative flex items-start gap-3">
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="mt-0.5"
-              >
-                <Sparkles className="w-5 h-5 text-[#00D4AA]" />
-              </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm overflow-hidden"
+        >
+          <div className="flex">
+            {/* Left accent border */}
+            <div className="w-1 bg-[#4A3728] rounded-l-xl flex-shrink-0" />
+            <div className="p-5 flex items-start gap-3">
+              <Sparkles className="w-4 h-4 mt-0.5 text-[#5C4033] flex-shrink-0" />
               <div>
-                <p className="text-xs font-medium text-[#00D4AA]/70 mb-1.5 uppercase tracking-wider">Resumen del Día con IA</p>
-                <p className="text-white/90 text-sm leading-relaxed">{conditions.aiSummary}</p>
+                <p className="text-xs font-semibold text-[#8B7355] uppercase tracking-wider mb-1.5">Resumen del Día con IA</p>
+                <p className="text-sm text-[#4A3728] leading-relaxed">{conditions.aiSummary}</p>
               </div>
             </div>
           </div>
-        </AIGlowBorder>
+        </motion.div>
       )}
 
       {/* Error State */}
       {error && (
-        <Card className="border-rose-400/60 bg-white shadow-[0_0_10px_rgba(244,63,94,0.12)]">
-          <CardContent className="p-4">
-            <p className="text-rose-700 text-sm">{error}</p>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-xl border border-[#E8DFD4] shadow-sm overflow-hidden">
+          <div className="flex">
+            <div className="w-1 bg-[#8B2500] rounded-l-xl flex-shrink-0" />
+            <div className="p-4">
+              <p className="text-sm text-[#8B2500]">{error}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Weather Card - Full Width with operational actions */}

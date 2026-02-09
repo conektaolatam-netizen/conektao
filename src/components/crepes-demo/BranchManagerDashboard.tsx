@@ -11,7 +11,7 @@ const BranchManagerDashboard = () => {
   const city = "Bogotá";
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
+    <div className="min-h-screen bg-[#F5EDE4]">
       <div className="relative max-w-7xl mx-auto p-6 pt-6">
         {/* Header */}
         <motion.div
@@ -31,9 +31,9 @@ const BranchManagerDashboard = () => {
                 <span>Gerente de Sucursal</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-emerald-700 text-xs font-medium">En línea</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-[#D4C4B0] rounded-full">
+              <div className="w-2 h-2 rounded-full bg-[#5C4033]" />
+              <span className="text-[#5C4033] text-xs font-medium">En línea</span>
             </div>
           </div>
         </motion.div>
