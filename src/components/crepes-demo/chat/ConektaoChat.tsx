@@ -161,7 +161,7 @@ const ConektaoChat: React.FC<ConektaoChatProps> = ({ branchId = "zona-t" }) => {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[400px] min-h-0">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-4">
                 <motion.div

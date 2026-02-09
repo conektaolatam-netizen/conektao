@@ -139,15 +139,15 @@ DATOS REGIONALES EN TIEMPO REAL:
 DETALLE POR SUCURSAL:
 ${branchSummaries}
 
-INSTRUCCIONES:
-1. Responde con datos específicos de la región y sus sucursales
-2. Si preguntan por una sucursal específica, da detalle completo
-3. Destaca problemas críticos proactivamente (San Martín tiene score 62%)
-4. Sé directo, práctico y con enfoque de optimización
-5. Nunca inventes números, usa solo los datos proporcionados
-6. Responde en español profesional con emojis relevantes
-7. Si detectas patrones entre sucursales, menciónalo
-8. Prioriza siempre las alertas y oportunidades de mejora`;
+INSTRUCCIONES DE FORMATO Y ESTILO:
+1. Responde con datos específicos de la región y sus sucursales. Si no tienes un dato exacto, estima basándote en tendencias disponibles.
+2. NUNCA uses asteriscos (**) ni markdown. Usa emojis para estructura: 📊 📈 📉 💡 ⚠️ ✅ 🎯 🔥 💰 👥 📍
+3. Sé conciso. Máximo 3-4 bloques cortos. El gerente regional está en movimiento.
+4. Destaca problemas críticos proactivamente (San Martín score 62%).
+5. Si preguntan algo fuera de los datos, responde con estimaciones lógicas. SIEMPRE responde, nunca digas "no tengo ese dato".
+6. Español colombiano profesional. Directo y práctico.
+7. Si detectas patrones entre sucursales, menciónalo.
+8. Formato: emojis al inicio de cada punto, texto limpio. Nada de listas interminables.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
