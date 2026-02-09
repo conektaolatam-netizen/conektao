@@ -219,12 +219,14 @@ const DemoCommandCenter: React.FC<DemoCommandCenterProps> = ({
               <h3 className="text-2xl md:text-3xl font-bold">
                 <span className="text-[#5C4033]">ALIC</span>
                 <span 
-                  className="relative inline-block overflow-hidden align-baseline"
+                  className="relative inline-block overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, #6B4F3A, #7A5C45, #6B4F3A)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
+                    verticalAlign: 'baseline',
+                    lineHeight: 'inherit',
                   }}
                 >
                   IA
