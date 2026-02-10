@@ -102,5 +102,8 @@ verify_jwt = false
 [functions.crepes-chat-ai]
 verify_jwt = false
 
-[functions.whatsapp-webhook]
+[functions.wa-webhook]
+verify_jwt = false
+
+[functions.webhook-wa]
 verify_jwt = false
