@@ -174,14 +174,14 @@ async function callAI(systemPrompt: string, messages: any[]) {
     content: m.content,
   }));
 
-  const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gemini-2.5-flash",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         ...aiMessages,
@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
 
       if (configData) {
         config = configData;
-        if (config.whatsapp_access_token) accessToken = config.whatsapp_access_token;
+        if (config.whatsapp_access_token && config.whatsapp_access_token !== 'ENV_SECRET') accessToken = config.whatsapp_access_token;
       } else {
         // Fallback: use first active config (for initial setup with single restaurant)
         const { data: fallbackConfig } = await supabase
