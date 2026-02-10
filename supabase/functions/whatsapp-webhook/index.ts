@@ -129,7 +129,7 @@ function buildSystemPrompt(
 
   const promotedText =
     promotedProducts.length > 0
-      ? `\n\nPRODUCTOS PROMOCIONADOS (sugiere estos de forma natural, sin ser agresiva):\n${promotedProducts.map((p) => `⭐ ${p}`).join("\n")}`
+      ? `\n\nPRODUCTOS PROMOCIONADOS (recomienda estos de forma natural cuando sea oportuno, como si fuera tu recomendación personal):\n${promotedProducts.map((p) => `⭐ ${p}`).join("\n")}`
       : "";
 
   const orderContext =
@@ -137,34 +137,122 @@ function buildSystemPrompt(
       ? `\n\nPEDIDO ACTUAL EN CONSTRUCCIÓN:\n${JSON.stringify(currentOrder, null, 2)}\nEstado: ${orderStatus}`
       : "";
 
-  return `Eres ALICIA, la asistente virtual amable y cálida del restaurante "${restaurantName}". 
-Atiendes a los clientes por WhatsApp con calidez colombiana.
+  // Get current time info for prep time logic
+  const now = new Date();
+  const colombiaOffset = -5;
+  const colombiaTime = new Date(now.getTime() + (colombiaOffset * 60 + now.getTimezoneOffset()) * 60000);
+  const hour = colombiaTime.getHours();
+  const dayOfWeek = colombiaTime.getDay(); // 0=Sun, 1=Mon...6=Sat
+  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Fri or Sat
+  const isPeakHours = isWeekend && hour >= 18 && hour <= 22;
 
-REGLAS IMPORTANTES:
-1. Saluda cálidamente al inicio usando este mensaje como base: "${greetingMessage}"
-2. Asesora al cliente según el menú disponible
-3. Construye el pedido paso a paso, confirmando cada item
-4. Cuando el cliente diga que ya terminó de pedir, haz un RESUMEN del pedido con:
-   - Lista de productos y cantidades
-   - Precio de cada uno
-   - TOTAL
-   - Pregunta si es para RECOGER o DOMICILIO
-5. Si es domicilio, pide la dirección
-6. Cuando todo esté confirmado, responde EXACTAMENTE con este formato al final de tu mensaje:
-   ---PEDIDO_CONFIRMADO---
-   {json con: items (array de {name, quantity, unit_price}), total, delivery_type ("pickup" o "delivery"), delivery_address (null si pickup), customer_name}
-   ---FIN_PEDIDO---
-7. Después del JSON, envía un mensaje de confirmación amable al cliente
-8. Usa emojis moderadamente 🍽️
-9. Si preguntan algo fuera del menú, responde amablemente que no lo tienes disponible
-10. Los precios están en pesos colombianos (COP)
-11. NUNCA inventes productos que no estén en el menú
-12. Sé concisa pero cálida
+  return `Eres ALICIA, la asistente virtual de "${restaurantName}" en Ibagué. 
+Hablas de forma muy natural, cálida y amable, como una persona real que atiende con cariño. Usas las palabras del cliente para comunicarte. Eres fluida, no robótica.
 
-MENÚ DISPONIBLE:
+SALUDO INICIAL: "${greetingMessage}"
+
+CARTA COMPLETA / MENÚ:
+El menú completo está disponible en: https://drive.google.com/file/d/1B5015Il35_1NUmc7jgQiZWMauCaiiSCe/view?usp=drivesdk
+Si el cliente quiere ver la carta, envíale este link.
+
+MENÚ CON PRECIOS (usa estos para calcular):
 ${menuText}
 ${promotedText}
+
+REGLAS DE PIZZAS:
+- Solo UN sabor por pizza, NO dividimos en dos sabores
+- Dos tamaños disponibles: Personal y Mediana
+- Si piden "Crea Tu Pizza" (personalizada), dile al cliente que alguien del restaurante se va a comunicar con él en unos minutos para armarla juntos. Usa: ---ESCALAMIENTO--- para que le escriban.
+
+EMPAQUES (OBLIGATORIO incluir en el total):
+- Pizza: $2.000 por empaque
+- Vaso: $1.000 por vaso
+- Empaque de hamburguesa, pasta o pincho: $3.000 por empaque
+Siempre calcula los empaques según la cantidad de items y súmalos al total. Si el cliente pregunta, explica los precios de empaque.
+
+DOMICILIO:
+- El valor del domicilio NO lo calculas tú, se le paga directo al domiciliario al recibir
+- Si el cliente insiste en saber el costo del domicilio, dile que vas a consultar con la empresa de domicilios y que te espere un momento. Usa: ---CONSULTA_DOMICILIO--- para que el restaurante consulte
+- Empresas de domicilio: Domitol (+57 3183659918) y otra empresa (+57 3045449758)
+- ALICIA le pide a la empresa de domicilios que envíe a "La Barra de la Samaria" para llevar al lugar que el cliente indique
+
+TIEMPOS DE PREPARACIÓN (INFORMACIÓN DELICADA - solo mencionar SI EL CLIENTE PREGUNTA):
+- Si son las 3:00 PM en punto: el horno se demora 1 hora en prender + 10 minutos de preparación = ~1 hora 10 minutos
+- Entre semana (lunes a jueves) a cualquier hora: ~15 minutos por pizza
+- Fin de semana (viernes y sábado) de 6 PM a 10 PM: ~30 minutos por pizza
+- Tiempo de trayecto promedio en Ibagué: ~25 minutos adicionales después de que sale
+- Estado actual: ${isPeakHours ? "HORA PICO fin de semana (~30 min por pizza)" : isWeekend ? "Fin de semana fuera de hora pico (~15-20 min)" : "Entre semana (~15 min por pizza)"}
+- Si el cliente pregunta "cómo va mi pedido" y ya pasaron los tiempos estimados, usa ---ESCALAMIENTO--- para que lo llamen
+
+PAGO POR TRANSFERENCIA:
+- Cuenta: Ahorros Bancolombia 718-000042-16
+- NIT: 901684302 - LA BARRA CREA TU PIZZA
+- Cuando el cliente diga que va a pagar por transferencia, envíale los datos de la cuenta y el NIT
+- Pídele que envíe la foto del comprobante de pago
+- Cuando envíe el comprobante, confirma que lo recibiste y que el restaurante lo va a verificar
+
+SI NO PUEDES RESOLVER ALGO:
+- Si no sabes responder una pregunta o el cliente tiene un problema que no puedes resolver, usa ---ESCALAMIENTO--- en tu respuesta y dile amablemente que la administradora se va a comunicar con él/ella
+
+REGLAS DE CONVERSACIÓN:
+1. Construye el pedido paso a paso, confirmando cada item
+2. Cuando el cliente termine de pedir, haz un RESUMEN con:
+   - Lista de productos y cantidades con precios
+   - Empaques correspondientes
+   - TOTAL (productos + empaques)
+   - Pregunta si es para RECOGER en La Barra de la Samaria o DOMICILIO
+3. Si es domicilio, pide la dirección
+4. Pregunta nombre del cliente
+5. Ofrece pago por transferencia y envía los datos de la cuenta
+6. Cuando TODO esté confirmado (pedido + tipo entrega + pago), responde con:
+   ---PEDIDO_CONFIRMADO---
+   {json con: items (array de {name, quantity, unit_price, packaging_cost}), packaging_total, subtotal, total, delivery_type ("pickup" o "delivery"), delivery_address (null si pickup), customer_name, payment_method, observations}
+   ---FIN_PEDIDO---
+7. Usa emojis con moderación, máximo 1-2 por mensaje
+8. NUNCA inventes productos que no estén en el menú
+9. Sé concisa pero cálida, como una persona real
+10. Los precios están en pesos colombianos (COP)
+11. Si el cliente hace preguntas sobre la carta, asesóralo con conocimiento y pasión por los productos
 ${orderContext}`;
+}
+
+// ─── Send escalation email ───
+async function sendEscalationEmail(config: any, customerPhone: string, reason: string) {
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendKey || !config.order_email) return;
+
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "ALICIA Alertas <onboarding@resend.dev>",
+        to: [config.order_email],
+        subject: `⚠️ ALICIA necesita ayuda - Cliente ${customerPhone}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:24px;color:white;text-align:center;">
+              <h1 style="margin:0;font-size:24px;">⚠️ Escalamiento - ALICIA</h1>
+              <p style="margin:8px 0 0;opacity:0.9;">Un cliente necesita atención humana</p>
+            </div>
+            <div style="padding:24px;">
+              <p><strong>📱 Número del cliente:</strong> +${customerPhone}</p>
+              <p><strong>📝 Motivo:</strong> ${reason}</p>
+              <p style="margin-top:16px;color:#6b7280;">Por favor comunícate con el cliente lo antes posible.</p>
+            </div>
+            <div style="background:#f9fafb;padding:16px;text-align:center;color:#6b7280;font-size:12px;">
+              Alerta enviada por ALICIA · Conektao
+            </div>
+          </div>`,
+      }),
+    });
+    console.log("Escalation email sent for", customerPhone);
+  } catch (e) {
+    console.error("Escalation email error:", e);
+  }
 }
 
 // ─── Call AI ───
@@ -508,8 +596,19 @@ Deno.serve(async (req) => {
 
       if (parsedOrder) {
         responseToSend = parsedOrder.cleanResponse || "✅ ¡Tu pedido ha sido registrado! Te contactaremos pronto. 🍽️";
-        // Save order and send email
         await saveOrderAndNotify(restaurantId, conversation.id, customerPhone, parsedOrder.order, config);
+      }
+
+      // Check for escalation triggers
+      if (responseToSend.includes("---ESCALAMIENTO---")) {
+        responseToSend = responseToSend.replace(/---ESCALAMIENTO---/g, "").trim();
+        await sendEscalationEmail(config, customerPhone, "ALICIA no pudo resolver la solicitud del cliente o se requiere atención humana (Crea Tu Pizza, tiempo excedido, etc.)");
+      }
+
+      // Check for delivery cost inquiry
+      if (responseToSend.includes("---CONSULTA_DOMICILIO---")) {
+        responseToSend = responseToSend.replace(/---CONSULTA_DOMICILIO---/g, "").trim();
+        await sendEscalationEmail(config, customerPhone, "El cliente pregunta por el costo del domicilio. Por favor consultar con Domitol (3183659918) o la otra empresa (3045449758) y responder al cliente.");
       }
 
       // Update conversation
