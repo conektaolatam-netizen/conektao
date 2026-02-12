@@ -27,9 +27,11 @@ async function sendWA(phoneId: string, token: string, to: string, text: string) 
     rem = rem.substring(s).trim();
   }
   for (const c of chunks) {
+    const trimmedToken = token.trim();
+    console.log("Sending WA msg, token first 15 chars:", JSON.stringify(trimmedToken.substring(0, 15)), "last 10:", JSON.stringify(trimmedToken.substring(trimmedToken.length - 10)), "len:", trimmedToken.length);
     const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: c } }),
     });
     if (!r.ok) console.error("WA error:", await r.text());
@@ -203,7 +205,7 @@ Deno.serve(async (req) => {
       if (cd) { config = cd; if (cd.whatsapp_access_token && cd.whatsapp_access_token !== "ENV_SECRET") token = cd.whatsapp_access_token; }
       else {
         const { data: fb } = await supabase.from("whatsapp_configs").select("*").eq("is_active", true).limit(1).maybeSingle();
-        if (fb) { config = fb; if (fb.whatsapp_access_token) token = fb.whatsapp_access_token; }
+        if (fb) { config = fb; if (fb.whatsapp_access_token && fb.whatsapp_access_token !== "ENV_SECRET") token = fb.whatsapp_access_token; }
       }
 
       if (!config) {
