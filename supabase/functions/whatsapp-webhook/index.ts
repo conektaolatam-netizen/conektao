@@ -12,6 +12,8 @@ const GLOBAL_WA_PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const VERIFY_TOKEN = "alicialabarra";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
+console.log("WA Phone ID:", GLOBAL_WA_PHONE_ID);
 
 async function sendWA(phoneId: string, token: string, to: string, text: string) {
   const chunks: string[] = [];
