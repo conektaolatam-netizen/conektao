@@ -190,6 +190,53 @@ PIZZAS DULCES:
 - Nutella: $24.000
 - Nutella & Fresas: $32.000
 - Arequipe & Stracciatella: $32.000
+
+ADICIONES (extras para agregar a cualquier pizza o plato):
+- Aceitunas: $5.000
+- Alcachofas: $4.000
+- Anchoas: $7.000
+- Burrata: $15.000
+- Camarones: $10.000
+- Cebolla Morada: $2.000
+- Champiñones: $5.000
+- Chorizo Español: $7.000
+- Dátiles: $5.000
+- Bocconcinos: $7.000
+- Bondiola: $8.000
+- Lychee: $4.000
+- Parmegiana: $5.000
+- Pulpo: $12.000
+- Stracciatella: $8.000
+- Doble Carne: $8.000
+- Gin (extra): $18.000
+- Jamón Serrano: $7.500
+- Licor Mojito: $13.000
+- Lychee (bebida): $1.500
+- Manzana Caramelizada: $6.000
+- Masa Gruesa: $3.000
+- Mozzarella: $6.000
+- Pepperoni: $7.000
+- Piña: $4.000
+- Pistacho: $4.000
+- Pollo: $5.000
+- Pomodoro: $3.000
+- Porchetta: $14.000
+- Prosciutto: $6.000
+- Proteína: $7.000
+- Queso Azul: $3.500
+- Queso Cheddar: $8.000
+- Queso Cheddar con Tocineta: $8.000
+- Queso Mozzarella: $6.000
+- Queso Parmesano: $4.000
+- Ricotta: $3.500
+- Rúgula: $3.600
+- Tocineta: $5.000
+- Tomate Cherry: $4.000
+- Vegetal: $4.000
+- Papa Francesa: $6.000
+
+EXTRAS SUELTOS:
+- Coca Cola 300ml: $8.000
 ${prom}
 
 === FIN DEL MENÚ ===
@@ -200,10 +247,11 @@ REGLAS:
 - "Crea Tu Pizza" (personalizada) → ---ESCALAMIENTO---
 - Si un precio dice "Consultar", dile al cliente que verificarás y usa ---ESCALAMIENTO---
 
-EMPAQUES (incluir siempre en el total):
-- Pizza: +$2.000
-- Vaso: +$1.000
-- Hamburguesa/pasta/pincho: +$3.000
+EMPAQUES (incluir siempre en pedidos para llevar/domicilio):
+- Empaque Pizza: +$2.000
+- Empaque Hamburguesa: +$3.000
+- Empaque Pasta: +$3.000
+- Vaso para llevar: +$1.000
 
 DOMICILIO: No calculas tú el valor del domicilio, se paga directamente al domiciliario. Si insisten → ---CONSULTA_DOMICILIO---
 
