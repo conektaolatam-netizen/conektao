@@ -1,164 +1,90 @@
 
-
-# ALICIA WhatsApp: Asistente de IA para clientes de restaurantes
+# Plan: ALICIA SaaS - Landing Page y Dashboard de Contratacion
 
 ## Resumen
 
-Crear el flujo completo de ALICIA como asistente conversacional por WhatsApp que atiende a los clientes finales de cualquier restaurante registrado en Conektao. El pedido se envía por email al negocio.
+Crear una experiencia completa de venta y configuracion de ALICIA como producto SaaS independiente, accesible desde la Welcome Page de Conektao. Incluye landing de venta, demo interactivo, flujo de contratacion y panel de configuracion post-compra.
 
----
+## Estructura de paginas nuevas
 
-## Arquitectura del flujo
+### 1. Ruta `/alicia` - Landing Page de venta
 
-```text
-Cliente WhatsApp
-       |
-       v
-[Meta Webhook] ──> Edge Function: whatsapp-webhook
-       |
-       ├── Extrae mensaje + numero de telefono
-       ├── Identifica el restaurante (por numero de WhatsApp Business)
-       ├── Carga productos activos del restaurante
-       ├── Carga historial de conversacion (ultimos N mensajes)
-       |
-       v
-[Lovable AI Gateway] (gemini-2.5-flash)
-       |
-       ├── Asesora al cliente segun menu
-       ├── Sugiere productos que el dueno quiere impulsar
-       ├── Detecta cuando el pedido esta completo
-       |
-       v
-[Responde por WhatsApp] via Meta Cloud API
-       |
-       └── Si pedido confirmado:
-            ├── Guarda pedido en DB
-            ├── Envia email al restaurante (Resend)
-            └── (Opcional) Notifica empresa de domicilios
-```
+Pagina publica con el mismo estilo visual de Welcome.tsx (fondo negro, gradientes naranja/turquesa, botones con degradados, estetica futurista IA).
 
----
+**Secciones en orden:**
 
-## Secrets / API Keys necesarios
+1. **Hero con avatar de ALICIA** - Foto de ALICIA (placeholder hasta que envies la foto con uniforme Conektao), titulo "Conoce a ALICIA" con subtitulo "Tu mejor vendedora. 24/7. Sin descansos. Sin errores."
 
-Ya tienes:
-- **LOVABLE_API_KEY** (auto-configurado) - Para la IA
-- **RESEND_API_KEY** - Para enviar emails
+2. **Resumen de 3 pasos** (iconos grandes, tarjetas sin bordes, fluidas):
+   - Paso 1: Atiende y recomienda mejor que un vendedor humano, mas rapido y entiende lo que el cliente quiere
+   - Paso 2: Toma el pedido, confirma el metodo de pago
+   - Paso 3: Coordina el domicilio
+   - Paso 4: Hace seguimiento al pedido y pregunta al cliente por su experiencia para que ella y tu negocio mejoren
 
-Necesito que me proporciones:
-1. **WHATSAPP_VERIFY_TOKEN** - Un texto aleatorio que tu defines (ej: "conektao_2026") para verificar el webhook de Meta
-2. **WHATSAPP_ACCESS_TOKEN** - Token de acceso permanente de Meta Cloud API (lo sacas de developers.facebook.com > Tu App > WhatsApp > API Setup > Permanent token)
-3. **WHATSAPP_PHONE_NUMBER_ID** - ID del numero de telefono de WhatsApp Business (lo sacas del mismo panel de API Setup)
+3. **Beneficios con metricas** (estilo Conektao futurista):
+   - +15% en ticket promedio (upselling inteligente)
+   - 0 mensajes perdidos en WhatsApp
+   - Atencion 24/7 sin costos de personal adicional
+   - Seguimiento automatico post-venta
 
----
+4. **Demo interactivo** - Seccion "Preguntale lo que quieras" donde el dueno puede escribirle a ALICIA en un mini-chat embebido. ALICIA responde usando el edge function existente (o un endpoint dedicado) explicando como funciona, sus capacidades, y respondiendo dudas del negocio. No es el WhatsApp real, es un chat web que llama a Gemini con un prompt de "modo demo/ventas".
 
-## Lo que voy a crear
+5. **Planes**:
+   - **Plan ALICIA** - $450.000 COP/mes - 1 sucursal, atencion ilimitada a clientes
+   - **Plan Enterprise** - Precio personalizado - Multiples sucursales, dashboards gerenciales, reportes IA semanales
 
-### 1. Tabla: `whatsapp_configs` (configuracion por restaurante)
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| id | uuid | PK |
-| restaurant_id | uuid | FK a restaurants |
-| whatsapp_phone_number_id | text | ID del numero de Meta |
-| whatsapp_access_token | text | Token de acceso (encriptado) |
-| verify_token | text | Token de verificacion del webhook |
-| order_email | text | Email donde llegan los pedidos |
-| delivery_enabled | boolean | Si notifica empresa de domicilios |
-| delivery_company_email | text | Email de la empresa de domicilios |
-| promoted_products | text[] | Productos a impulsar |
-| greeting_message | text | Mensaje de bienvenida personalizado |
-| is_active | boolean | Si esta activo |
+6. **CTA final** - Boton "Contratar a ALICIA" que lleva al flujo de contratacion
 
-### 2. Tabla: `whatsapp_conversations`
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| id | uuid | PK |
-| restaurant_id | uuid | FK |
-| customer_phone | text | Telefono del cliente |
-| customer_name | text | Nombre si lo proporciona |
-| messages | jsonb | Historial de mensajes |
-| current_order | jsonb | Pedido en construccion |
-| order_status | text | none/building/confirmed/sent |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+### 2. Boton en Welcome.tsx
 
-### 3. Tabla: `whatsapp_orders`
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| id | uuid | PK |
-| restaurant_id | uuid | FK |
-| conversation_id | uuid | FK |
-| customer_phone | text | |
-| customer_name | text | |
-| items | jsonb | Array de items del pedido |
-| total | numeric | Total estimado |
-| delivery_type | text | pickup/delivery |
-| delivery_address | text | Direccion si es domicilio |
-| status | text | received/preparing/ready/delivered |
-| email_sent | boolean | Si se envio al restaurante |
-| created_at | timestamptz | |
+Agregar en la seccion de IA (donde estan ConektAI y ContAI) una tercera tarjeta para ALICIA, o mejor aun, un boton/banner destacado en el hero que diga "Conoce a ALICIA - Tu vendedora IA por WhatsApp" con link a `/alicia`.
 
-### 4. Edge Function: `whatsapp-webhook`
-- **GET**: Verificacion del webhook de Meta (challenge response)
-- **POST**: Recibe mensajes entrantes
-  - Identifica el restaurante por `whatsapp_phone_number_id`
-  - Carga/crea conversacion
-  - Carga productos del restaurante
-  - Envia a Lovable AI Gateway con contexto del menu + productos promocionados
-  - Responde al cliente por WhatsApp API
-  - Si detecta pedido confirmado: guarda orden + envia email con Resend
+### 3. Ruta `/alicia/setup` - Dashboard de configuracion (post-contratacion)
 
-### 5. Edge Function: `whatsapp-send-order-email`
-- Formatea el pedido en HTML bonito
-- Envia al `order_email` del restaurante
-- Opcionalmente envia a `delivery_company_email`
+Panel protegido (requiere auth) donde el dueno configura a ALICIA:
 
----
+- **Subir carta/menu** - Acepta Word/PDF. El sistema usa Gemini vision para extraer productos, precios, descripciones y adiciones. El dueno revisa y confirma.
+- **Entrenamiento personalizado** - Campo de texto libre donde el dueno explica: como funciona su negocio, preguntas frecuentes de clientes, experiencias especiales, tono preferido, productos destacados. Esto se guarda como parte del prompt de ALICIA.
+- **Panel de rendimiento** - Metricas de ALICIA: pedidos tomados, ticket promedio, tasa de conversion, mensajes atendidos.
+- **Recomendaciones semanales** - ALICIA analiza patrones y muestra insights como "Los pedidos se demoran mucho y la gente se queja, considera otra empresa de domicilios o contratar mas personal de domicilios".
 
-## Prompt del sistema para ALICIA (WhatsApp)
+## Detalle tecnico
 
-La IA recibira:
-- Menu completo del restaurante con precios
-- Productos que el dueno quiere impulsar (con instrucciones de sugerirlos naturalmente)
-- Historial de la conversacion
-- Estado actual del pedido
+### Archivos nuevos
+- `src/pages/AliciaLanding.tsx` - Landing page publica
+- `src/pages/AliciaSetup.tsx` - Dashboard de configuracion
+- `src/components/alicia-saas/AliciaHero.tsx` - Hero con avatar
+- `src/components/alicia-saas/AliciaSteps.tsx` - Los 4 pasos
+- `src/components/alicia-saas/AliciaBenefits.tsx` - Metricas de beneficios
+- `src/components/alicia-saas/AliciaDemoChat.tsx` - Chat demo interactivo
+- `src/components/alicia-saas/AliciaPlans.tsx` - Planes y precios
+- `src/components/alicia-saas/AliciaSetupMenu.tsx` - Subida de menu
+- `src/components/alicia-saas/AliciaSetupTraining.tsx` - Entrenamiento libre
+- `src/components/alicia-saas/AliciaPerformance.tsx` - Panel de rendimiento
+- `supabase/functions/alicia-demo-chat/index.ts` - Edge function para el chat demo
 
-Comportamiento:
-- Saluda calidamente, presenta el menu
-- Sugiere productos promocionados de forma natural
-- Construye el pedido paso a paso
-- Confirma el pedido completo con resumen y total
-- Pregunta si es para recoger o domicilio
-- Envia confirmacion final
+### Archivos modificados
+- `src/App.tsx` - Agregar rutas `/alicia` y `/alicia/setup`
+- `src/pages/Welcome.tsx` - Agregar boton/banner de ALICIA en el hero o seccion IA
 
----
+### Base de datos
+- Tabla `alicia_subscriptions` - restaurant_id, plan, status, created_at
+- Tabla `alicia_training_docs` - restaurant_id, document_type (menu/training), content (text), file_url, processed_data (jsonb)
+- Tabla `alicia_performance` - restaurant_id, date, orders_taken, avg_ticket, conversion_rate, messages_handled
 
-## Configuracion de Meta (lo que tu haces manualmente)
+### Sobre el reto de automatizar la configuracion en Meta
 
-1. Ir a developers.facebook.com
-2. Crear app de tipo "Business" 
-3. Agregar producto "WhatsApp"
-4. En API Setup: obtener el **Access Token** permanente y el **Phone Number ID**
-5. En Webhooks: configurar la URL del webhook que te dare despues de crear la edge function
-6. Suscribirse a los campos: `messages`
+Tu pregunta sobre si un agente de IA deberia llenar los datos en Meta automaticamente vs tener personas: Recomiendo un enfoque hibrido para la primera fase. La verificacion de negocio en Meta tiene pasos que requieren documentos legales y aprobaciones que no se pueden automatizar al 100%. La mejor estrategia inicial es:
+1. El cliente sube sus datos en el dashboard de ALICIA
+2. Un agente humano (o semi-automatizado) configura Meta Business con esos datos
+3. A medida que el volumen crezca, se automatizan los pasos que Meta permita via API
 
----
+Esto es mas realista que intentar automatizar un proceso que Meta no facilita completamente via API.
 
 ## Orden de implementacion
 
-1. Crear las 3 tablas en Supabase
-2. Crear edge function `whatsapp-webhook` (GET para verificacion + POST para mensajes)
-3. Pedir los 3 secrets (WHATSAPP_VERIFY_TOKEN, WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)
-4. Desplegar y darte la URL del webhook para configurar en Meta
-5. Probar enviando un mensaje desde WhatsApp
-6. El dashboard de configuracion lo hacemos despues, como acordamos
-
----
-
-## Detalles tecnicos
-
-- **verify_jwt = false** en el webhook (Meta no envia JWT)
-- Se usa el WHATSAPP_ACCESS_TOKEN global inicialmente (para tu numero). Cuando haya multi-tenant, cada restaurante tendra su propio token en `whatsapp_configs`
-- Memoria conversacional: se guardan los ultimos 20 mensajes en `whatsapp_conversations.messages` como JSONB
-- Rate limiting: el mismo retry con backoff que ya usas en `conektao-ai`
-
+1. Landing page `/alicia` con hero, pasos, beneficios y planes (visual completo)
+2. Boton en Welcome.tsx
+3. Chat demo interactivo con edge function
+4. Rutas en App.tsx
+5. Dashboard de configuracion (siguiente fase)
