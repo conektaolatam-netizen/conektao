@@ -204,6 +204,10 @@ const Welcome = () => {
     }
   ];
 
+  const handleAliciaClick = () => {
+    navigate('/alicia');
+  };
+
   if (showAuth) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
@@ -699,6 +703,51 @@ const Welcome = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* ALICIA Banner */}
+          <div className="mt-16 max-w-3xl mx-auto">
+            <div
+              onClick={handleAliciaClick}
+              className="group relative cursor-pointer rounded-2xl border-2 border-orange-500/30 bg-black/60 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-orange-500/60 overflow-hidden"
+              style={{ boxShadow: '0 0 60px rgba(255,165,0,0.15)' }}
+            >
+              {/* Animated gradient border */}
+              <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,165,0,0.3) 0%, rgba(20,184,166,0.3) 50%, rgba(255,165,0,0.3) 100%)',
+                  animation: 'wave1 3s ease-in-out infinite'
+                }}
+              />
+              <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                <div
+                  className="w-20 h-20 shrink-0 rounded-full flex items-center justify-center"
+                  style={{
+                    background: 'radial-gradient(circle at 30% 30%, rgba(20,184,166,1) 0%, rgba(255,106,0,0.8) 100%)',
+                    boxShadow: '0 0 40px rgba(20,184,166,0.5), 0 0 80px rgba(255,106,0,0.3)',
+                    animation: 'brainPulse 3s ease-in-out infinite'
+                  }}
+                >
+                  <Bot className="w-10 h-10 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-1">
+                    <span className="bg-gradient-to-r from-orange-400 via-teal-400 to-orange-500 bg-clip-text text-transparent">
+                      Conoce a ALICIA
+                    </span>
+                  </h3>
+                  <p className="text-gray-300 font-semibold">
+                    Tu vendedora IA por WhatsApp. Atiende, vende y fideliza clientes 24/7.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <span className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-teal-500 shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-all duration-300 group-hover:scale-105">
+                    Descubrir
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
