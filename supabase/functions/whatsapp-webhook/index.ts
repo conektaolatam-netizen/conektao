@@ -439,8 +439,7 @@ Deno.serve(async (req) => {
 
       let config: any = null;
       let token = GLOBAL_WA_TOKEN;
-      // let pid = phoneId || GLOBAL_WA_PHONE_ID;
-      let pid = GLOBAL_WA_PHONE_ID;
+      let pid = phoneId || GLOBAL_WA_PHONE_ID;
 
       const { data: cd } = await supabase
         .from("whatsapp_configs")
