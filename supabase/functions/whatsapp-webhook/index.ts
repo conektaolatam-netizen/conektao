@@ -407,6 +407,37 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
 
+  // Debug: subscribe app to WABA webhooks
+  if (url.searchParams.get("action") === "subscribe_waba") {
+    const wabaId = url.searchParams.get("waba_id") || "1203273002014817";
+    const token = GLOBAL_WA_TOKEN;
+    const callbackUrl = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+    
+    // Subscribe app to WABA
+    const subRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        override_callback_uri: callbackUrl,
+        verify_token: VERIFY_TOKEN,
+      }),
+    });
+    const subData = await subRes.json();
+    console.log("Subscribe WABA result:", JSON.stringify(subData));
+    
+    // Also check current subscriptions
+    const checkRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const checkData = await checkRes.json();
+    console.log("Current subscriptions:", JSON.stringify(checkData));
+    
+    return new Response(JSON.stringify({ subscribe_result: subData, current_subscriptions: checkData }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
