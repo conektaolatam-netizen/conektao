@@ -4826,6 +4826,7 @@ export type Database = {
           id: string
           messages: Json
           order_status: string
+          payment_proof_url: string | null
           restaurant_id: string
           updated_at: string
         }
@@ -4837,6 +4838,7 @@ export type Database = {
           id?: string
           messages?: Json
           order_status?: string
+          payment_proof_url?: string | null
           restaurant_id: string
           updated_at?: string
         }
@@ -4848,6 +4850,7 @@ export type Database = {
           id?: string
           messages?: Json
           order_status?: string
+          payment_proof_url?: string | null
           restaurant_id?: string
           updated_at?: string
         }

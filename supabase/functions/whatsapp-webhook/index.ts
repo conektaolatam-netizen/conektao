@@ -15,6 +15,32 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
 console.log("WA Phone ID:", GLOBAL_WA_PHONE_ID);
 
+async function downloadMedia(mediaId: string, token: string): Promise<string | null> {
+  try {
+    // Get media URL
+    const metaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token.trim()}` },
+    });
+    if (!metaRes.ok) { console.error("Media meta error:", await metaRes.text()); return null; }
+    const metaData = await metaRes.json();
+    const mediaUrl = metaData.url;
+    if (!mediaUrl) return null;
+
+    // Download binary
+    const dlRes = await fetch(mediaUrl, {
+      headers: { Authorization: `Bearer ${token.trim()}` },
+    });
+    if (!dlRes.ok) { console.error("Media download error:", await dlRes.text()); return null; }
+    const buf = await dlRes.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const mime = metaData.mime_type || "image/jpeg";
+    return `data:${mime};base64,${base64}`;
+  } catch (e) {
+    console.error("Media download failed:", e);
+    return null;
+  }
+}
+
 async function sendWA(phoneId: string, token: string, to: string, text: string) {
   const chunks: string[] = [];
   let rem = text;
@@ -275,9 +301,9 @@ DOMICILIO: No calculas tú el valor del domicilio, se paga directamente al domic
 
 TIEMPOS (solo si preguntan): Semana ~15min. Fin semana pico (Vie/Sab 6-10PM) ~30min. Trayecto ~25min. Actual: ${peak ? "HORA PICO ~30min" : we ? "Fin de semana ~15-20min" : "Semana ~15min"}
 
-PAGO: Bancolombia Ahorros 718-000042-16, NIT 901684302 - LA BARRA CREA TU PIZZA. Pedir foto del comprobante.
+PAGO: Bancolombia Ahorros 718-000042-16, NIT 901684302 - LA BARRA CREA TU PIZZA. Pedir foto del comprobante. Cuando el cliente envíe la foto, confirma que la recibiste y dile que la verificarás.
 
-ESCALAMIENTO: Si no puedes resolver → ---ESCALAMIENTO--- y dile que alguien se comunicará.
+ESCALAMIENTO: Si el cliente insiste en hablar con una persona, dile exactamente: "Claro, comunícate al 3014017559 y con gusto te atienden 😊" NO uses ---ESCALAMIENTO--- para eso. Solo usa ---ESCALAMIENTO--- para cosas técnicas que no puedas resolver (como Crea Tu Pizza o precios de consultar).
 
 FLUJO PASO A PASO (un paso por mensaje, NO todos de golpe):
 1. Saluda y pregunta qué quiere
@@ -329,7 +355,7 @@ function parseOrder(txt: string) {
   }
 }
 
-async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any) {
+async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any, paymentProofBase64?: string | null) {
   const { data: saved, error } = await supabase
     .from("whatsapp_orders")
     .insert({
@@ -365,10 +391,23 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
         `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px;text-align:center;">${i.quantity}</td><td style="padding:8px;text-align:right;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
     )
     .join("");
-  const del =
+  
+  const deliverySection =
     order.delivery_type === "delivery"
-      ? `<p>🏍️ Domicilio: ${order.delivery_address || "N/A"}</p>`
+      ? `<div style="background:#fff3cd;padding:12px;border-radius:8px;margin:8px 0;border-left:4px solid #ffc107;">
+          <p style="margin:0;font-weight:bold;">🏍️ DOMICILIO</p>
+          <p style="margin:4px 0 0;font-size:16px;">📍 ${order.delivery_address || "Dirección no proporcionada"}</p>
+        </div>`
       : `<p>🏪 Recoger en local</p>`;
+  
+  const paymentProofSection = paymentProofBase64
+    ? `<div style="margin-top:16px;padding:12px;background:#d4edda;border-radius:8px;border-left:4px solid #28a745;">
+        <p style="margin:0 0 8px;font-weight:bold;">💳 Comprobante de Pago Verificado</p>
+        <img src="${paymentProofBase64}" style="max-width:100%;border-radius:8px;border:1px solid #ddd;" alt="Comprobante"/>
+      </div>`
+    : `<div style="margin-top:16px;padding:12px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107;">
+        <p style="margin:0;">⚠️ Comprobante de pago NO recibido aún</p>
+      </div>`;
 
   const er = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -379,9 +418,15 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
       subject: `🛒 Pedido - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`,
       html: `<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;">
         <div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px;color:white;text-align:center;"><h1 style="margin:0;">🛒 Nuevo Pedido WhatsApp</h1></div>
-        <div style="padding:24px;"><p><strong>👤</strong> ${order.customer_name || "Cliente"}</p><p><strong>📱</strong> ${phone}</p>${del}
-        <table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9fafb;"><th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;">Cant.</th><th style="padding:8px;text-align:right;">Precio</th><th style="padding:8px;text-align:right;">Subtotal</th></tr></thead><tbody>${items}</tbody>
-        <tfoot><tr style="font-weight:bold;font-size:18px;"><td colspan="3" style="padding:12px 8px;text-align:right;">TOTAL:</td><td style="padding:12px 8px;text-align:right;color:#059669;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot></table></div></div>`,
+        <div style="padding:24px;">
+          <p><strong>👤</strong> ${order.customer_name || "Cliente"}</p>
+          <p><strong>📱</strong> ${phone}</p>
+          ${deliverySection}
+          <table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f9fafb;"><th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;">Cant.</th><th style="padding:8px;text-align:right;">Precio</th><th style="padding:8px;text-align:right;">Subtotal</th></tr></thead><tbody>${items}</tbody>
+          <tfoot><tr style="font-weight:bold;font-size:18px;"><td colspan="3" style="padding:12px 8px;text-align:right;">TOTAL:</td><td style="padding:12px 8px;text-align:right;color:#059669;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot></table>
+          ${paymentProofSection}
+          ${order.observations ? `<p style="margin-top:12px;"><strong>📝</strong> ${order.observations}</p>` : ""}
+        </div></div>`,
     }),
   });
   if (er.ok) await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
@@ -460,8 +505,22 @@ Deno.serve(async (req) => {
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
-      const text = msg.text?.body || msg.button?.text || "";
-      console.log(`Msg from ${from}: "${text}"`);
+      
+      // Handle image messages (payment proofs)
+      let text = msg.text?.body || msg.button?.text || "";
+      let imageBase64: string | null = null;
+      
+      if (msg.type === "image") {
+        const mediaId = msg.image?.id;
+        const caption = msg.image?.caption || "";
+        text = caption || "Te envié una foto del comprobante de pago";
+        if (mediaId) {
+          imageBase64 = await downloadMedia(mediaId, GLOBAL_WA_TOKEN);
+          console.log("Payment proof image received, base64 length:", imageBase64 ? imageBase64.length : 0);
+        }
+      }
+      
+      console.log(`Msg from ${from}: "${text}" (type: ${msg.type})`);
       if (!text.trim())
         return new Response(JSON.stringify({ status: "ok" }), {
           status: 200,
@@ -519,7 +578,12 @@ Deno.serve(async (req) => {
         .order("name");
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
+      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!imageBase64 });
+      
+      // Store payment proof when image received
+      if (imageBase64) {
+        await supabase.from("whatsapp_conversations").update({ payment_proof_url: imageBase64 }).eq("id", conv.id);
+      }
 
       const sys = buildPrompt(
         prods || [],
@@ -533,9 +597,13 @@ Deno.serve(async (req) => {
 
       const parsed = parseOrder(ai);
       let resp = ai;
+      
+      // Get stored payment proof from conversation if exists
+      const storedProof = imageBase64 || conv.payment_proof_url || null;
+      
       if (parsed) {
         resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
-        await saveOrder(rId, conv.id, from, parsed.order, config);
+        await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
