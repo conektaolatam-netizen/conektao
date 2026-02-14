@@ -497,6 +497,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Admin: reset a conversation
+  if (url.searchParams.get("action") === "reset_conv") {
+    const phone = url.searchParams.get("phone") || "";
+    const { error } = await supabase.from("whatsapp_conversations")
+      .update({ order_status: "none", current_order: null, messages: [], payment_proof_url: null })
+      .eq("customer_phone", phone);
+    return new Response(JSON.stringify({ reset: !error, error }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
