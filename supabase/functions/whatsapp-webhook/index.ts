@@ -15,9 +15,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
 console.log("WA Phone ID:", GLOBAL_WA_PHONE_ID);
 
-async function downloadMedia(mediaId: string, token: string): Promise<string | null> {
+async function downloadMediaUrl(mediaId: string, token: string): Promise<string | null> {
   try {
-    // Get media URL
     const metaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
       headers: { Authorization: `Bearer ${token.trim()}` },
     });
@@ -26,15 +25,26 @@ async function downloadMedia(mediaId: string, token: string): Promise<string | n
     const mediaUrl = metaData.url;
     if (!mediaUrl) return null;
 
-    // Download binary
+    // Download and upload to Supabase Storage
     const dlRes = await fetch(mediaUrl, {
       headers: { Authorization: `Bearer ${token.trim()}` },
     });
     if (!dlRes.ok) { console.error("Media download error:", await dlRes.text()); return null; }
-    const buf = await dlRes.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    const mime = metaData.mime_type || "image/jpeg";
-    return `data:${mime};base64,${base64}`;
+    const blob = await dlRes.blob();
+    const ext = (metaData.mime_type || "image/jpeg").includes("png") ? "png" : "jpg";
+    const fileName = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
+    
+    const { data, error } = await supabase.storage.from("whatsapp-media").upload(fileName, blob, {
+      contentType: metaData.mime_type || "image/jpeg",
+      upsert: true,
+    });
+    if (error) {
+      console.error("Storage upload error:", error);
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+    console.log("Payment proof uploaded:", urlData.publicUrl);
+    return urlData.publicUrl;
   } catch (e) {
     console.error("Media download failed:", e);
     return null;
@@ -356,6 +366,10 @@ function parseOrder(txt: string) {
 }
 
 async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any, paymentProofBase64?: string | null) {
+  // Normalize delivery_type to match DB constraint
+  const rawType = (order.delivery_type || "pickup").toLowerCase();
+  const deliveryType = rawType.includes("domicilio") || rawType.includes("delivery") ? "delivery" : "pickup";
+  
   const { data: saved, error } = await supabase
     .from("whatsapp_orders")
     .insert({
@@ -365,7 +379,7 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
       customer_name: order.customer_name || "Cliente WhatsApp",
       items: order.items || [],
       total: order.total || 0,
-      delivery_type: order.delivery_type || "pickup",
+      delivery_type: deliveryType,
       delivery_address: order.delivery_address || null,
       status: "received",
       email_sent: false,
@@ -508,15 +522,15 @@ Deno.serve(async (req) => {
       
       // Handle image messages (payment proofs)
       let text = msg.text?.body || msg.button?.text || "";
-      let imageBase64: string | null = null;
+      let paymentProofUrl: string | null = null;
       
       if (msg.type === "image") {
         const mediaId = msg.image?.id;
         const caption = msg.image?.caption || "";
         text = caption || "Te envié una foto del comprobante de pago";
         if (mediaId) {
-          imageBase64 = await downloadMedia(mediaId, GLOBAL_WA_TOKEN);
-          console.log("Payment proof image received, base64 length:", imageBase64 ? imageBase64.length : 0);
+          paymentProofUrl = await downloadMediaUrl(mediaId, GLOBAL_WA_TOKEN);
+          console.log("Payment proof uploaded to:", paymentProofUrl);
         }
       }
       
@@ -578,11 +592,11 @@ Deno.serve(async (req) => {
         .order("name");
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!imageBase64 });
+      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl });
       
-      // Store payment proof when image received
-      if (imageBase64) {
-        await supabase.from("whatsapp_conversations").update({ payment_proof_url: imageBase64 }).eq("id", conv.id);
+      // Store payment proof URL when image received
+      if (paymentProofUrl) {
+        await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
       }
 
       const sys = buildPrompt(
@@ -599,7 +613,7 @@ Deno.serve(async (req) => {
       let resp = ai;
       
       // Get stored payment proof from conversation if exists
-      const storedProof = imageBase64 || conv.payment_proof_url || null;
+      const storedProof = paymentProofUrl || conv.payment_proof_url || null;
       
       if (parsed) {
         resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
