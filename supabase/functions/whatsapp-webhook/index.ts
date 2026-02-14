@@ -31,26 +31,25 @@ async function sendWA(phoneId: string, token: string, to: string, text: string) 
   }
   for (const c of chunks) {
     const trimmedToken = token.trim();
-    const payload = { messaging_product: "whatsapp", to, type: "text", text: { body: c } };
-    const apiUrl = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
-    console.log("WA SEND →", apiUrl, "to:", to, "payload:", JSON.stringify(payload));
-    console.log("Token prefix:", trimmedToken.substring(0, 15), "len:", trimmedToken.length);
-    const r = await fetch(apiUrl, {
+    console.log(
+      "Sending WA msg, token first 15 chars:",
+      JSON.stringify(trimmedToken.substring(0, 15)),
+      "last 10:",
+      JSON.stringify(trimmedToken.substring(trimmedToken.length - 10)),
+      "len:",
+      trimmedToken.length,
+    );
+    const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: c } }),
     });
-    const responseText = await r.text();
-    if (!r.ok) {
-      console.error("WA SEND ERROR status:", r.status, "body:", responseText);
-    } else {
-      console.log("WA SEND OK:", responseText);
-    }
+    if (!r.ok) console.error("WA error:", await r.text());
   }
 }
 
 async function markRead(phoneId: string, token: string, msgId: string) {
-  await fetch(`https://graph.facebook.com/v22.0/${phoneId}/messages`, {
+  await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", status: "read", message_id: msgId }),
@@ -440,7 +439,8 @@ Deno.serve(async (req) => {
 
       let config: any = null;
       let token = GLOBAL_WA_TOKEN;
-      let pid = phoneId || GLOBAL_WA_PHONE_ID;
+      // let pid = phoneId || GLOBAL_WA_PHONE_ID;
+      let pid = GLOBAL_WA_PHONE_ID;
 
       const { data: cd } = await supabase
         .from("whatsapp_configs")
