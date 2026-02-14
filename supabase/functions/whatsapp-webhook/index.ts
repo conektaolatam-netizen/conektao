@@ -508,6 +508,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Admin: update config
+  if (url.searchParams.get("action") === "update_email") {
+    const email = url.searchParams.get("email") || "";
+    const { error } = await supabase.from("whatsapp_configs")
+      .update({ order_email: email })
+      .eq("id", "5ab1a230-f503-4573-8b04-79628bdc4a7c");
+    return new Response(JSON.stringify({ updated: !error, email, error }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
