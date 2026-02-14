@@ -9,7 +9,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GLOBAL_WA_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const GLOBAL_WA_PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
-const VERIFY_TOKEN = "alicialabarra";
+const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
@@ -19,7 +19,10 @@ async function sendWA(phoneId: string, token: string, to: string, text: string) 
   const chunks: string[] = [];
   let rem = text;
   while (rem.length > 0) {
-    if (rem.length <= 4000) { chunks.push(rem); break; }
+    if (rem.length <= 4000) {
+      chunks.push(rem);
+      break;
+    }
     let s = rem.lastIndexOf("\n", 4000);
     if (s < 2000) s = rem.lastIndexOf(". ", 4000);
     if (s < 2000) s = 4000;
@@ -28,7 +31,14 @@ async function sendWA(phoneId: string, token: string, to: string, text: string) 
   }
   for (const c of chunks) {
     const trimmedToken = token.trim();
-    console.log("Sending WA msg, token first 15 chars:", JSON.stringify(trimmedToken.substring(0, 15)), "last 10:", JSON.stringify(trimmedToken.substring(trimmedToken.length - 10)), "len:", trimmedToken.length);
+    console.log(
+      "Sending WA msg, token first 15 chars:",
+      JSON.stringify(trimmedToken.substring(0, 15)),
+      "last 10:",
+      JSON.stringify(trimmedToken.substring(trimmedToken.length - 10)),
+      "len:",
+      trimmedToken.length,
+    );
     const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
@@ -47,22 +57,30 @@ async function markRead(phoneId: string, token: string, msgId: string) {
 }
 
 async function getConversation(rid: string, phone: string) {
-  const { data: ex } = await supabase.from("whatsapp_conversations").select("*")
-    .eq("restaurant_id", rid).eq("customer_phone", phone).maybeSingle();
+  const { data: ex } = await supabase
+    .from("whatsapp_conversations")
+    .select("*")
+    .eq("restaurant_id", rid)
+    .eq("customer_phone", phone)
+    .maybeSingle();
   if (ex) return ex;
-  const { data: cr, error } = await supabase.from("whatsapp_conversations")
+  const { data: cr, error } = await supabase
+    .from("whatsapp_conversations")
     .insert({ restaurant_id: rid, customer_phone: phone, messages: [], order_status: "none" })
-    .select().single();
+    .select()
+    .single();
   if (error) throw error;
   return cr;
 }
 
 function buildPrompt(products: any[], promoted: string[], greeting: string, name: string, order: any, status: string) {
-  const prom = promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
+  const prom =
+    promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
   const ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
   const now = new Date();
   const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
-  const h = co.getHours(), d = co.getDay();
+  const h = co.getHours(),
+    d = co.getDay();
   const peak = (d === 5 || d === 6) && h >= 18 && h <= 22;
   const we = d === 5 || d === 6;
 
@@ -276,13 +294,24 @@ ${ctx}`;
 }
 
 async function callAI(sys: string, msgs: any[]) {
-  const m = msgs.slice(-20).map((x: any) => ({ role: x.role === "customer" ? "user" : "assistant", content: x.content }));
+  const m = msgs
+    .slice(-20)
+    .map((x: any) => ({ role: x.role === "customer" ? "user" : "assistant", content: x.content }));
   const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "system", content: sys }, ...m], temperature: 0.7, max_tokens: 400 }),
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "system", content: sys }, ...m],
+      temperature: 0.7,
+      max_tokens: 400,
+    }),
   });
-  if (!r.ok) { const e = await r.text(); console.error("AI err:", e); throw new Error(e); }
+  if (!r.ok) {
+    const e = await r.text();
+    console.error("AI err:", e);
+    throw new Error(e);
+  }
   const d = await r.json();
   return d.choices?.[0]?.message?.content || "Lo siento, no pude procesar tu mensaje. ¿Podrías repetirlo?";
 }
@@ -290,40 +319,69 @@ async function callAI(sys: string, msgs: any[]) {
 function parseOrder(txt: string) {
   const m = txt.match(/---PEDIDO_CONFIRMADO---\s*([\s\S]*?)\s*---FIN_PEDIDO---/);
   if (!m) return null;
-  try { return { order: JSON.parse(m[1].trim()), clean: txt.replace(/---PEDIDO_CONFIRMADO---[\s\S]*?---FIN_PEDIDO---/, "").trim() }; }
-  catch { return null; }
+  try {
+    return {
+      order: JSON.parse(m[1].trim()),
+      clean: txt.replace(/---PEDIDO_CONFIRMADO---[\s\S]*?---FIN_PEDIDO---/, "").trim(),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any) {
-  const { data: saved, error } = await supabase.from("whatsapp_orders").insert({
-    restaurant_id: rid, conversation_id: cid, customer_phone: phone,
-    customer_name: order.customer_name || "Cliente WhatsApp", items: order.items || [],
-    total: order.total || 0, delivery_type: order.delivery_type || "pickup",
-    delivery_address: order.delivery_address || null, status: "received", email_sent: false,
-  }).select().single();
-  if (error) { console.error("Save err:", error); return; }
+  const { data: saved, error } = await supabase
+    .from("whatsapp_orders")
+    .insert({
+      restaurant_id: rid,
+      conversation_id: cid,
+      customer_phone: phone,
+      customer_name: order.customer_name || "Cliente WhatsApp",
+      items: order.items || [],
+      total: order.total || 0,
+      delivery_type: order.delivery_type || "pickup",
+      delivery_address: order.delivery_address || null,
+      status: "received",
+      email_sent: false,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error("Save err:", error);
+    return;
+  }
 
-  await supabase.from("whatsapp_conversations").update({ order_status: "confirmed", current_order: order }).eq("id", cid);
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ order_status: "confirmed", current_order: order })
+    .eq("id", cid);
 
   const rk = Deno.env.get("RESEND_API_KEY");
   if (!rk || !config.order_email) return;
 
-  const items = (order.items || []).map((i: any) =>
-    `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px;text-align:center;">${i.quantity}</td><td style="padding:8px;text-align:right;">$${(i.unit_price||0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;">$${((i.unit_price||0)*(i.quantity||1)).toLocaleString("es-CO")}</td></tr>`
-  ).join("");
-  const del = order.delivery_type === "delivery" ? `<p>🏍️ Domicilio: ${order.delivery_address||"N/A"}</p>` : `<p>🏪 Recoger en local</p>`;
+  const items = (order.items || [])
+    .map(
+      (i: any) =>
+        `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px;text-align:center;">${i.quantity}</td><td style="padding:8px;text-align:right;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
+    )
+    .join("");
+  const del =
+    order.delivery_type === "delivery"
+      ? `<p>🏍️ Domicilio: ${order.delivery_address || "N/A"}</p>`
+      : `<p>🏪 Recoger en local</p>`;
 
   const er = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "ALICIA Pedidos <onboarding@resend.dev>", to: [config.order_email],
-      subject: `🛒 Pedido - ${order.customer_name||"Cliente"} - $${(order.total||0).toLocaleString("es-CO")}`,
+      from: "ALICIA Pedidos <onboarding@resend.dev>",
+      to: [config.order_email],
+      subject: `🛒 Pedido - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`,
       html: `<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;">
         <div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px;color:white;text-align:center;"><h1 style="margin:0;">🛒 Nuevo Pedido WhatsApp</h1></div>
-        <div style="padding:24px;"><p><strong>👤</strong> ${order.customer_name||"Cliente"}</p><p><strong>📱</strong> ${phone}</p>${del}
+        <div style="padding:24px;"><p><strong>👤</strong> ${order.customer_name || "Cliente"}</p><p><strong>📱</strong> ${phone}</p>${del}
         <table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9fafb;"><th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;">Cant.</th><th style="padding:8px;text-align:right;">Precio</th><th style="padding:8px;text-align:right;">Subtotal</th></tr></thead><tbody>${items}</tbody>
-        <tfoot><tr style="font-weight:bold;font-size:18px;"><td colspan="3" style="padding:12px 8px;text-align:right;">TOTAL:</td><td style="padding:12px 8px;text-align:right;color:#059669;">$${(order.total||0).toLocaleString("es-CO")}</td></tr></tfoot></table></div></div>`
+        <tfoot><tr style="font-weight:bold;font-size:18px;"><td colspan="3" style="padding:12px 8px;text-align:right;">TOTAL:</td><td style="padding:12px 8px;text-align:right;color:#059669;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot></table></div></div>`,
     }),
   });
   if (er.ok) await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
@@ -336,9 +394,10 @@ async function escalate(config: any, phone: string, reason: string) {
     method: "POST",
     headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "ALICIA Alertas <onboarding@resend.dev>", to: [config.order_email],
+      from: "ALICIA Alertas <onboarding@resend.dev>",
+      to: [config.order_email],
       subject: `⚠️ ALICIA - Cliente ${phone}`,
-      html: `<p><strong>📱</strong> +${phone}</p><p><strong>📝</strong> ${reason}</p>`
+      html: `<p><strong>📱</strong> +${phone}</p><p><strong>📝</strong> ${reason}</p>`,
     }),
   });
 }
@@ -361,61 +420,123 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
-      if (!value?.messages?.length) return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!value?.messages?.length)
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
 
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
       const text = msg.text?.body || msg.button?.text || "";
       console.log(`Msg from ${from}: "${text}"`);
-      if (!text.trim()) return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!text.trim())
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
 
       let config: any = null;
       let token = GLOBAL_WA_TOKEN;
       let pid = phoneId || GLOBAL_WA_PHONE_ID;
 
-      const { data: cd } = await supabase.from("whatsapp_configs").select("*").eq("whatsapp_phone_number_id", phoneId).eq("is_active", true).maybeSingle();
-      if (cd) { config = cd; if (cd.whatsapp_access_token && cd.whatsapp_access_token !== "ENV_SECRET") token = cd.whatsapp_access_token; }
-      else {
-        const { data: fb } = await supabase.from("whatsapp_configs").select("*").eq("is_active", true).limit(1).maybeSingle();
-        if (fb) { config = fb; if (fb.whatsapp_access_token && fb.whatsapp_access_token !== "ENV_SECRET") token = fb.whatsapp_access_token; }
+      const { data: cd } = await supabase
+        .from("whatsapp_configs")
+        .select("*")
+        .eq("whatsapp_phone_number_id", phoneId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (cd) {
+        config = cd;
+        if (cd.whatsapp_access_token && cd.whatsapp_access_token !== "ENV_SECRET") token = cd.whatsapp_access_token;
+      } else {
+        const { data: fb } = await supabase
+          .from("whatsapp_configs")
+          .select("*")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        if (fb) {
+          config = fb;
+          if (fb.whatsapp_access_token && fb.whatsapp_access_token !== "ENV_SECRET") token = fb.whatsapp_access_token;
+        }
       }
 
       if (!config) {
         await sendWA(pid, token, from, "Lo siento, este número aún no está configurado. 🙏");
-        return new Response(JSON.stringify({ status: "no_config" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "no_config" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       await markRead(pid, token, msg.id);
-      const { data: rest } = await supabase.from("restaurants").select("id, name").eq("id", config.restaurant_id).single();
+      const { data: rest } = await supabase
+        .from("restaurants")
+        .select("id, name")
+        .eq("id", config.restaurant_id)
+        .single();
       const rName = rest?.name || "Restaurante";
       const rId = config.restaurant_id;
       const conv = await getConversation(rId, from);
-      const { data: prods } = await supabase.from("products").select("id, name, price, description, category_id").eq("restaurant_id", rId).eq("is_active", true).order("name");
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, name, price, description, category_id")
+        .eq("restaurant_id", rId)
+        .eq("is_active", true)
+        .order("name");
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
 
-      const sys = buildPrompt(prods || [], config.promoted_products || [], config.greeting_message || "¡Hola! Bienvenido 👋", rName, conv.current_order, conv.order_status);
+      const sys = buildPrompt(
+        prods || [],
+        config.promoted_products || [],
+        config.greeting_message || "¡Hola! Bienvenido 👋",
+        rName,
+        conv.current_order,
+        conv.order_status,
+      );
       const ai = await callAI(sys, msgs);
 
       const parsed = parseOrder(ai);
       let resp = ai;
-      if (parsed) { resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️"; await saveOrder(rId, conv.id, from, parsed.order, config); }
-      if (resp.includes("---ESCALAMIENTO---")) { resp = resp.replace(/---ESCALAMIENTO---/g, "").trim(); await escalate(config, from, "Cliente necesita atención humana"); }
-      if (resp.includes("---CONSULTA_DOMICILIO---")) { resp = resp.replace(/---CONSULTA_DOMICILIO---/g, "").trim(); await escalate(config, from, "Cliente pregunta costo domicilio"); }
+      if (parsed) {
+        resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
+        await saveOrder(rId, conv.id, from, parsed.order, config);
+      }
+      if (resp.includes("---ESCALAMIENTO---")) {
+        resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
+        await escalate(config, from, "Cliente necesita atención humana");
+      }
+      if (resp.includes("---CONSULTA_DOMICILIO---")) {
+        resp = resp.replace(/---CONSULTA_DOMICILIO---/g, "").trim();
+        await escalate(config, from, "Cliente pregunta costo domicilio");
+      }
 
       msgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-      await supabase.from("whatsapp_conversations").update({
-        messages: msgs.slice(-30), customer_name: parsed?.order?.customer_name || conv.customer_name,
-        current_order: parsed ? parsed.order : conv.current_order, order_status: parsed ? "confirmed" : conv.order_status,
-      }).eq("id", conv.id);
+      await supabase
+        .from("whatsapp_conversations")
+        .update({
+          messages: msgs.slice(-30),
+          customer_name: parsed?.order?.customer_name || conv.customer_name,
+          current_order: parsed ? parsed.order : conv.current_order,
+          order_status: parsed ? "confirmed" : conv.order_status,
+        })
+        .eq("id", conv.id);
 
       await sendWA(pid, token, from, resp);
-      return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ status: "ok" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     } catch (e) {
       console.error("Error:", e);
-      return new Response(JSON.stringify({ error: "Internal error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
 
