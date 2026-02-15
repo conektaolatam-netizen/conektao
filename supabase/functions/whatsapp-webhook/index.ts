@@ -263,7 +263,13 @@ async function getConversation(rid: string, phone: string) {
 function buildPrompt(products: any[], promoted: string[], greeting: string, name: string, order: any, status: string, config?: any) {
   const prom =
     promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
-  const ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
+  let ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
+  // If order is confirmed, add time context for modification rules
+  if (status === "confirmed" && config?._confirmed_at) {
+    const confirmedAt = new Date(config._confirmed_at);
+    const minutesSince = Math.floor((Date.now() - confirmedAt.getTime()) / 60000);
+    ctx += `\nTiempo desde confirmación: ${minutesSince} minutos`;
+  }
   const now = new Date();
   const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
   const h = co.getHours(),
@@ -492,6 +498,14 @@ CONFIRMACION DE PEDIDO (CRITICO):
 - Cuando el cliente confirme TODO, DEBES generar ---PEDIDO_CONFIRMADO--- con JSON y cerrar con ---FIN_PEDIDO---
 - NUNCA muestres JSON al cliente
 - NUNCA inventes estados de pedido
+
+MODIFICACIONES A PEDIDOS YA CONFIRMADOS (CRÍTICO):
+- Si el pedido ya fue confirmado (order_status=confirmed) y el cliente quiere CAMBIAR algo que ya pidió:
+  - Si pasaron más de 25 minutos desde la confirmación, dile con cariño: "Uy lo que pasa es que ya tu pedido lo estamos preparando, te lo mandamos como lo pediste y queda espectacular"
+  - Si pasaron MENOS de 25 minutos, acepta el cambio y usa ---CAMBIO_PEDIDO---{json pedido completo actualizado}---FIN_CAMBIO---
+- Si el cliente quiere AGREGAR productos al pedido ya confirmado:
+  - Siempre bienvenido. Usa ---ADICION_PEDIDO---{json SOLO items nuevos + nuevo total general}---FIN_ADICION---
+- CAMBIO = reemplazar/quitar algo. ADICIÓN = agregar algo nuevo
 ${ctx}`;
 }
 
@@ -669,12 +683,12 @@ ENTRADAS (NO son pizzas, son platos/ensaladas):
 - NUNCA confundas las entradas de burrata con la pizza de burrata. Son cosas completamente diferentes
 - Si alguien dice "quiero una burrata" sin decir "pizza", pregunta: "Te refieres a la entrada de Burrata o a la Pizza Prosciutto & Burrata?"
 
-PIZZAS CLÁSICAS (Personal / Mediana):
+PIZZAS CLÁSICAS (Personal 4 porciones / Mediana 6 porciones):
 - Margarita: $21.000 / $35.000 (napolitana, mozzarella, bocconcinos, albahaca y tomate cherry)
 - Hawaiana: $24.000 / $37.000 (salsa napolitana, mozzarella, jamón, piña)
 - Pollo & Champiñones: $27.000 / $39.000 (napolitana, mozzarella, pollo, queso azul, champiñones al ajillo)
 
-PIZZAS ESPECIALES (Personal / Mediana):
+PIZZAS ESPECIALES (Personal 4 porciones / Mediana 6 porciones):
 - Pepperoni: $32.000 / $45.000
 - Del Huerto: $35.000 / $48.000
 - ⭐ Camarones: $38.000 / $52.000 (salsa Alfredo, mozzarella, camarones salteados al ajillo - recomendada)
@@ -684,22 +698,22 @@ PIZZAS ESPECIALES (Personal / Mediana):
 - La Turca: $39.000 / $52.000
 - ⭐ Porchetta: $39.000 / $52.000 (el renacimiento de la hawaiana: porchetta italiana ahumada, piña a la parrilla y stracciatella - recomendada)
 
-PIZZAS GOURMET (Personal / Mediana):
+PIZZAS GOURMET (Personal 4 porciones / Mediana 6 porciones):
 - A la Española: $36.000 / $49.000
 - Siciliana: $36.000 / $49.000
 - Dátiles: $38.000 / $49.000
 - ⭐ La Barra: $36.000 / $49.000 (napolitana, mozzarella, queso azul, manzana caramelizada, rúgula, jamón prosciutto, nueces pecanas, miel de peperonchino - recomendada)
-- Prosciutto & Burrata: Mediana $54.000 (solo mediana - ESTA es la "pizza de burrata")
+- Prosciutto & Burrata: Mediana $54.000 (solo mediana, 6 porciones - ESTA es la "pizza de burrata")
 - ⭐ Stracciatella: $39.000 / $54.000 (napolitana, mozzarella, tomate seco, pepperoni, rúgula y stracciatella - recomendada)
 - Anchoas: $39.000 / $53.000
-- ⭐ Pulpo: Mediana $54.000 (napolitana, mozzarella, pulpo al ajillo, tomate parrillado y stracciatella - solo mediana, recomendada)
+- ⭐ Pulpo: Mediana $54.000 (napolitana, mozzarella, pulpo al ajillo, tomate parrillado y stracciatella - solo mediana 6 porciones, recomendada)
 
-PIZZAS ESPECIALES PREMIUM (Personal / Mediana):
+PIZZAS ESPECIALES PREMIUM (Personal 4 porciones / Mediana 6 porciones):
 - Valencia: $39.000 / $52.000
 - ⭐ Parmesana: $36.000 / $50.000 (recomendada)
 - ⭐ Higos & Prosciutto Croccante: $38.000 / $52.000 (recomendada)
 - Diavola: $38.000 / $52.000
-- Calzone: Personal $32.000 (solo personal)
+- Calzone: Personal $32.000 (solo personal, 4 porciones)
 
 TAPAS ESPAÑOLAS: $39.000 (4 tapas de pan francés con queso Philadelphia)
 Sabores disponibles: Chorizo Español-Queso azul-Dátiles / Prosciutto-Rúgula-Parmesano / Chorizo Español-Bocconcinos-Cherry
@@ -837,6 +851,16 @@ COHERENCIA CONTEXTUAL (MUY IMPORTANTE):
 - Si el último mensaje de ALICIA fue de FEEDBACK o seguimiento post-pedido (preguntando cómo le fue), y el cliente responde positivamente (ej: "deliciosa", "muy rico", "gracias"), NO intentes tomar un nuevo pedido. Solo agradece brevemente
 - Solo inicia un nuevo flujo de pedido si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
 
+MODIFICACIONES A PEDIDOS YA CONFIRMADOS (CRÍTICO):
+- Si el pedido ya fue confirmado (order_status=confirmed) y el cliente quiere CAMBIAR algo que ya pidió:
+  - Revisa cuánto tiempo ha pasado desde la confirmación. Si ya pasaron más de 25 minutos, dile con cariño algo como: "Uy lo que pasa es que ya tu pedido lo estamos preparando, te lo mandamos como lo pediste y queda espectacular, te va a encantar"
+  - Si han pasado MENOS de 25 minutos, acepta el cambio y usa el tag ---CAMBIO_PEDIDO---{json con el pedido completo actualizado}---FIN_CAMBIO---
+  - Un CAMBIO es cuando quieren reemplazar un producto por otro, quitar algo, o cambiar el tamaño
+- Si el cliente quiere AGREGAR productos adicionales al pedido ya confirmado:
+  - Siempre bienvenido, sin importar el tiempo. Toma la adición y usa el tag ---ADICION_PEDIDO---{json SOLO con los items nuevos y el nuevo total incluyendo todo}---FIN_ADICION---
+  - Una ADICIÓN es cuando quieren agregar algo nuevo sin quitar nada de lo que ya pidieron
+- NUNCA confundas cambio con adición. Si dice "también quiero unos nuditos" = ADICIÓN. Si dice "mejor cámbiame la hawaiana por pepperoni" = CAMBIO
+
 CONFIRMACION DE PEDIDO (CRITICO):
 - Cuando el cliente confirme TODO, DEBES generar el tag ---PEDIDO_CONFIRMADO--- con el JSON y cerrar con ---FIN_PEDIDO---
 - NUNCA muestres JSON crudo al cliente
@@ -896,6 +920,120 @@ function parseOrder(txt: string) {
   } catch {
     return null;
   }
+}
+
+function parseOrderModification(txt: string): { type: "addition" | "change"; order: any; clean: string } | null {
+  // Check for addition
+  const addMatch = txt.match(/---ADICION_PEDIDO---\s*([\s\S]*?)\s*---FIN_ADICION---/);
+  if (addMatch) {
+    try {
+      return {
+        type: "addition",
+        order: JSON.parse(addMatch[1].trim()),
+        clean: txt.replace(/---ADICION_PEDIDO---[\s\S]*?---FIN_ADICION---/, "").trim(),
+      };
+    } catch { /* ignore */ }
+  }
+  // Check for change
+  const changeMatch = txt.match(/---CAMBIO_PEDIDO---\s*([\s\S]*?)\s*---FIN_CAMBIO---/);
+  if (changeMatch) {
+    try {
+      return {
+        type: "change",
+        order: JSON.parse(changeMatch[1].trim()),
+        clean: txt.replace(/---CAMBIO_PEDIDO---[\s\S]*?---FIN_CAMBIO---/, "").trim(),
+      };
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+async function saveOrderModification(
+  rid: string,
+  cid: string,
+  phone: string,
+  modification: any,
+  modType: "addition" | "change",
+  config: any,
+  originalOrder: any,
+) {
+  // Update the conversation with the new order
+  const updatedOrder = modType === "change" ? modification : {
+    ...originalOrder,
+    items: [...(originalOrder?.items || []), ...(modification.items || [])],
+    total: modification.total || originalOrder?.total,
+  };
+
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ current_order: updatedOrder })
+    .eq("id", cid);
+
+  // Also update the whatsapp_orders table
+  const { data: existingOrder } = await supabase
+    .from("whatsapp_orders")
+    .select("id, items, total")
+    .eq("conversation_id", cid)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingOrder) {
+    const newItems = modType === "change" ? modification.items : [...(existingOrder.items as any[] || []), ...(modification.items || [])];
+    const newTotal = modification.total || updatedOrder.total;
+    await supabase
+      .from("whatsapp_orders")
+      .update({ items: newItems, total: newTotal })
+      .eq("id", existingOrder.id);
+  }
+
+  // Send email notification
+  const rk = Deno.env.get("RESEND_API_KEY");
+  if (!rk || !config.order_email) return;
+
+  const isAddition = modType === "addition";
+  const emoji = isAddition ? "➕" : "⚠️";
+  const label = isAddition ? "ADICIÓN" : "CAMBIO";
+  const color = isAddition ? "#00D4AA" : "#FF4444";
+  const customerName = originalOrder?.customer_name || modification.customer_name || "Cliente";
+
+  const itemsHtml = (modification.items || [])
+    .map((i: any) =>
+      `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td></tr>`,
+    )
+    .join("");
+
+  const subject = isAddition
+    ? `➕ ADICIÓN al Pedido - ${customerName} - Nuevo total: $${(modification.total || 0).toLocaleString("es-CO")}`
+    : `⚠️ CAMBIO en Pedido - ${customerName} - $${(modification.total || 0).toLocaleString("es-CO")}`;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "CONEKTAO Pedidos <onboarding@resend.dev>",
+      to: [config.order_email],
+      subject,
+      html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
+        <div style="background:${color};padding:24px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${emoji} ${label} AL PEDIDO</h1>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">${customerName} · +${phone}</p>
+        </div>
+        <div style="padding:24px;">
+          ${!isAddition ? `<div style="background:#2a0a0a;border:1px solid #FF4444;border-radius:10px;padding:14px;margin-bottom:16px;"><p style="margin:0;color:#FF4444;font-weight:bold;">⚠️ ALERTA: El cliente cambió productos del pedido original</p><p style="margin:4px 0 0;color:#ccc;font-size:13px;">Revisa que la cocina actualice la preparación</p></div>` : ""}
+          <h3 style="color:${color};margin:0 0 12px;">${isAddition ? "Productos adicionales:" : "Pedido actualizado completo:"}</h3>
+          <table style="width:100%;border-collapse:collapse;background:#111;border-radius:10px;overflow:hidden;border:1px solid #1a1a1a;">
+            <thead><tr style="background:#151515;"><th style="padding:8px 12px;text-align:left;color:${color};font-size:12px;text-transform:uppercase;">Producto</th><th style="padding:8px 12px;color:${color};font-size:12px;">Cant.</th><th style="padding:8px 12px;text-align:right;color:${color};font-size:12px;">Precio</th></tr></thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          <div style="margin-top:16px;text-align:right;"><span style="color:#888;font-size:14px;">Nuevo Total: </span><span style="color:${color};font-size:22px;font-weight:bold;">$${(modification.total || 0).toLocaleString("es-CO")}</span></div>
+        </div>
+        <div style="padding:12px 24px;background:#050505;text-align:center;border-top:1px solid #1a1a1a;">
+          <p style="margin:0;color:#555;font-size:11px;">Powered by <span style="background:linear-gradient(135deg,#FF6B35,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">CONEKTAO</span></p>
+        </div>
+      </div>`,
+    }),
+  });
 }
 
 async function saveOrder(
@@ -1358,6 +1496,8 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
       }
 
+      // Pass confirmed_at timestamp for order modification rules
+      const configWithTime = { ...config, _confirmed_at: conv.order_status === "confirmed" ? conv.updated_at : null };
       const sys = buildPrompt(
         prods || [],
         config.promoted_products || [],
@@ -1365,11 +1505,12 @@ Deno.serve(async (req) => {
         rName,
         conv.current_order,
         conv.order_status,
-        config,
+        configWithTime,
       );
       const ai = await callAI(sys, msgs);
 
       const parsed = parseOrder(ai);
+      const modification = !parsed ? parseOrderModification(ai) : null;
       let resp = ai;
 
       // Get stored payment proof from conversation if exists
@@ -1378,6 +1519,9 @@ Deno.serve(async (req) => {
       if (parsed) {
         resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
         await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
+      } else if (modification) {
+        resp = modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
+        await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, conv.current_order);
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
