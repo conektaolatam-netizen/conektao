@@ -388,6 +388,17 @@ COHERENCIA CONTEXTUAL (MUY IMPORTANTE):
 - Si el último mensaje de ALICIA fue de FEEDBACK o seguimiento post-pedido (preguntando cómo le fue), y el cliente responde positivamente (ej: "deliciosa", "muy rico", "gracias"), NO intentes tomar un nuevo pedido ni ofrecer productos. Solo agradece, alégrate y dile algo como: "Me alegra mucho que te haya gustado! Cuando quieras pedir de nuevo, solo escríbeme y te ayudo con los mejores platos de La Barra 🍕"
 - NO preguntes "¿quieres que te prepare X?" después de un feedback. El cliente ya comió, no está pidiendo
 - Solo inicia un nuevo flujo de pedido si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
+
+CONFIRMACION DE PEDIDO (CRITICO - NUNCA FALLAR):
+- Cuando el cliente confirme TODO (productos, nombre, dirección si aplica, método de pago), DEBES generar OBLIGATORIAMENTE el tag ---PEDIDO_CONFIRMADO--- con el JSON del pedido y cerrar con ---FIN_PEDIDO---
+- NUNCA muestres JSON crudo al cliente. El JSON va SOLO entre los tags ---PEDIDO_CONFIRMADO--- y ---FIN_PEDIDO---
+- El mensaje visible para el cliente debe ser una confirmación amable SEPARADA del JSON
+- Si el cliente dice "sí", "confirmo", "dale", "listo" después de un resumen de pedido, eso ES una confirmación. GENERA EL TAG INMEDIATAMENTE
+- NUNCA inventes estados de pedido ("tu domiciliario va en camino", "ya está en preparación"). Tú NO sabes el estado real. Solo confirma que el pedido fue registrado
+- Si no estás segura de si el cliente confirmó, PREGUNTA explícitamente: "Entonces confirmo tu pedido?"
+- Ejemplo correcto de respuesta con confirmación:
+  "Listo Diego, tu pedido quedó registrado! Te avisamos cuando esté en camino 🍕
+  ---PEDIDO_CONFIRMADO---{"items":[...],"total":53000,...}---FIN_PEDIDO---"
 ${ctx}`;
 }
 
@@ -417,7 +428,21 @@ async function callAI(sys: string, msgs: any[]) {
 function parseOrder(txt: string) {
   console.log(txt);
   const m = txt.match(/---PEDIDO_CONFIRMADO---\s*([\s\S]*?)\s*---FIN_PEDIDO---/);
-  if (!m) return null;
+  if (!m) {
+    // SAFETY NET: detect if AI accidentally output raw JSON with order structure without tags
+    const jsonMatch = txt.match(/\{[\s\S]*?"items"\s*:\s*\[[\s\S]*?\][\s\S]*?"total"\s*:\s*\d+[\s\S]*?\}/);
+    if (jsonMatch) {
+      try {
+        const recovered = JSON.parse(jsonMatch[0]);
+        if (recovered.items && recovered.total) {
+          console.log("⚠️ SAFETY NET: Recovered order from raw JSON in AI response");
+          const clean = txt.replace(jsonMatch[0], "").replace(/```json\s*/g, "").replace(/```/g, "").trim();
+          return { order: recovered, clean: clean || "✅ ¡Pedido registrado! 🍽️" };
+        }
+      } catch { /* not valid JSON, ignore */ }
+    }
+    return null;
+  }
   try {
     return {
       order: JSON.parse(m[1].trim()),
@@ -676,6 +701,39 @@ Deno.serve(async (req) => {
   }
 
   if (req.method === "POST") {
+    // SAFETY: Check for stale pending confirmations (>5 min) and follow up
+    try {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: staleConvs } = await supabase
+        .from("whatsapp_conversations")
+        .select("id, customer_phone, restaurant_id, pending_since")
+        .eq("order_status", "pending_confirmation")
+        .lt("pending_since", fiveMinAgo);
+      
+      if (staleConvs && staleConvs.length > 0) {
+        for (const stale of staleConvs) {
+          console.log(`⚠️ FOLLOW-UP: Stale pending order for ${stale.customer_phone} since ${stale.pending_since}`);
+          const followUpMsg = "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' y lo registro de una vez 😊";
+          await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, stale.customer_phone, followUpMsg);
+          
+          // Update conversation to avoid re-sending
+          const { data: staleConv } = await supabase
+            .from("whatsapp_conversations")
+            .select("messages")
+            .eq("id", stale.id)
+            .single();
+          const staleMsgs = Array.isArray(staleConv?.messages) ? staleConv.messages : [];
+          staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null })
+            .eq("id", stale.id);
+        }
+      }
+    } catch (e) {
+      console.error("Follow-up check error:", e);
+    }
+
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
@@ -798,13 +856,20 @@ Deno.serve(async (req) => {
       }
 
       msgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+
+      // Detect if ALICIA just sent a summary with total (pending confirmation from customer)
+      const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
+      const newOrderStatus = parsed ? "confirmed" : (hasSummary ? "pending_confirmation" : conv.order_status);
+
       await supabase
         .from("whatsapp_conversations")
         .update({
           messages: msgs.slice(-30),
           customer_name: parsed?.order?.customer_name || conv.customer_name,
           current_order: parsed ? parsed.order : conv.current_order,
-          order_status: parsed ? "confirmed" : conv.order_status,
+          order_status: newOrderStatus,
+          ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
+          ...(parsed ? { pending_since: null } : {}),
         })
         .eq("id", conv.id);
 

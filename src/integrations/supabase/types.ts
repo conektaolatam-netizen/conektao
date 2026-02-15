@@ -4827,6 +4827,7 @@ export type Database = {
           messages: Json
           order_status: string
           payment_proof_url: string | null
+          pending_since: string | null
           restaurant_id: string
           updated_at: string
         }
@@ -4839,6 +4840,7 @@ export type Database = {
           messages?: Json
           order_status?: string
           payment_proof_url?: string | null
+          pending_since?: string | null
           restaurant_id: string
           updated_at?: string
         }
@@ -4851,6 +4853,7 @@ export type Database = {
           messages?: Json
           order_status?: string
           payment_proof_url?: string | null
+          pending_since?: string | null
           restaurant_id?: string
           updated_at?: string
         }
