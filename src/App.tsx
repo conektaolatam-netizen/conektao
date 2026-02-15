@@ -29,6 +29,7 @@ const AliciaLanding = lazy(() => import("./pages/AliciaLanding"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const DataDeletion = lazy(() => import("./pages/DataDeletion"));
+const WhatsAppDashboard = lazy(() => import("./pages/WhatsAppDashboard"));
 
 const queryClient = getQueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/data-deletion" element={<DataDeletion />} />
+                    <Route path="/alicia-dashboard" element={<WhatsAppDashboard />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

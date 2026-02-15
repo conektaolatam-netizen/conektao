@@ -369,7 +369,7 @@ EMPAQUES (incluir siempre en pedidos para llevar/domicilio):
 - Empaque Pasta: +$3.000
 - Vaso para llevar: +$1.000
 
-DOMICILIO GRATIS (zona cercana): Los conjuntos Ática, Foret, Guacarí, Antigua, Salento, Fortaleza, Mallorca y Mangle tienen DOMICILIO GRATIS. Si el cliente menciona cualquiera de estos conjuntos, infórmale que su domicilio no tiene costo. Para cualquier otra dirección, el domicilio se paga directamente al domiciliario. Si insisten en saber el costo → ---CONSULTA_DOMICILIO---
+DOMICILIO GRATIS (zona cercana): Los conjuntos Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca y Mangle tienen DOMICILIO GRATIS. Si el cliente menciona cualquiera de estos conjuntos, infórmale que su domicilio no tiene costo. Para cualquier otra dirección, el domicilio se paga directamente al domiciliario. Si insisten en saber el costo → ---CONSULTA_DOMICILIO---
 
 DOMICILIO: Para direcciones fuera de la zona gratis, no calculas tú el valor del domicilio, se paga directamente al domiciliario. Si insisten → ---CONSULTA_DOMICILIO---
 
