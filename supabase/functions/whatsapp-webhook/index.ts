@@ -156,7 +156,7 @@ async function getConversation(rid: string, phone: string) {
   return cr;
 }
 
-function buildPrompt(products: any[], promoted: string[], greeting: string, name: string, order: any, status: string) {
+function buildPrompt(products: any[], promoted: string[], greeting: string, name: string, order: any, status: string, config?: any) {
   const prom =
     promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
   const ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
@@ -167,6 +167,188 @@ function buildPrompt(products: any[], promoted: string[], greeting: string, name
   const peak = (d === 5 || d === 6) && h >= 18 && h <= 22;
   const we = d === 5 || d === 6;
 
+  // ====== DYNAMIC CONFIG from DB ======
+  const hasConfig = config?.setup_completed && config?.restaurant_name;
+
+  if (hasConfig) {
+    return buildDynamicPrompt(config, products, promoted, prom, ctx, peak, we, h, d, greeting, order, status);
+  }
+
+  // ====== FALLBACK: Original hardcoded La Barra prompt ======
+  return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
+}
+
+function buildDynamicPrompt(config: any, products: any[], promoted: string[], prom: string, ctx: string, peak: boolean, we: boolean, h: number, d: number, greeting: string, order: any, status: string): string {
+  const personality = config.personality_rules || {};
+  const delivery = config.delivery_config || {};
+  const payment = config.payment_config || {};
+  const packaging = config.packaging_rules || [];
+  const hours = config.operating_hours || {};
+  const times = config.time_estimates || {};
+  const escalation = config.escalation_config || {};
+  const customRules = config.custom_rules || [];
+  const salesRules = config.sales_rules || {};
+  const tone = personality.tone || "casual_professional";
+  const assistantName = personality.name || "Alicia";
+
+  // Build menu from menu_data if available, otherwise from products table
+  let menuBlock = "";
+  if (config.menu_data && Array.isArray(config.menu_data) && config.menu_data.length > 0) {
+    menuBlock = "=== MENÚ OFICIAL CON PRECIOS ===\n\n";
+    for (const cat of config.menu_data) {
+      menuBlock += `${(cat.name || "").toUpperCase()}:\n`;
+      for (const item of (cat.items || [])) {
+        if (!item.name) continue;
+        const recMark = item.is_recommended ? "⭐ " : "";
+        if (item.sizes && item.sizes.length > 0) {
+          const sizeStr = item.sizes.map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`).join(" / ");
+          menuBlock += `- ${recMark}${item.name}: ${sizeStr}\n`;
+        } else {
+          menuBlock += `- ${recMark}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}\n`;
+        }
+      }
+      menuBlock += "\n";
+    }
+    menuBlock += "=== FIN DEL MENÚ ===\n";
+  } else if (products && products.length > 0) {
+    menuBlock = "=== PRODUCTOS DISPONIBLES ===\n";
+    for (const p of products) {
+      menuBlock += `- ${p.name}: $${(p.price || 0).toLocaleString("es-CO")}${p.description ? ` (${p.description})` : ""}\n`;
+    }
+    menuBlock += "=== FIN DEL MENÚ ===\n";
+  }
+
+  // Delivery block
+  let deliveryBlock = "";
+  if (delivery.enabled) {
+    const freeZones = (delivery.free_zones || []).join(", ");
+    deliveryBlock = freeZones
+      ? `DOMICILIO GRATIS: ${freeZones}. ${delivery.paid_delivery_note || "Para otras zonas, el domicilio se paga aparte."} Si insisten en saber el costo → ---CONSULTA_DOMICILIO---`
+      : `DOMICILIO: ${delivery.paid_delivery_note || "El domicilio se paga directamente al domiciliario."} Si insisten → ---CONSULTA_DOMICILIO---`;
+  } else {
+    deliveryBlock = `Solo recogida en local. ${delivery.pickup_only_details || ""}`;
+  }
+
+  // Payment block
+  let paymentBlock = "";
+  const methods = (payment.methods || []).join(", ");
+  paymentBlock = `PAGO: Aceptamos ${methods || "efectivo"}.`;
+  if (payment.bank_details) paymentBlock += ` Datos: ${payment.bank_details}.`;
+  if (payment.require_proof) paymentBlock += " Pedir foto del comprobante.";
+
+  // Packaging block
+  let packagingBlock = "";
+  if (packaging.length > 0) {
+    packagingBlock = "EMPAQUES (incluir en pedidos para llevar):\n" +
+      packaging.map((p: any) => `- Empaque ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n");
+  }
+
+  // Time estimates
+  const timeBlock = times.weekday
+    ? `TIEMPOS (solo si preguntan): Semana ${times.weekday}. Fin de semana ${times.weekend || times.weekday}. Hora pico ${times.peak || times.weekday}. Actual: ${peak ? `HORA PICO ${times.peak || "~30min"}` : we ? `Fin de semana ${times.weekend || "~20min"}` : `Semana ${times.weekday}`}`
+    : "";
+
+  // Escalation
+  const escalationBlock = escalation.human_phone
+    ? `ESCALAMIENTO: Si el cliente insiste en hablar con una persona, dile exactamente: "${escalation.escalation_message || `Comunícate al ${escalation.human_phone}`}". Solo usa ---ESCALAMIENTO--- para cosas técnicas.`
+    : "";
+
+  // Custom rules
+  const rulesBlock = customRules.length > 0
+    ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n")
+    : "";
+
+  // Tone instructions
+  let toneBlock = "";
+  if (tone === "very_casual") {
+    toneBlock = "Habla MUY casual, como una amiga. Usa jerga local, abreviaciones.";
+  } else if (tone === "formal") {
+    toneBlock = "Habla de manera profesional. Trato de usted.";
+  } else {
+    toneBlock = "Habla cercana y profesional. Natural, cálida pero con respeto.";
+  }
+
+  const menuLinkBlock = config.menu_link ? `\nCARTA COMPLETA (link para el cliente): ${config.menu_link}` : "";
+
+  return `Eres ${assistantName}, trabajas en "${config.restaurant_name}"${config.location_address ? ` en ${config.location_address}` : ""}. NO eres asistente virtual, NO eres bot, NO eres IA. Eres ${assistantName}, una persona real que atiende por WhatsApp.
+
+REGLA #0 - PARECER HUMANA DE VERDAD (LO MÁS IMPORTANTE):
+- SIEMPRE empieza cada mensaje con la primera letra en MAYÚSCULA
+- NUNCA te llames "asistente", "asistente virtual", "bot" ni "inteligencia artificial". Si preguntan, di "soy ${assistantName}" y ya
+- NO pongas punto final al terminar un mensaje
+- ${toneBlock}
+- A veces abrevia naturalmente: "q" en vez de "que" de vez en cuando, "pa" en vez de "para"
+- NO empieces siempre con el nombre del cliente. Varía: a veces empieza directo, a veces con "Hola", "Dale", "Listo"
+- Mensajes CORTOS: máximo 1-2 líneas casi siempre
+- PROHIBIDO usar signos de exclamación dobles (!!) o triples (!!!)
+- NO repitas la misma estructura
+- NO uses frases de bot: "¡Excelente elección!", "¡Con mucho gusto!", "¡Claro que sí!"
+- VARÍA tu vocabulario: rota entre "dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto"
+- PROHIBIDO decir: "oki", "cositas ricas", "delicias", "manjares", "antojitos"
+
+${config.restaurant_description ? `SOBRE EL NEGOCIO: ${config.restaurant_description}` : ""}
+
+UBICACIÓN:
+${config.location_details || config.location_address || "Consulta con el equipo"}
+
+REGLA #1 - VENTA ACTIVA PERO CON LÍMITES:
+- Eres VENDEDORA, te gusta recomendar y sugerir con entusiasmo genuino
+- Máximo ${salesRules.max_suggestions_per_order || 1} sugerencia(s) por pedido
+- Si el cliente dice "no" → SE ACABÓ. Cero insistencia
+- Tu meta: que el cliente pida más porque TÚ le diste una buena idea, no porque lo presionaste
+
+REGLA #2 - COMPRENSIÓN CONTEXTUAL:
+- LEE el historial COMPLETO. Si el cliente ya dio info, NO la pidas de nuevo
+- NUNCA pidas la misma info más de 2 veces
+
+REGLA #3 - FORMATO:
+- NUNCA uses asteriscos (*), negritas, guiones de lista ni formato markdown
+- Máximo 1 emoji cada 2-3 mensajes
+- NUNCA digas "A veces la comunicación puede fallar"
+
+SALUDO: "${greeting}"
+${menuLinkBlock}
+
+${menuBlock}
+${prom}
+
+${rulesBlock}
+
+${packagingBlock}
+
+${deliveryBlock}
+
+${timeBlock}
+
+${paymentBlock}
+
+${escalationBlock}
+
+FLUJO (un paso por mensaje, NO todos de golpe):
+1. Saluda corto y pregunta qué quiere
+2. Cliente dice qué quiere → confirma y anota. Si quieres, sugiere UN complemento. Si dice no → no insistas
+3. Cuando diga que terminó, da resumen con productos+empaques+TOTAL
+4. Pregunta: recoger o domicilio
+5. Si domicilio, pide nombre y dirección en UN solo mensaje
+6. Si recoger, pide solo el nombre
+7. Indica datos de pago
+8. Todo confirmado → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
+JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
+
+NUNCA inventes productos ni precios. Si no está en el menú, dile que no lo tienes.
+
+COHERENCIA CONTEXTUAL:
+- Si el último mensaje fue de FEEDBACK y el cliente responde positivamente, solo agradece brevemente
+- Solo inicia nuevo flujo si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
+
+CONFIRMACION DE PEDIDO (CRITICO):
+- Cuando el cliente confirme TODO, DEBES generar ---PEDIDO_CONFIRMADO--- con JSON y cerrar con ---FIN_PEDIDO---
+- NUNCA muestres JSON al cliente
+- NUNCA inventes estados de pedido
+${ctx}`;
+}
+
+function buildLaBarraPrompt(prom: string, ctx: string, peak: boolean, we: boolean, greeting: string, name: string, order: any, status: string): string {
   return `Eres Alicia, trabajas en "La Barra Crea Tu Pizza" en Ibagué. NO eres asistente virtual, NO eres bot, NO eres IA. Eres Alicia, una persona real que atiende por WhatsApp. Eres amable, cálida y profesional, como la mejor mesera del restaurante.
 
 REGLA #0 - PARECER HUMANA DE VERDAD (LO MÁS IMPORTANTE):
@@ -898,6 +1080,7 @@ Deno.serve(async (req) => {
         rName,
         conv.current_order,
         conv.order_status,
+        config,
       );
       const ai = await callAI(sys, msgs);
 

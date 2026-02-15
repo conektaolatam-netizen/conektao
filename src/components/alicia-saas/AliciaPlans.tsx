@@ -64,7 +64,7 @@ const AliciaPlans = () => {
             </ul>
 
             <button
-              onClick={() => navigate("/auth?mode=register")}
+              onClick={() => navigate("/alicia/registro?plan=alicia")}
               className="w-full py-3 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-primary/40"
             >
               Contratar a ALICIA

@@ -4764,14 +4764,32 @@ export type Database = {
       whatsapp_configs: {
         Row: {
           created_at: string
+          custom_rules: string[] | null
           delivery_company_email: string | null
+          delivery_config: Json | null
           delivery_enabled: boolean
+          escalation_config: Json | null
           greeting_message: string | null
           id: string
           is_active: boolean
+          location_address: string | null
+          location_details: string | null
+          menu_data: Json | null
+          menu_link: string | null
+          operating_hours: Json | null
           order_email: string
+          packaging_rules: Json | null
+          payment_config: Json | null
+          personality_rules: Json | null
           promoted_products: string[] | null
+          restaurant_description: string | null
           restaurant_id: string
+          restaurant_name: string | null
+          sales_rules: Json | null
+          selected_plan: string | null
+          setup_completed: boolean | null
+          setup_step: number | null
+          time_estimates: Json | null
           updated_at: string
           verify_token: string
           whatsapp_access_token: string | null
@@ -4779,14 +4797,32 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_rules?: string[] | null
           delivery_company_email?: string | null
+          delivery_config?: Json | null
           delivery_enabled?: boolean
+          escalation_config?: Json | null
           greeting_message?: string | null
           id?: string
           is_active?: boolean
+          location_address?: string | null
+          location_details?: string | null
+          menu_data?: Json | null
+          menu_link?: string | null
+          operating_hours?: Json | null
           order_email: string
+          packaging_rules?: Json | null
+          payment_config?: Json | null
+          personality_rules?: Json | null
           promoted_products?: string[] | null
+          restaurant_description?: string | null
           restaurant_id: string
+          restaurant_name?: string | null
+          sales_rules?: Json | null
+          selected_plan?: string | null
+          setup_completed?: boolean | null
+          setup_step?: number | null
+          time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
           whatsapp_access_token?: string | null
@@ -4794,14 +4830,32 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_rules?: string[] | null
           delivery_company_email?: string | null
+          delivery_config?: Json | null
           delivery_enabled?: boolean
+          escalation_config?: Json | null
           greeting_message?: string | null
           id?: string
           is_active?: boolean
+          location_address?: string | null
+          location_details?: string | null
+          menu_data?: Json | null
+          menu_link?: string | null
+          operating_hours?: Json | null
           order_email?: string
+          packaging_rules?: Json | null
+          payment_config?: Json | null
+          personality_rules?: Json | null
           promoted_products?: string[] | null
+          restaurant_description?: string | null
           restaurant_id?: string
+          restaurant_name?: string | null
+          sales_rules?: Json | null
+          selected_plan?: string | null
+          setup_completed?: boolean | null
+          setup_step?: number | null
+          time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
           whatsapp_access_token?: string | null
