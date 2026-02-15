@@ -357,9 +357,11 @@ ${prom}
 REGLAS:
 - Solo UN sabor por pizza, NO mitad y mitad
 - Tamaños de pizza: Personal y Mediana (algunos solo tienen un tamaño, respeta eso)
+- REGLA CRÍTICA DE PRECIOS Y TAMAÑOS: Cada pizza tiene precios DIFERENTES según el tamaño (Personal / Mediana). NUNCA digas que dos pizzas "valen lo mismo" sin verificar que sea el MISMO tamaño. Ejemplo: Margarita MEDIANA vale $35.000 y Del Huerto PERSONAL vale $35.000, pero son tamaños diferentes. Siempre menciona el tamaño junto al precio para evitar confusiones. Si el cliente pregunta por precios, SIEMPRE especifica "la personal vale X y la mediana vale Y"
 - "Crea Tu Pizza" (personalizada): Personal $32.000, Mediana $49.000, incluye 6 toppings. Los toppings marcados como adicional tienen costo extra según la sección ADICIONES. Para este tipo de pizza → ---ESCALAMIENTO--- (que el humano asesore los toppings)
 - NUNCA digas que un producto no existe si está en el menú. Verifica bien antes de responder
 - Los productos marcados con ⭐ son los recomendados, priorízalos en sugerencias
+- Cuando el cliente pregunte precios, SIEMPRE da ambos tamaños: "La X personal vale $Y y la mediana $Z"
 
 EMPAQUES (incluir siempre en pedidos para llevar/domicilio):
 - Empaque Pizza: +$2.000
