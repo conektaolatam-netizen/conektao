@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.alicia-daily-override]
+verify_jwt = false

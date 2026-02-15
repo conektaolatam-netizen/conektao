@@ -6,6 +6,7 @@ import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Sea
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 
 interface Message {
   role: string;
@@ -30,6 +31,18 @@ export default function WhatsAppDashboard() {
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRestaurant = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", user.id).maybeSingle();
+        if (profile?.restaurant_id) setRestaurantId(profile.restaurant_id);
+      }
+    };
+    fetchRestaurant();
+  }, []);
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -127,6 +140,7 @@ export default function WhatsAppDashboard() {
             />
           </div>
           <div className="text-xs text-muted-foreground">{filtered.length} conversaciones</div>
+          {restaurantId && <AliciaDailyChat restaurantId={restaurantId} />}
         </div>
 
         <ScrollArea className="flex-1">

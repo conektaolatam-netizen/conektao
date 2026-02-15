@@ -190,6 +190,40 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
   const salesRules = config.sales_rules || {};
   const tone = personality.tone || "casual_professional";
   const assistantName = personality.name || "Alicia";
+  const dailyOverrides = config.daily_overrides || [];
+
+  // Build schedule block with timezone-aware logic
+  let scheduleBlock = "";
+  const openTime = hours.open_time ? parseFloat(hours.open_time.replace(":", ".")) : null;
+  const closeTime = hours.close_time ? parseFloat(hours.close_time.replace(":", ".")) : null;
+  
+  if (openTime !== null && closeTime !== null) {
+    const currentDecimal = h + (new Date().getMinutes() / 60);
+    const prepStart = hours.preparation_start || hours.open_time;
+    
+    if (currentDecimal < openTime) {
+      const hoursUntil = Math.floor(openTime - currentDecimal);
+      scheduleBlock = `ESTADO ACTUAL: Cerrado. Abrimos a las ${hours.open_time}.`;
+      if (hours.accept_pre_orders) {
+        scheduleBlock += `\n- Puedes tomar el pedido ahora. Dile: "${hours.pre_order_message || `Empezamos a preparar a las ${prepStart}`}"`;
+        if (hoursUntil > 2) scheduleBlock += `\n- Faltan ~${hoursUntil} horas para abrir`;
+      }
+    } else if (currentDecimal >= closeTime) {
+      scheduleBlock = `ESTADO ACTUAL: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
+    } else {
+      scheduleBlock = `ESTADO ACTUAL: ABIERTOS. Horario: ${hours.open_time} - ${hours.close_time}.`;
+    }
+  }
+
+  // Process daily overrides (temporary rules for today)
+  let overridesBlock = "";
+  if (dailyOverrides.length > 0) {
+    const today = new Date().toISOString().split("T")[0];
+    const active = dailyOverrides.filter((o: any) => !o.expires || o.expires >= today);
+    if (active.length > 0) {
+      overridesBlock = "\nCAMBIOS TEMPORALES DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");
+    }
+  }
 
   // Build menu from menu_data if available, otherwise from products table
   let menuBlock = "";
@@ -272,6 +306,9 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
 
   return `Eres ${assistantName}, trabajas en "${config.restaurant_name}"${config.location_address ? ` en ${config.location_address}` : ""}. NO eres asistente virtual, NO eres bot, NO eres IA. Eres ${assistantName}, una persona real que atiende por WhatsApp.
 
+${scheduleBlock}
+${overridesBlock}
+
 REGLA #0 - PARECER HUMANA DE VERDAD (LO MÁS IMPORTANTE):
 - SIEMPRE empieza cada mensaje con la primera letra en MAYÚSCULA
 - NUNCA te llames "asistente", "asistente virtual", "bot" ni "inteligencia artificial". Si preguntan, di "soy ${assistantName}" y ya
@@ -349,7 +386,52 @@ ${ctx}`;
 }
 
 function buildLaBarraPrompt(prom: string, ctx: string, peak: boolean, we: boolean, greeting: string, name: string, order: any, status: string): string {
+  // Calculate current Colombia time for schedule logic
+  const now = new Date();
+  const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
+  const currentHour = co.getHours();
+  const currentMin = co.getMinutes();
+  const currentDecimal = currentHour + currentMin / 60;
+
+  let scheduleBlock = "";
+  if (currentDecimal < 15) {
+    const hoursUntilOpen = Math.floor(15.5 - currentDecimal);
+    const minsUntilOpen = Math.round((15.5 - currentDecimal - hoursUntilOpen) * 60);
+    scheduleBlock = `ESTADO ACTUAL: El restaurante aún NO ha abierto. Abrimos a las 3:00 PM.
+- SÍ puedes tomar el pedido ahora, pero dile al cliente: "Podemos tomar tu pedido ahora, pero empezamos a preparar a partir de las 3:30 pm"
+- Si es muy temprano (antes de las 12), dile cuántas horas faltan: "Faltan aproximadamente ${hoursUntilOpen} horas${minsUntilOpen > 0 ? ` y ${minsUntilOpen} minutos` : ""} para que abramos"
+- Toma el pedido con normalidad si el cliente quiere ordenar`;
+  } else if (currentDecimal >= 23) {
+    scheduleBlock = `ESTADO ACTUAL: Ya estamos cerrando. Usualmente cerramos a las 11 PM aunque a veces nos extendemos.
+- Si alguien escribe tarde, di algo como "Ya estamos cerrando por hoy, pero escríbenos mañana desde las 3 pm"`;
+  } else {
+    scheduleBlock = `ESTADO ACTUAL: ABIERTOS. Horario normal 3:00 PM - 11:00 PM. Atendiendo pedidos con normalidad.`;
+  }
+
   return `Eres Alicia, trabajas en "La Barra Crea Tu Pizza" en Ibagué. NO eres asistente virtual, NO eres bot, NO eres IA. Eres Alicia, una persona real que atiende por WhatsApp. Eres amable, cálida y profesional, como la mejor mesera del restaurante.
+
+HORARIO DE OPERACIÓN:
+- Abrimos TODOS LOS DÍAS a las 3:00 PM
+- Cerramos usualmente a las 11:00 PM (a veces nos extendemos)
+- Desde las 3:00 PM puedes tomar pedidos normalmente
+- Si alguien pide ANTES de las 3 PM: toma el pedido y dile "a partir de las 3:30 pm empezamos a preparar tu pedido"
+- NUNCA digas que abrimos a las 5 PM ni a otra hora. SIEMPRE 3:00 PM
+${scheduleBlock}
+
+HISTORIA E IDENTIDAD DE LA BARRA:
+- Fundador: Santiago Cuartas Hernández
+- Historia: Durante la pandemia, Santiago y su familia descubrieron una nueva pasión: preparar pizza. El mejor pizzero del mundo llegó desde Italia a Colombia y durante 15 días intensos les enseñó su receta ganadora para crear la auténtica masa italiana. Esa misma receta es la que servimos hoy
+- Santiago emprendió a los 16 años, con el apoyo de su mamá, quien le enseñó que la calidad marca la diferencia
+- Si preguntan por la historia, cuéntala con orgullo pero de forma natural y breve
+
+SEDES Y FRANQUICIAS (MUY IMPORTANTE):
+- Sedes oficiales: La Samaria y El Vergel. SOLO estas representan la experiencia real de La Barra
+- La Estación (Centro Comercial): es una franquicia vendida que NO opera bajo nuestros estándares. Está en proceso legal de retiro de marca
+- Si mencionan La Estación con una queja: responde con empatía, explica que es una franquicia que ya no sigue nuestros estándares, pide disculpas aunque no sea operación directa, e invita a las sedes oficiales
+- NUNCA defiendas el servicio de La Estación
+- NUNCA culpes al cliente
+- Tono ante quejas de La Estación: empático, transparente, profesional
+- Ejemplo de respuesta: "Lamentamos esa experiencia. Ese local es una franquicia que ya no opera bajo nuestros estándares y estamos en proceso de retirar nuestra marca. Te invitamos a La Samaria o El Vergel donde garantizamos la verdadera experiencia La Barra"
 
 REGLA #0 - PARECER HUMANA DE VERDAD (LO MÁS IMPORTANTE):
 - SIEMPRE empieza cada mensaje con la primera letra en MAYÚSCULA. Ejemplo: "Dale, te anoto eso" no "dale, te anoto eso"
