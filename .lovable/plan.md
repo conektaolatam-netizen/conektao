@@ -1,146 +1,103 @@
 
 
-## ALICIA SaaS: Registro simplificado + Setup wizard post-plan
+## Fix: Horarios de La Barra + Historia + Chat de ajustes diarios
 
-### Flujo completo del usuario
+### Problema detectado
 
-```text
-/alicia (landing) 
-  → Ve el demo, entiende el valor
-  → Elige plan ("Contratar a ALICIA")
-  → /alicia/registro?plan=alicia (o enterprise)
-  → Registro ultra-simple: nombre, email, contraseña, WhatsApp del negocio (4 campos)
-  → Auto-login inmediato
-  → Redirige a /alicia/setup (wizard de configuracion)
-  → Wizard guiado paso a paso para crear su ALICIA
-```
+1. **Horarios**: El prompt de La Barra NO tiene horario de apertura/cierre. El campo `operating_hours.schedule` solo dice "Todos los días" sin horas. ALICIA inventa que abre a las 5pm.
+2. **Historia**: No hay info de fundador ni marca en el prompt. ALICIA inventa que "es de un grupo de amigos".
+3. **Falta**: Un canal donde el dueno pueda decirle a ALICIA cosas temporales como "hoy cerramos temprano".
 
-### Fase 1: Base de datos - Ampliar whatsapp_configs
+---
 
-Agregar columnas al `whatsapp_configs` para almacenar la configuracion que hoy esta hardcodeada:
+### Cambio 1: Actualizar prompt hardcoded de La Barra
 
-- `restaurant_name` (text) - nombre del negocio
-- `restaurant_description` (text) - descripcion corta
-- `location_address` (text) - direccion
-- `location_details` (text) - como se la dice a clientes
-- `menu_data` (jsonb) - menu completo estructurado
-- `menu_link` (text) - link a carta si tiene
-- `delivery_config` (jsonb) - zonas, tarifas, politica
-- `payment_config` (jsonb) - metodos, datos bancarios
-- `packaging_rules` (jsonb) - reglas de empaque
-- `operating_hours` (jsonb) - horarios por dia
-- `time_estimates` (jsonb) - tiempos de preparacion
-- `personality_rules` (jsonb) - tono, palabras prohibidas
-- `sales_rules` (jsonb) - estrategia de venta
-- `escalation_config` (jsonb) - telefono humano, cuando escalar
-- `custom_rules` (text[]) - reglas especificas del negocio
-- `setup_completed` (boolean default false)
-- `setup_step` (integer default 0)
-- `selected_plan` (text) - plan elegido (alicia/enterprise)
+En `supabase/functions/whatsapp-webhook/index.ts`, agregar al `buildLaBarraPrompt`:
 
-Tambien: migrar los datos actuales de La Barra a las nuevas columnas.
+- Bloque de HORARIO con reglas claras:
+  - Abre todos los dias a las 3:00 PM
+  - Desde las 3pm puede tomar pedidos
+  - Si piden antes de las 3pm: tomar el pedido y decir "a partir de las 3:30 pm empezamos a preparar tu pedido"
+  - Si es muy temprano (ej: 9am): calcular cuantas horas faltan y decirle al cliente
+  - Cierra usualmente a las 11 PM, a veces se extiende
+  
+- Bloque de HISTORIA E IDENTIDAD:
+  - Fundador: Santiago Cuartas Hernandez
+  - Historia: durante la pandemia, pasion familiar por la pizza, pizzero italiano vino 15 dias a ensenar la receta ganadora
+  - Sedes oficiales: La Samaria y El Vergel
+  - La Estacion es una franquicia en proceso legal de retiro, no representa la marca
+  - Reglas de manejo de quejas sobre La Estacion (respuesta empatica, invitar a sedes oficiales)
 
-### Fase 2: Registro simplificado exclusivo para ALICIA
+### Cambio 2: Actualizar datos en DB
 
-Crear `AliciaRegisterPage.tsx` en `/alicia/registro`:
+Actualizar la fila de La Barra en `whatsapp_configs`:
+- `operating_hours` con horario estructurado: apertura 15:00, cierre 23:00, pre_order_message, etc.
+- `restaurant_description` ampliado con la historia
+- Agregar `custom_rules` con reglas de marca/franquicia
 
-- Solo 4 campos: Nombre, Email, Contraseña, WhatsApp del negocio
-- Sin selector de tipo de cuenta (es siempre "alicia_saas")
-- Recibe `?plan=alicia` o `?plan=enterprise` como query param
-- Usa la edge function `register-user` existente con account_type "alicia_saas"
-- Auto-login tras registro
-- Redirige directo a `/alicia/setup`
-- Estetica: fondo negro con gradientes naranja/turquesa (coherente con la landing)
-- Si ya tiene cuenta: link a login que tambien redirige a /alicia/setup
+### Cambio 3: Mejorar Step7Schedule.tsx
 
-### Fase 3: Setup Wizard - "Crea tu ALICIA"
+Reemplazar el input de texto libre por campos estructurados:
+- Hora de apertura (selector de hora)
+- Hora de cierre (selector de hora)
+- Mensaje si piden antes de abrir (texto)
+- Dias de operacion (checkboxes Lun-Dom)
+- Checkbox: "Podemos tomar pedidos antes de abrir?"
+- Si si: a que hora empiezan a preparar
 
-Crear `AliciaSetupPage.tsx` en `/alicia/setup` con 7 pasos guiados:
+### Cambio 4: Mejorar buildDynamicPrompt para horarios
 
-**Paso 1 - Tu restaurante** (obligatorio)
-- Nombre del negocio
-- Direccion
-- Descripcion corta ("pizzeria artesanal en Cali")
+Actualizar la logica dinamica para usar horarios estructurados y generar reglas inteligentes:
+- Calcular si el restaurante esta abierto/cerrado basado en la hora actual de Colombia
+- Si esta cerrado, instruir a ALICIA sobre como responder (tomar pedido para despues o decir que faltan X horas)
 
-**Paso 2 - Tu menu** (obligatorio)
-- Opcion A: Subir archivo (PDF/Word/foto) para extraccion con IA
-- Opcion B: Agregar manual: categorias con productos, precios, tamaños
-- Marcar productos estrella/recomendados
+### Cambio 5: Agregar seccion "daily_overrides" (Chat de ajustes del dia)
 
-**Paso 3 - Domicilio y recogida**
-- Ofreces domicilio? si/no
-- Zonas gratis (lista de barrios)
-- Costo domicilio para otras zonas
-- Solo recogida? detalles
+Crear una nueva columna `daily_overrides` (JSONB) en `whatsapp_configs` para cambios temporales del dia (ej: "hoy cerramos a las 9pm", "hoy no hay domicilio").
 
-**Paso 4 - Pagos**
-- Metodos: efectivo, transferencia, datafono
-- Datos bancarios para transferencia
-- Pedir comprobante? si/no
+Crear un componente `AliciaDailyChat.tsx` que se muestre en el dashboard:
+- Input tipo chat donde el dueno escribe en lenguaje natural: "Alicia hoy cerramos a las 9"
+- Una edge function `alicia-daily-override` que:
+  - Recibe el mensaje del dueno
+  - Usa IA para extraer la instruccion (tipo: schedule_change, value: "cierre a las 9pm", expires: fin del dia)
+  - Guarda en `daily_overrides` con expiracion automatica (fin del dia)
+- El `buildPrompt` lee `daily_overrides` y los inyecta como reglas temporales
+- Los overrides se limpian automaticamente al dia siguiente
 
-**Paso 5 - Empaques** (opcional, skip si no aplica)
-- Tipos con recargo
-- Que productos llevan empaque
+Agregar este componente al `WhatsAppDashboard` como una seccion visible.
 
-**Paso 6 - Personalidad de Alicia**
-- Tono: cercana/profesional/muy casual
-- Palabras prohibidas
-- Contacto de escalamiento (telefono humano)
-
-**Paso 7 - Horarios**
-- Dias y horas de operacion
-- Tiempos estimados semana vs fin de semana
-
-Cada paso guarda inmediatamente en Supabase. Si el usuario cierra, retoma donde quedo.
-
-Al completar: boton "Activar ALICIA" que marca setup_completed = true y redirige al dashboard.
-
-### Fase 4: buildPrompt dinamico
-
-Reescribir `buildPrompt()` en el edge function para leer la config de la DB:
-
-- Bloque fijo: Regla #0 (parecer humana) - estandar para todos
-- Bloques dinamicos: identidad, menu, delivery, pagos, empaques, horarios, personalidad - desde whatsapp_configs
-- Fallback: si no hay config dinamica, usar el comportamiento actual (La Barra hardcodeado)
-
-### Fase 5: Conectar AliciaPlans con el nuevo flujo
-
-Modificar `AliciaPlans.tsx`:
-- Boton "Contratar a ALICIA" → navega a `/alicia/registro?plan=alicia`
-- Boton "Contactar ventas" (enterprise) → sigue igual (WhatsApp)
-
-### Fase 6: Rutas nuevas en App.tsx
-
-- `/alicia/registro` → AliciaRegisterPage
-- `/alicia/setup` → AliciaSetupPage (protegida, requiere auth)
-
-### Archivos a crear
-
-```text
-src/pages/AliciaRegisterPage.tsx - registro simplificado
-src/pages/AliciaSetupPage.tsx - wizard principal
-src/components/alicia-setup/Step1Restaurant.tsx
-src/components/alicia-setup/Step2Menu.tsx
-src/components/alicia-setup/Step3Delivery.tsx
-src/components/alicia-setup/Step4Payments.tsx
-src/components/alicia-setup/Step5Packaging.tsx
-src/components/alicia-setup/Step6Personality.tsx
-src/components/alicia-setup/Step7Schedule.tsx
-```
+---
 
 ### Archivos a modificar
 
 ```text
-src/App.tsx - agregar rutas nuevas
-src/components/alicia-saas/AliciaPlans.tsx - cambiar destino del boton
-supabase/functions/whatsapp-webhook/index.ts - buildPrompt dinamico
-Migracion SQL - nuevas columnas + datos La Barra
+supabase/functions/whatsapp-webhook/index.ts
+  - Agregar horarios y historia al buildLaBarraPrompt
+  - Mejorar buildDynamicPrompt para horarios estructurados
+  - Leer daily_overrides y agregarlos al prompt
+
+src/components/alicia-setup/Step7Schedule.tsx
+  - Campos estructurados en vez de texto libre
+
+Migracion SQL
+  - UPDATE whatsapp_configs SET operating_hours, restaurant_description, custom_rules para La Barra
+  - ALTER TABLE whatsapp_configs ADD COLUMN daily_overrides JSONB DEFAULT '[]'
+
+src/components/alicia-setup/AliciaDailyChat.tsx (NUEVO)
+  - Chat simple para ajustes del dia
+
+supabase/functions/alicia-daily-override/index.ts (NUEVO)
+  - Edge function que procesa instrucciones del dueno con IA
+
+src/pages/WhatsAppDashboard.tsx
+  - Agregar seccion AliciaDailyChat
 ```
 
-### Lo que NO cambia
+### Resultado
 
-- La landing /alicia sigue igual
-- El demo interactivo sigue igual
-- El dashboard /alicia-dashboard sigue igual
-- Las reglas de humanizacion (Regla #0) quedan como estandar fijo
-- La Barra sigue funcionando exactamente igual (datos migrados a DB)
+- ALICIA sabra que La Barra abre a las 3pm y cierra a las 11pm
+- Si alguien pide a las 10am, dira que puede tomar el pedido pero empiezan a preparar a las 3:30pm
+- ALICIA conocera la historia real de Santiago y la marca
+- Sabra manejar quejas sobre La Estacion con empatia
+- El dueno podra decirle "Alicia hoy cerramos a las 9" desde el dashboard
+- El Step7 del wizard sera mas facil de llenar con selectores de hora
