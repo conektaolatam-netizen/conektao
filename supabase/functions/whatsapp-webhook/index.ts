@@ -629,6 +629,38 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Admin: send a custom message to a customer
+  if (url.searchParams.get("action") === "send_message") {
+    const phone = url.searchParams.get("phone") || "";
+    const message = url.searchParams.get("message") || "";
+    if (!phone || !message) {
+      return new Response(JSON.stringify({ error: "phone and message required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const phoneId = GLOBAL_WA_PHONE_ID;
+    const token = GLOBAL_WA_TOKEN;
+    await sendWA(phoneId, token, phone, message);
+    
+    // Also save to conversation history so ALICIA has context
+    const { data: conv } = await supabase
+      .from("whatsapp_conversations")
+      .select("*")
+      .eq("customer_phone", phone)
+      .maybeSingle();
+    if (conv) {
+      const msgs = conv.messages || [];
+      msgs.push({ role: "assistant", content: message, ts: new Date().toISOString() });
+      await supabase.from("whatsapp_conversations").update({ messages: msgs }).eq("id", conv.id);
+    }
+    
+    return new Response(JSON.stringify({ sent: true, phone, message }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
