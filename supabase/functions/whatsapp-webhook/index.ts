@@ -195,7 +195,7 @@ PIZZAS PREMIUM (Personal / Mediana):
 - A la Española: $36.000 / $49.000
 - Siciliana: $36.000 / $49.000
 - Dátiles: $38.000 / $49.000
-- La Barra: Mediana $49.000 (consultar personal)
+- La Barra: $39.000 / $49.000
 - Prosciutto & Burrata: Mediana $54.000 (consultar personal)
 - Stracciatella: $39.000 / $54.000
 - Anchoas: $39.000 / $53.000
@@ -365,10 +365,15 @@ function parseOrder(txt: string) {
   }
 }
 
-async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any, paymentProofBase64?: string | null) {
+async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any, paymentProofUrl?: string | null) {
   // Normalize delivery_type to match DB constraint
   const rawType = (order.delivery_type || "pickup").toLowerCase();
-  const deliveryType = rawType.includes("domicilio") || rawType.includes("delivery") ? "delivery" : "pickup";
+  const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
+  const deliveryType = isDelivery ? "delivery" : "pickup";
+  
+  // Normalize payment method
+  const rawPayment = (order.payment_method || "").toLowerCase();
+  const isEfectivo = rawPayment.includes("efectivo") || rawPayment.includes("cash") || rawPayment.includes("contra");
   
   const { data: saved, error } = await supabase
     .from("whatsapp_orders")
@@ -402,45 +407,75 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
   const items = (order.items || [])
     .map(
       (i: any) =>
-        `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i.name}</td><td style="padding:8px;text-align:center;">${i.quantity}</td><td style="padding:8px;text-align:right;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
+        `<tr><td style="padding:10px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
     )
     .join("");
   
-  const deliverySection =
-    order.delivery_type === "delivery"
-      ? `<div style="background:#fff3cd;padding:12px;border-radius:8px;margin:8px 0;border-left:4px solid #ffc107;">
-          <p style="margin:0;font-weight:bold;">🏍️ DOMICILIO</p>
-          <p style="margin:4px 0 0;font-size:16px;">📍 ${order.delivery_address || "Dirección no proporcionada"}</p>
-        </div>`
-      : `<p>🏪 Recoger en local</p>`;
-  
-  const paymentProofSection = paymentProofBase64
-    ? `<div style="margin-top:16px;padding:12px;background:#d4edda;border-radius:8px;border-left:4px solid #28a745;">
-        <p style="margin:0 0 8px;font-weight:bold;">💳 Comprobante de Pago Verificado</p>
-        <img src="${paymentProofBase64}" style="max-width:100%;border-radius:8px;border:1px solid #ddd;" alt="Comprobante"/>
+  const deliverySection = isDelivery
+    ? `<div style="background:linear-gradient(135deg,rgba(0,212,170,0.15),rgba(255,107,53,0.10));padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #00D4AA;">
+        <p style="margin:0;font-weight:bold;color:#00D4AA;font-size:14px;">🏍️ DOMICILIO</p>
+        <p style="margin:6px 0 0;font-size:16px;color:#ffffff;">📍 ${order.delivery_address || "Dirección no proporcionada"}</p>
       </div>`
-    : `<div style="margin-top:16px;padding:12px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107;">
-        <p style="margin:0;">⚠️ Comprobante de pago NO recibido aún</p>
+    : `<div style="background:rgba(255,107,53,0.10);padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #FF6B35;">
+        <p style="margin:0;font-weight:bold;color:#FF6B35;">🏪 Recoger en local</p>
       </div>`;
+  
+  // Payment section based on method
+  let paymentSection = "";
+  if (isEfectivo) {
+    paymentSection = `<div style="padding:14px 16px;background:rgba(0,212,170,0.12);border-radius:10px;border-left:4px solid #00D4AA;margin-top:12px;">
+      <p style="margin:0;font-weight:bold;color:#00D4AA;">💵 Pago en Efectivo</p>
+      <p style="margin:4px 0 0;color:#b0b0b0;font-size:13px;">${isDelivery ? "El cliente paga al domiciliario" : "El cliente paga al recoger"}</p>
+    </div>`;
+  } else if (paymentProofUrl) {
+    paymentSection = `<div style="padding:14px 16px;background:rgba(0,212,170,0.12);border-radius:10px;border-left:4px solid #00D4AA;margin-top:12px;">
+      <p style="margin:0 0 8px;font-weight:bold;color:#00D4AA;">💳 Comprobante de Pago</p>
+      <img src="${paymentProofUrl}" style="max-width:100%;border-radius:8px;border:1px solid #333;" alt="Comprobante"/>
+    </div>`;
+  } else {
+    const methodLabel = order.payment_method || "No especificado";
+    paymentSection = `<div style="padding:14px 16px;background:rgba(255,107,53,0.10);border-radius:10px;border-left:4px solid #FF6B35;margin-top:12px;">
+      <p style="margin:0;font-weight:bold;color:#FF6B35;">💳 Método: ${methodLabel}</p>
+      <p style="margin:4px 0 0;color:#b0b0b0;font-size:13px;">Pendiente de comprobante</p>
+    </div>`;
+  }
 
   const er = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "ALICIA Pedidos <onboarding@resend.dev>",
+      from: "CONEKTAO Pedidos <onboarding@resend.dev>",
       to: [config.order_email],
-      subject: `🛒 Pedido - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`,
-      html: `<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;">
-        <div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px;color:white;text-align:center;"><h1 style="margin:0;">🛒 Nuevo Pedido WhatsApp</h1></div>
+      subject: `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`,
+      html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
+        <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:28px;text-align:center;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">CONEKTAO</h1>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">Nuevo Pedido por WhatsApp</p>
+        </div>
         <div style="padding:24px;">
-          <p><strong>👤</strong> ${order.customer_name || "Cliente"}</p>
-          <p><strong>📱</strong> ${phone}</p>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <div style="background:#111;padding:12px 16px;border-radius:10px;flex:1;border:1px solid #1a1a1a;">
+              <p style="margin:0;color:#888;font-size:11px;text-transform:uppercase;">Cliente</p>
+              <p style="margin:4px 0 0;color:#fff;font-size:16px;font-weight:600;">👤 ${order.customer_name || "Cliente"}</p>
+            </div>
+            <div style="background:#111;padding:12px 16px;border-radius:10px;flex:1;border:1px solid #1a1a1a;">
+              <p style="margin:0;color:#888;font-size:11px;text-transform:uppercase;">Teléfono</p>
+              <p style="margin:4px 0 0;color:#fff;font-size:16px;">📱 +${phone}</p>
+            </div>
+          </div>
           ${deliverySection}
-          <table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f9fafb;"><th style="padding:8px;text-align:left;">Producto</th><th style="padding:8px;">Cant.</th><th style="padding:8px;text-align:right;">Precio</th><th style="padding:8px;text-align:right;">Subtotal</th></tr></thead><tbody>${items}</tbody>
-          <tfoot><tr style="font-weight:bold;font-size:18px;"><td colspan="3" style="padding:12px 8px;text-align:right;">TOTAL:</td><td style="padding:12px 8px;text-align:right;color:#059669;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot></table>
-          ${paymentProofSection}
-          ${order.observations ? `<p style="margin-top:12px;"><strong>📝</strong> ${order.observations}</p>` : ""}
-        </div></div>`,
+          <table style="width:100%;border-collapse:collapse;margin-top:16px;background:#111;border-radius:10px;overflow:hidden;border:1px solid #1a1a1a;">
+            <thead><tr style="background:#151515;"><th style="padding:10px 12px;text-align:left;color:#00D4AA;font-size:12px;text-transform:uppercase;">Producto</th><th style="padding:10px 12px;color:#00D4AA;font-size:12px;text-transform:uppercase;">Cant.</th><th style="padding:10px 12px;text-align:right;color:#00D4AA;font-size:12px;text-transform:uppercase;">Precio</th><th style="padding:10px 12px;text-align:right;color:#00D4AA;font-size:12px;text-transform:uppercase;">Subtotal</th></tr></thead>
+            <tbody>${items}</tbody>
+            <tfoot><tr><td colspan="3" style="padding:14px 12px;text-align:right;font-weight:bold;font-size:18px;color:#ffffff;border-top:2px solid #00D4AA;">TOTAL:</td><td style="padding:14px 12px;text-align:right;font-weight:bold;font-size:20px;color:#00D4AA;border-top:2px solid #00D4AA;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot>
+          </table>
+          ${paymentSection}
+          ${order.observations ? `<div style="margin-top:12px;padding:12px 16px;background:#111;border-radius:10px;border:1px solid #1a1a1a;"><p style="margin:0;color:#888;font-size:11px;text-transform:uppercase;">Observaciones</p><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${order.observations}</p></div>` : ""}
+        </div>
+        <div style="padding:16px 24px;background:#050505;text-align:center;border-top:1px solid #1a1a1a;">
+          <p style="margin:0;color:#555;font-size:11px;">Powered by <span style="background:linear-gradient(135deg,#FF6B35,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">CONEKTAO</span></p>
+        </div>
+      </div>`,
     }),
   });
   if (er.ok) await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
