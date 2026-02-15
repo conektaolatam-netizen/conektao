@@ -1063,6 +1063,61 @@ Deno.serve(async (req) => {
       console.error("Follow-up check error:", e);
     }
 
+    // SALES NUDGE: If ALICIA was the last to speak and client hasn't replied in 2+ min during active ordering
+    try {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { data: dyingConvs } = await supabase
+        .from("whatsapp_conversations")
+        .select("id, customer_phone, restaurant_id, messages, order_status, customer_name")
+        .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
+        .lt("updated_at", twoMinAgo);
+
+      if (dyingConvs && dyingConvs.length > 0) {
+        for (const conv of dyingConvs) {
+          const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+          const lastMsg = msgs[msgs.length - 1];
+          // Only nudge if ALICIA was the last one to speak (client went quiet)
+          if (!lastMsg || lastMsg.role !== "assistant") continue;
+          // Don't nudge if the last message was already a nudge
+          if (lastMsg.is_nudge) continue;
+
+          const name = conv.customer_name ? conv.customer_name.split(" ")[0] : "";
+          
+          // Pick a natural nudge message randomly
+          const nudges = [
+            name ? `${name}, sigues ahí? Quieres que te confirme el pedido?` : "Sigues ahí? Quieres que te confirme el pedido?",
+            "Bueno, te espero por aquí si quieres seguir con el pedido",
+            name ? `${name}, se te fue la señal? Jaja, acá estoy cuando quieras seguir` : "Se te fue la señal? Jaja, acá estoy cuando quieras seguir",
+            "Te anoto lo que llevabas? Solo dime y lo confirmo",
+          ];
+          const nudgeMsg = nudges[Math.floor(Math.random() * nudges.length)];
+
+          // Get WA credentials for this restaurant
+          const { data: waConfig } = await supabase
+            .from("whatsapp_configs")
+            .select("whatsapp_phone_id, whatsapp_token")
+            .eq("restaurant_id", conv.restaurant_id)
+            .maybeSingle();
+
+          const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
+          const waToken = waConfig?.whatsapp_token || GLOBAL_WA_TOKEN;
+
+          if (phoneId && waToken) {
+            console.log(`💬 SALES NUDGE: ${conv.customer_phone} inactive 2+ min`);
+            await sendWA(phoneId, waToken, conv.customer_phone, nudgeMsg);
+
+            msgs.push({ role: "assistant", content: nudgeMsg, timestamp: new Date().toISOString(), is_nudge: true });
+            await supabase
+              .from("whatsapp_conversations")
+              .update({ messages: msgs.slice(-30), order_status: "nudge_sent" })
+              .eq("id", conv.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Sales nudge error:", e);
+    }
+
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
@@ -1189,7 +1244,9 @@ Deno.serve(async (req) => {
 
       // Detect if ALICIA just sent a summary with total (pending confirmation from customer)
       const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
-      const newOrderStatus = parsed ? "confirmed" : (hasSummary ? "pending_confirmation" : conv.order_status);
+      // Reset nudge/followup status when client responds again
+      const baseStatus = (conv.order_status === "nudge_sent" || conv.order_status === "followup_sent") ? "active" : conv.order_status;
+      const newOrderStatus = parsed ? "confirmed" : (hasSummary ? "pending_confirmation" : baseStatus);
 
       await supabase
         .from("whatsapp_conversations")
