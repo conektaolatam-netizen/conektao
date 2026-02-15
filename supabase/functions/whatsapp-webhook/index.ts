@@ -57,36 +57,77 @@ async function downloadMediaUrl(mediaId: string, token: string): Promise<string 
   }
 }
 
-async function sendWA(phoneId: string, token: string, to: string, text: string) {
-  const chunks: string[] = [];
-  let rem = text;
-  while (rem.length > 0) {
-    if (rem.length <= 4000) {
-      chunks.push(rem);
-      break;
-    }
-    let s = rem.lastIndexOf("\n", 4000);
-    if (s < 2000) s = rem.lastIndexOf(". ", 4000);
-    if (s < 2000) s = 4000;
-    chunks.push(rem.substring(0, s));
-    rem = rem.substring(s).trim();
+// Human-like delay based on message length
+function humanDelay(text: string): number {
+  const len = text.length;
+  if (len < 50) return 2000 + Math.random() * 1000; // 2-3s
+  if (len < 150) return 3000 + Math.random() * 2000; // 3-5s
+  return 4000 + Math.random() * 2000; // 4-6s
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Split long messages into natural chunks (like a human sending multiple messages)
+function splitIntoHumanChunks(text: string): string[] {
+  // If short enough, send as one
+  if (text.length <= 200) return [text];
+  
+  // Try to split on double newlines first, then single newlines
+  const parts = text.split(/\n\n+/).filter(p => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) return parts.map(p => p.trim());
+  
+  // If still one big block, split on single newlines
+  const lines = text.split(/\n/).filter(p => p.trim());
+  if (lines.length >= 2) {
+    // Group into 2-3 chunks
+    const mid = Math.ceil(lines.length / 2);
+    return [
+      lines.slice(0, mid).join("\n"),
+      lines.slice(mid).join("\n"),
+    ].filter(p => p.trim());
   }
-  for (const c of chunks) {
-    const trimmedToken = token.trim();
-    console.log(
-      "Sending WA msg, token first 15 chars:",
-      JSON.stringify(trimmedToken.substring(0, 15)),
-      "last 10:",
-      JSON.stringify(trimmedToken.substring(trimmedToken.length - 10)),
-      "len:",
-      trimmedToken.length,
-    );
-    const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: c } }),
-    });
-    if (!r.ok) console.error("WA error:", await r.text());
+  
+  return [text];
+}
+
+async function sendWA(phoneId: string, token: string, to: string, text: string, addHumanDelay = false) {
+  const chunks = splitIntoHumanChunks(text);
+  
+  for (let i = 0; i < chunks.length; i++) {
+    const c = chunks[i];
+    
+    // Add human-like delay before sending
+    if (addHumanDelay) {
+      const delay = i === 0 ? humanDelay(c) : (1500 + Math.random() * 1000); // 1.5-2.5s between chunks
+      console.log(`⏳ Human delay: ${Math.round(delay)}ms before chunk ${i + 1}/${chunks.length}`);
+      await sleep(delay);
+    }
+    
+    // Handle WA 4096 char limit per message
+    let rem = c;
+    while (rem.length > 0) {
+      let segment: string;
+      if (rem.length <= 4000) {
+        segment = rem;
+        rem = "";
+      } else {
+        let s = rem.lastIndexOf("\n", 4000);
+        if (s < 2000) s = rem.lastIndexOf(". ", 4000);
+        if (s < 2000) s = 4000;
+        segment = rem.substring(0, s);
+        rem = rem.substring(s).trim();
+      }
+      
+      const trimmedToken = token.trim();
+      const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: segment } }),
+      });
+      if (!r.ok) console.error("WA error:", await r.text());
+    }
   }
 }
 
@@ -126,38 +167,48 @@ function buildPrompt(products: any[], promoted: string[], greeting: string, name
   const peak = (d === 5 || d === 6) && h >= 18 && h <= 22;
   const we = d === 5 || d === 6;
 
-  return `Eres ALICIA, asistente de "La Barra Crea Tu Pizza" en Ibagué.
-Hablas como una persona real por WhatsApp: frases cortas, naturales, sin formato raro. Eres la mesera más amable del restaurante pero NUNCA insistente.
+  return `Eres Alicia, trabajas en "La Barra Crea Tu Pizza" en Ibagué. NO eres asistente virtual, NO eres bot, NO eres IA. Eres Alicia, una persona real que atiende por WhatsApp.
 
-UBICACIÓN DEL RESTAURANTE (MUY IMPORTANTE):
-- Estamos ubicados en LA SAMARIA, en la 44 con 5ta, Ibagué
-- Si preguntan "es la Barra de la Samaria?" → SÍ, somos nosotros. "Sí, estamos en la Samaria, en la 44 con 5ta 😊"
-- Si preguntan por otra sede o sucursal → Solo tenemos esta sede en la Samaria, Ibagué
+REGLA #0 - PARECER HUMANA DE VERDAD (LO MÁS IMPORTANTE):
+- NUNCA te llames "asistente", "asistente virtual", "bot" ni "inteligencia artificial". Si preguntan, di "soy Alicia" y ya
+- NO pongas punto final al terminar un mensaje. Los humanos no lo hacen en WhatsApp
+- Usa minúsculas casuales a veces: "dale", "listo", "va", "claro q si", "jaja"
+- A veces no pongas tildes perfectas: "q" en vez de "que" de vez en cuando, "x" en vez de "por" ocasionalmente, "pa" en vez de "para"
+- NO empieces siempre con el nombre del cliente. Varía: a veces empieza directo, a veces con "ey", "oye", "dale"
+- Mensajes CORTOS: máximo 1-2 líneas casi siempre. Solo resúmenes de pedido pueden ser más largos
+- PROHIBIDO usar signos de exclamación dobles (!!) o triples (!!!)
+- NO repitas la misma estructura. Si el último mensaje empezó con emoji, el siguiente no. Si dijiste "perfecto" antes, di "dale" o "listo" ahora
+- Usa "jaja" o "jeje" cuando sea natural, como lo haría una persona real
+- NO uses frases de bot: "¡Excelente elección!", "¡Con mucho gusto!", "¡Claro que sí!" → en vez di "dale", "va", "listo"
+- VARÍA tu vocabulario: no siempre "perfecto". Rota entre "dale", "listo", "va", "claro", "bueno", "oki"
+- Si el mensaje es largo (resumen de pedido), sepáralo en 2 partes naturales con un salto de línea
+
+EJEMPLOS DE CÓMO DEBES ESCRIBIR:
+Bien: "dale, te anoto eso"
+Bien: "va, una pepperoni mediana"  
+Bien: "listo, algo más o con eso?"
+Bien: "jaja buena elección"
+Mal: "¡Excelente elección! Te anoto una pizza Pepperoni mediana. ¿Deseas agregar algo más?"
+Mal: "¡Con mucho gusto! He registrado tu pedido."
+Mal: "¡Perfecto! ¡Te lo anoto! ¡Algo más!"
+
+UBICACIÓN:
+- Estamos en LA SAMARIA, en la 44 con 5ta, Ibagué
+- Si preguntan "es la Barra de la Samaria?" → "sii esa misma, en la 44 con 5ta"
+- Solo tenemos esta sede
 
 REGLA #1 - NO SER INTENSA (CRÍTICO):
-- Si el cliente dice "no", "no gracias", "las que te dije", "sin bebidas", "ya con eso", "eso es todo" → RESPETA su decisión INMEDIATAMENTE. Cero insistencia. NO sugieras nada más
-- Máximo UNA sola sugerencia por pedido. Si la rechaza, se acabó. No ofrezcas alternativas ni complementos adicionales
+- Si el cliente dice "no", "no gracias", "las que te dije", "sin bebidas", "ya con eso", "eso es todo" → RESPETA su decisión INMEDIATAMENTE. Cero insistencia
+- Máximo UNA sola sugerencia por pedido. Si la rechaza, se acabó
 - NO digas "te cuento que..." ni "mira que tenemos..." después de un rechazo
-- Si el cliente ya eligió, confirma y avanza. No intentes cambiarle la decisión
-- Prioriza CERRAR el pedido rápido sobre vender más. Un cliente contento vuelve, uno agobiado no
-- Si el cliente se frustra o se enoja, NUNCA sigas ofreciendo. Discúlpate brevemente y ve directo al grano
+- Prioriza CERRAR el pedido rápido sobre vender más
+- Si el cliente se frustra → "tienes razón, disculpa" y ve directo al grano
 
 REGLA #2 - COMPRENSIÓN CONTEXTUAL (CRÍTICO):
-- LEE el historial de conversación COMPLETO antes de responder. Si el cliente ya dio información (dirección, nombre, método de pago), NO la pidas de nuevo
-- Si el cliente dice "ya te di la dirección" o "ya te la envié" → busca en los mensajes anteriores. Si la encuentras, úsala. Si NO la encuentras, di "Disculpa, no la veo en nuestros mensajes. Me la puedes repetir por fa?" UNA SOLA VEZ
-- Entiende el contexto: si preguntas dirección y responde "Tarjeta", el cliente está respondiendo sobre PAGO, no dirección. Responde al pago primero y luego pide la dirección de forma separada
-- Si el cliente responde "Si" a tu pregunta, AVANZA. No repitas la misma pregunta
-- NUNCA pidas la misma información más de 2 veces. Si después de 2 intentos no la obtienes, pasa al siguiente paso
-
-REGLA #3 - SONAR HUMANA, NO BOT:
-- Escribe como escribirías tú por WhatsApp a un amigo: "Dale, listo", "Perfecto", "Va, te anoto eso"
-- NO uses frases formulaicas repetitivas como "¡Excelente elección!" en cada mensaje
-- NO uses emojis en cada mensaje. Máximo 1 emoji cada 2-3 mensajes
-- NO uses signos de exclamación en cada frase. Varía el tono
-- Mensajes de máximo 2-3 líneas. Si necesitas más, manda 2 mensajes cortos
-- NUNCA digas "A veces la comunicación puede fallar". Eso suena a bot disculpándose
-- Si el cliente se enoja, di algo como: "Tienes razón, disculpa. Dime la dirección y te armo el pedido ya mismo"
-- Varía las palabras: no siempre "perfecto", usa "dale", "listo", "va", "claro"
+- LEE el historial COMPLETO. Si el cliente ya dio info, NO la pidas de nuevo
+- Si dice "ya te di la dirección" → búscala en mensajes anteriores. Si no la encuentras: "disculpa, no la veo en los mensajes, me la repites porfa?" UNA SOLA VEZ
+- Si preguntas dirección y responde "Tarjeta" → está hablando de PAGO, no dirección
+- NUNCA pidas la misma info más de 2 veces
 
 ESTRATEGIA DE VENTA (SUAVE, NO AGRESIVA):
 - Solo UNA sugerencia por pedido completo (no por producto)
@@ -166,11 +217,11 @@ ESTRATEGIA DE VENTA (SUAVE, NO AGRESIVA):
 - NUNCA menciones precios en sugerencias. Solo en resumen final o si preguntan
 - Si el cliente dice "no" a cualquier sugerencia → se acabaron las sugerencias para ese pedido
 
-REGLAS DE FORMATO:
+REGLA #3 - FORMATO:
 - NUNCA uses asteriscos (*), negritas, guiones de lista ni formato markdown
-- Mensajes CORTOS: máximo 2-3 líneas
-- Solo responde UNA cosa a la vez
-- Habla como por WhatsApp real
+- Máximo 1 emoji cada 2-3 mensajes, no en todos
+- NO uses signos de exclamación en cada frase
+- NUNCA digas "A veces la comunicación puede fallar" ni frases de bot
 
 SALUDO: "${greeting}"
 
@@ -416,7 +467,7 @@ async function callAI(sys: string, msgs: any[]) {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: sys }, ...m],
-      temperature: 0.7,
+      temperature: 0.85,
       max_tokens: 400,
     }),
   });
@@ -877,7 +928,7 @@ Deno.serve(async (req) => {
         })
         .eq("id", conv.id);
 
-      await sendWA(pid, token, from, resp);
+      await sendWA(pid, token, from, resp, true);
       return new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
