@@ -79,8 +79,7 @@ export default function WhatsAppDashboard() {
     const ts = msg.timestamp || msg.ts;
     if (!ts) return "";
     const d = new Date(ts);
-    const co = new Date(d.getTime() - 5 * 60 * 60 * 1000);
-    return format(co, "h:mm a", { locale: es });
+    return d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
   };
 
   const getLastMessage = (c: Conversation) => {
@@ -196,14 +195,45 @@ export default function WhatsAppDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 {statusBadge(selected.order_status)}
-                {selected.current_order && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    <Package className="w-3 h-3" />
-                    ${(selected.current_order.total || 0).toLocaleString("es-CO")}
-                  </Badge>
-                )}
               </div>
             </div>
+
+            {/* Order Ticket - Modern white design */}
+            {selected.current_order && (
+              <div className="mx-4 mt-2 mb-0 p-4 rounded-2xl bg-white border border-border/60 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                      <Package className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">Pedido actual</span>
+                  </div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    ${(selected.current_order.total || 0).toLocaleString("es-CO")}
+                  </span>
+                </div>
+                {selected.current_order.items && Array.isArray(selected.current_order.items) && (
+                  <div className="space-y-1.5">
+                    {selected.current_order.items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">
+                          {item.quantity}x {item.name}
+                        </span>
+                        <span className="text-foreground font-medium">
+                          ${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selected.current_order.delivery_type && (
+                  <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{selected.current_order.delivery_type === "delivery" ? "🛵 Domicilio" : "🏪 Recoger"}</span>
+                    {selected.current_order.customer_name && <span>· {selected.current_order.customer_name}</span>}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <ScrollArea className="flex-1 p-4">

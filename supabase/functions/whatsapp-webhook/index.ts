@@ -57,6 +57,110 @@ async function downloadMediaUrl(mediaId: string, token: string): Promise<string 
   }
 }
 
+async function downloadAudioUrl(mediaId: string, token: string): Promise<string | null> {
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token.trim()}` },
+    });
+    if (!metaRes.ok) {
+      console.error("Audio meta error:", await metaRes.text());
+      return null;
+    }
+    const metaData = await metaRes.json();
+    const mediaUrl = metaData.url;
+    if (!mediaUrl) return null;
+
+    const dlRes = await fetch(mediaUrl, {
+      headers: { Authorization: `Bearer ${token.trim()}` },
+    });
+    if (!dlRes.ok) {
+      console.error("Audio download error:", await dlRes.text());
+      return null;
+    }
+    const blob = await dlRes.blob();
+    const ext = (metaData.mime_type || "audio/ogg").includes("mp4") ? "m4a" : "ogg";
+    const fileName = `audio-messages/${Date.now()}-${mediaId}.${ext}`;
+
+    const { error } = await supabase.storage.from("whatsapp-media").upload(fileName, blob, {
+      contentType: metaData.mime_type || "audio/ogg",
+      upsert: true,
+    });
+    if (error) {
+      console.error("Audio upload error:", error);
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+    return urlData.publicUrl;
+  } catch (e) {
+    console.error("Audio download failed:", e);
+    return null;
+  }
+}
+
+async function transcribeAudio(audioUrl: string): Promise<string | null> {
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY not configured for audio transcription");
+      return null;
+    }
+
+    // Download audio as base64
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) return null;
+    const audioBlob = await audioRes.blob();
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const mimeType = audioBlob.type || "audio/ogg";
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "Eres un transcriptor de audio. Tu ÚNICA tarea es transcribir exactamente lo que dice la persona en el audio. Devuelve SOLO el texto transcrito, sin comentarios, sin explicaciones, sin comillas. Si no puedes entender el audio, responde exactamente: NO_ENTENDIDO"
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: base64Audio,
+                  format: mimeType.includes("mp4") ? "m4a" : "ogg",
+                }
+              },
+              {
+                type: "text",
+                text: "Transcribe este audio de WhatsApp. Solo devuelve el texto exacto."
+              }
+            ]
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Transcription AI error:", response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const transcription = data.choices?.[0]?.message?.content?.trim();
+    if (!transcription || transcription === "NO_ENTENDIDO") return null;
+    return transcription;
+  } catch (e) {
+    console.error("Transcription failed:", e);
+    return null;
+  }
+}
+
 // Human-like delay based on message length
 function humanDelay(text: string): number {
   const len = text.length;
@@ -343,6 +447,12 @@ REGLA #3 - FORMATO:
 - Máximo 1 emoji cada 2-3 mensajes
 - NUNCA digas "A veces la comunicación puede fallar"
 
+REGLA #4 - AUDIOS Y STICKERS:
+- Si recibes un mensaje que empieza con "[Audio transcrito]:" significa que el cliente envió un audio de voz y fue transcrito automáticamente. Responde como si hubieras escuchado lo que dijo, de forma natural
+- Si la transcripción parece incompleta o rara, pregúntale amablemente: "No te escuché bien, me lo puedes escribir?"
+- Si recibes "[El cliente envió un audio que no se pudo transcribir]" o "[El cliente envió un audio]", dile: "No alcancé a escuchar tu audio, me lo puedes escribir?"
+- Si recibes "[El cliente envió un sticker 😄]", responde de forma simpática y natural, luego redirige al pedido si aplica
+
 SALUDO: "${greeting}"
 ${menuLinkBlock}
 
@@ -484,6 +594,12 @@ REGLA #2 - COMPRENSIÓN CONTEXTUAL (CRÍTICO):
 - Si dice "ya te di la dirección" → búscala en mensajes anteriores. Si no la encuentras: "Disculpa, no la veo en los mensajes, me la repites porfa?" UNA SOLA VEZ
 - Si preguntas dirección y responde "Tarjeta" → está hablando de PAGO, no dirección
 - NUNCA pidas la misma info más de 2 veces
+
+REGLA #4 - AUDIOS Y STICKERS:
+- Si recibes un mensaje que empieza con "[Audio transcrito]:" significa que el cliente envió un audio de voz y fue transcrito automáticamente. Responde como si hubieras escuchado lo que dijo, de forma natural
+- Si la transcripción parece incompleta o rara, pregúntale amablemente: "No te escuché bien, me lo puedes escribir?"
+- Si recibes "[El cliente envió un audio que no se pudo transcribir]" o "[El cliente envió un audio]", dile: "No alcancé a escuchar tu audio, me lo puedes escribir?"
+- Si recibes "[El cliente envió un sticker 😄]", responde de forma simpática y natural, luego redirige al pedido si aplica
 
 ESTRATEGIA DE RECOMENDACIÓN:
 - Conoces la carta de memoria y sabes qué combina con qué. Úsalo a tu favor
@@ -1131,7 +1247,7 @@ Deno.serve(async (req) => {
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
 
-      // Handle image messages (payment proofs)
+      // Handle different message types
       let text = msg.text?.body || msg.button?.text || "";
       let paymentProofUrl: string | null = null;
 
@@ -1143,6 +1259,38 @@ Deno.serve(async (req) => {
           paymentProofUrl = await downloadMediaUrl(mediaId, GLOBAL_WA_TOKEN);
           console.log("Payment proof uploaded to:", paymentProofUrl);
         }
+      } else if (msg.type === "audio") {
+        // Download audio, transcribe via Lovable AI, and use transcription as text
+        const audioId = msg.audio?.id;
+        if (audioId) {
+          try {
+            const audioUrl = await downloadAudioUrl(audioId, GLOBAL_WA_TOKEN);
+            if (audioUrl) {
+              const transcription = await transcribeAudio(audioUrl);
+              if (transcription) {
+                text = `[Audio transcrito]: ${transcription}`;
+                console.log(`Audio transcribed for ${from}: "${transcription}"`);
+              } else {
+                text = "[El cliente envió un audio que no se pudo transcribir]";
+              }
+            } else {
+              text = "[El cliente envió un audio]";
+            }
+          } catch (e) {
+            console.error("Audio processing error:", e);
+            text = "[El cliente envió un audio]";
+          }
+        } else {
+          text = "[El cliente envió un audio]";
+        }
+      } else if (msg.type === "sticker") {
+        text = "[El cliente envió un sticker 😄]";
+      } else if (msg.type === "reaction") {
+        // Reactions don't need a response
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       console.log(`Msg from ${from}: "${text}" (type: ${msg.type})`);
