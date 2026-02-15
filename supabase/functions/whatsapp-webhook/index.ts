@@ -20,7 +20,10 @@ async function downloadMediaUrl(mediaId: string, token: string): Promise<string 
     const metaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
       headers: { Authorization: `Bearer ${token.trim()}` },
     });
-    if (!metaRes.ok) { console.error("Media meta error:", await metaRes.text()); return null; }
+    if (!metaRes.ok) {
+      console.error("Media meta error:", await metaRes.text());
+      return null;
+    }
     const metaData = await metaRes.json();
     const mediaUrl = metaData.url;
     if (!mediaUrl) return null;
@@ -29,11 +32,14 @@ async function downloadMediaUrl(mediaId: string, token: string): Promise<string 
     const dlRes = await fetch(mediaUrl, {
       headers: { Authorization: `Bearer ${token.trim()}` },
     });
-    if (!dlRes.ok) { console.error("Media download error:", await dlRes.text()); return null; }
+    if (!dlRes.ok) {
+      console.error("Media download error:", await dlRes.text());
+      return null;
+    }
     const blob = await dlRes.blob();
     const ext = (metaData.mime_type || "image/jpeg").includes("png") ? "png" : "jpg";
     const fileName = `payment-proofs/${Date.now()}-${mediaId}.${ext}`;
-    
+
     const { data, error } = await supabase.storage.from("whatsapp-media").upload(fileName, blob, {
       contentType: metaData.mime_type || "image/jpeg",
       upsert: true,
@@ -353,6 +359,7 @@ async function callAI(sys: string, msgs: any[]) {
 }
 
 function parseOrder(txt: string) {
+  console.log(txt);
   const m = txt.match(/---PEDIDO_CONFIRMADO---\s*([\s\S]*?)\s*---FIN_PEDIDO---/);
   if (!m) return null;
   try {
@@ -365,16 +372,23 @@ function parseOrder(txt: string) {
   }
 }
 
-async function saveOrder(rid: string, cid: string, phone: string, order: any, config: any, paymentProofUrl?: string | null) {
+async function saveOrder(
+  rid: string,
+  cid: string,
+  phone: string,
+  order: any,
+  config: any,
+  paymentProofUrl?: string | null,
+) {
   // Normalize delivery_type to match DB constraint
   const rawType = (order.delivery_type || "pickup").toLowerCase();
   const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
   const deliveryType = isDelivery ? "delivery" : "pickup";
-  
+
   // Normalize payment method
   const rawPayment = (order.payment_method || "").toLowerCase();
   const isEfectivo = rawPayment.includes("efectivo") || rawPayment.includes("cash") || rawPayment.includes("contra");
-  
+
   const { data: saved, error } = await supabase
     .from("whatsapp_orders")
     .insert({
@@ -410,7 +424,7 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
         `<tr><td style="padding:10px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
     )
     .join("");
-  
+
   const deliverySection = isDelivery
     ? `<div style="background:linear-gradient(135deg,rgba(0,212,170,0.15),rgba(255,107,53,0.10));padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #00D4AA;">
         <p style="margin:0;font-weight:bold;color:#00D4AA;font-size:14px;">🏍️ DOMICILIO</p>
@@ -419,7 +433,7 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
     : `<div style="background:rgba(255,107,53,0.10);padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #FF6B35;">
         <p style="margin:0;font-weight:bold;color:#FF6B35;">🏪 Recoger en local</p>
       </div>`;
-  
+
   // Payment section based on method
   let paymentSection = "";
   if (isEfectivo) {
@@ -512,7 +526,7 @@ Deno.serve(async (req) => {
     const wabaId = url.searchParams.get("waba_id") || "1203273002014817";
     const token = GLOBAL_WA_TOKEN;
     const callbackUrl = `${SUPABASE_URL}/functions/v1/whatsapp-webhook`;
-    
+
     // Subscribe app to WABA
     const subRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
       method: "POST",
@@ -524,14 +538,14 @@ Deno.serve(async (req) => {
     });
     const subData = await subRes.json();
     console.log("Subscribe WABA result:", JSON.stringify(subData));
-    
+
     // Also check current subscriptions
     const checkRes = await fetch(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const checkData = await checkRes.json();
     console.log("Current subscriptions:", JSON.stringify(checkData));
-    
+
     return new Response(JSON.stringify({ subscribe_result: subData, current_subscriptions: checkData }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -541,22 +555,26 @@ Deno.serve(async (req) => {
   // Admin: reset a conversation
   if (url.searchParams.get("action") === "reset_conv") {
     const phone = url.searchParams.get("phone") || "";
-    const { error } = await supabase.from("whatsapp_conversations")
+    const { error } = await supabase
+      .from("whatsapp_conversations")
       .update({ order_status: "none", current_order: null, messages: [], payment_proof_url: null })
       .eq("customer_phone", phone);
     return new Response(JSON.stringify({ reset: !error, error }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   // Admin: update config
   if (url.searchParams.get("action") === "update_email") {
     const email = url.searchParams.get("email") || "";
-    const { error } = await supabase.from("whatsapp_configs")
+    const { error } = await supabase
+      .from("whatsapp_configs")
       .update({ order_email: email })
       .eq("id", "5ab1a230-f503-4573-8b04-79628bdc4a7c");
     return new Response(JSON.stringify({ updated: !error, email, error }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -582,11 +600,11 @@ Deno.serve(async (req) => {
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
-      
+
       // Handle image messages (payment proofs)
       let text = msg.text?.body || msg.button?.text || "";
       let paymentProofUrl: string | null = null;
-      
+
       if (msg.type === "image") {
         const mediaId = msg.image?.id;
         const caption = msg.image?.caption || "";
@@ -596,7 +614,7 @@ Deno.serve(async (req) => {
           console.log("Payment proof uploaded to:", paymentProofUrl);
         }
       }
-      
+
       console.log(`Msg from ${from}: "${text}" (type: ${msg.type})`);
       if (!text.trim())
         return new Response(JSON.stringify({ status: "ok" }), {
@@ -656,7 +674,7 @@ Deno.serve(async (req) => {
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl });
-      
+
       // Store payment proof URL when image received
       if (paymentProofUrl) {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
@@ -674,10 +692,10 @@ Deno.serve(async (req) => {
 
       const parsed = parseOrder(ai);
       let resp = ai;
-      
+
       // Get stored payment proof from conversation if exists
       const storedProof = paymentProofUrl || conv.payment_proof_url || null;
-      
+
       if (parsed) {
         resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
         await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
