@@ -147,28 +147,34 @@ CARTA COMPLETA (link para el cliente): https://drive.google.com/file/d/1B5015Il3
 === MENÚ OFICIAL CON PRECIOS (en miles COP) ===
 
 LIMONADAS:
-- Limonada Natural: Copa $9.000 / 500ml $26.000 / 1Lt $57.000
-- Limonada Hierbabuena: Copa $12.000 / 500ml $28.000 / 1Lt $60.000
-- Limonada Cerezada: Copa $14.000 / 1Lt $92.000
-- Limonada Coco: Copa $16.000
+- Limonada Natural: $9.000
+- Limonada Hierbabuena: $12.000
+- Limonada Cerezada: $14.000
+- ⭐ Limonada Coco: $16.000 (recomendada)
 
 SODIFICADAS:
 - Sodificada Piña: $14.000
 - Sodificada Frutos Rojos: $14.000
 - Sodificada Lyche & Fresa: $16.000
 
+CÓCTELES:
+- Gintonic: $42.000
+- ⭐ Mojito: $40.000 (recomendado)
+- Margarita: $38.000
+- ⭐ Piña Colada: $38.000 (recomendada)
+- Aperol Spritz: $28.000 (descuento especial)
+
+SANGRÍA:
+- ⭐ Sangría Tinto: Copa $26.000 / 500ml $57.000 / 1Lt $86.000 (recomendada)
+- Sangría Blanco: Copa $28.000 / 500ml $60.000 / 1Lt $92.000
+- Copa De Vino: $26.000
+- Tinto De Verano: $25.000
+
 CERVEZAS:
 - Club Colombia: $12.000
 - Corona: $16.000
 - Stella Artois: $16.000
 - Artesanal: $16.000
-
-CÓCTELES:
-- Gintonic: $42.000
-- Mojito: $40.000
-- Margarita: $38.000
-- Piña Colada: $38.000
-- Aperol Spritz: $28.000 (descuento especial)
 
 BEBIDAS FRÍAS:
 - Gaseosa: $8.000
@@ -177,59 +183,68 @@ BEBIDAS FRÍAS:
 - Agua St. Pellegrino 1L: $19.000
 
 ENTRADAS:
-- Nuditos De Ajo: $10.000
-- Camarones a las Finas Hierbas: $35.000
-- Champiñones Gratinados Queso Azul: $33.000
-- Burrata La Barra: $38.000
-- Burrata Tempura: $40.000
-- Brie Al Horno: $32.000
+- Nuditos De Ajo: $10.000 (deliciosos nuditos horneados en salsa de mantequilla y ajo)
+- Camarones a las Finas Hierbas: $35.000 (en reducción de salsa a las finas hierbas en canasta de parmesano)
+- Champiñones Gratinados Queso Azul: $33.000 (5 champiñones enteros bañados en salsa de queso azul con parmesano)
+- Burrata La Barra: $38.000 (mozzarella de búfala fresca, manzanas caramelizadas, tomates cherry salteados y pistacho)
+- Burrata Tempura: $40.000 (mozzarella de búfala tempurizada, jamón serrano y salsa napolitana)
+- Brie Al Horno: $32.000 (queso Brie al horno de leña con miel de agave, nueces pecanas, pera salada y arándanos)
 
 PIZZAS CLÁSICAS (Personal / Mediana):
-- Margarita: $21.000 / $35.000
-- Hawaiana: $24.000 / $37.000
-- Pollo & Champiñones: $27.000 / $39.000
+- Margarita: $21.000 / $35.000 (napolitana, mozzarella, bocconcinos, albahaca y tomate cherry)
+- Hawaiana: $24.000 / $37.000 (salsa napolitana, mozzarella, jamón, piña)
+- Pollo & Champiñones: $27.000 / $39.000 (napolitana, mozzarella, pollo, queso azul, champiñones al ajillo)
 
-PIZZAS PREMIUM (Personal / Mediana):
+PIZZAS ESPECIALES (Personal / Mediana):
 - Pepperoni: $32.000 / $45.000
 - Del Huerto: $35.000 / $48.000
-- Camarones: $38.000 / $52.000
+- ⭐ Camarones: $38.000 / $52.000 (salsa Alfredo, mozzarella, camarones salteados al ajillo - recomendada)
 - La Capricciosa: $35.000 / $52.000
-- Colombiana de la Tata: $32.000 / $47.000
+- ⭐ Colombiana de la Tata: $32.000 / $47.000 (salsa criolla, bondiola, mozzarella, cebolla morada, maíz tierno, reducción en cerveza - recomendada)
 - Alpes (4 quesos): $33.000 / $49.000
 - La Turca: $39.000 / $52.000
-- Porchetta: $39.000 / $52.000
+- ⭐ Porchetta: $39.000 / $52.000 (el renacimiento de la hawaiana: porchetta italiana ahumada, piña a la parrilla y stracciatella - recomendada)
+
+PIZZAS GOURMET (Personal / Mediana):
 - A la Española: $36.000 / $49.000
 - Siciliana: $36.000 / $49.000
 - Dátiles: $38.000 / $49.000
-- La Barra: $39.000 / $49.000
-- Prosciutto & Burrata: Mediana $54.000 (consultar personal)
-- Stracciatella: $39.000 / $54.000
+- ⭐ La Barra: $36.000 / $49.000 (napolitana, mozzarella, queso azul, manzana caramelizada, rúgula, jamón prosciutto, nueces pecanas, miel de peperonchino - recomendada)
+- Prosciutto & Burrata: Mediana $54.000 (solo mediana)
+- ⭐ Stracciatella: $39.000 / $54.000 (napolitana, mozzarella, tomate seco, pepperoni, rúgula y stracciatella - recomendada)
 - Anchoas: $39.000 / $53.000
-- Pulpo: Mediana $54.000 (consultar personal)
+- ⭐ Pulpo: Mediana $54.000 (napolitana, mozzarella, pulpo al ajillo, tomate parrillado y stracciatella - solo mediana, recomendada)
+
+PIZZAS ESPECIALES PREMIUM (Personal / Mediana):
 - Valencia: $39.000 / $52.000
-- Parmesana (Ganadora Pizza Master): $36.000 / $50.000
-- Higos & Prosciutto Croccante: $38.000 / $52.000
+- ⭐ Parmesana: $36.000 / $50.000 (recomendada)
+- ⭐ Higos & Prosciutto Croccante: $38.000 / $52.000 (recomendada)
 - Diavola: $38.000 / $52.000
 - Calzone: Personal $32.000 (solo personal)
 
-TAPAS ESPAÑOLAS: Consultar precio
+TAPAS ESPAÑOLAS: $39.000 (4 tapas de pan francés con queso Philadelphia)
+Sabores disponibles: Chorizo Español-Queso azul-Dátiles / Prosciutto-Rúgula-Parmesano / Chorizo Español-Bocconcinos-Cherry
 
 COCINA ITALIANA:
 - Spaghetti Alla Bolognese: $39.000
-- Fettuccine Carbonara: $39.000
-- Fettuccine Con Camarones: $46.000
+- ⭐ Fettuccine Carbonara: $39.000 (recomendada)
+- ⭐ Fettuccine Con Camarones: $46.000 (recomendada)
 - Spaghetti A Los Cuatro Quesos: $42.000
 - Spaghetti Al Teléfono: $42.000
-- Ravioles Del Chef: Consultar precio
-- Lasagna: Consultar precio
 
-OTROS PLATOS:
-- Hamburguesa Italiana (Angus 150gr): Consultar precio
-- Brocheta di Manzo: Consultar precio
-- Langostinos Parrillados: Consultar precio
-- Brioche al Camarón: Consultar precio
-- Brioche Pollo: Consultar precio
-- Pan Francés & Bondiola De Cerdo: Consultar precio
+PASTAS ESPECIALES:
+- Ravioles Del Chef: $48.000 (ravioles boloñesa, cuatro quesos, ricota y espinaca)
+- Lasagna: $43.000 (bolognese o mixta en salsa de quesos, ricotta y albahaca)
+
+BUON APPETITO:
+- Hamburguesa Italiana: $38.000 (150gr angus, tocineta, rúgula, papas francesas, queso cheddar)
+- Brocheta di Manzo: $39.000 (carne de res y pollo con pimentón, cebolla, papas francesas y ensalada caprese)
+- Langostinos Parrillados: $52.000 (brocheta de langostinos a la parrilla con nuditos de ajo)
+
+SÁNDWICHES:
+- Brioche al Camarón: $42.000 (camarón tempura, rúgula, queso filadelfia, tomate cherry, pan brioche y papas francesas)
+- Brioche Pollo: $38.000 (pollo en salsa blanca, champiñones, rúgula, queso azul, pan brioche y papas francesas)
+- Pan Francés & Bondiola De Cerdo: $38.000 (pan francés recién horneado, bondiola en reducción de cerveza y mozzarella)
 
 VINOS (botella):
 - Reservado: $68.000
@@ -238,17 +253,17 @@ VINOS (botella):
 - Casillero Del Diablo: $150.000
 - Tío Pepe: $240.000
 
-PIZZAS DULCES:
-- Cocada: $20.000
-- Lemon Crust: $20.000
-- Hershey's & Malvaviscos: $32.000
-- Dubai Chocolate: $38.000
-- Canelate: $25.000
-- Arándanos & Stracciatella: $32.000
-- Arequipe: $20.000
-- Frutos Del Bosque: $22.000
-- Nutella: $24.000
-- Nutella & Fresas: $32.000
+PIZZAS DULCES (misma masa, delgada, ligera y crocante como un verdadero postre):
+- ⭐ Cocada: $20.000 (arequipe y crema inglesa, coco caramelizado y helado de vainilla - recomendada)
+- ⭐ Lemon Crust: $20.000 (crema de limón, trozos de galleta y ralladura de limón - recomendada)
+- ⭐ Hershey's & Malvaviscos: $32.000 (chocolate, malvaviscos flameados, trozos de galleta y hershey's - recomendada)
+- Dubai Chocolate: $38.000 (chocolate, crema de pistacho, knafeh, pistachos tostados, chocolate blanco)
+- Canelate: $25.000 (chocolate, azúcar y canela, helado de vainilla y crema chantilly)
+- ⭐ Arándanos & Stracciatella: $32.000 (arándanos caramelizados y queso stracciatella - recomendada)
+- Arequipe: $20.000 (arequipe, helado de vainilla y crema chantilly)
+- Frutos Del Bosque: $22.000 (frutos del bosque caramelizados, helado de vainilla y crema chantilly)
+- Nutella: $24.000 (Nutella, helado de vainilla y crema chantilly)
+- ⭐ Nutella & Fresas: $32.000 (Nutella, queso, fresas y azúcar pulverizada, masa gruesa - recomendada)
 - Arequipe & Stracciatella: $32.000
 
 ADICIONES (extras para agregar a cualquier pizza o plato):
@@ -303,9 +318,10 @@ ${prom}
 
 REGLAS:
 - Solo UN sabor por pizza, NO mitad y mitad
-- Tamaños de pizza: Personal y Mediana
-- "Crea Tu Pizza" (personalizada) → ---ESCALAMIENTO---
-- Si un precio dice "Consultar", dile al cliente que verificarás y usa ---ESCALAMIENTO---
+- Tamaños de pizza: Personal y Mediana (algunos solo tienen un tamaño, respeta eso)
+- "Crea Tu Pizza" (personalizada): Personal $32.000, Mediana $49.000, incluye 6 toppings. Los toppings marcados como adicional tienen costo extra según la sección ADICIONES. Para este tipo de pizza → ---ESCALAMIENTO--- (que el humano asesore los toppings)
+- NUNCA digas que un producto no existe si está en el menú. Verifica bien antes de responder
+- Los productos marcados con ⭐ son los recomendados, priorízalos en sugerencias
 
 EMPAQUES (incluir siempre en pedidos para llevar/domicilio):
 - Empaque Pizza: +$2.000
@@ -319,7 +335,7 @@ TIEMPOS (solo si preguntan): Semana ~15min. Fin semana pico (Vie/Sab 6-10PM) ~30
 
 PAGO: Bancolombia Ahorros 718-000042-16, NIT 901684302 - LA BARRA CREA TU PIZZA. Pedir foto del comprobante. Cuando el cliente envíe la foto, confirma que la recibiste y dile que la verificarás.
 
-ESCALAMIENTO: Si el cliente insiste en hablar con una persona, dile exactamente: "Claro, comunícate al 3014017559 y con gusto te atienden 😊" NO uses ---ESCALAMIENTO--- para eso. Solo usa ---ESCALAMIENTO--- para cosas técnicas que no puedas resolver (como Crea Tu Pizza o precios de consultar).
+ESCALAMIENTO: Si el cliente insiste en hablar con una persona, dile exactamente: "Claro, comunícate al 3014017559 y con gusto te atienden 😊" NO uses ---ESCALAMIENTO--- para eso. Solo usa ---ESCALAMIENTO--- para cosas técnicas que no puedas resolver (como Crea Tu Pizza personalizada).
 
 FLUJO PASO A PASO (un paso por mensaje, NO todos de golpe):
 1. Saluda y pregunta qué quiere
