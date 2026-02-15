@@ -478,7 +478,13 @@ async function saveOrder(rid: string, cid: string, phone: string, order: any, co
       </div>`,
     }),
   });
-  if (er.ok) await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+  const resendBody = await er.text();
+  console.log("Resend response status:", er.status, "body:", resendBody);
+  if (er.ok) {
+    await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+  } else {
+    console.error("Resend FAILED:", er.status, resendBody);
+  }
 }
 
 async function escalate(config: any, phone: string, reason: string) {
