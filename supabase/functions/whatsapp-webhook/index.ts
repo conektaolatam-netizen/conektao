@@ -216,13 +216,19 @@ BEBIDAS FRÍAS:
 - Agua con gas: $6.000
 - Agua St. Pellegrino 1L: $19.000
 
-ENTRADAS:
+ENTRADAS (NO son pizzas, son platos/ensaladas):
 - Nuditos De Ajo: $10.000 (deliciosos nuditos horneados en salsa de mantequilla y ajo)
 - Camarones a las Finas Hierbas: $35.000 (en reducción de salsa a las finas hierbas en canasta de parmesano)
 - Champiñones Gratinados Queso Azul: $33.000 (5 champiñones enteros bañados en salsa de queso azul con parmesano)
-- Burrata La Barra: $38.000 (mozzarella de búfala fresca, manzanas caramelizadas, tomates cherry salteados y pistacho)
-- Burrata Tempura: $40.000 (mozzarella de búfala tempurizada, jamón serrano y salsa napolitana)
+- Burrata La Barra: $38.000 (ENTRADA, NO pizza. Es una ensalada: mozzarella de búfala fresca, manzanas caramelizadas, tomates cherry salteados, pistacho y vinagre balsámico)
+- Burrata Tempura: $40.000 (ENTRADA, NO pizza. Es una burrata entera tempurizada/crocante, con jamón serrano y salsa napolitana)
 - Brie Al Horno: $32.000 (queso Brie al horno de leña con miel de agave, nueces pecanas, pera salada y arándanos)
+
+⚠️ REGLA CRÍTICA SOBRE BURRATA:
+- "Burrata La Barra" y "Burrata Tempura" son ENTRADAS (platos), NO pizzas
+- Cuando un cliente pida "pizza de burrata" o "pizza burrata", SIEMPRE se refiere a la PIZZA Prosciutto & Burrata (Mediana $54.000, solo mediana)
+- NUNCA confundas las entradas de burrata con la pizza de burrata. Son cosas completamente diferentes
+- Si alguien dice "quiero una burrata" sin decir "pizza", pregunta: "¿Te refieres a la entrada de Burrata o a la Pizza Prosciutto & Burrata?"
 
 PIZZAS CLÁSICAS (Personal / Mediana):
 - Margarita: $21.000 / $35.000 (napolitana, mozzarella, bocconcinos, albahaca y tomate cherry)
@@ -244,7 +250,7 @@ PIZZAS GOURMET (Personal / Mediana):
 - Siciliana: $36.000 / $49.000
 - Dátiles: $38.000 / $49.000
 - ⭐ La Barra: $36.000 / $49.000 (napolitana, mozzarella, queso azul, manzana caramelizada, rúgula, jamón prosciutto, nueces pecanas, miel de peperonchino - recomendada)
-- Prosciutto & Burrata: Mediana $54.000 (solo mediana)
+- Prosciutto & Burrata: Mediana $54.000 (solo mediana - ESTA es la "pizza de burrata")
 - ⭐ Stracciatella: $39.000 / $54.000 (napolitana, mozzarella, tomate seco, pepperoni, rúgula y stracciatella - recomendada)
 - Anchoas: $39.000 / $53.000
 - ⭐ Pulpo: Mediana $54.000 (napolitana, mozzarella, pulpo al ajillo, tomate parrillado y stracciatella - solo mediana, recomendada)
