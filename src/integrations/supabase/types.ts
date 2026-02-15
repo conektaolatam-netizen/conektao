@@ -4765,6 +4765,7 @@ export type Database = {
         Row: {
           created_at: string
           custom_rules: string[] | null
+          daily_overrides: Json | null
           delivery_company_email: string | null
           delivery_config: Json | null
           delivery_enabled: boolean
@@ -4798,6 +4799,7 @@ export type Database = {
         Insert: {
           created_at?: string
           custom_rules?: string[] | null
+          daily_overrides?: Json | null
           delivery_company_email?: string | null
           delivery_config?: Json | null
           delivery_enabled?: boolean
@@ -4831,6 +4833,7 @@ export type Database = {
         Update: {
           created_at?: string
           custom_rules?: string[] | null
+          daily_overrides?: Json | null
           delivery_company_email?: string | null
           delivery_config?: Json | null
           delivery_enabled?: boolean
