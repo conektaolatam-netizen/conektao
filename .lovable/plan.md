@@ -1,70 +1,131 @@
 
 
-## Fix: Horarios de La Barra + Historia + Chat de ajustes diarios
+## Blindaje completo del prompt de ALICIA
 
-### Problema detectado
+### Problemas detectados (analisis linea por linea)
 
-1. **Horarios**: El prompt de La Barra NO tiene horario de apertura/cierre. El campo `operating_hours.schedule` solo dice "Todos los días" sin horas. ALICIA inventa que abre a las 5pm.
-2. **Historia**: No hay info de fundador ni marca en el prompt. ALICIA inventa que "es de un grupo de amigos".
-3. **Falta**: Un canal donde el dueno pueda decirle a ALICIA cosas temporales como "hoy cerramos temprano".
+**1. CRITICO: No hay categorias semanticas para busqueda**
+Cuando alguien pide "algo de mar", ALICIA no encuentra nada porque los productos no tienen tags de busqueda. Los items de mar estan dispersos sin agrupacion:
+- Pizza de Camarones (linea 714)
+- Camarones a las Finas Hierbas (linea 694, entrada)
+- Fettuccine Con Camarones (linea 744)
+- Brioche al Camaron (linea 758)
+- Langostinos Parrillados (linea 755)
+- Pizza de Pulpo (linea 729)
+- Pizza de Anchoas (linea 728)
+- Adicion Camarones y Pulpo (lineas 787, 796)
+
+No hay ninguna instruccion que le diga a ALICIA: "si piden algo de mar, mariscos o pescado, estos son los productos".
+
+**2. CRITICO: Temperature 0.85 es demasiado alta**
+Linea 924: `temperature: 0.85` genera creatividad excesiva. Para un sistema de pedidos donde la precision es vital, deberia ser 0.3-0.5. Esto explica que invente precios, tamanios y productos.
+
+**3. CRITICO: max_tokens 400 puede truncar pedidos**
+Linea 925: `max_tokens: 400` es insuficiente para pedidos grandes con JSON. Un pedido de 5+ items con desglose + JSON de confirmacion puede superar 400 tokens y cortarse a la mitad, generando JSON invalido.
+
+**4. ALTO: No hay validacion post-IA de precios**
+La funcion `parseOrder` (linea 937) extrae el JSON pero nunca valida que los precios coincidan con el menu real. Si la IA pone un precio incorrecto, se guarda y se cobra mal.
+
+**5. ALTO: Empaque no se valida programaticamente**
+El prompt dice "SIEMPRE incluye empaques" pero no hay logica en el codigo que verifique que el JSON del pedido incluya packaging_cost > 0 para delivery/takeaway.
+
+**6. ALTO: Falta disambiguation de productos similares**
+Hay multiples "Camarones" (pizza, entrada, pasta, adicion, brioche) y multiples "Burrata" (tiene regla pero es insuficiente). No hay regla para cuando alguien dice "quiero camarones" sin especificar.
+
+**7. MEDIO: El prompt es demasiado largo (+800 lineas de texto)**
+Gemini 2.5 Flash pierde atencion en prompts largos. Las reglas criticas estan enterradas entre informacion menos importante. Las reglas de precios estan en la linea 832+, muy lejos del menu (654-830).
+
+**8. MEDIO: No hay "mapa mental" del menu**
+No existe un resumen de categorias al inicio del menu que le diga a ALICIA: "Tenemos: pizzas, pastas, entradas, hamburguesas, mariscos, bebidas, postres". Esto haria que nunca diga "no tenemos X" cuando si existe.
+
+**9. BAJO: Adiciones duplican nombres de productos**
+"Camarones: $10.000" en adiciones vs "Pizza de Camarones: $38.000/$52.000" puede confundir a la IA sobre cual es cual.
 
 ---
 
-### Cambio 1: Actualizar prompt hardcoded de La Barra
+### Plan de correccion
 
-En `supabase/functions/whatsapp-webhook/index.ts`, agregar al `buildLaBarraPrompt`:
+#### Cambio 1: Reestructurar el menu con categorias semanticas y mapa mental
 
-- Bloque de HORARIO con reglas claras:
-  - Abre todos los dias a las 3:00 PM
-  - Desde las 3pm puede tomar pedidos
-  - Si piden antes de las 3pm: tomar el pedido y decir "a partir de las 3:30 pm empezamos a preparar tu pedido"
-  - Si es muy temprano (ej: 9am): calcular cuantas horas faltan y decirle al cliente
-  - Cierra usualmente a las 11 PM, a veces se extiende
-  
-- Bloque de HISTORIA E IDENTIDAD:
-  - Fundador: Santiago Cuartas Hernandez
-  - Historia: durante la pandemia, pasion familiar por la pizza, pizzero italiano vino 15 dias a ensenar la receta ganadora
-  - Sedes oficiales: La Samaria y El Vergel
-  - La Estacion es una franquicia en proceso legal de retiro, no representa la marca
-  - Reglas de manejo de quejas sobre La Estacion (respuesta empatica, invitar a sedes oficiales)
+Agregar al inicio del menu un bloque de "INDICE" que le diga a ALICIA que categorias tiene:
 
-### Cambio 2: Actualizar datos en DB
+```text
+INDICE DEL MENU (consulta esto PRIMERO antes de decir que algo no existe):
+- MARISCOS/MAR: Pizza Camarones, Pizza Pulpo, Pizza Anchoas, Camarones Finas Hierbas (entrada), Fettuccine con Camarones, Brioche al Camaron, Langostinos Parrillados
+- CARNES: Hamburguesa Italiana, Brocheta di Manzo, Bondiola
+- PIZZAS: 25+ variedades en Personal y Mediana
+- PASTAS: Spaghetti, Fettuccine, Ravioles, Lasagna
+- ENTRADAS: Nuditos, Burrata, Brie, Champiñones
+- POSTRES: 11 pizzas dulces
+- BEBIDAS: Limonadas, Sodificadas, Cocteles, Sangria, Cervezas, Vinos
+```
 
-Actualizar la fila de La Barra en `whatsapp_configs`:
-- `operating_hours` con horario estructurado: apertura 15:00, cierre 23:00, pre_order_message, etc.
-- `restaurant_description` ampliado con la historia
-- Agregar `custom_rules` con reglas de marca/franquicia
+Agregar tags de busqueda a items del menu:
 
-### Cambio 3: Mejorar Step7Schedule.tsx
+```text
+- Camarones: $38.000 / $52.000 (MARISCOS - salsa Alfredo, mozzarella, camarones salteados al ajillo)
+```
 
-Reemplazar el input de texto libre por campos estructurados:
-- Hora de apertura (selector de hora)
-- Hora de cierre (selector de hora)
-- Mensaje si piden antes de abrir (texto)
-- Dias de operacion (checkboxes Lun-Dom)
-- Checkbox: "Podemos tomar pedidos antes de abrir?"
-- Si si: a que hora empiezan a preparar
+#### Cambio 2: Reducir temperature a 0.4 y subir max_tokens a 800
 
-### Cambio 4: Mejorar buildDynamicPrompt para horarios
+```typescript
+temperature: 0.4,  // Precision sobre creatividad
+max_tokens: 800,   // Suficiente para pedidos grandes con JSON
+```
 
-Actualizar la logica dinamica para usar horarios estructurados y generar reglas inteligentes:
-- Calcular si el restaurante esta abierto/cerrado basado en la hora actual de Colombia
-- Si esta cerrado, instruir a ALICIA sobre como responder (tomar pedido para despues o decir que faltan X horas)
+#### Cambio 3: Agregar validacion post-IA de precios y empaques
 
-### Cambio 5: Agregar seccion "daily_overrides" (Chat de ajustes del dia)
+Crear una funcion `validateOrder` que despues de `parseOrder`:
+1. Compare cada item.unit_price contra el menu real del prompt
+2. Verifique que items de delivery tengan packaging_cost > 0
+3. Recalcule el total y corrija si no cuadra
+4. Agregue empaques faltantes automaticamente
 
-Crear una nueva columna `daily_overrides` (JSONB) en `whatsapp_configs` para cambios temporales del dia (ej: "hoy cerramos a las 9pm", "hoy no hay domicilio").
+```typescript
+function validateOrder(order: any, deliveryType: string): { corrected: boolean; order: any; issues: string[] } {
+  const issues: string[] = [];
+  // Mapa de precios conocidos para La Barra
+  const priceMap: Record<string, Record<string, number>> = {
+    "Margarita": { personal: 21000, mediana: 35000 },
+    "Hawaiana": { personal: 24000, mediana: 37000 },
+    // ... todos los productos
+  };
+  // Validar cada item
+  // Agregar empaque si falta en delivery
+  // Recalcular total
+}
+```
 
-Crear un componente `AliciaDailyChat.tsx` que se muestre en el dashboard:
-- Input tipo chat donde el dueno escribe en lenguaje natural: "Alicia hoy cerramos a las 9"
-- Una edge function `alicia-daily-override` que:
-  - Recibe el mensaje del dueno
-  - Usa IA para extraer la instruccion (tipo: schedule_change, value: "cierre a las 9pm", expires: fin del dia)
-  - Guarda en `daily_overrides` con expiracion automatica (fin del dia)
-- El `buildPrompt` lee `daily_overrides` y los inyecta como reglas temporales
-- Los overrides se limpian automaticamente al dia siguiente
+#### Cambio 4: Agregar reglas de disambiguation explicitas
 
-Agregar este componente al `WhatsAppDashboard` como una seccion visible.
+Agregar al prompt reglas para nombres ambiguos:
+
+```text
+DISAMBIGUATION (cuando el cliente no especifica):
+- "Camarones" sin contexto -> preguntar: "Te refieres a la pizza de camarones, los camarones de entrada, el fettuccine con camarones o el brioche al camaron?"
+- "Algo de mar/mariscos" -> mostrar TODAS las opciones de mar del indice
+- "Burrata" sin "pizza" -> preguntar (regla existente)
+- "Carbonara" -> Fettuccine Carbonara $39.000
+- "Bolognese/Bolonesa" -> Spaghetti Alla Bolognese $39.000
+```
+
+#### Cambio 5: Agregar regla anti-negacion de existencia
+
+```text
+REGLA CRITICA - NUNCA digas que algo no existe sin verificar:
+- ANTES de decir "no manejamos eso" o "no tenemos eso", revisa el INDICE DEL MENU completo
+- Si el cliente pide algo con palabras diferentes (ej: "mariscos", "de mar", "seafood"), busca en el indice por categoria
+- Si genuinamente no existe, sugiere lo mas parecido del menu
+```
+
+#### Cambio 6: Compactar reglas duplicadas en el prompt
+
+Hay reglas repetidas en multiples lugares:
+- "No inventes tamanios" aparece 3 veces (lineas 493, 834-835, 873)
+- "Admite ser IA" aparece 3 veces (lineas 424, 504-506, 881-883)
+- "No pidas info repetida" aparece 2 veces (lineas 448-449, 627-630)
+
+Consolidar en una sola seccion "REGLAS INQUEBRANTABLES" al final del prompt (posicion de mayor peso para el LLM).
 
 ---
 
@@ -72,32 +133,21 @@ Agregar este componente al `WhatsAppDashboard` como una seccion visible.
 
 ```text
 supabase/functions/whatsapp-webhook/index.ts
-  - Agregar horarios y historia al buildLaBarraPrompt
-  - Mejorar buildDynamicPrompt para horarios estructurados
-  - Leer daily_overrides y agregarlos al prompt
-
-src/components/alicia-setup/Step7Schedule.tsx
-  - Campos estructurados en vez de texto libre
-
-Migracion SQL
-  - UPDATE whatsapp_configs SET operating_hours, restaurant_description, custom_rules para La Barra
-  - ALTER TABLE whatsapp_configs ADD COLUMN daily_overrides JSONB DEFAULT '[]'
-
-src/components/alicia-setup/AliciaDailyChat.tsx (NUEVO)
-  - Chat simple para ajustes del dia
-
-supabase/functions/alicia-daily-override/index.ts (NUEVO)
-  - Edge function que procesa instrucciones del dueno con IA
-
-src/pages/WhatsAppDashboard.tsx
-  - Agregar seccion AliciaDailyChat
+  - buildLaBarraPrompt: Reestructurar menu con indice y tags semanticos
+  - buildLaBarraPrompt: Agregar reglas de disambiguation
+  - buildLaBarraPrompt: Consolidar reglas duplicadas
+  - buildDynamicPrompt: Mismas mejoras para multi-tenant
+  - callAI: temperature 0.85 -> 0.4, max_tokens 400 -> 800
+  - Agregar funcion validateOrder() con mapa de precios
+  - En el flujo POST: llamar validateOrder despues de parseOrder
 ```
 
-### Resultado
+### Resultado esperado
 
-- ALICIA sabra que La Barra abre a las 3pm y cierra a las 11pm
-- Si alguien pide a las 10am, dira que puede tomar el pedido pero empiezan a preparar a las 3:30pm
-- ALICIA conocera la historia real de Santiago y la marca
-- Sabra manejar quejas sobre La Estacion con empatia
-- El dueno podra decirle "Alicia hoy cerramos a las 9" desde el dashboard
-- El Step7 del wizard sera mas facil de llenar con selectores de hora
+- ALICIA nunca dira "no tenemos mariscos" porque tendra un indice de categorias
+- Los precios seran validados por codigo, no solo por el prompt
+- Los empaques se agregaran automaticamente si la IA los olvida
+- La temperature baja eliminara la creatividad que genera precios inventados
+- max_tokens mayor evitara pedidos truncados
+- Las reglas consolidadas tendran mayor peso al estar al final del prompt
+
