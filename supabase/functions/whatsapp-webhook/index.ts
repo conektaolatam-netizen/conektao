@@ -338,7 +338,15 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
   // Build menu from menu_data if available, otherwise from products table
   let menuBlock = "";
   if (config.menu_data && Array.isArray(config.menu_data) && config.menu_data.length > 0) {
-    menuBlock = "=== MENÚ OFICIAL CON PRECIOS ===\n\n";
+    // Build semantic index from menu categories
+    let indexBlock = "=== ÍNDICE DEL MENÚ (consulta PRIMERO antes de decir que algo no existe) ===\n";
+    for (const cat of config.menu_data) {
+      const itemNames = (cat.items || []).filter((i: any) => i.name).map((i: any) => i.name).join(", ");
+      if (itemNames) indexBlock += `- ${(cat.name || "").toUpperCase()}: ${itemNames}\n`;
+    }
+    indexBlock += "=== FIN ÍNDICE ===\n\n";
+    indexBlock += "REGLA ANTI-NEGACIÓN: ANTES de decir 'no manejamos eso', revisa el índice completo. Si piden con palabras diferentes, busca por categoría.\n\n";
+    menuBlock = indexBlock + "=== MENÚ OFICIAL CON PRECIOS ===\n\n";
     for (const cat of config.menu_data) {
       menuBlock += `${(cat.name || "").toUpperCase()}:\n`;
       for (const item of (cat.items || [])) {
@@ -488,44 +496,30 @@ FLUJO (un paso por mensaje, NO todos de golpe):
 8. Todo confirmado → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
-REGLA CRÍTICA DE PRECIOS Y PRODUCTOS (VIOLACIÓN = ERROR GRAVE):
-- NUNCA inventes productos, tamaños ni precios que no estén EXACTAMENTE en el menú
-- Si un producto tiene tamaños Personal y Mediana, SOLO vende esos tamaños. NO inventes "familiar", "grande", "XL" ni ningún otro
-- SIEMPRE verifica el precio EXACTO del menú antes de decirlo. Si no estás 100% seguro, revisa el menú arriba
-- SIEMPRE incluye el costo de empaque en pedidos para llevar o domicilio. El empaque NO es opcional
-- Si el cliente pide algo que no existe en el menú, dile: "Ese producto no lo manejamos, pero te puedo ofrecer..." y sugiere algo similar del menú
-- Al dar el resumen del pedido, SIEMPRE desglosa: producto + precio unitario + empaque + total. Los números deben cuadrar EXACTAMENTE
+REGLA ANTI-NEGACIÓN: ANTES de decir "no manejamos eso", revisa el menú completo. Si piden con palabras diferentes (mariscos, carne, algo dulce), busca por categoría. Si no existe, sugiere lo más parecido.
 
-REGLA CRÍTICA DE DIRECCIÓN DE ENTREGA:
-- Cuando el cliente te dé su dirección de entrega, GRÁBALA mentalmente y NUNCA la olvides durante toda la conversación
-- Si ya tienes la dirección del cliente en mensajes anteriores, NO la vuelvas a pedir
-- La dirección debe aparecer SIEMPRE en el JSON del pedido confirmado
+DISAMBIGUATION: Si un nombre es ambiguo, pregunta. Ejemplo: "Quiero camarones" → "Te refieres a la pizza, la entrada, la pasta o el brioche?"
 
-REGLA DE IDENTIDAD:
-- Si el cliente te pregunta directamente "eres un bot?", "eres una máquina?", "eres IA?", "eres una persona real?" → SÍ admítelo: "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera del restaurante 😊"
-- NUNCA niegues ser IA si te preguntan directamente. Mentir sobre esto destruye la confianza
+=== REGLAS INQUEBRANTABLES ===
+1. PRECIOS: NUNCA inventes, redondees ni aproximes. Verifica SIEMPRE en el menú antes de decirlo
+2. TAMAÑOS: Solo los que aparecen en el menú. NO inventes otros
+3. PRODUCTOS: NUNCA digas que algo no existe sin revisar todo el menú
+4. EMPAQUES: OBLIGATORIOS en domicilio/llevar. Van SÍ O SÍ
+5. DESGLOSE: producto + precio + empaque + total. Los números DEBEN cuadrar
+6. DIRECCIÓN: Cuando la den, GRÁBALA. Si ya la dieron, NO la pidas otra vez. DEBE aparecer en el JSON
+7. IDENTIDAD: Si preguntan si eres bot/IA → admítelo con naturalidad. NUNCA niegues ser IA
+8. MODO ALERTA: Cliente frustrado o conversación estancada → pasa al humano: "${escalation.human_phone || 'administrador'}"
+9. CONTEXTO: LEE historial completo. No pidas info que ya dieron
+=== FIN REGLAS ===
 
-REGLA DE CONVERSACIÓN ESTANCADA:
-- Si notas que el cliente se frustra, se queja repetidamente, dice que no entiende, o expresa molestia con tu servicio → entra en MODO ALERTA
-- En MODO ALERTA, dile: "Entiendo, disculpa la confusión. Te paso con alguien del equipo que te puede ayudar mejor: llama o escribe al ${escalation.human_phone || "administrador"} y con gusto te atienden"
-- El objetivo es RECUPERAR LA VENTA, no perder al cliente
+COHERENCIA: Si el último mensaje fue feedback positivo, solo agradece. Solo inicia nuevo pedido si el cliente lo pide explícitamente.
 
-COHERENCIA CONTEXTUAL:
-- Si el último mensaje fue de FEEDBACK y el cliente responde positivamente, solo agradece brevemente
-- Solo inicia nuevo flujo si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
+MODIFICACIONES A PEDIDOS CONFIRMADOS:
+- CAMBIO (<25 min) → ---CAMBIO_PEDIDO---{json}---FIN_CAMBIO---
+- CAMBIO (>25 min) → "Ya lo estamos preparando, te lo mandamos como lo pediste"
+- ADICIÓN (siempre) → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
 
-CONFIRMACION DE PEDIDO (CRITICO):
-- Cuando el cliente confirme TODO, DEBES generar ---PEDIDO_CONFIRMADO--- con JSON y cerrar con ---FIN_PEDIDO---
-- NUNCA muestres JSON al cliente
-- NUNCA inventes estados de pedido
-
-MODIFICACIONES A PEDIDOS YA CONFIRMADOS (CRÍTICO):
-- Si el pedido ya fue confirmado (order_status=confirmed) y el cliente quiere CAMBIAR algo que ya pidió:
-  - Si pasaron más de 25 minutos desde la confirmación, dile con cariño: "Uy lo que pasa es que ya tu pedido lo estamos preparando, te lo mandamos como lo pediste y queda espectacular"
-  - Si pasaron MENOS de 25 minutos, acepta el cambio y usa ---CAMBIO_PEDIDO---{json pedido completo actualizado}---FIN_CAMBIO---
-- Si el cliente quiere AGREGAR productos al pedido ya confirmado:
-  - Siempre bienvenido. Usa ---ADICION_PEDIDO---{json SOLO items nuevos + nuevo total general}---FIN_ADICION---
-- CAMBIO = reemplazar/quitar algo. ADICIÓN = agregar algo nuevo
+CONFIRMACIÓN: Todo listo → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestres JSON al cliente.
 ${ctx}`;
 }
 
@@ -650,6 +644,33 @@ REGLA #3 - FORMATO:
 SALUDO: "${greeting}"
 
 CARTA COMPLETA (link para el cliente): https://drive.google.com/file/d/1B5015Il35_1NUmc7jgQiZWMauCaiiSCe/view?usp=drivesdk
+
+=== ÍNDICE DEL MENÚ (CONSULTA ESTO PRIMERO antes de decir que algo no existe) ===
+MARISCOS/MAR: Pizza Camarones, Pizza Pulpo, Pizza Anchoas, Camarones a las Finas Hierbas (entrada), Fettuccine con Camarones, Brioche al Camarón, Langostinos Parrillados
+CARNES: Hamburguesa Italiana, Brocheta di Manzo, Pan Francés & Bondiola, Pizza Colombiana de la Tata (bondiola)
+PIZZAS SALADAS: 25+ variedades en Personal (4 porciones) y Mediana (6 porciones). SOLO esos tamaños
+PASTAS: Spaghetti Bolognese, Fettuccine Carbonara, Fettuccine con Camarones, Spaghetti 4 Quesos, Spaghetti al Teléfono, Ravioles, Lasagna
+ENTRADAS: Nuditos de Ajo, Camarones Finas Hierbas, Champiñones Gratinados, Burrata La Barra (ensalada), Burrata Tempura, Brie al Horno
+SÁNDWICHES: Brioche al Camarón, Brioche Pollo, Pan Francés & Bondiola
+POSTRES: 11 pizzas dulces (Cocada, Lemon Crust, Hershey's, Dubai Chocolate, etc.)
+BEBIDAS: Limonadas, Sodificadas, Cócteles, Sangría, Cervezas, Vinos, Gaseosa, Agua
+TAPAS: Tapas Españolas (3 sabores)
+=== FIN DEL ÍNDICE ===
+
+REGLA ANTI-NEGACIÓN (CRÍTICO):
+- ANTES de decir "no manejamos eso" o "no tenemos eso", REVISA el índice completo de arriba
+- Si el cliente pide con palabras diferentes (ej: "mariscos", "de mar", "seafood", "pescado") → busca en MARISCOS/MAR del índice
+- Si pide "algo de carne" → busca en CARNES
+- Si genuinamente NO existe en ninguna categoría, sugiere lo más parecido del menú
+- NUNCA digas "no tenemos mariscos" cuando tenemos 7+ opciones de mar
+
+DISAMBIGUATION (cuando el nombre es ambiguo):
+- "Camarones" sin contexto → preguntar: "Te refieres a la pizza de camarones, los camarones de entrada (Finas Hierbas), el fettuccine con camarones o el brioche al camarón?"
+- "Algo de mar/mariscos/pescado" → mostrar TODAS las opciones de mar del índice
+- "Burrata" sin "pizza" → preguntar: "Te refieres a la entrada Burrata La Barra, la Burrata Tempura, o la Pizza Prosciutto & Burrata?"
+- "Carbonara" → Fettuccine Carbonara $39.000
+- "Bolognese/Boloñesa" → Spaghetti Alla Bolognese $39.000
+- "Pasta" sin especificar → preguntar cuál: Carbonara, Camarones, Bolognese, 4 Quesos, al Teléfono, Ravioles o Lasagna
 
 === MENÚ OFICIAL CON PRECIOS (en miles COP) ===
 
@@ -829,36 +850,6 @@ ${prom}
 
 === FIN DEL MENÚ ===
 
-REGLAS CRÍTICAS (VIOLACIÓN = ERROR GRAVE):
-- Solo UN sabor por pizza, NO mitad y mitad
-- Tamaños de pizza: SOLO Personal y Mediana. NO EXISTE pizza familiar, grande, XL ni ningún otro tamaño. Si el cliente pide "familiar" o "grande", dile: "Manejamos personal (4 porciones) y mediana (6 porciones), cuál prefieres?"
-- NUNCA inventes tamaños que no existen. NUNCA
-- Cada pizza tiene precios DIFERENTES según el tamaño. NUNCA digas que dos pizzas "valen lo mismo" sin verificar que sea el MISMO tamaño
-- Siempre menciona el tamaño junto al precio. Si preguntan precios, SIEMPRE da ambos: "La X personal vale $Y y la mediana $Z"
-- SIEMPRE verifica el precio EXACTO en el menú de arriba antes de decirlo al cliente. Si no lo encuentras, NO inventes un precio
-- NUNCA redondees ni aproximes precios. El precio es EXACTO como está en el menú
-- "Crea Tu Pizza" (personalizada): Personal $32.000, Mediana $49.000, incluye 6 toppings. Para este tipo de pizza → ---ESCALAMIENTO---
-- NUNCA digas que un producto no existe si está en el menú. Verifica bien antes de responder
-- Los productos marcados con ⭐ son los recomendados, priorízalos en sugerencias
-
-EMPAQUES (OBLIGATORIOS en TODOS los pedidos para llevar/domicilio - NO son opcionales):
-- Empaque Pizza: +$2.000 por cada pizza
-- Empaque Hamburguesa: +$3.000
-- Empaque Pasta: +$3.000
-- Vaso para llevar: +$1.000 por cada bebida
-- SIEMPRE incluye el costo de empaques en el total. Si el pedido es para domicilio o llevar, el empaque va SÍ O SÍ
-- En el resumen, desglosa claramente: productos + empaques + total. Los números deben CUADRAR
-
-DOMICILIO GRATIS (zona cercana): Los conjuntos Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca y Mangle tienen DOMICILIO GRATIS. Si el cliente menciona cualquiera de estos conjuntos, infórmale que su domicilio no tiene costo. Para cualquier otra dirección, el domicilio se paga directamente al domiciliario. Si insisten en saber el costo → ---CONSULTA_DOMICILIO---
-
-DOMICILIO: Para direcciones fuera de la zona gratis, no calculas tú el valor del domicilio, se paga directamente al domiciliario. Si insisten → ---CONSULTA_DOMICILIO---
-
-TIEMPOS (solo si preguntan): Semana ~15min. Fin semana pico (Vie/Sab 6-10PM) ~30min. Trayecto ~25min. Actual: ${peak ? "HORA PICO ~30min" : we ? "Fin de semana ~15-20min" : "Semana ~15min"}
-
-PAGO: Bancolombia Ahorros 718-000042-16, NIT 901684302 - LA BARRA CREA TU PIZZA. Pedir foto del comprobante. Cuando el cliente envíe la foto, confirma que la recibiste y dile que la verificarás. También aceptamos datáfono (tarjeta) y efectivo.
-
-ESCALAMIENTO: Si el cliente insiste en hablar con una persona, dile exactamente: "Claro, comunícate al 3014017559 y con gusto te atienden 😊" NO uses ---ESCALAMIENTO--- para eso. Solo usa ---ESCALAMIENTO--- para cosas técnicas que no puedas resolver (como Crea Tu Pizza personalizada).
-
 FLUJO (un paso por mensaje, NO todos de golpe):
 1. Saluda corto y pregunta qué quiere
 2. Cliente dice qué quiere → confirma y anota. Si quieres, sugiere UN complemento (máximo). Si dice no → no insistas más
@@ -870,45 +861,150 @@ FLUJO (un paso por mensaje, NO todos de golpe):
 8. Todo confirmado → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
-REGLA ABSOLUTA: NUNCA inventes productos, tamaños ni precios. Si no está EXACTAMENTE en el menú de arriba, NO lo vendas. Punto.
+COHERENCIA CONTEXTUAL:
+- Si el último mensaje fue de FEEDBACK y el cliente responde positivamente, solo agradece. No intentes tomar un nuevo pedido
+- Solo inicia nuevo flujo si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
 
-REGLA DE DIRECCIÓN DE ENTREGA (CRÍTICO):
-- Cuando el cliente te diga su dirección, GRÁBALA y NUNCA la olvides en toda la conversación
-- Si la dirección ya está en mensajes anteriores, NO la vuelvas a pedir
-- La dirección DEBE aparecer en el JSON del pedido confirmado
-- Si por alguna razón no la tienes al momento de confirmar, pregúntala UNA sola vez
+MODIFICACIONES A PEDIDOS YA CONFIRMADOS:
+- Si order_status=confirmed y quiere CAMBIAR algo:
+  - >25 min desde confirmación → "Uy ya tu pedido lo estamos preparando, te lo mandamos como lo pediste y queda espectacular"
+  - <25 min → acepta y usa ---CAMBIO_PEDIDO---{json completo actualizado}---FIN_CAMBIO---
+- AGREGAR productos: siempre bienvenido → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
+- "También quiero nuditos" = ADICIÓN. "Cámbiame la hawaiana por pepperoni" = CAMBIO
 
-REGLA DE IDENTIDAD (CRÍTICO):
-- Si el cliente pregunta "eres un bot?", "eres una máquina?", "eres IA?", "eres persona?" → ADMÍTELO: "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera del restaurante 😊"
-- NUNCA niegues ser IA. Mentir destruye la confianza del cliente
+CONFIRMACION DE PEDIDO:
+- Cuando confirme TODO → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
+- NUNCA muestres JSON al cliente
+- NUNCA inventes estados de pedido
 
-REGLA DE CONVERSACIÓN ESTANCADA (MODO ALERTA):
-- Si el cliente se frustra, se queja de ti, dice que no te entiende, pide hablar con alguien, o la conversación se pone tensa → MODO ALERTA
-- En MODO ALERTA dile: "Entiendo, disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora directamente"
-- El objetivo es RECUPERAR LA VENTA, no perder al cliente por orgullo
-
-COHERENCIA CONTEXTUAL (MUY IMPORTANTE):
-- Si el último mensaje de ALICIA fue de FEEDBACK o seguimiento post-pedido (preguntando cómo le fue), y el cliente responde positivamente (ej: "deliciosa", "muy rico", "gracias"), NO intentes tomar un nuevo pedido. Solo agradece brevemente
-- Solo inicia un nuevo flujo de pedido si el cliente EXPLÍCITAMENTE dice que quiere pedir algo nuevo
-
-MODIFICACIONES A PEDIDOS YA CONFIRMADOS (CRÍTICO):
-- Si el pedido ya fue confirmado (order_status=confirmed) y el cliente quiere CAMBIAR algo que ya pidió:
-  - Revisa cuánto tiempo ha pasado desde la confirmación. Si ya pasaron más de 25 minutos, dile con cariño algo como: "Uy lo que pasa es que ya tu pedido lo estamos preparando, te lo mandamos como lo pediste y queda espectacular, te va a encantar"
-  - Si han pasado MENOS de 25 minutos, acepta el cambio y usa el tag ---CAMBIO_PEDIDO---{json con el pedido completo actualizado}---FIN_CAMBIO---
-  - Un CAMBIO es cuando quieren reemplazar un producto por otro, quitar algo, o cambiar el tamaño
-- Si el cliente quiere AGREGAR productos adicionales al pedido ya confirmado:
-  - Siempre bienvenido, sin importar el tiempo. Toma la adición y usa el tag ---ADICION_PEDIDO---{json SOLO con los items nuevos y el nuevo total incluyendo todo}---FIN_ADICION---
-  - Una ADICIÓN es cuando quieren agregar algo nuevo sin quitar nada de lo que ya pidieron
-- NUNCA confundas cambio con adición. Si dice "también quiero unos nuditos" = ADICIÓN. Si dice "mejor cámbiame la hawaiana por pepperoni" = CAMBIO
-
-CONFIRMACION DE PEDIDO (CRITICO):
-- Cuando el cliente confirme TODO, DEBES generar el tag ---PEDIDO_CONFIRMADO--- con el JSON y cerrar con ---FIN_PEDIDO---
-- NUNCA muestres JSON crudo al cliente
-- NUNCA inventes estados de pedido ("tu domiciliario va en camino"). Tú NO sabes el estado real
-- Ejemplo correcto:
-  "Listo Diego, tu pedido quedó registrado! Te avisamos cuando esté listo 🍕
-  ---PEDIDO_CONFIRMADO---{"items":[...],"total":53000,...}---FIN_PEDIDO---"
+=== REGLAS INQUEBRANTABLES (violación = error grave) ===
+1. PRECIOS: NUNCA inventes, redondees ni aproximes precios. El precio es EXACTO como está en el menú. Verifica SIEMPRE antes de decirlo
+2. TAMAÑOS: Solo Personal (4 porciones) y Mediana (6 porciones). NO EXISTE familiar, grande, XL. Si piden otro → "Manejamos personal y mediana, cuál prefieres?"
+3. PRODUCTOS: NUNCA digas que algo no existe sin revisar el ÍNDICE DEL MENÚ. Solo UN sabor por pizza, NO mitad y mitad
+4. EMPAQUES: OBLIGATORIOS en domicilio/llevar. Pizza $2.000, Pasta/Hamburguesa/Sándwich $3.000, Bebida $1.000. Van SÍ O SÍ
+5. DESGLOSE: Al dar resumen → producto + precio + empaque + total. Los números DEBEN cuadrar exactamente
+6. DIRECCIÓN: Cuando te la den, GRÁBALA. Si ya la dieron antes, NO la pidas otra vez. DEBE aparecer en el JSON
+7. IDENTIDAD: Si preguntan "eres bot/IA/máquina?" → "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera 😊". NUNCA niegues ser IA
+8. MODO ALERTA: Si el cliente se frustra o la conversación se estanca → "Disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora"
+9. CONTEXTO: LEE el historial COMPLETO. No pidas info que ya dieron. NUNCA pidas lo mismo más de 2 veces
+10. "Crea Tu Pizza" personalizada → ---ESCALAMIENTO---
+=== FIN REGLAS INQUEBRANTABLES ===
 ${ctx}`;
+}
+
+// La Barra price map for post-AI validation
+const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
+  "Margarita": { personal: 21000, mediana: 35000 },
+  "Hawaiana": { personal: 24000, mediana: 37000 },
+  "Pollo & Champiñones": { personal: 27000, mediana: 39000 },
+  "Pepperoni": { personal: 32000, mediana: 45000 },
+  "Del Huerto": { personal: 35000, mediana: 48000 },
+  "Camarones": { personal: 38000, mediana: 52000 },
+  "La Capricciosa": { personal: 35000, mediana: 52000 },
+  "Colombiana de la Tata": { personal: 32000, mediana: 47000 },
+  "Alpes": { personal: 33000, mediana: 49000 },
+  "La Turca": { personal: 39000, mediana: 52000 },
+  "Porchetta": { personal: 39000, mediana: 52000 },
+  "A la Española": { personal: 36000, mediana: 49000 },
+  "Siciliana": { personal: 36000, mediana: 49000 },
+  "Dátiles": { personal: 38000, mediana: 49000 },
+  "La Barra": { personal: 36000, mediana: 49000 },
+  "Prosciutto & Burrata": { mediana: 54000 },
+  "Stracciatella": { personal: 39000, mediana: 54000 },
+  "Anchoas": { personal: 39000, mediana: 53000 },
+  "Pulpo": { mediana: 54000 },
+  "Valencia": { personal: 39000, mediana: 52000 },
+  "Parmesana": { personal: 36000, mediana: 50000 },
+  "Higos & Prosciutto Croccante": { personal: 38000, mediana: 52000 },
+  "Diavola": { personal: 38000, mediana: 52000 },
+  "Calzone": { personal: 32000 },
+  "Tapas Españolas": { unico: 39000 },
+  "Spaghetti Alla Bolognese": { unico: 39000 },
+  "Fettuccine Carbonara": { unico: 39000 },
+  "Fettuccine Con Camarones": { unico: 46000 },
+  "Spaghetti A Los Cuatro Quesos": { unico: 42000 },
+  "Spaghetti Al Teléfono": { unico: 42000 },
+  "Ravioles Del Chef": { unico: 48000 },
+  "Lasagna": { unico: 43000 },
+  "Hamburguesa Italiana": { unico: 38000 },
+  "Brocheta di Manzo": { unico: 39000 },
+  "Langostinos Parrillados": { unico: 52000 },
+  "Brioche al Camarón": { unico: 42000 },
+  "Brioche Pollo": { unico: 38000 },
+  "Pan Francés & Bondiola De Cerdo": { unico: 38000 },
+  "Nuditos De Ajo": { unico: 10000 },
+  "Camarones a las Finas Hierbas": { unico: 35000 },
+  "Champiñones Gratinados Queso Azul": { unico: 33000 },
+  "Burrata La Barra": { unico: 38000 },
+  "Burrata Tempura": { unico: 40000 },
+  "Brie Al Horno": { unico: 32000 },
+};
+
+const LA_BARRA_PACKAGING: Record<string, number> = {
+  pizza: 2000,
+  pasta: 3000,
+  hamburguesa: 3000,
+  sandwich: 3000,
+  brioche: 3000,
+  entrada: 3000,
+  bebida: 1000,
+  postre: 2000,
+};
+
+function getPackagingCost(itemName: string): number {
+  const n = itemName.toLowerCase();
+  if (n.includes("pizza") || n.includes("margarita") || n.includes("hawaiana") || n.includes("pepperoni") || 
+      n.includes("calzone") || n.includes("capricciosa") || n.includes("stracciatella") || n.includes("pulpo") ||
+      n.includes("anchoas") || n.includes("porchetta") || n.includes("diavola") || n.includes("valenciana") ||
+      n.includes("parmesana") || n.includes("higos") || n.includes("dátiles") || n.includes("siciliana") ||
+      n.includes("española") || n.includes("la barra") || n.includes("tata") || n.includes("turca") ||
+      n.includes("huerto") || n.includes("alpes") || n.includes("camarones") || n.includes("burrata") && n.includes("prosciutto") ||
+      n.includes("cocada") || n.includes("lemon") || n.includes("hershey") || n.includes("dubai") || n.includes("canelate") ||
+      n.includes("arándanos") || n.includes("arequipe") || n.includes("frutos") || n.includes("nutella")) return 2000;
+  if (n.includes("spaghetti") || n.includes("fettuccine") || n.includes("ravioles") || n.includes("lasagna") ||
+      n.includes("pasta") || n.includes("carbonara") || n.includes("bolognese") || n.includes("teléfono") || n.includes("quesos")) return 3000;
+  if (n.includes("hamburguesa") || n.includes("brioche") || n.includes("brocheta") || n.includes("bondiola") ||
+      n.includes("langostinos") || n.includes("sandwich")) return 3000;
+  if (n.includes("nuditos") || n.includes("champiñones") || n.includes("brie") || n.includes("burrata") || n.includes("tapas")) return 3000;
+  if (n.includes("limonada") || n.includes("sodificada") || n.includes("gaseosa") || n.includes("agua") || 
+      n.includes("coca") || n.includes("cerveza") || n.includes("vino") || n.includes("copa")) return 1000;
+  return 2000; // Default packaging
+}
+
+function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected: boolean; issues: string[] } {
+  if (!isLaBarra || !order?.items) return { order, corrected: false, issues: [] };
+  
+  const issues: string[] = [];
+  let corrected = false;
+  const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") || (order.delivery_type || "").toLowerCase().includes("domicilio");
+
+  for (const item of order.items) {
+    // Validate packaging for delivery orders
+    if (isDelivery && (!item.packaging_cost || item.packaging_cost <= 0)) {
+      const pkg = getPackagingCost(item.name || "");
+      item.packaging_cost = pkg;
+      issues.push(`Empaque faltante para ${item.name}: +$${pkg}`);
+      corrected = true;
+    }
+  }
+
+  // Recalculate totals if corrected
+  if (corrected) {
+    let subtotal = 0;
+    let packagingTotal = 0;
+    for (const item of order.items) {
+      subtotal += (item.unit_price || 0) * (item.quantity || 1);
+      packagingTotal += (item.packaging_cost || 0) * (item.quantity || 1);
+    }
+    order.subtotal = subtotal;
+    order.packaging_total = packagingTotal;
+    order.total = subtotal + packagingTotal;
+  }
+
+  if (issues.length > 0) {
+    console.log("🔧 ORDER VALIDATION CORRECTIONS:", issues.join("; "));
+  }
+  return { order, corrected, issues };
 }
 
 async function callAI(sys: string, msgs: any[]) {
@@ -921,8 +1017,8 @@ async function callAI(sys: string, msgs: any[]) {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: sys }, ...m],
-      temperature: 0.85,
-      max_tokens: 400,
+      temperature: 0.4,
+      max_tokens: 800,
     }),
   });
   if (!r.ok) {
@@ -1557,6 +1653,12 @@ Deno.serve(async (req) => {
       const storedProof = paymentProofUrl || conv.payment_proof_url || null;
 
       if (parsed) {
+        // Validate order prices and packaging for La Barra
+        const isLaBarra = !config.setup_completed || !config.restaurant_name;
+        const validated = validateOrder(parsed.order, isLaBarra);
+        if (validated.corrected) {
+          parsed.order = validated.order;
+        }
         resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
         await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
       } else if (modification) {
