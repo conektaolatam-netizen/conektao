@@ -369,7 +369,9 @@ EMPAQUES (incluir siempre en pedidos para llevar/domicilio):
 - Empaque Pasta: +$3.000
 - Vaso para llevar: +$1.000
 
-DOMICILIO: No calculas tú el valor del domicilio, se paga directamente al domiciliario. Si insisten → ---CONSULTA_DOMICILIO---
+DOMICILIO GRATIS (zona cercana): Los conjuntos Ática, Foret, Guacarí, Antigua, Salento, Fortaleza, Mallorca y Mangle tienen DOMICILIO GRATIS. Si el cliente menciona cualquiera de estos conjuntos, infórmale que su domicilio no tiene costo. Para cualquier otra dirección, el domicilio se paga directamente al domiciliario. Si insisten en saber el costo → ---CONSULTA_DOMICILIO---
+
+DOMICILIO: Para direcciones fuera de la zona gratis, no calculas tú el valor del domicilio, se paga directamente al domiciliario. Si insisten → ---CONSULTA_DOMICILIO---
 
 TIEMPOS (solo si preguntan): Semana ~15min. Fin semana pico (Vie/Sab 6-10PM) ~30min. Trayecto ~25min. Actual: ${peak ? "HORA PICO ~30min" : we ? "Fin de semana ~15-20min" : "Semana ~15min"}
 
