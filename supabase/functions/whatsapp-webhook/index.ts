@@ -850,14 +850,29 @@ ${prom}
 
 === FIN DEL MENÚ ===
 
+DOMICILIOS (MUY IMPORTANTE):
+- DOMICILIO GRATIS ($0): SOLO estos conjuntos → Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle
+- CUALQUIER otra dirección: el domicilio NO es gratis. Dile: "El domicilio se paga directamente al domiciliario cuando llegue"
+- Si mencionan un conjunto que NO está en la lista de gratis → NO digas que es gratis. Di que el domicilio se paga al domiciliario
+- "Terra View", "Santa Cruz", "Lagos", "Torreón", "Bosque San Ángel", etc. → NO son gratis
+- Si no estás segura si el conjunto tiene domicilio gratis → asume que NO es gratis y dile que se paga al domiciliario
+
+PAGOS (MUY IMPORTANTE):
+- Para DOMICILIO: SOLO transferencia o efectivo. NO aceptamos datáfono a domicilio. Si piden datáfono para domicilio → "Para domicilio manejamos transferencia o efectivo. El datáfono solo está disponible si vienes a recoger al local"
+- Para RECOGER en local: transferencia, datáfono o efectivo
+- Transferencia: Bancolombia Ahorros, pedir comprobante
+- Efectivo: el cliente paga al recibir
+
+PIZZAS MITAD Y MITAD: NO las hacemos. NUNCA aceptes mitad y mitad. Si piden → "No manejamos mitad y mitad, cada pizza es de un solo sabor. Te puedo hacer dos personales de sabores diferentes si quieres"
+
 FLUJO (un paso por mensaje, NO todos de golpe):
 1. Saluda corto y pregunta qué quiere
 2. Cliente dice qué quiere → confirma y anota. Si quieres, sugiere UN complemento (máximo). Si dice no → no insistas más
 3. Cuando diga que terminó, da resumen con productos+empaques+TOTAL
 4. Pregunta: recoger o domicilio
-5. Si domicilio, pide nombre y dirección en UN solo mensaje
+5. Si domicilio, pide nombre y dirección en UN solo mensaje. Verifica si la zona tiene domicilio gratis
 6. Si recoger, pide solo el nombre
-7. Indica datos de pago (transferencia, datáfono o efectivo)
+7. Indica método de pago SEGÚN si es domicilio o recogida (NO ofrezcas datáfono para domicilio)
 8. Todo confirmado → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
@@ -878,16 +893,19 @@ CONFIRMACION DE PEDIDO:
 - NUNCA inventes estados de pedido
 
 === REGLAS INQUEBRANTABLES (violación = error grave) ===
-1. PRECIOS: NUNCA inventes, redondees ni aproximes precios. El precio es EXACTO como está en el menú. Verifica SIEMPRE antes de decirlo
-2. TAMAÑOS: Solo Personal (4 porciones) y Mediana (6 porciones). NO EXISTE familiar, grande, XL. Si piden otro → "Manejamos personal y mediana, cuál prefieres?"
-3. PRODUCTOS: NUNCA digas que algo no existe sin revisar el ÍNDICE DEL MENÚ. Solo UN sabor por pizza, NO mitad y mitad
-4. EMPAQUES: OBLIGATORIOS en domicilio/llevar. Pizza $2.000, Pasta/Hamburguesa/Sándwich $3.000, Bebida $1.000. Van SÍ O SÍ
-5. DESGLOSE: Al dar resumen → producto + precio + empaque + total. Los números DEBEN cuadrar exactamente
-6. DIRECCIÓN: Cuando te la den, GRÁBALA. Si ya la dieron antes, NO la pidas otra vez. DEBE aparecer en el JSON
-7. IDENTIDAD: Si preguntan "eres bot/IA/máquina?" → "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera 😊". NUNCA niegues ser IA
-8. MODO ALERTA: Si el cliente se frustra o la conversación se estanca → "Disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora"
-9. CONTEXTO: LEE el historial COMPLETO. No pidas info que ya dieron. NUNCA pidas lo mismo más de 2 veces
-10. "Crea Tu Pizza" personalizada → ---ESCALAMIENTO---
+1. PRECIOS: NUNCA inventes, redondees ni aproximes precios. El precio es EXACTO como está en el menú. Verifica SIEMPRE en el menú de arriba antes de decir un precio. Hawaiana personal = $24.000, NO $28.000. Si no estás segura, busca en el menú
+2. TAMAÑOS: Solo Personal (4 porciones) y Mediana (6 porciones). NO EXISTE familiar, grande, XL, gigante. Si piden otro → "Manejamos personal y mediana, cuál prefieres?"
+3. PRODUCTOS: NUNCA digas que algo no existe sin revisar el ÍNDICE DEL MENÚ. Solo UN sabor por pizza, NO mitad y mitad NUNCA
+4. MITAD Y MITAD: PROHIBIDO. No hacemos pizzas de dos sabores. Si piden → ofrece dos personales
+5. EMPAQUES: OBLIGATORIOS en domicilio/llevar. Pizza $2.000, Pasta/Hamburguesa/Sándwich/Entrada $3.000, Bebida $1.000. Van SÍ O SÍ
+6. DESGLOSE: Al dar resumen → producto + precio + empaque + total. Los números DEBEN cuadrar exactamente
+7. DIRECCIÓN: Cuando te la den, GRÁBALA. Si ya la dieron antes, NO la pidas otra vez. DEBE aparecer en el JSON
+8. IDENTIDAD: Si preguntan "eres bot/IA/máquina?" → "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera 😊". NUNCA niegues ser IA
+9. MODO ALERTA: Si el cliente se frustra o la conversación se estanca → "Disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora"
+10. CONTEXTO: LEE el historial COMPLETO. No pidas info que ya dieron. NUNCA pidas lo mismo más de 2 veces
+11. DOMICILIO GRATIS: SOLO Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle. CUALQUIER otro sitio → domicilio se paga al domiciliario
+12. DATÁFONO: Solo para RECOGER en local. Para DOMICILIO solo transferencia o efectivo
+13. "Crea Tu Pizza" personalizada → ---ESCALAMIENTO---
 === FIN REGLAS INQUEBRANTABLES ===
 ${ctx}`;
 }
@@ -979,27 +997,53 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
   const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") || (order.delivery_type || "").toLowerCase().includes("domicilio");
 
   for (const item of order.items) {
-    // Validate packaging for delivery orders
+    const itemName = item.name || "";
+    
+    // === PRICE VALIDATION against master price map ===
+    for (const [productName, prices] of Object.entries(LA_BARRA_PRICES)) {
+      if (itemName.toLowerCase().includes(productName.toLowerCase()) || productName.toLowerCase().includes(itemName.toLowerCase())) {
+        // Found a match - validate price
+        const qty = item.quantity || 1;
+        const declaredPrice = item.unit_price || 0;
+        
+        // Check if price matches any known size
+        const validPrices = Object.values(prices);
+        if (declaredPrice > 0 && !validPrices.includes(declaredPrice)) {
+          // Price doesn't match! Find the closest valid price
+          const closest = validPrices.reduce((a: number, b: number) => Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a);
+          issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`);
+          item.unit_price = closest;
+          corrected = true;
+        }
+        break;
+      }
+    }
+
+    // === PACKAGING VALIDATION for delivery orders ===
     if (isDelivery && (!item.packaging_cost || item.packaging_cost <= 0)) {
-      const pkg = getPackagingCost(item.name || "");
+      const pkg = getPackagingCost(itemName);
       item.packaging_cost = pkg;
-      issues.push(`Empaque faltante para ${item.name}: +$${pkg}`);
+      issues.push(`Empaque faltante para ${itemName}: +$${pkg}`);
       corrected = true;
     }
   }
 
-  // Recalculate totals if corrected
-  if (corrected) {
-    let subtotal = 0;
-    let packagingTotal = 0;
-    for (const item of order.items) {
-      subtotal += (item.unit_price || 0) * (item.quantity || 1);
-      packagingTotal += (item.packaging_cost || 0) * (item.quantity || 1);
-    }
-    order.subtotal = subtotal;
-    order.packaging_total = packagingTotal;
-    order.total = subtotal + packagingTotal;
+  // Always recalculate totals to prevent math hallucinations
+  let subtotal = 0;
+  let packagingTotal = 0;
+  for (const item of order.items) {
+    subtotal += (item.unit_price || 0) * (item.quantity || 1);
+    packagingTotal += (item.packaging_cost || 0) * (item.quantity || 1);
   }
+  
+  const calculatedTotal = subtotal + packagingTotal;
+  if (order.total !== calculatedTotal) {
+    issues.push(`TOTAL CORREGIDO: de $${(order.total || 0).toLocaleString()} a $${calculatedTotal.toLocaleString()}`);
+    corrected = true;
+  }
+  order.subtotal = subtotal;
+  order.packaging_total = packagingTotal;
+  order.total = calculatedTotal;
 
   if (issues.length > 0) {
     console.log("🔧 ORDER VALIDATION CORRECTIONS:", issues.join("; "));
@@ -1180,6 +1224,21 @@ async function saveOrder(
   config: any,
   paymentProofUrl?: string | null,
 ) {
+  // DEDUP GUARD: Check if same phone already has an order in last 60 seconds
+  const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString();
+  const { data: recentDup } = await supabase
+    .from("whatsapp_orders")
+    .select("id")
+    .eq("customer_phone", phone)
+    .eq("restaurant_id", rid)
+    .gt("created_at", oneMinAgo)
+    .limit(1)
+    .maybeSingle();
+  if (recentDup) {
+    console.log(`⚠️ DEDUP: Skipping duplicate order for ${phone} (existing: ${recentDup.id})`);
+    return;
+  }
+
   // Normalize delivery_type to match DB constraint
   const rawType = (order.delivery_type || "pickup").toLowerCase();
   const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
