@@ -1432,6 +1432,61 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Admin: resend order email
+  if (url.searchParams.get("action") === "resend_order_email") {
+    const orderId = url.searchParams.get("order_id") || "";
+    const { data: orderData, error: oErr } = await supabase
+      .from("whatsapp_orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
+    if (oErr || !orderData) {
+      return new Response(JSON.stringify({ error: "Order not found", oErr }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: cfgData } = await supabase
+      .from("whatsapp_configs")
+      .select("order_email")
+      .eq("restaurant_id", orderData.restaurant_id)
+      .maybeSingle();
+    const rk = Deno.env.get("RESEND_API_KEY");
+    if (!rk || !cfgData?.order_email) {
+      return new Response(JSON.stringify({ error: "No RESEND_API_KEY or order_email" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const items = (orderData.items as any[] || [])
+      .map((i: any) => `<tr><td style="padding:8px;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;color:#e0e0e0;">$${(i.unit_price||0).toLocaleString("es-CO")}</td></tr>`)
+      .join("");
+    const isDelivery = orderData.delivery_type === "delivery";
+    const er = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "CONEKTAO Pedidos <onboarding@resend.dev>",
+        to: [cfgData.order_email],
+        subject: `🍕 [REENVÍO] Pedido ${isDelivery?"Domicilio":"Recoger"} - ${orderData.customer_name} - $${(orderData.total||0).toLocaleString("es-CO")}`,
+        html: `<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
+          <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:24px;text-align:center;">
+            <h1 style="margin:0;color:#fff;font-size:20px;">REENVÍO DE PEDIDO</h1>
+            <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">Pedido original: ${new Date(orderData.created_at).toLocaleString("es-CO")}</p>
+          </div>
+          <div style="padding:20px;">
+            <p style="color:#fff;font-size:16px;">👤 ${orderData.customer_name} · 📱 +${orderData.customer_phone}</p>
+            ${isDelivery ? `<p style="color:#00D4AA;font-size:14px;">🏍️ DOMICILIO: ${orderData.delivery_address||"No proporcionada"}</p>` : `<p style="color:#FF6B35;">🏪 Recoger en local</p>`}
+            <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;margin-top:12px;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:#00D4AA;font-size:12px;">Producto</th><th style="padding:8px;color:#00D4AA;font-size:12px;">Cant.</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:12px;">Precio</th></tr></thead><tbody>${items}</tbody></table>
+            <p style="text-align:right;color:#00D4AA;font-size:20px;font-weight:bold;margin-top:12px;">TOTAL: $${(orderData.total||0).toLocaleString("es-CO")}</p>
+          </div>
+        </div>`,
+      }),
+    });
+    const resendResult = await er.text();
+    return new Response(JSON.stringify({ sent: er.ok, status: er.status, resend_response: resendResult }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // Admin: update config
   if (url.searchParams.get("action") === "update_email") {
     const email = url.searchParams.get("email") || "";
