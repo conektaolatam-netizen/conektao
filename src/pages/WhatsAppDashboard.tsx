@@ -71,6 +71,26 @@ export default function WhatsAppDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Proactive nudge check: call every 2 minutes so ALICIA follows up on stalled orders
+  useEffect(() => {
+    const checkNudges = async () => {
+      try {
+        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook?action=check_nudges`;
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+      } catch (e) {
+        console.error("Nudge check error:", e);
+      }
+    };
+    // Run immediately on mount then every 2 minutes
+    checkNudges();
+    const nudgeInterval = setInterval(checkNudges, 2 * 60 * 1000);
+    return () => clearInterval(nudgeInterval);
+  }, []);
+
   const formatPhone = (phone: string) => {
     if (phone.startsWith("57")) return `+57 ${phone.slice(2, 5)} ${phone.slice(5, 8)} ${phone.slice(8)}`;
     return `+${phone}`;
