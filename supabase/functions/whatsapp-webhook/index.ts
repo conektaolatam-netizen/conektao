@@ -277,14 +277,22 @@ function buildPrompt(products: any[], promoted: string[], greeting: string, name
   const peak = (d === 5 || d === 6) && h >= 18 && h <= 22;
   const we = d === 5 || d === 6;
 
-  // ====== DYNAMIC CONFIG from DB ======
+  // ====== FORCE La Barra hardcoded prompt (has all critical business rules) ======
+  const LA_BARRA_RESTAURANT_ID = "899cb7a7-7de1-47c7-a684-f24658309755";
+  const isLaBarraConfig = config?.restaurant_id === LA_BARRA_RESTAURANT_ID;
+  
+  if (isLaBarraConfig) {
+    return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
+  }
+
+  // ====== DYNAMIC CONFIG from DB for OTHER restaurants ======
   const hasConfig = config?.setup_completed && config?.restaurant_name;
 
   if (hasConfig) {
     return buildDynamicPrompt(config, products, promoted, prom, ctx, peak, we, h, d, greeting, order, status);
   }
 
-  // ====== FALLBACK: Original hardcoded La Barra prompt ======
+  // ====== FALLBACK: La Barra prompt ======
   return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
 }
 
@@ -1224,8 +1232,8 @@ async function saveOrder(
   config: any,
   paymentProofUrl?: string | null,
 ) {
-  // DEDUP GUARD: Check if same phone already has an order in last 60 seconds
-  const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString();
+  // DEDUP GUARD: Check if same phone already has an order in last 2 minutes
+  const oneMinAgo = new Date(Date.now() - 120 * 1000).toISOString();
   const { data: recentDup } = await supabase
     .from("whatsapp_orders")
     .select("id")
@@ -1713,7 +1721,7 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // Validate order prices and packaging for La Barra
-        const isLaBarra = !config.setup_completed || !config.restaurant_name;
+        const isLaBarra = config.restaurant_id === "899cb7a7-7de1-47c7-a684-f24658309755" || !config.setup_completed || !config.restaurant_name;
         const validated = validateOrder(parsed.order, isLaBarra);
         if (validated.corrected) {
           parsed.order = validated.order;
