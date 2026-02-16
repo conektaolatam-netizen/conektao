@@ -878,22 +878,26 @@ FLUJO (un paso por mensaje, NO todos de golpe):
 2. Cliente dice qué quiere → confirma y anota. Si quieres, sugiere UN complemento (máximo). Si dice no → no insistas más
 3. Cuando diga que terminó, da resumen con productos+empaques+TOTAL
 4. Pregunta: recoger o domicilio
-5. Si domicilio, pide nombre y dirección en UN solo mensaje. Verifica si la zona tiene domicilio gratis
-6. Si recoger, pide solo el nombre
+5. Si domicilio → pide dirección. El nombre es OPCIONAL, pregúntalo UNA vez junto con la dirección. Si no lo da, usa "Cliente"
+6. Si recoger → pregunta nombre UNA vez. Si no lo da, usa "Cliente"
 7. Indica método de pago SEGÚN si es domicilio o recogida (NO ofrezcas datáfono para domicilio)
-8. Todo confirmado → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
+8. Cuando tengas items + tipo entrega + dirección (si domicilio) → genera ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- SIN esperar más datos
+9. Si el cliente dice "Sí" o "Confirmo" a tu resumen → genera ---PEDIDO_CONFIRMADO--- DE INMEDIATO
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
-ANTI-LOOP Y CIERRE AGRESIVO (CRÍTICO - LA REGLA MÁS IMPORTANTE):
-- Si el cliente responde "Sí", "Si", "Ok", "Listo", "Dale", "Bueno", "Claro" a una pregunta donde esperas un dato (nombre, dirección, etc.), eso significa que el cliente está CONFIRMANDO, NO dando el dato. NO repitas la misma pregunta. En vez de eso:
-  * Si falta el NOMBRE: usa "Cliente" como nombre y CIERRA el pedido de inmediato. El nombre NO es obligatorio para confirmar
+ANTI-LOOP Y CIERRE AGRESIVO (CRÍTICO - LA REGLA MÁS IMPORTANTE DE TODAS):
+- NUNCA hagas la misma pregunta más de 1 vez. Si ya preguntaste algo y el cliente respondió CUALQUIER cosa, NO vuelvas a preguntar lo mismo. AVANZA
+- Si el cliente responde "Sí", "Si", "Ok", "Listo", "Dale", "Bueno", "Claro" a CUALQUIER pregunta:
+  * ESO ES UNA CONFIRMACIÓN. NO repitas la pregunta. CIERRA el pedido de inmediato
+  * Si falta el NOMBRE: usa "Cliente" como nombre y genera ---PEDIDO_CONFIRMADO--- DE INMEDIATO
   * Si falta la DIRECCIÓN: pregunta UNA sola vez más de forma diferente: "A dónde te lo llevo?"
-  * Si falta el MÉTODO DE PAGO: asume efectivo y confirma: "Te lo cobramos en efectivo al llegar, va?"
-- NUNCA hagas la misma pregunta más de 2 veces. Si a la segunda vez no obtienes respuesta clara, ASUME un valor por defecto y CIERRA
-- Si ya tienes: productos + dirección (o es para recoger) → TIENES SUFICIENTE para cerrar. Hazlo. No bloquees el pedido por un nombre
-- Tu OBJETIVO PRINCIPAL es CERRAR la venta. Cada mensaje tuyo debe acercar al cierre, no alejar
-- Si detectas que llevas 3+ mensajes preguntando lo mismo sin avanzar → CIERRA con lo que tienes usando customer_name="Cliente" y genera el ---PEDIDO_CONFIRMADO---
-- PRIORIDAD DE CIERRE: Si tienes items + dirección → resume y confirma TÚ misma: "Te confirmo: [resumen]. Te lo enviamos ya?" Si dice sí → cierra
+  * Si falta el MÉTODO DE PAGO: asume efectivo y CIERRA
+- DETECCIÓN DE NOMBRES (MUY IMPORTANTE): Si el mensaje del cliente contiene UNA o DOS palabras que parecen un nombre propio (ej: "Johana", "Johana rincon", "Carlos", "María López"), ESO ES EL NOMBRE. Grábalo y CIERRA el pedido. NO preguntes más
+- Si ves en el historial que el cliente YA dijo un nombre en CUALQUIER mensaje anterior → úsalo y CIERRA. NO lo preguntes de nuevo
+- Si ya tienes: productos + dirección (o es para recoger) → CIERRA INMEDIATAMENTE. El nombre NO es obligatorio. Usa "Cliente" si no lo tienes
+- PRIORIDAD DE CIERRE: Si tienes items + dirección → genera ---PEDIDO_CONFIRMADO--- ya. No hagas más preguntas
+- Si el cliente dice "Sí" a tu resumen/confirmación → ESO ES CONFIRMACIÓN FINAL. Genera ---PEDIDO_CONFIRMADO--- con customer_name="Cliente" si no tienes nombre. NUNCA respondas pidiendo más datos después de un "Sí" a una confirmación
+- DETECTOR DE LOOP: Si ves que en los últimos 4 mensajes del historial ya preguntaste lo mismo (nombre, dirección, pago) y el cliente respondió cada vez sin dar el dato → USA UN VALOR POR DEFECTO Y CIERRA. Nombre="Cliente", Pago="Efectivo"
 
 COHERENCIA CONTEXTUAL:
 - Si el último mensaje fue de FEEDBACK y el cliente responde positivamente, solo agradece. No intentes tomar un nuevo pedido
@@ -920,9 +924,10 @@ CONFIRMACION DE PEDIDO:
 6. DESGLOSE: Al dar resumen → producto + precio + empaque + total. Los números DEBEN cuadrar exactamente
 7. DIRECCIÓN: Cuando te la den, GRÁBALA. Si ya la dieron antes, NO la pidas otra vez. DEBE aparecer en el JSON
 8. IDENTIDAD: Si preguntan "eres bot/IA/máquina?" → "Sí, soy una inteligencia artificial, pero te atiendo como la mejor mesera 😊". NUNCA niegues ser IA
-9. MODO ALERTA: Si el cliente se frustra, dice "no entiendo", pide hablar con alguien, o la conversación lleva 3+ respuestas iguales del cliente → "Disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora". ACTÍVALO DE VERDAD, no lo ignores
-10. CONTEXTO: LEE el historial COMPLETO. No pidas info que ya dieron. NUNCA pidas lo mismo más de 2 veces. Si el cliente repite "Sí" o "Ok" a tu pregunta, ESO NO ES UNA RESPUESTA AL DATO QUE PIDES, es una confirmación. NO repitas la pregunta. Avanza con lo que tienes
-10b. ANTI-BLOQUEO: Si ya tienes productos + dirección + método de pago pero no tienes nombre → USA "Cliente" y CIERRA. NUNCA pierdas una venta por un nombre faltante
+9. MODO ALERTA: Si el cliente se frustra, dice "no entiendo", pide hablar con alguien, o la conversación lleva 2+ respuestas iguales del cliente → "Disculpa la confusión. Llama o escribe al 3014017559 y con gusto te atiende la administradora". ACTÍVALO DE VERDAD, no lo ignores
+10. CONTEXTO Y ANTI-LOOP: LEE el historial COMPLETO. NUNCA pidas la misma info más de 1 vez. Si el cliente dice "Sí" después de tu resumen → ESO ES CONFIRMACIÓN FINAL → genera ---PEDIDO_CONFIRMADO--- inmediatamente. Si ya pidió y confirmó, NO vuelvas a preguntar nombre ni nada más
+10b. NOMBRE OPCIONAL: El nombre NO es obligatorio para confirmar un pedido. Si el cliente no lo da después de 1 pregunta → usa "Cliente" y genera ---PEDIDO_CONFIRMADO---. NUNCA pierdas una venta por un nombre. Si el cliente envía una palabra que parece nombre (Johana, Carlos, María, etc.) → ESO ES EL NOMBRE, úsalo
+10c. "SÍ" = CONFIRMACIÓN FINAL: Cuando el cliente dice "Sí", "Si", "Ok", "Dale", "Listo" después de que mostraste un resumen con total → GENERA ---PEDIDO_CONFIRMADO--- INMEDIATAMENTE. No preguntes más. Si falta nombre usa "Cliente". Si falta pago asume "Efectivo"
 11. DOMICILIO GRATIS: SOLO Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle. CUALQUIER otro sitio → domicilio se paga al domiciliario
 12. DATÁFONO: Solo para RECOGER en local. Para DOMICILIO solo transferencia o efectivo
 13. "Crea Tu Pizza" personalizada → ---ESCALAMIENTO---
@@ -1797,30 +1802,88 @@ Deno.serve(async (req) => {
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl });
 
+      // === MESSAGE BATCHING (CRITICAL FIX) ===
+      // Save the message immediately to DB, then wait 3s for more messages
+      // This prevents the "Sí" + "Johana" split-message problem
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ messages: msgs.slice(-30) })
+        .eq("id", conv.id);
+
+      // Wait 3 seconds to allow rapid-fire follow-up messages to arrive
+      console.log(`⏳ MESSAGE BATCH: Waiting 3s for ${from} to send more messages...`);
+      await sleep(3000);
+
+      // Re-read conversation to pick up any messages that arrived during the wait
+      const { data: freshConv } = await supabase
+        .from("whatsapp_conversations")
+        .select("messages, order_status, current_order, customer_name, payment_proof_url, updated_at")
+        .eq("id", conv.id)
+        .single();
+
+      // Use fresh messages (may include additional messages saved by parallel webhook calls)
+      const freshMsgs = Array.isArray(freshConv?.messages) ? freshConv.messages : msgs;
+      
+      // Check if WE are the last customer message (avoid double-processing)
+      // Find the last customer message - if it's not our text, another webhook already took over
+      const lastCustomerMsg = [...freshMsgs].reverse().find((m: any) => m.role === "customer");
+      if (lastCustomerMsg && lastCustomerMsg.content !== text) {
+        // A newer message arrived - that webhook call will handle processing
+        console.log(`⏭️ BATCH SKIP: Newer message found for ${from}, letting later webhook handle it`);
+        return new Response(JSON.stringify({ status: "batched" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Merge consecutive customer messages at the end into one combined message for AI
+      const mergedMsgs: any[] = [];
+      const trailingCustomerTexts: string[] = [];
+      for (let i = freshMsgs.length - 1; i >= 0; i--) {
+        if (freshMsgs[i].role === "customer") {
+          trailingCustomerTexts.unshift(freshMsgs[i].content);
+        } else {
+          break;
+        }
+      }
+      // Build merged array: all messages except trailing customer ones, then one combined customer message
+      const nonTrailingCount = freshMsgs.length - trailingCustomerTexts.length;
+      for (let i = 0; i < nonTrailingCount; i++) {
+        mergedMsgs.push(freshMsgs[i]);
+      }
+      if (trailingCustomerTexts.length > 1) {
+        console.log(`📦 BATCH MERGED: ${trailingCustomerTexts.length} messages from ${from}: "${trailingCustomerTexts.join(" | ")}"`);
+      }
+      mergedMsgs.push({ role: "customer", content: trailingCustomerTexts.join("\n"), timestamp: new Date().toISOString() });
+      // === END MESSAGE BATCHING ===
+
       // Store payment proof URL when image received
       if (paymentProofUrl) {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
       }
 
       // Pass confirmed_at timestamp for order modification rules
-      const configWithTime = { ...config, _confirmed_at: conv.order_status === "confirmed" ? conv.updated_at : null };
+      const freshOrderStatus = freshConv?.order_status || conv.order_status;
+      const freshCurrentOrder = freshConv?.current_order || conv.current_order;
+      const freshCustomerName = freshConv?.customer_name || conv.customer_name;
+      const configWithTime = { ...config, _confirmed_at: freshOrderStatus === "confirmed" ? (freshConv?.updated_at || conv.updated_at) : null };
       const sys = buildPrompt(
         prods || [],
         config.promoted_products || [],
         config.greeting_message || "¡Hola! Bienvenido 👋",
         rName,
-        conv.current_order,
-        conv.order_status,
+        freshCurrentOrder,
+        freshOrderStatus,
         configWithTime,
       );
-      const ai = await callAI(sys, msgs);
+      const ai = await callAI(sys, mergedMsgs);
 
       const parsed = parseOrder(ai);
       const modification = !parsed ? parseOrderModification(ai) : null;
       let resp = ai;
 
       // Get stored payment proof from conversation if exists
-      const storedProof = paymentProofUrl || conv.payment_proof_url || null;
+      const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 
       if (parsed) {
         // Validate order prices and packaging for La Barra
@@ -1833,7 +1896,7 @@ Deno.serve(async (req) => {
         await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
       } else if (modification) {
         resp = modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
-        await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, conv.current_order);
+        await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, freshCurrentOrder);
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
@@ -1844,20 +1907,21 @@ Deno.serve(async (req) => {
         await escalate(config, from, "Cliente pregunta costo domicilio");
       }
 
-      msgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+      // Update conversation with AI response added to fresh messages
+      freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
 
       // Detect if ALICIA just sent a summary with total (pending confirmation from customer)
       const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
       // Reset nudge/followup status when client responds again
-      const baseStatus = (conv.order_status === "nudge_sent" || conv.order_status === "followup_sent") ? "active" : conv.order_status;
+      const baseStatus = (freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent") ? "active" : freshOrderStatus;
       const newOrderStatus = parsed ? "confirmed" : (hasSummary ? "pending_confirmation" : baseStatus);
 
       await supabase
         .from("whatsapp_conversations")
         .update({
-          messages: msgs.slice(-30),
-          customer_name: parsed?.order?.customer_name || conv.customer_name,
-          current_order: parsed ? parsed.order : conv.current_order,
+          messages: freshMsgs.slice(-30),
+          customer_name: parsed?.order?.customer_name || freshCustomerName,
+          current_order: parsed ? parsed.order : freshCurrentOrder,
           order_status: newOrderStatus,
           ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
           ...(parsed ? { pending_since: null } : {}),
