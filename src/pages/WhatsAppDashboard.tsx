@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
+import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
 
 interface Message {
   role: string;
@@ -32,6 +32,7 @@ export default function WhatsAppDashboard() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("orders");
 
   useEffect(() => {
     const fetchRestaurant = async () => {
@@ -116,161 +117,161 @@ export default function WhatsAppDashboard() {
   });
 
   return (
-    <div className="h-screen flex bg-background text-foreground">
-      {/* Sidebar - Conversation List */}
-      <div className={`${selected ? "hidden md:flex" : "flex"} flex-col w-full md:w-[380px] border-r border-border`}>
-        <div className="p-4 border-b border-border space-y-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              ALICIA — Conversaciones
-            </h1>
-            <button onClick={fetchConversations} className="p-2 rounded-lg hover:bg-muted transition-colors">
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre, teléfono..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">{filtered.length} conversaciones</div>
-          {restaurantId && <AliciaDailyChat restaurantId={restaurantId} />}
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      {/* Top tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+        <div className="border-b border-border px-4 pt-2">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="orders" className="flex items-center gap-1.5">
+              <Package className="w-4 h-4" />
+              Comandas
+            </TabsTrigger>
+            <TabsTrigger value="conversations" className="flex items-center gap-1.5">
+              <MessageSquare className="w-4 h-4" />
+              Conversaciones
+            </TabsTrigger>
+          </TabsList>
         </div>
 
-        <ScrollArea className="flex-1">
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelected(c)}
-              className={`w-full text-left p-4 border-b border-border hover:bg-muted/50 transition-colors ${
-                selected?.id === c.id ? "bg-muted" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">
-                      {c.customer_name || formatPhone(c.customer_phone)}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">{formatPhone(c.customer_phone)}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-[10px] text-muted-foreground">{getLastTime(c)}</span>
-                  {statusBadge(c.order_status)}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 truncate pl-[52px]">{getLastMessage(c)}</p>
-            </button>
-          ))}
-        </ScrollArea>
-      </div>
+        <TabsContent value="orders" className="flex-1 m-0 overflow-hidden">
+          <OrdersPanel />
+        </TabsContent>
 
-      {/* Chat View */}
-      <div className={`${selected ? "flex" : "hidden md:flex"} flex-col flex-1`}>
-        {selected ? (
-          <>
-            {/* Header */}
-            <div className="p-4 border-b border-border flex items-center gap-3">
-              <button onClick={() => setSelected(null)} className="md:hidden p-1">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">{selected.customer_name || "Cliente"}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Phone className="w-3 h-3" />
-                  {formatPhone(selected.customer_phone)}
+        <TabsContent value="conversations" className="flex-1 m-0 overflow-hidden">
+          <div className="h-full flex">
+            {/* Sidebar - Conversation List */}
+            <div className={`${selected ? "hidden md:flex" : "flex"} flex-col w-full md:w-[380px] border-r border-border`}>
+              <div className="p-4 border-b border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-xl font-bold flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    Conversaciones
+                  </h1>
+                  <button onClick={fetchConversations} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                  </button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {statusBadge(selected.order_status)}
-              </div>
-            </div>
-
-            {/* Order Ticket - Modern white design */}
-            {selected.current_order && (
-              <div className="mx-4 mt-2 mb-0 p-4 rounded-2xl bg-white border border-border/60 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                      <Package className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">Pedido actual</span>
-                  </div>
-                  <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                    ${(selected.current_order.total || 0).toLocaleString("es-CO")}
-                  </span>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="Buscar por nombre, teléfono..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
-                {selected.current_order.items && Array.isArray(selected.current_order.items) && (
-                  <div className="space-y-1.5">
-                    {selected.current_order.items.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">
-                          {item.quantity}x {item.name}
-                        </span>
-                        <span className="text-foreground font-medium">
-                          ${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {selected.current_order.delivery_type && (
-                  <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{selected.current_order.delivery_type === "delivery" ? "🛵 Domicilio" : "🏪 Recoger"}</span>
-                    {selected.current_order.customer_name && <span>· {selected.current_order.customer_name}</span>}
-                  </div>
-                )}
+                <div className="text-xs text-muted-foreground">{filtered.length} conversaciones</div>
+                {restaurantId && <AliciaDailyChat restaurantId={restaurantId} />}
               </div>
-            )}
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="max-w-2xl mx-auto space-y-3">
-                {selected.messages.map((msg, i) => {
-                  const isCustomer = msg.role === "customer";
-                  return (
-                    <div key={i} className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}>
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                          isCustomer
-                            ? "bg-muted text-foreground rounded-bl-md"
-                            : "bg-primary text-primary-foreground rounded-br-md"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <div className={`flex items-center gap-1 mt-1 ${isCustomer ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
-                          <Clock className="w-3 h-3" />
-                          <span className="text-[10px]">{getTime(msg)}</span>
-                          {msg.has_image && <span className="text-[10px] ml-1">📷</span>}
+              <ScrollArea className="flex-1">
+                {filtered.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelected(c)}
+                    className={`w-full text-left p-4 border-b border-border hover:bg-muted/50 transition-colors ${selected?.id === c.id ? "bg-muted" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">{c.customer_name || formatPhone(c.customer_phone)}</p>
+                          <p className="text-xs text-muted-foreground truncate">{formatPhone(c.customer_phone)}</p>
                         </div>
                       </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className="text-[10px] text-muted-foreground">{getLastTime(c)}</span>
+                        {statusBadge(c.order_status)}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center space-y-2">
-              <MessageSquare className="w-12 h-12 mx-auto opacity-30" />
-              <p>Selecciona una conversación</p>
+                    <p className="text-xs text-muted-foreground mt-2 truncate pl-[52px]">{getLastMessage(c)}</p>
+                  </button>
+                ))}
+              </ScrollArea>
+            </div>
+
+            {/* Chat View */}
+            <div className={`${selected ? "flex" : "hidden md:flex"} flex-col flex-1`}>
+              {selected ? (
+                <>
+                  <div className="p-4 border-b border-border flex items-center gap-3">
+                    <button onClick={() => setSelected(null)} className="md:hidden p-1">
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{selected.customer_name || "Cliente"}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Phone className="w-3 h-3" />
+                        {formatPhone(selected.customer_phone)}
+                      </div>
+                    </div>
+                    {statusBadge(selected.order_status)}
+                  </div>
+
+                  {selected.current_order && (
+                    <div className="mx-4 mt-2 mb-0 p-4 rounded-2xl bg-white border border-border/60 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                            <Package className="w-4 h-4 text-primary" />
+                          </div>
+                          <span className="text-sm font-semibold text-foreground">Pedido actual</span>
+                        </div>
+                        <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                          ${(selected.current_order.total || 0).toLocaleString("es-CO")}
+                        </span>
+                      </div>
+                      {selected.current_order.items && Array.isArray(selected.current_order.items) && (
+                        <div className="space-y-1.5">
+                          {selected.current_order.items.map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">{item.quantity}x {item.name}</span>
+                              <span className="text-foreground font-medium">${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selected.current_order.delivery_type && (
+                        <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{selected.current_order.delivery_type === "delivery" ? "🛵 Domicilio" : "🏪 Recoger"}</span>
+                          {selected.current_order.customer_name && <span>· {selected.current_order.customer_name}</span>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <ScrollArea className="flex-1 p-4">
+                    <div className="max-w-2xl mx-auto space-y-3">
+                      {selected.messages.map((msg, i) => {
+                        const isCustomer = msg.role === "customer";
+                        return (
+                          <div key={i} className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}>
+                            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isCustomer ? "bg-muted text-foreground rounded-bl-md" : "bg-primary text-primary-foreground rounded-br-md"}`}>
+                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                              <div className={`flex items-center gap-1 mt-1 ${isCustomer ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
+                                <Clock className="w-3 h-3" />
+                                <span className="text-[10px]">{getTime(msg)}</span>
+                                {msg.has_image && <span className="text-[10px] ml-1">📷</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center space-y-2">
+                    <MessageSquare className="w-12 h-12 mx-auto opacity-30" />
+                    <p>Selecciona una conversación</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
