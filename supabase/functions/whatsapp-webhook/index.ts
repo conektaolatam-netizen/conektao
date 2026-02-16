@@ -922,6 +922,7 @@ CONFIRMACION DE PEDIDO:
 11. DOMICILIO GRATIS: SOLO Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle. CUALQUIER otro sitio → domicilio se paga al domiciliario
 12. DATÁFONO: Solo para RECOGER en local. Para DOMICILIO solo transferencia o efectivo
 13. "Crea Tu Pizza" personalizada → ---ESCALAMIENTO---
+14. AUTORIZACIÓN DEL ADMIN: Si un cliente pide algo que requiere autorización del dueño/admin (ej: enviar a cuenta de otra persona, descuentos especiales, pedidos inusuales, cortesías, excepciones a las reglas), usa el tag ---ESCALAMIENTO--- y en tu respuesta dile al cliente que le vas a consultar al administrador y que te espere. SIEMPRE incluye en tu respuesta qué es lo que necesitas consultar. Ejemplo: "Déjame consultar con la administradora y te confirmo enseguida". NUNCA prometas acciones que no puedas ejecutar como "le voy a escribir directamente" - en su lugar di que vas a consultar con la administradora
 === FIN REGLAS INQUEBRANTABLES ===
 ${ctx}`;
 }
@@ -1456,19 +1457,56 @@ async function saveOrder(
   }
 }
 
-async function escalate(config: any, phone: string, reason: string) {
+async function escalate(config: any, phone: string, reason: string, conversationMessages?: any[]) {
   const rk = Deno.env.get("RESEND_API_KEY");
   if (!rk || !config.order_email) return;
-  await fetch("https://api.resend.com/emails", {
+
+  // Build conversation summary for context
+  let conversationHtml = "";
+  if (conversationMessages && conversationMessages.length > 0) {
+    const recentMsgs = conversationMessages.slice(-15);
+    conversationHtml = `
+      <div style="margin-top:16px;padding:12px;background:#111;border-radius:8px;border:1px solid #333;">
+        <p style="color:#FF6B35;font-weight:bold;margin:0 0 8px;">💬 Últimos mensajes de la conversación:</p>
+        ${recentMsgs.map((m: any) => {
+          const isCustomer = m.role === "customer";
+          return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isCustomer ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;">
+            <strong style="color:${isCustomer ? "#00D4AA" : "#FF6B35"};">${isCustomer ? "👤 Cliente" : "🤖 Alicia"}:</strong> ${m.content?.substring(0, 200) || ""}
+          </p>`;
+        }).join("")}
+      </div>`;
+  }
+
+  const emailRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: "ALICIA Alertas <onboarding@resend.dev>",
       to: [config.order_email],
-      subject: `⚠️ ALICIA - Cliente ${phone}`,
-      html: `<p><strong>📱</strong> +${phone}</p><p><strong>📝</strong> ${reason}</p>`,
+      subject: `⚠️ ALICIA necesita tu ayuda - Cliente +${phone}`,
+      html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
+        <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:20px;text-align:center;">
+          <h1 style="color:#fff;margin:0;font-size:20px;">🚨 ALICIA necesita autorización</h1>
+        </div>
+        <div style="padding:20px;color:#eee;">
+          <div style="background:#1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <p style="margin:0 0 8px;"><strong style="color:#FF6B35;">📱 Cliente:</strong> +${phone}</p>
+            <p style="margin:0 0 8px;"><strong style="color:#FF6B35;">📝 Situación:</strong></p>
+            <p style="margin:0;color:#ccc;line-height:1.5;">${reason}</p>
+          </div>
+          ${conversationHtml}
+          <div style="margin-top:16px;padding:12px;background:#1a2a1a;border-radius:8px;border:1px solid #00D4AA33;">
+            <p style="color:#00D4AA;font-weight:bold;margin:0 0 4px;">💡 ¿Qué hacer?</p>
+            <p style="color:#ccc;margin:0;font-size:13px;">Responde a este correo o comunícate directamente con el cliente al +${phone} para resolver la situación. Alicia ya le avisó al cliente que te va a consultar.</p>
+          </div>
+        </div>
+        <div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;">
+          <p style="color:#666;font-size:11px;margin:0;">ALICIA by CONEKTAO • Alerta automática</p>
+        </div>
+      </div>`,
     }),
   });
+  console.log("Escalation email sent:", emailRes.status);
 }
 
 Deno.serve(async (req) => {
@@ -1504,6 +1542,26 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ subscribe_result: subData, current_subscriptions: checkData }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Admin: send escalation email manually
+  if (url.searchParams.get("action") === "send_escalation_email") {
+    const phone = url.searchParams.get("phone") || "";
+    const reason = url.searchParams.get("reason") || "Escalamiento manual";
+    const { data: cfgData } = await supabase.from("whatsapp_configs").select("*").limit(1).maybeSingle();
+    if (!cfgData) {
+      return new Response(JSON.stringify({ error: "No config found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Get conversation messages for context
+    const { data: convData } = await supabase.from("whatsapp_conversations")
+      .select("messages").eq("customer_phone", phone).maybeSingle();
+    const msgs = convData?.messages || [];
+    await escalate(cfgData, phone, reason, msgs);
+    return new Response(JSON.stringify({ sent: true, phone, reason }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -1891,11 +1949,13 @@ Deno.serve(async (req) => {
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
-        await escalate(config, from, "Cliente necesita atención humana");
+        // Extract context from what ALICIA said to provide a richer reason
+        const escalationReason = resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
+        await escalate(config, from, escalationReason, freshMsgs);
       }
       if (resp.includes("---CONSULTA_DOMICILIO---")) {
         resp = resp.replace(/---CONSULTA_DOMICILIO---/g, "").trim();
-        await escalate(config, from, "Cliente pregunta costo domicilio");
+        await escalate(config, from, "Cliente pregunta costo domicilio", freshMsgs);
       }
 
       // Update conversation with AI response added to fresh messages
