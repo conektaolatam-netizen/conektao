@@ -1,153 +1,78 @@
 
+# Corregir el sistema de Message Batching para eliminar pedidos perdidos
 
-## Blindaje completo del prompt de ALICIA
+## Problema identificado
 
-### Problemas detectados (analisis linea por linea)
+El message batching actual tiene una race condition critica que causa que mensajes se "caigan" sin respuesta. En esta conversacion especifica:
 
-**1. CRITICO: No hay categorias semanticas para busqueda**
-Cuando alguien pide "algo de mar", ALICIA no encuentra nada porque los productos no tienen tags de busqueda. Los items de mar estan dispersos sin agrupacion:
-- Pizza de Camarones (linea 714)
-- Camarones a las Finas Hierbas (linea 694, entrada)
-- Fettuccine Con Camarones (linea 744)
-- Brioche al Camaron (linea 758)
-- Langostinos Parrillados (linea 755)
-- Pizza de Pulpo (linea 729)
-- Pizza de Anchoas (linea 728)
-- Adicion Camarones y Pulpo (lineas 787, 796)
+- El cliente dijo el nombre ("Ibeth Barrera"), confirmo ("Si"), y esperó 22 minutos sin respuesta
+- Alicia tenia TODA la informacion para cerrar el pedido: producto, direccion, metodo de pago, nombre
+- El pedido se perdio completamente (order_status: "none", current_order: null)
 
-No hay ninguna instruccion que le diga a ALICIA: "si piden algo de mar, mariscos o pescado, estos son los productos".
+### Causa tecnica
 
-**2. CRITICO: Temperature 0.85 es demasiado alta**
-Linea 924: `temperature: 0.85` genera creatividad excesiva. Para un sistema de pedidos donde la precision es vital, deberia ser 0.3-0.5. Esto explica que invente precios, tamanios y productos.
+1. **Race condition en BATCH SKIP (linea 1879)**: Cuando "Ibeth" y "Barrera" llegan casi simultaneamente, el webhook de "Ibeth" hace SKIP esperando que "Barrera" lo maneje, pero "Barrera" falla silenciosamente
+2. **Errores tragados (linea 1987-1992)**: El catch devuelve status 200 y solo loguea, sin reintentar ni alertar
+3. **Check de dedup por contenido, no por ID**: Multiples "Si" pasan todos el check porque comparan texto, no mensaje ID
+4. **Nudge system no rescato la conversacion**: A pesar del polling cada 120s, el sistema no reacciono a 9 mensajes sin respuesta
 
-**3. CRITICO: max_tokens 400 puede truncar pedidos**
-Linea 925: `max_tokens: 400` es insuficiente para pedidos grandes con JSON. Un pedido de 5+ items con desglose + JSON de confirmacion puede superar 400 tokens y cortarse a la mitad, generando JSON invalido.
+## Solucion propuesta
 
-**4. ALTO: No hay validacion post-IA de precios**
-La funcion `parseOrder` (linea 937) extrae el JSON pero nunca valida que los precios coincidan con el menu real. Si la IA pone un precio incorrecto, se guarda y se cobra mal.
+### Cambio 1: Reemplazar dedup por content con dedup por message ID
 
-**5. ALTO: Empaque no se valida programaticamente**
-El prompt dice "SIEMPRE incluye empaques" pero no hay logica en el codigo que verifique que el JSON del pedido incluya packaging_cost > 0 para delivery/takeaway.
-
-**6. ALTO: Falta disambiguation de productos similares**
-Hay multiples "Camarones" (pizza, entrada, pasta, adicion, brioche) y multiples "Burrata" (tiene regla pero es insuficiente). No hay regla para cuando alguien dice "quiero camarones" sin especificar.
-
-**7. MEDIO: El prompt es demasiado largo (+800 lineas de texto)**
-Gemini 2.5 Flash pierde atencion en prompts largos. Las reglas criticas estan enterradas entre informacion menos importante. Las reglas de precios estan en la linea 832+, muy lejos del menu (654-830).
-
-**8. MEDIO: No hay "mapa mental" del menu**
-No existe un resumen de categorias al inicio del menu que le diga a ALICIA: "Tenemos: pizzas, pastas, entradas, hamburguesas, mariscos, bebidas, postres". Esto haria que nunca diga "no tenemos X" cuando si existe.
-
-**9. BAJO: Adiciones duplican nombres de productos**
-"Camarones: $10.000" en adiciones vs "Pizza de Camarones: $38.000/$52.000" puede confundir a la IA sobre cual es cual.
-
----
-
-### Plan de correccion
-
-#### Cambio 1: Reestructurar el menu con categorias semanticas y mapa mental
-
-Agregar al inicio del menu un bloque de "INDICE" que le diga a ALICIA que categorias tiene:
+En lugar de comparar `lastCustomerMsg.content !== text`, usar el `message_id` de WhatsApp (que es unico por mensaje):
 
 ```text
-INDICE DEL MENU (consulta esto PRIMERO antes de decir que algo no existe):
-- MARISCOS/MAR: Pizza Camarones, Pizza Pulpo, Pizza Anchoas, Camarones Finas Hierbas (entrada), Fettuccine con Camarones, Brioche al Camaron, Langostinos Parrillados
-- CARNES: Hamburguesa Italiana, Brocheta di Manzo, Bondiola
-- PIZZAS: 25+ variedades en Personal y Mediana
-- PASTAS: Spaghetti, Fettuccine, Ravioles, Lasagna
-- ENTRADAS: Nuditos, Burrata, Brie, Champiñones
-- POSTRES: 11 pizzas dulces
-- BEBIDAS: Limonadas, Sodificadas, Cocteles, Sangria, Cervezas, Vinos
+Antes:  if (lastCustomerMsg.content !== text) → SKIP
+Despues: if (lastCustomerMsg.wa_message_id !== currentMessageId) → SKIP
 ```
 
-Agregar tags de busqueda a items del menu:
+Esto garantiza que cada mensaje tiene un webhook responsable de procesarlo, sin importar si el texto es identico.
+
+### Cambio 2: Agregar "safety net" - si SKIP falla, reintentar
+
+Despues del BATCH SKIP, verificar en 5 segundos adicionales si hubo respuesta. Si no la hubo, procesar de todas formas:
 
 ```text
-- Camarones: $38.000 / $52.000 (MARISCOS - salsa Alfredo, mozzarella, camarones salteados al ajillo)
+1. Webhook guarda mensaje, espera 3s
+2. Re-lee conversacion
+3. Si hay mensaje mas nuevo → SKIP (otro webhook lo maneja)
+4. NUEVO: Esperar 5s mas y re-verificar
+5. Si sigue sin respuesta de assistant → procesar de emergencia
 ```
 
-#### Cambio 2: Reducir temperature a 0.4 y subir max_tokens a 800
+### Cambio 3: Mejorar el error handling (linea 1987)
 
-```typescript
-temperature: 0.4,  // Precision sobre creatividad
-max_tokens: 800,   // Suficiente para pedidos grandes con JSON
-```
+- Agregar logging detallado del error (stack trace completo)
+- Si el error es durante `callAI()` o `sendWA()`, guardar un mensaje de fallback en la conversacion
+- Enviar notificacion al admin cuando un mensaje falla en procesarse
 
-#### Cambio 3: Agregar validacion post-IA de precios y empaques
+### Cambio 4: Fortalecer el nudge system
 
-Crear una funcion `validateOrder` que despues de `parseOrder`:
-1. Compare cada item.unit_price contra el menu real del prompt
-2. Verifique que items de delivery tengan packaging_cost > 0
-3. Recalcule el total y corrija si no cuadra
-4. Agregue empaques faltantes automaticamente
+Actualmente `check_nudges` busca conversaciones con `pending_since` o ciertos estados. Agregar una deteccion adicional:
 
-```typescript
-function validateOrder(order: any, deliveryType: string): { corrected: boolean; order: any; issues: string[] } {
-  const issues: string[] = [];
-  // Mapa de precios conocidos para La Barra
-  const priceMap: Record<string, Record<string, number>> = {
-    "Margarita": { personal: 21000, mediana: 35000 },
-    "Hawaiana": { personal: 24000, mediana: 37000 },
-    // ... todos los productos
-  };
-  // Validar cada item
-  // Agregar empaque si falta en delivery
-  // Recalcular total
-}
-```
+- Si los ultimos N mensajes son todos del cliente (sin respuesta de assistant), marcar como "abandoned" y forzar un retry de procesamiento
+- Esto actua como red de seguridad final para cualquier mensaje perdido
 
-#### Cambio 4: Agregar reglas de disambiguation explicitas
+### Cambio 5: Guardar wa_message_id en cada mensaje
 
-Agregar al prompt reglas para nombres ambiguos:
+Modificar el objeto de mensaje guardado en el array `messages` para incluir el ID unico de WhatsApp:
 
 ```text
-DISAMBIGUATION (cuando el cliente no especifica):
-- "Camarones" sin contexto -> preguntar: "Te refieres a la pizza de camarones, los camarones de entrada, el fettuccine con camarones o el brioche al camaron?"
-- "Algo de mar/mariscos" -> mostrar TODAS las opciones de mar del indice
-- "Burrata" sin "pizza" -> preguntar (regla existente)
-- "Carbonara" -> Fettuccine Carbonara $39.000
-- "Bolognese/Bolonesa" -> Spaghetti Alla Bolognese $39.000
+{ role: "customer", content: "Ibeth", timestamp: "...", wa_message_id: "wamid.xxx" }
 ```
 
-#### Cambio 5: Agregar regla anti-negacion de existencia
+Esto permite tracking preciso de que mensajes han sido procesados.
 
-```text
-REGLA CRITICA - NUNCA digas que algo no existe sin verificar:
-- ANTES de decir "no manejamos eso" o "no tenemos eso", revisa el INDICE DEL MENU completo
-- Si el cliente pide algo con palabras diferentes (ej: "mariscos", "de mar", "seafood"), busca en el indice por categoria
-- Si genuinamente no existe, sugiere lo mas parecido del menu
-```
+## Archivos a modificar
 
-#### Cambio 6: Compactar reglas duplicadas en el prompt
+| Archivo | Cambio |
+|---|---|
+| `supabase/functions/whatsapp-webhook/index.ts` | Corregir batching, agregar wa_message_id, safety net, mejor error handling |
 
-Hay reglas repetidas en multiples lugares:
-- "No inventes tamanios" aparece 3 veces (lineas 493, 834-835, 873)
-- "Admite ser IA" aparece 3 veces (lineas 424, 504-506, 881-883)
-- "No pidas info repetida" aparece 2 veces (lineas 448-449, 627-630)
+## Resultado esperado
 
-Consolidar en una sola seccion "REGLAS INQUEBRANTABLES" al final del prompt (posicion de mayor peso para el LLM).
-
----
-
-### Archivos a modificar
-
-```text
-supabase/functions/whatsapp-webhook/index.ts
-  - buildLaBarraPrompt: Reestructurar menu con indice y tags semanticos
-  - buildLaBarraPrompt: Agregar reglas de disambiguation
-  - buildLaBarraPrompt: Consolidar reglas duplicadas
-  - buildDynamicPrompt: Mismas mejoras para multi-tenant
-  - callAI: temperature 0.85 -> 0.4, max_tokens 400 -> 800
-  - Agregar funcion validateOrder() con mapa de precios
-  - En el flujo POST: llamar validateOrder despues de parseOrder
-```
-
-### Resultado esperado
-
-- ALICIA nunca dira "no tenemos mariscos" porque tendra un indice de categorias
-- Los precios seran validados por codigo, no solo por el prompt
-- Los empaques se agregaran automaticamente si la IA los olvida
-- La temperature baja eliminara la creatividad que genera precios inventados
-- max_tokens mayor evitara pedidos truncados
-- Las reglas consolidadas tendran mayor peso al estar al final del prompt
-
+- Cero mensajes perdidos por race conditions
+- Si un webhook falla, el safety net o el nudge system recuperan la conversacion
+- Logging detallado para diagnosticar cualquier fallo futuro
+- El pedido de Ibeth Barrera (y similares) se habria cerrado automaticamente
