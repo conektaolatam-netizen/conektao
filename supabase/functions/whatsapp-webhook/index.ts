@@ -1059,7 +1059,7 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
   return { order, corrected, issues };
 }
 
-async function callAI(sys: string, msgs: any[]) {
+async function callAI(sys: string, msgs: any[], temperature = 0.4) {
   const m = msgs
     .slice(-30)
     .map((x: any) => ({ role: x.role === "customer" ? "user" : "assistant", content: x.content }));
@@ -1069,7 +1069,7 @@ async function callAI(sys: string, msgs: any[]) {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: sys }, ...m],
-      temperature: 0.4,
+      temperature,
       max_tokens: 800,
     }),
   });
@@ -1080,6 +1080,86 @@ async function callAI(sys: string, msgs: any[]) {
   }
   const d = await r.json();
   return d.choices?.[0]?.message?.content || "Lo siento, no pude procesar tu mensaje. ¿Podrías repetirlo?";
+}
+
+// AI-powered sales nudge: generates a contextual follow-up to close stalled orders
+async function runSalesNudgeCheck() {
+  try {
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: dyingConvs } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
+      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
+      .lt("updated_at", twoMinAgo);
+
+    if (!dyingConvs || dyingConvs.length === 0) return { nudged: 0 };
+
+    let nudgedCount = 0;
+    for (const conv of dyingConvs) {
+      const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+      const lastMsg = msgs[msgs.length - 1];
+      // Only nudge if ALICIA was the last one to speak (client went quiet)
+      if (!lastMsg || lastMsg.role !== "assistant") continue;
+      // Don't nudge if the last message was already a nudge
+      if (lastMsg.is_nudge) continue;
+
+      // Get WA credentials for this restaurant
+      const { data: waConfig } = await supabase
+        .from("whatsapp_configs")
+        .select("whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides")
+        .eq("restaurant_id", conv.restaurant_id)
+        .maybeSingle();
+
+      const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
+      const waToken = waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET" 
+        ? waConfig.whatsapp_access_token : GLOBAL_WA_TOKEN;
+
+      if (!phoneId || !waToken) continue;
+
+      // Use AI to generate a contextual closing message based on the conversation
+      const closerPrompt = `Eres Alicia, la asistente de WhatsApp. El cliente dejó de responder hace más de 2 minutos durante una conversación de pedido. Tu objetivo es CERRAR LA VENTA de forma natural.
+
+REGLAS:
+- Mensaje MUY corto (1-2 líneas máximo)
+- Tono natural, como una mesera amigable que quiere ayudar
+- Si ya hay productos mencionados en la conversación, haz un resumen rapidísimo y pregunta si lo confirma
+- Si el cliente ya dio nombre/dirección, úsalos
+- NO uses formato markdown, asteriscos ni negritas
+- NO uses signos de exclamación dobles
+- Máximo 1 emoji
+- NUNCA digas "asistente virtual"
+- Varía el tono: puede ser "Bueno, te confirmo entonces?" o "Dale, te lo anoto?" o resumir rápido el pedido
+
+CONTEXTO DEL PEDIDO ACTUAL:
+${conv.current_order ? JSON.stringify(conv.current_order) : "No hay pedido estructurado aún, revisa la conversación"}
+
+Nombre del cliente: ${conv.customer_name || "no proporcionado"}
+
+Genera UN SOLO mensaje de seguimiento para cerrar la venta.`;
+
+      const nudgeMsg = await callAI(closerPrompt, msgs.slice(-10), 0.6);
+      
+      // Clean any tags that AI might have added
+      const cleanNudge = nudgeMsg
+        .replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "")
+        .replace(/\*+/g, "")
+        .trim();
+
+      console.log(`💬 AI SALES NUDGE: ${conv.customer_phone} → "${cleanNudge}"`);
+      await sendWA(phoneId, waToken, conv.customer_phone, cleanNudge, true);
+
+      msgs.push({ role: "assistant", content: cleanNudge, timestamp: new Date().toISOString(), is_nudge: true });
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ messages: msgs.slice(-30), order_status: "nudge_sent" })
+        .eq("id", conv.id);
+      nudgedCount++;
+    }
+    return { nudged: nudgedCount };
+  } catch (e) {
+    console.error("Sales nudge error:", e);
+    return { nudged: 0, error: String(e) };
+  }
 }
 
 function parseOrder(txt: string) {
@@ -1499,6 +1579,14 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  // Admin: proactive nudge check (called by dashboard polling)
+  if (url.searchParams.get("action") === "check_nudges") {
+    const result = await runSalesNudgeCheck();
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   // Admin: send a custom message to a customer
   if (url.searchParams.get("action") === "send_message") {
@@ -1575,60 +1663,8 @@ Deno.serve(async (req) => {
       console.error("Follow-up check error:", e);
     }
 
-    // SALES NUDGE: If ALICIA was the last to speak and client hasn't replied in 2+ min during active ordering
-    try {
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      const { data: dyingConvs } = await supabase
-        .from("whatsapp_conversations")
-        .select("id, customer_phone, restaurant_id, messages, order_status, customer_name")
-        .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
-        .lt("updated_at", twoMinAgo);
-
-      if (dyingConvs && dyingConvs.length > 0) {
-        for (const conv of dyingConvs) {
-          const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-          const lastMsg = msgs[msgs.length - 1];
-          // Only nudge if ALICIA was the last one to speak (client went quiet)
-          if (!lastMsg || lastMsg.role !== "assistant") continue;
-          // Don't nudge if the last message was already a nudge
-          if (lastMsg.is_nudge) continue;
-
-          const name = conv.customer_name ? conv.customer_name.split(" ")[0] : "";
-          
-          // Pick a natural nudge message randomly
-          const nudges = [
-            name ? `${name}, sigues ahí? Quieres que te confirme el pedido?` : "Sigues ahí? Quieres que te confirme el pedido?",
-            "Bueno, te espero por aquí si quieres seguir con el pedido",
-            name ? `${name}, se te fue la señal? Jaja, acá estoy cuando quieras seguir` : "Se te fue la señal? Jaja, acá estoy cuando quieras seguir",
-            "Te anoto lo que llevabas? Solo dime y lo confirmo",
-          ];
-          const nudgeMsg = nudges[Math.floor(Math.random() * nudges.length)];
-
-          // Get WA credentials for this restaurant
-          const { data: waConfig } = await supabase
-            .from("whatsapp_configs")
-            .select("whatsapp_phone_id, whatsapp_token")
-            .eq("restaurant_id", conv.restaurant_id)
-            .maybeSingle();
-
-          const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
-          const waToken = waConfig?.whatsapp_token || GLOBAL_WA_TOKEN;
-
-          if (phoneId && waToken) {
-            console.log(`💬 SALES NUDGE: ${conv.customer_phone} inactive 2+ min`);
-            await sendWA(phoneId, waToken, conv.customer_phone, nudgeMsg);
-
-            msgs.push({ role: "assistant", content: nudgeMsg, timestamp: new Date().toISOString(), is_nudge: true });
-            await supabase
-              .from("whatsapp_conversations")
-              .update({ messages: msgs.slice(-30), order_status: "nudge_sent" })
-              .eq("id", conv.id);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Sales nudge error:", e);
-    }
+    // SALES NUDGE: Proactive AI-powered follow-up for stalled conversations
+    await runSalesNudgeCheck();
 
     try {
       const body = await req.json();
