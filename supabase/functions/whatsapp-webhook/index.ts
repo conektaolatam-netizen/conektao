@@ -1101,16 +1101,65 @@ async function runSalesNudgeCheck() {
       .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
       .lt("updated_at", twoMinAgo);
 
-    if (!dyingConvs || dyingConvs.length === 0) return { nudged: 0 };
+    // Cambio 4: También buscar conversaciones "abandonadas" - 
+    // donde el cliente envió 3+ mensajes seguidos sin respuesta del assistant
+    const { data: abandonedConvs } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
+      .not("order_status", "eq", "confirmed")
+      .lt("updated_at", twoMinAgo);
+
+    // Filtrar abandonedConvs: solo las que tienen 3+ mensajes consecutivos del cliente al final sin respuesta
+    const reallyAbandoned = (abandonedConvs || []).filter((conv: any) => {
+      const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+      if (msgs.length < 3) return false;
+      let consecutiveCustomer = 0;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === "customer") consecutiveCustomer++;
+        else break;
+      }
+      return consecutiveCustomer >= 3;
+    });
+
+    if (reallyAbandoned.length > 0) {
+      console.log(`🚨 ABANDONED CONVERSATIONS DETECTED: ${reallyAbandoned.length} conversations with 3+ unanswered customer messages`);
+    }
+
+    // Merge both lists (dedup by id)
+    const allConvs = [...(dyingConvs || [])];
+    const existingIds = new Set(allConvs.map((c: any) => c.id));
+    for (const ac of reallyAbandoned) {
+      if (!existingIds.has(ac.id)) {
+        allConvs.push(ac);
+        existingIds.add(ac.id);
+      }
+    }
+
+    if (allConvs.length === 0) return { nudged: 0, abandoned_detected: reallyAbandoned.length };
 
     let nudgedCount = 0;
-    for (const conv of dyingConvs) {
+    for (const conv of allConvs) {
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       const lastMsg = msgs[msgs.length - 1];
-      // Only nudge if ALICIA was the last one to speak (client went quiet)
-      if (!lastMsg || lastMsg.role !== "assistant") continue;
-      // Don't nudge if the last message was already a nudge
-      if (lastMsg.is_nudge) continue;
+      
+      // Check if this is an abandoned conversation (customer messages without response)
+      let consecutiveCustomerMsgs = 0;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === "customer") consecutiveCustomerMsgs++;
+        else break;
+      }
+      const isAbandoned = consecutiveCustomerMsgs >= 3;
+      
+      if (isAbandoned) {
+        // EMERGENCY: Force-process the abandoned conversation
+        console.log(`🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`);
+        // Don't skip - fall through to generate AI response for accumulated messages
+      } else {
+        // Original logic: Only nudge if ALICIA was the last one to speak (client went quiet)
+        if (!lastMsg || lastMsg.role !== "assistant") continue;
+        // Don't nudge if the last message was already a nudge
+        if (lastMsg.is_nudge) continue;
+      }
 
       // Get WA credentials for this restaurant
       const { data: waConfig } = await supabase
@@ -1125,8 +1174,35 @@ async function runSalesNudgeCheck() {
 
       if (!phoneId || !waToken) continue;
 
-      // Use AI to generate a contextual closing message based on the conversation
-      const closerPrompt = `Eres Alicia, la asistente de WhatsApp. El cliente dejó de responder hace más de 2 minutos durante una conversación de pedido. Tu objetivo es CERRAR LA VENTA de forma natural.
+      // Use different prompt for abandoned (unanswered) vs stalled (client went quiet) conversations
+      const isAbandoned = (() => {
+        let count = 0;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === "customer") count++;
+          else break;
+        }
+        return count >= 3;
+      })();
+
+      const closerPrompt = isAbandoned
+        ? `Eres Alicia, la asistente de WhatsApp. El cliente envió VARIOS mensajes seguidos y NO recibió respuesta (hubo un error técnico). Debes RETOMAR la conversación de forma natural, como si nada pasó.
+
+REGLAS:
+- Discúlpate BREVEMENTE ("Perdona la demora" o "Disculpa, se me fue" - UNA sola vez)
+- Lee los últimos mensajes del cliente y RESPONDE a lo que pidió
+- Si ya hay información de pedido, haz un resumen y pregunta si lo confirma
+- NO uses formato markdown, asteriscos ni negritas
+- NO digas "asistente virtual" ni "problemas técnicos"
+- Máximo 1 emoji
+- Mensaje corto pero que responda lo que el cliente preguntó/pidió
+
+CONTEXTO DEL PEDIDO ACTUAL:
+${conv.current_order ? JSON.stringify(conv.current_order) : "No hay pedido estructurado aún, revisa la conversación"}
+
+Nombre del cliente: ${conv.customer_name || "no proporcionado"}
+
+Genera UN SOLO mensaje que retome la conversación naturalmente.`
+        : `Eres Alicia, la asistente de WhatsApp. El cliente dejó de responder hace más de 2 minutos durante una conversación de pedido. Tu objetivo es CERRAR LA VENTA de forma natural.
 
 REGLAS:
 - Mensaje MUY corto (1-2 líneas máximo)
@@ -1849,18 +1925,19 @@ Deno.serve(async (req) => {
         .order("name");
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl });
+      // Cambio 5: Guardar wa_message_id en cada mensaje para tracking preciso
+      const currentWaMessageId = msg.id; // ID único de WhatsApp (wamid.xxx)
+      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl, wa_message_id: currentWaMessageId });
 
-      // === MESSAGE BATCHING (CRITICAL FIX) ===
+      // === MESSAGE BATCHING (CRITICAL FIX v2) ===
       // Save the message immediately to DB, then wait 3s for more messages
-      // This prevents the "Sí" + "Johana" split-message problem
       await supabase
         .from("whatsapp_conversations")
         .update({ messages: msgs.slice(-30) })
         .eq("id", conv.id);
 
       // Wait 3 seconds to allow rapid-fire follow-up messages to arrive
-      console.log(`⏳ MESSAGE BATCH: Waiting 3s for ${from} to send more messages...`);
+      console.log(`⏳ MESSAGE BATCH: Waiting 3s for ${from} to send more messages... (wa_id: ${currentWaMessageId})`);
       await sleep(3000);
 
       // Re-read conversation to pick up any messages that arrived during the wait
@@ -1873,16 +1950,36 @@ Deno.serve(async (req) => {
       // Use fresh messages (may include additional messages saved by parallel webhook calls)
       const freshMsgs = Array.isArray(freshConv?.messages) ? freshConv.messages : msgs;
       
-      // Check if WE are the last customer message (avoid double-processing)
-      // Find the last customer message - if it's not our text, another webhook already took over
+      // Cambio 1: Dedup por wa_message_id en vez de content
+      // Encontrar el último mensaje del cliente y comparar por ID único, no por texto
       const lastCustomerMsg = [...freshMsgs].reverse().find((m: any) => m.role === "customer");
-      if (lastCustomerMsg && lastCustomerMsg.content !== text) {
-        // A newer message arrived - that webhook call will handle processing
-        console.log(`⏭️ BATCH SKIP: Newer message found for ${from}, letting later webhook handle it`);
-        return new Response(JSON.stringify({ status: "batched" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (lastCustomerMsg && lastCustomerMsg.wa_message_id && lastCustomerMsg.wa_message_id !== currentWaMessageId) {
+        // Un mensaje más nuevo llegó - ese webhook lo manejará
+        console.log(`⏭️ BATCH SKIP: Newer message found for ${from} (ours: ${currentWaMessageId}, latest: ${lastCustomerMsg.wa_message_id}). Entering safety net...`);
+        
+        // Cambio 2: Safety net - esperar 5s más y verificar si hubo respuesta
+        await sleep(5000);
+        const { data: safetyCheck } = await supabase
+          .from("whatsapp_conversations")
+          .select("messages")
+          .eq("id", conv.id)
+          .single();
+        const safetyMsgs = Array.isArray(safetyCheck?.messages) ? safetyCheck.messages : [];
+        const lastMsgAfterWait = safetyMsgs[safetyMsgs.length - 1];
+        
+        if (lastMsgAfterWait && lastMsgAfterWait.role === "assistant") {
+          // El otro webhook procesó correctamente, podemos salir
+          console.log(`✅ SAFETY NET OK: Assistant responded after batch skip for ${from}`);
+          return new Response(JSON.stringify({ status: "batched_safe" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // EMERGENCIA: Pasaron 8s (3+5) y no hay respuesta del assistant
+        // Este webhook se hace cargo del procesamiento
+        console.log(`🚨 SAFETY NET TRIGGERED: No assistant response after 8s for ${from}. Emergency processing...`);
+        // Continuar con el procesamiento normal usando los mensajes más recientes
       }
 
       // Merge consecutive customer messages at the end into one combined message for AI
@@ -1984,8 +2081,61 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    } catch (e) {
-      console.error("Error:", e);
+    } catch (e: any) {
+      // Cambio 3: Error handling mejorado - logging detallado + fallback message
+      console.error("🔥 CRITICAL ERROR processing message:", {
+        error: e?.message || String(e),
+        stack: e?.stack || "no stack",
+        from,
+        text: text?.substring(0, 100),
+        wa_message_id: msg?.id,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Intentar guardar un registro del fallo en la conversación
+      try {
+        const { data: failConv } = await supabase
+          .from("whatsapp_conversations")
+          .select("id, messages, restaurant_id")
+          .eq("customer_phone", from)
+          .maybeSingle();
+        if (failConv) {
+          const failMsgs = Array.isArray(failConv.messages) ? failConv.messages : [];
+          failMsgs.push({ 
+            role: "system_error", 
+            content: `Error procesando mensaje: ${e?.message || "unknown"}`, 
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg?.id,
+          });
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: failMsgs.slice(-30) })
+            .eq("id", failConv.id);
+          
+          // Notificar al admin por email si hay RESEND configurado
+          const rk = Deno.env.get("RESEND_API_KEY");
+          const { data: errConfig } = await supabase
+            .from("whatsapp_configs")
+            .select("order_email")
+            .eq("restaurant_id", failConv.restaurant_id)
+            .maybeSingle();
+          if (rk && errConfig?.order_email) {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: "CONEKTAO Alertas <onboarding@resend.dev>",
+                to: [errConfig.order_email],
+                subject: `⚠️ Error procesando mensaje de +${from}`,
+                html: `<p>Un mensaje de <b>+${from}</b> no pudo ser procesado.</p><p>Mensaje: "${text?.substring(0, 200)}"</p><p>Error: ${e?.message || "unknown"}</p><p>Revisa el dashboard de Alicia para intervenir manualmente.</p>`,
+              }),
+            });
+          }
+        }
+      } catch (innerErr) {
+        console.error("Failed to save error state:", innerErr);
+      }
+      
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
