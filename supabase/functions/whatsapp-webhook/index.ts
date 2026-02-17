@@ -311,6 +311,7 @@ function buildPrompt(
   order: any,
   status: string,
   config?: any,
+  customerName?: string,
 ) {
   const prom =
     promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
@@ -324,7 +325,7 @@ function buildPrompt(
   const isLaBarra = config?.restaurant_id === LA_BARRA_RESTAURANT_ID;
 
   if (isLaBarra) {
-    return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
+    return buildLaBarraPrompt(prom, ctx, peak, we, greeting, customerName || "", order, status, products);
   }
 
   if (config?.setup_completed && config?.restaurant_name) {
@@ -332,7 +333,7 @@ function buildPrompt(
   }
 
   // Fallback
-  return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
+  return buildLaBarraPrompt(prom, ctx, peak, we, greeting, customerName || "", order, status, products);
 }
 
 function buildDynamicPrompt(
@@ -557,15 +558,39 @@ CONFIRMACIÓN FINAL: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestr
 ${ctx}`;
 }
 
+function buildMenuFromProducts(products: any[]): string {
+  if (!products || products.length === 0) return "MENÚ: No disponible en este momento";
+
+  // Group by category
+  const groups: Record<string, {name: string, price: number}[]> = {};
+  for (const p of products) {
+    const cat = p.category_name || "Otros";
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push({ name: p.name, price: p.price });
+  }
+
+  let menu = "=== MENÚ OFICIAL (COP) ===\n\n";
+  for (const [cat, items] of Object.entries(groups)) {
+    menu += `${cat.toUpperCase()}:\n`;
+    for (const item of items) {
+      menu += `- ${item.name} $${Number(item.price).toLocaleString("es-CO")}\n`;
+    }
+    menu += "\n";
+  }
+  menu += "=== FIN MENÚ ===";
+  return menu;
+}
+
 function buildLaBarraPrompt(
   prom: string,
   ctx: string,
   peak: boolean,
   we: boolean,
   greeting: string,
-  name: string,
+  customerName: string,
   order: any,
   status: string,
+  products?: any[],
 ): string {
   const { hour: currentHour, minute: currentMin, decimal: currentDecimal } = getColombiaTime();
 
@@ -620,7 +645,7 @@ CONTEXTO CONVERSACIONAL (REGLA CRÍTICA):
 - Lee SIEMPRE el historial COMPLETO antes de responder. Si el cliente ya dio su nombre, dirección o cualquier dato → NO lo pidas de nuevo
 - Si dice "ya te lo dije" o "ya te di mi nombre" → BUSCA en los mensajes anteriores y úsalo. NUNCA digas "no lo encuentro"
 - El cliente puede dar nombre y dirección en mensajes separados. DEBES recordar AMBOS
-- ${name ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${name}". Úsalo. NO vuelvas a pedirlo` : "Nombre del cliente: aún no proporcionado"}
+- ${customerName ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo` : "Nombre del cliente: aún no proporcionado"}
 FORMATO: NUNCA asteriscos, negritas, markdown. Máximo 1 emoji cada 2-3 mensajes
 
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
@@ -629,112 +654,21 @@ STICKERS: Responde simpático y redirige al pedido
 SALUDO: "${greeting}"
 CARTA: https://drive.google.com/file/d/1B5015Il35_1NUmc7jgQiZWMauCaiiSCe/view?usp=drivesdk
 
-=== ÍNDICE DEL MENÚ ===
-MARISCOS/MAR: Pizza Camarones, Pizza Pulpo, Pizza Anchoas, Camarones Finas Hierbas (entrada), Fettuccine con Camarones, Brioche al Camarón, Langostinos Parrillados
-CARNES: Hamburguesa Italiana, Brocheta di Manzo, Pan Francés & Bondiola, Pizza Colombiana de la Tata
-PIZZAS SALADAS: 25+ variedades en Personal (4 porc) y Mediana (6 porc). SOLO esos tamaños
-PASTAS: Spaghetti Bolognese, Fettuccine Carbonara, Fettuccine Camarones, Spaghetti 4 Quesos, al Teléfono, Ravioles, Lasagna
-ENTRADAS: Nuditos de Ajo, Camarones Finas Hierbas, Champiñones Gratinados, Burrata La Barra, Burrata Tempura, Brie al Horno
-SÁNDWICHES: Brioche al Camarón, Brioche Pollo, Pan Francés & Bondiola
-POSTRES: 11 pizzas dulces (Cocada, Lemon Crust, Hershey's, Dubai Chocolate, etc.)
-BEBIDAS: Limonadas, Sodificadas, Cócteles, Sangría, Cervezas, Vinos, Gaseosa, Agua
-TAPAS: Tapas Españolas (3 sabores)
-=== FIN ÍNDICE ===
+${products && products.length > 0 ? buildMenuFromProducts(products) : "MENÚ: consulta la carta"}
 
-ANTI-NEGACIÓN: ANTES de decir "no tenemos eso" → revisa índice. Si piden "mariscos" → busca en MARISCOS/MAR
+REGLA ANTI-ALUCINACIÓN DE PRODUCTOS (CRÍTICA, INQUEBRANTABLE):
+- SOLO puedes ofrecer productos que aparecen en el MENÚ OFICIAL de arriba
+- Si el cliente pide algo → BUSCA en el menú con variaciones del nombre (singular/plural, con/sin tildes, nombres parciales)
+- "frutos del bosque" puede ser "Frutos Del Bosque Dulce" → BÚSCALO antes de negar
+- Si un producto existe en el menú con nombre similar → ofrécelo. NO digas "no tenemos"
+- Si realmente NO está en el menú → di "No lo veo en nuestra carta" y sugiere alternativas QUE SÍ EXISTAN en el menú
+- NUNCA JAMÁS inventes nombres de productos que no están en el menú. Si no existe, NO lo ofrezcas
+- Búsqueda flexible: ignora mayúsculas, tildes, palabras como "pizza de", "la", etc.
 
 DISAMBIGUATION:
 - "Camarones" → preguntar: pizza, entrada, fettuccine o brioche?
 - "Burrata" → preguntar: entrada Burrata La Barra, Burrata Tempura, o Pizza Prosciutto & Burrata?
-- "Pasta" → preguntar cuál: Carbonara, Camarones, Bolognese, 4 Quesos, al Teléfono, Ravioles, Lasagna
-
-=== MENÚ OFICIAL (COP) ===
-
-LIMONADAS:
-- Natural $9.000 | Hierbabuena $12.000 | Cerezada $14.000 | ⭐ Coco $16.000
-
-SODIFICADAS:
-- Piña $14.000 | Frutos Rojos $14.000 | Lyche & Fresa $16.000
-
-CÓCTELES:
-- Gintonic $42.000 | ⭐ Mojito $40.000 | Margarita $38.000 | ⭐ Piña Colada $38.000 | Aperol Spritz $28.000
-
-SANGRÍA:
-- ⭐ Tinto: Copa $26.000 / 500ml $57.000 / 1Lt $86.000
-- Blanco: Copa $28.000 / 500ml $60.000 / 1Lt $92.000
-- Copa De Vino $26.000 | Tinto De Verano $25.000
-
-CERVEZAS:
-- Club Colombia $12.000 | Corona $16.000 | Stella Artois $16.000 | Artesanal $16.000
-
-BEBIDAS:
-- Gaseosa $8.000 | Agua $6.000 | Agua con gas $6.000 | St. Pellegrino 1L $19.000
-
-ENTRADAS:
-- Nuditos De Ajo $10.000
-- Camarones Finas Hierbas $35.000
-- Champiñones Gratinados $33.000
-- Burrata La Barra $38.000
-- Burrata Tempura $40.000
-- Brie Al Horno $32.000
-
-TAPAS ESPAÑOLAS: Chorizo Español | Piquillo con Queso | Aceitunas Marinadas → 1 tapa $15.000 | 2 tapas $26.000 | 3 tapas $35.000
-
-PIZZAS SALADAS (Personal / Mediana):
-- Margarita $25.000 / $35.000
-- Pepperoni $28.000 / $39.000
-- Hawaiana $28.000 / $39.000
-- Calzone $30.000 / $42.000
-- Capricciosa $30.000 / $42.000
-- Stracciatella $30.000 / $42.000
-- ⭐ Camarones $34.000 / $48.000
-- Pulpo $34.000 / $48.000
-- Anchoas $30.000 / $42.000
-- Porchetta $30.000 / $42.000
-- Diavola $30.000 / $42.000
-- Valenciana $32.000 / $44.000
-- Parmesana $30.000 / $42.000
-- Higos y Queso Azul $30.000 / $42.000
-- Dátiles $30.000 / $42.000
-- Siciliana $30.000 / $42.000
-- ⭐ Española $34.000 / $48.000
-- ⭐ La Barra $34.000 / $48.000
-- Colombiana de la Tata $30.000 / $42.000
-- Turca $30.000 / $42.000
-- Huerto $30.000 / $42.000
-- Alpes $30.000 / $42.000
-- Prosciutto & Burrata $34.000 / $48.000
-
-PIZZAS DULCES (Personal / Mediana):
-- Cocada $24.000 / $34.000
-- ⭐ Lemon Crust $24.000 / $34.000
-- ⭐ Hershey's Pizza $24.000 / $34.000
-- ⭐ Dubai Chocolate $26.000 / $36.000
-- Canelate $24.000 / $34.000
-- Arándanos y Queso $24.000 / $34.000
-- Arequipe y Maní $24.000 / $34.000
-- Frutos Rojos y Brownie $24.000 / $34.000
-- Nutella & Oreo $24.000 / $34.000
-- 3 Leches $24.000 / $34.000
-- Maracumango $24.000 / $34.000
-
-PASTAS:
-- Spaghetti Bolognese $39.000
-- Fettuccine Carbonara $39.000
-- Fettuccine con Camarones $44.000
-- Spaghetti 4 Quesos $39.000
-- Spaghetti al Teléfono $39.000
-- Ravioles $39.000
-- Lasagna $39.000
-
-OTROS:
-- Hamburguesa Italiana $39.000
-- Brocheta di Manzo $39.000
-- Langostinos Parrillados $52.000
-- Brioche al Camarón $42.000
-- Brioche Pollo $38.000
-- Pan Francés & Bondiola $38.000
-=== FIN MENÚ ===
+- "Pasta" → preguntar cuál de las disponibles en el menú
 
 EMPAQUES (domicilio/llevar, van SÍ O SÍ):
 - Pizza/postre: $2.000 | Pasta/entrada/sándwich/hamburguesa: $3.000 | Bebida: $1.000
@@ -791,63 +725,18 @@ CONFIRMACIÓN FINAL: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestr
 ${ctx}`;
 }
 
-// ==================== PRICE VALIDATION (LA BARRA) ====================
+// ==================== PRICE VALIDATION (DYNAMIC) ====================
 
-const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
-  Margarita: { personal: 25000, mediana: 35000 },
-  Pepperoni: { personal: 28000, mediana: 39000 },
-  Hawaiana: { personal: 28000, mediana: 39000 },
-  Calzone: { personal: 30000, mediana: 42000 },
-  Capricciosa: { personal: 30000, mediana: 42000 },
-  Stracciatella: { personal: 30000, mediana: 42000 },
-  Camarones: { personal: 34000, mediana: 48000 },
-  Pulpo: { personal: 34000, mediana: 48000 },
-  Anchoas: { personal: 30000, mediana: 42000 },
-  Porchetta: { personal: 30000, mediana: 42000 },
-  Diavola: { personal: 30000, mediana: 42000 },
-  Valenciana: { personal: 32000, mediana: 44000 },
-  Parmesana: { personal: 30000, mediana: 42000 },
-  "Higos y Queso Azul": { personal: 30000, mediana: 42000 },
-  Dátiles: { personal: 30000, mediana: 42000 },
-  Siciliana: { personal: 30000, mediana: 42000 },
-  Española: { personal: 34000, mediana: 48000 },
-  "La Barra": { personal: 34000, mediana: 48000 },
-  "Colombiana de la Tata": { personal: 30000, mediana: 42000 },
-  Turca: { personal: 30000, mediana: 42000 },
-  Huerto: { personal: 30000, mediana: 42000 },
-  Alpes: { personal: 30000, mediana: 42000 },
-  "Prosciutto & Burrata": { personal: 34000, mediana: 48000 },
-  Cocada: { personal: 24000, mediana: 34000 },
-  "Lemon Crust": { personal: 24000, mediana: 34000 },
-  "Hershey's Pizza": { personal: 24000, mediana: 34000 },
-  "Dubai Chocolate": { personal: 26000, mediana: 36000 },
-  Canelate: { personal: 24000, mediana: 34000 },
-  "Arándanos y Queso": { personal: 24000, mediana: 34000 },
-  "Arequipe y Maní": { personal: 24000, mediana: 34000 },
-  "Frutos Rojos y Brownie": { personal: 24000, mediana: 34000 },
-  "Nutella & Oreo": { personal: 24000, mediana: 34000 },
-  "3 Leches": { personal: 24000, mediana: 34000 },
-  Maracumango: { personal: 24000, mediana: 34000 },
-  "Spaghetti Alla Bolognese": { unico: 39000 },
-  "Fettuccine Alla Carbonara": { unico: 39000 },
-  "Fettuccine con Camarones": { unico: 44000 },
-  "Spaghetti 4 Quesos": { unico: 39000 },
-  "Spaghetti al Teléfono": { unico: 39000 },
-  Ravioles: { unico: 39000 },
-  Lasagna: { unico: 39000 },
-  "Hamburguesa Italiana": { unico: 39000 },
-  "Brocheta di Manzo": { unico: 39000 },
-  "Langostinos Parrillados": { unico: 52000 },
-  "Brioche al Camarón": { unico: 42000 },
-  "Brioche Pollo": { unico: 38000 },
-  "Pan Francés & Bondiola De Cerdo": { unico: 38000 },
-  "Nuditos De Ajo": { unico: 10000 },
-  "Camarones a las Finas Hierbas": { unico: 35000 },
-  "Champiñones Gratinados Queso Azul": { unico: 33000 },
-  "Burrata La Barra": { unico: 38000 },
-  "Burrata Tempura": { unico: 40000 },
-  "Brie Al Horno": { unico: 32000 },
-};
+/** Build price map dynamically from products loaded from DB */
+function buildPriceMap(products: any[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const p of products) {
+    if (p.name && p.price) {
+      map[p.name.toLowerCase()] = Number(p.price);
+    }
+  }
+  return map;
+}
 
 /** Get packaging cost by product name */
 function getPackagingCost(itemName: string): number {
@@ -929,9 +818,10 @@ function getPackagingCost(itemName: string): number {
 }
 
 /** Validate and correct order prices/packaging for La Barra */
-function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected: boolean; issues: string[] } {
+function validateOrder(order: any, isLaBarra: boolean, products?: any[]): { order: any; corrected: boolean; issues: string[] } {
   if (!isLaBarra || !order?.items) return { order, corrected: false, issues: [] };
 
+  const priceMap = products ? buildPriceMap(products) : {};
   const issues: string[] = [];
   let corrected = false;
   const isDelivery =
@@ -940,26 +830,35 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
 
   for (const item of order.items) {
     const itemName = item.name || "";
+    const itemLower = itemName.toLowerCase();
 
-    // Price validation
-    for (const [productName, prices] of Object.entries(LA_BARRA_PRICES)) {
-      if (
-        itemName.toLowerCase().includes(productName.toLowerCase()) ||
-        productName.toLowerCase().includes(itemName.toLowerCase())
-      ) {
+    // Price validation using dynamic price map from DB
+    if (Object.keys(priceMap).length > 0) {
+      // Find best matching product by fuzzy name match
+      let bestMatch: string | null = null;
+      let bestPrice = 0;
+      for (const [prodName, price] of Object.entries(priceMap)) {
+        if (
+          itemLower.includes(prodName) ||
+          prodName.includes(itemLower) ||
+          // Normalize: remove "personal", "mediana", etc. for comparison
+          itemLower.replace(/\s*(personal|mediana|dulce)\s*/gi, "").trim() === prodName.replace(/\s*(personal|mediana|dulce)\s*/gi, "").trim()
+        ) {
+          bestMatch = prodName;
+          bestPrice = price;
+          // Prefer exact or longer match
+          if (prodName === itemLower) break;
+        }
+      }
+      if (bestMatch && bestPrice > 0) {
         const declaredPrice = item.unit_price || 0;
-        const validPrices = Object.values(prices);
-        if (declaredPrice > 0 && !validPrices.includes(declaredPrice)) {
-          const closest = validPrices.reduce((a: number, b: number) =>
-            Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a,
-          );
+        if (declaredPrice > 0 && declaredPrice !== bestPrice) {
           issues.push(
-            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`,
+            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`,
           );
-          item.unit_price = closest;
+          item.unit_price = bestPrice;
           corrected = true;
         }
-        break;
       }
     }
 
@@ -1784,7 +1683,8 @@ Deno.serve(async (req) => {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
         const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
-        const validated = validateOrder(conv.current_order, isLaBarra);
+        const { data: confirmProds } = await supabase.from("products").select("id, name, price, categories(name)").eq("restaurant_id", rId).eq("is_active", true);
+        const validated = validateOrder(conv.current_order, isLaBarra, confirmProds || []);
         await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
         const confirmations = [
           "Pedido confirmado! Ya lo estamos preparando con todo el cariño 🍕",
@@ -1928,10 +1828,15 @@ Deno.serve(async (req) => {
       // ===== NORMAL MESSAGE PROCESSING =====
       const { data: prods } = await supabase
         .from("products")
-        .select("id, name, price, description, category_id")
+        .select("id, name, price, description, category_id, categories(name)")
         .eq("restaurant_id", rId)
         .eq("is_active", true)
         .order("name");
+      // Flatten category name for prompt building
+      const prodsWithCategory = (prods || []).map((p: any) => ({
+        ...p,
+        category_name: p.categories?.name || "Otros",
+      }));
       const { data: rest } = await supabase.from("restaurants").select("id, name").eq("id", rId).single();
       const rName = rest?.name || "Restaurante";
 
@@ -2017,13 +1922,14 @@ Deno.serve(async (req) => {
         _confirmed_at: freshOrderStatus === "confirmed" ? freshConv?.updated_at || conv.updated_at : null,
       };
       const sys = buildPrompt(
-        prods || [],
+        prodsWithCategory || [],
         config.promoted_products || [],
         config.greeting_message || "Hola! Bienvenido 👋",
         rName,
         freshCurrentOrder,
         freshOrderStatus,
         configWithTime,
+        freshCustomerName || "",
       );
       const ai = await callAI(sys, mergedMsgs);
 
@@ -2036,7 +1942,7 @@ Deno.serve(async (req) => {
         // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
         const isLaBarra =
           config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed || !config.restaurant_name;
-        const validated = validateOrder(parsed.order, isLaBarra);
+        const validated = validateOrder(parsed.order, isLaBarra, prodsWithCategory);
         if (validated.corrected) parsed.order = validated.order;
         resp = parsed.clean || "Pedido registrado! 🍽️";
 
