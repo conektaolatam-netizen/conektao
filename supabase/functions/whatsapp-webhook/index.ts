@@ -528,7 +528,7 @@ FLUJO (un paso por mensaje, NO te saltes pasos):
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
 5. Indica datos de pago
-6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "Todo bien con el pedido?" Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
+6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
 7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
@@ -537,17 +537,18 @@ IMPORTANTE SOBRE EL TAG:
 - SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
 - Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
-CONFIRMACIÓN (REGLA CRÍTICA):
+CONFIRMACIÓN (REGLA CRÍTICA - ANTI-LOOP):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
 - NUNCA preguntes "confirmamos?" mientras el cliente aún está pidiendo productos
-- Cualquier respuesta afirmativa confirma el pedido
+- PROHIBIDO repetir el resumen si ya lo presentaste
+- PROHIBIDO preguntar confirmación si ya la pediste (order_status = pending_confirmation)
+- Palabras afirmativas válidas: "sí", "si", "dale", "listo", "ok", "perfecto", "de una", "sisas", "hagale", "hágale", "va", "vamos", "hecho", "correcto", "claro", emojis ✅👍🔥
+- Si el cliente dice "cambiar", "modificar", "agregar", "corregir" → NO confirmes, vuelve al flujo de edición
 - Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas
+- Mensajes cortos. 1 sola pregunta por mensaje. NUNCA repitas bloques largos.
 
 MODIFICACIONES (solo pedidos ya confirmados):
-- CAMBIO (<25 min) → ---CAMBIO_PEDIDO---{json}---FIN_CAMBIO---
-- CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
-- ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
-
+...
 REGLAS INQUEBRANTABLES:
 1. PRECIOS: NUNCA inventes. Verifica en el menú
 2. TAMAÑOS: Solo los del menú
@@ -767,7 +768,7 @@ FLUJO (un paso por mensaje, NO te saltes pasos):
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide dirección. Si NO tienes el nombre aún → pídelo. Si YA lo tienes (revisa historial y contexto) → NO lo pidas de nuevo
 5. Indica datos de pago
-6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "Todo bien con el pedido?" Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
+6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
 7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
@@ -776,13 +777,16 @@ IMPORTANTE SOBRE EL TAG:
 - SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
 - Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
-CONFIRMACIÓN (REGLA CRÍTICA):
+CONFIRMACIÓN (REGLA CRÍTICA - ANTI-LOOP):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
 - NUNCA preguntes "confirmamos?" mientras el cliente aún está pidiendo productos
 - NUNCA pidas confirmación si falta info (dirección, nombre, tipo de entrega)
-- Cualquier respuesta afirmativa del cliente (sí, dale, listo, va, ok, perfecto, correcto) confirma el pedido
+- PROHIBIDO repetir el resumen si ya lo presentaste
+- PROHIBIDO preguntar confirmación si ya la pediste (order_status = pending_confirmation)
+- Palabras afirmativas válidas: "sí", "si", "dale", "listo", "ok", "perfecto", "de una", "sisas", "hagale", "hágale", "va", "vamos", "hecho", "correcto", "claro", emojis ✅👍🔥
+- Si el cliente dice "cambiar", "modificar", "agregar", "corregir" → NO confirmes, vuelve al flujo de edición
 - Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas ni sugerencias
-- Ejemplo: "Listo, pedido confirmado! Ya lo estamos preparando. Gracias por pedir en La Barra 🍕"
+- Mensajes cortos. 1 sola pregunta por mensaje. NUNCA repitas bloques largos.
 
 POST-CONFIRMACIÓN:
 - Si el cliente escribe después de confirmar y no es gratitud ni pregunta → déjalo pasar a la IA normal
@@ -1802,7 +1806,7 @@ Deno.serve(async (req) => {
 
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
       const lowerTextTrim = text.toLowerCase().trim().replace(/[.,!?¿¡]+/g, "").trim();
-      const isAffirmative = /^(si|sí|confirmar|confirmar pedido|confirmo|dale|listo|va|claro|ok|okey|okay|por favor|porfavor|perfecto|de una|deuna|eso|asi|así|correcto|bien|todo bien|vamos|adelante|manda|envía|envia|ya|eso es|hecho|sale)$/i.test(lowerTextTrim);
+      const isAffirmative = /^(si|sí|confirmar|confirmar pedido|confirmo|dale|listo|va|claro|ok|okey|okay|por favor|porfavor|perfecto|de una|deuna|eso|asi|así|correcto|bien|todo bien|vamos|adelante|manda|envía|envia|ya|eso es|hecho|sale|sisas|hagale|hágale|✅|👍|🔥|😄|sii|siii|siiii|sep|sepp|aja|ajá|venga|bueno|va pues)$/i.test(lowerTextTrim);
       if (
         isAffirmative &&
         conv.current_order &&
@@ -1821,12 +1825,21 @@ Deno.serve(async (req) => {
           : { data: [] };
         const validated = validateOrder(conv.current_order, isLaBarra, confirmProds || []);
         await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-        const confirmations = [
-          "Pedido confirmado! Ya lo estamos preparando con todo el cariño 🍕",
-          "Listo! Tu pedido ya está en camino a la cocina 🍕",
-          "Confirmado! Ya empezamos a prepararlo con mucho amor 🤗",
-        ];
-        const resp = confirmations[Math.floor(Math.random() * confirmations.length)];
+        // Build confirmation message with payment info
+        const orderData = typeof validated.order === 'object' ? validated.order : {};
+        const customerName = (orderData as any)?.customer_name || '';
+        const deliveryType = (orderData as any)?.delivery_type || '';
+        const paymentMethod = (orderData as any)?.payment_method || '';
+        let paymentInstruction = '';
+        if (deliveryType === 'domicilio' || deliveryType === 'delivery') {
+          if (paymentMethod && /transferencia|nequi|daviplata/i.test(paymentMethod)) {
+            paymentInstruction = '\n\n💳 Si pagas por transferencia, envíame el comprobante cuando lo tengas.';
+          } else {
+            paymentInstruction = '\n\n💵 El domicilio se paga al domiciliario cuando llegue.';
+          }
+        }
+        const nameGreeting = customerName ? `, ${customerName}` : '';
+        const resp = `✅ Pedido confirmado${nameGreeting}!\n\nYa lo estamos preparando 🍕\n\n📩 Pedido enviado a cocina.${paymentInstruction}\n\n¿Quieres agregar algo más?`;
         convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
         await supabase
           .from("whatsapp_conversations")
@@ -1850,6 +1863,32 @@ Deno.serve(async (req) => {
         conv.current_order
       ) {
         const lowerText = text.toLowerCase().trim().replace(/[.,!?¿¡]+/g, "").trim();
+        // Detect "quiero cambiar/modificar/agregar" → reset to active, not cancel
+        const changePatterns = /^(cambiar|cambiar algo|modificar|agregar|corregir|quiero cambiar|quiero modificar|quiero agregar|cambio)/i;
+        if (changePatterns.test(lowerText)) {
+          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+          convMsgs.push({
+            role: "customer",
+            content: text,
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg.id,
+          });
+          const resp = "Listo, cuéntame qué quieres cambiar y lo ajusto 😊";
+          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "active",
+              pending_since: null,
+            })
+            .eq("id", conv.id);
+          await sendWA(pid, token, from, resp, true);
+          return new Response(JSON.stringify({ status: "change_requested" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const cancelPatterns = /^(no|cancel|cancelar|no quiero|dejalo|déjalo|nada|olvida)/i;
         if (cancelPatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
