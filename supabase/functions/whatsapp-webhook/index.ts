@@ -732,7 +732,7 @@ DOMICILIO:
 - DOMICILIO GRATIS ($0): SOLO estos conjuntos → Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle
 - CUALQUIER otra dirección: el domicilio NO es gratis. Dile: "El domicilio se paga directamente al domiciliario cuando llegue"
 
-PAGO: Efectivo (contra entrega o en local). Nequi o Daviplata al 3146907745. Si transferencia → pedir comprobante
+PAGO: Efectivo (contra entrega o en local). Cuenta Bancolombia Ahorros 718-000042-16, a nombre de LA BARRA CREA TU PIZZA, con NIT 901684302. Si transferencia → pedir comprobante
 
 TIEMPOS (solo si preguntan): Semana ~15-20min. Finde ~20-30min. ${peak ? "Ahora HORA PICO: ~25-35min" : ""}
 
