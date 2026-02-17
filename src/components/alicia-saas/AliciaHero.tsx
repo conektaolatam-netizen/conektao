@@ -18,7 +18,7 @@ const AliciaHero = () => {
               <img 
                 src={aliciaAvatar} 
                 alt="ALICIA - Vendedora IA" 
-                className="w-full h-full object-cover rounded-full"
+                className="w-[120%] h-[120%] object-cover object-top rounded-full"
               />
             </div>
           </div>
