@@ -1411,7 +1411,7 @@ async function runSalesNudgeCheck() {
       // Generate contextual follow-up
       const closerPrompt = isConvAbandoned
         ? `Eres Alicia. El cliente envió VARIOS mensajes sin respuesta (error técnico). Retoma naturalmente.
-REGLAS: Discúlpate BREVEMENTE ("Perdona la demora"). Lee los últimos mensajes y RESPONDE. Si hay pedido, resume y pregunta si confirma. NO markdown. NO "asistente virtual". Max 1 emoji. Mensaje corto.
+REGLAS: Discúlpate BREVEMENTE ("Perdona la demora"). Lee los últimos mensajes y RESPONDE a lo que preguntaron. NO pidas confirmación. NO markdown. NO "asistente virtual". Max 1 emoji. Mensaje corto.
 PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conversación"}
 Cliente: ${conv.customer_name || "no proporcionado"}`
         : `Eres Alicia. El cliente dejó de responder hace unos minutos. Haz seguimiento natural.
