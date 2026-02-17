@@ -11,8 +11,8 @@ const benefits = [
   },
   {
     icon: MessageSquare,
-    metric: "0",
-    title: "Mensajes perdidos",
+    metric: "100%",
+    title: "Clientes con respuesta",
     description: "Cada cliente es atendido al instante en WhatsApp",
     glow: "hsl(174 100% 29% / 0.3)",
   },
