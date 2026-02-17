@@ -16,22 +16,6 @@ const AliciaHero = () => {
           >
             <img src={aliciaAvatar} alt="ALICIA - Vendedora IA" className="w-full h-full object-contain" />
           </div>
-          {/* Orbiting sparkles */}
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-3 h-3 rounded-full"
-              style={{
-                background: i % 2 === 0 ? "hsl(174 100% 50%)" : "hsl(25 100% 60%)",
-                top: "50%",
-                left: "50%",
-                animation: `orbit1 ${5 + i}s linear infinite`,
-                transformOrigin: `${100 + i * 15}px ${100 + i * 15}px`,
-                filter: "blur(1px)",
-                opacity: 0.7,
-              }}
-            />
-          ))}
         </div>
 
         {/* Badge */}
