@@ -4793,6 +4793,7 @@ export type Database = {
           time_estimates: Json | null
           updated_at: string
           verify_token: string
+          waba_id: string | null
           whatsapp_access_token: string | null
           whatsapp_phone_number_id: string
         }
@@ -4827,6 +4828,7 @@ export type Database = {
           time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
+          waba_id?: string | null
           whatsapp_access_token?: string | null
           whatsapp_phone_number_id: string
         }
@@ -4861,6 +4863,7 @@ export type Database = {
           time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
+          waba_id?: string | null
           whatsapp_access_token?: string | null
           whatsapp_phone_number_id?: string
         }
