@@ -1683,7 +1683,12 @@ Deno.serve(async (req) => {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
         const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
-        const { data: confirmProds } = await supabase.from("products").select("id, name, price, categories(name)").eq("restaurant_id", rId).eq("is_active", true);
+        // Products are linked via user_id -> profiles.restaurant_id, not directly
+        const { data: restaurantProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
+        const profileIds = (restaurantProfiles || []).map((p: any) => p.id);
+        const { data: confirmProds } = profileIds.length > 0
+          ? await supabase.from("products").select("id, name, price, categories(name)").in("user_id", profileIds).eq("is_active", true)
+          : { data: [] };
         const validated = validateOrder(conv.current_order, isLaBarra, confirmProds || []);
         await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
         const confirmations = [
@@ -1826,12 +1831,19 @@ Deno.serve(async (req) => {
       }
 
       // ===== NORMAL MESSAGE PROCESSING =====
-      const { data: prods } = await supabase
-        .from("products")
-        .select("id, name, price, description, category_id, categories(name)")
-        .eq("restaurant_id", rId)
-        .eq("is_active", true)
-        .order("name");
+      // Products are linked via user_id -> profiles.restaurant_id, not directly
+      const { data: restProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
+      const restProfileIds = (restProfiles || []).map((p: any) => p.id);
+      const { data: prods } = restProfileIds.length > 0
+        ? await supabase
+            .from("products")
+            .select("id, name, price, description, category_id, categories(name)")
+            .in("user_id", restProfileIds)
+            .eq("is_active", true)
+            .order("name")
+        : { data: [] };
+      
+      console.log(`📋 Products loaded for restaurant ${rId}: ${(prods || []).length} products found`);
       // Flatten category name for prompt building
       const prodsWithCategory = (prods || []).map((p: any) => ({
         ...p,
