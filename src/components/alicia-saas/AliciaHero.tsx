@@ -12,6 +12,9 @@ const AliciaHero = () => {
             src={aliciaAvatar} 
             alt="ALICIA - Vendedora IA" 
             className="w-48 h-48 sm:w-60 sm:h-60 mx-auto object-contain alicia-breathing" 
+            style={{
+              filter: "drop-shadow(0 0 40px hsl(174 100% 29% / 0.5)) drop-shadow(0 0 80px hsl(25 100% 50% / 0.3))",
+            }}
           />
         </div>
 
