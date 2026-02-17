@@ -8,19 +8,19 @@ const AliciaHero = () => {
       <div className="max-w-5xl mx-auto text-center">
         {/* ALICIA Avatar */}
         <div className="mb-10 flex justify-center">
-          <div 
+          <div
             className="w-52 h-52 sm:w-64 sm:h-64 rounded-full p-1 alicia-breathing"
             style={{
-              background: 'linear-gradient(135deg, hsl(25 100% 50%), hsl(174 100% 40%))',
-            }}
-          >
+              background: 'linear-gradient(135deg, hsl(25 100% 50%), hsl(174 100% 40%))'
+            }}>
+
             <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
-              <img 
-                src={aliciaAvatar} 
-                alt="ALICIA - Vendedora IA" 
+              <img
+
+                alt="ALICIA - Vendedora IA"
                 className="w-[130%] h-[130%] object-cover rounded-full"
-                style={{ objectPosition: '50% 20%' }}
-              />
+                style={{ objectPosition: '50% 20%' }} src="/lovable-uploads/c9d1c030-551a-4426-afb8-92aad9669c40.png" />
+
             </div>
           </div>
         </div>
@@ -42,9 +42,9 @@ const AliciaHero = () => {
             className="bg-gradient-to-r from-primary via-primary to-secondary bg-clip-text text-transparent"
             style={{
               filter:
-                "brightness(1.4) saturate(1.8) drop-shadow(0 0 20px hsl(25 100% 50% / 0.6)) drop-shadow(0 0 40px hsl(174 100% 29% / 0.4))",
-            }}
-          >
+              "brightness(1.4) saturate(1.8) drop-shadow(0 0 20px hsl(25 100% 50% / 0.6)) drop-shadow(0 0 40px hsl(174 100% 29% / 0.4))"
+            }}>
+
             ALICIA
           </span>
         </h1>
@@ -61,21 +61,21 @@ const AliciaHero = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
           <a
             href="#demo"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-primary-foreground rounded-xl bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 border border-primary/30"
-          >
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-primary-foreground rounded-xl bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 border border-primary/30">
+
             <Bot className="mr-2 h-5 w-5" />
             Prueba a ALICIA
           </a>
           <a
             href="#planes"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-secondary rounded-xl border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 hover:scale-105"
-          >
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-secondary rounded-xl border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 hover:scale-105">
+
             Ver Planes
           </a>
         </div>
       </div>
-    </section>
-  );
+    </section>);
+
 };
 
 export default AliciaHero;
