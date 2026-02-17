@@ -514,17 +514,28 @@ ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
 
-FLUJO (un paso por mensaje):
+FLUJO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere
-2. Anota pedido. Sugiere UN complemento si quieres. Si dice no → avanza
-3. Cuando termine → resumen con productos+empaques+TOTAL
-4. Pregunta: recoger o domicilio
-5. Si domicilio → nombre y dirección. Si recoger → solo nombre
-6. Indica datos de pago
-7. Todo listo → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
+2. Anota cada producto. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
+3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+5. Indica datos de pago
+6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y pregunta UNA SOLA VEZ: "Te confirmo el pedido?"
+7. Si dice sí → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
-MODIFICACIONES:
+CONFIRMACIÓN (REGLA CRÍTICA):
+- Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
+- NUNCA preguntes "confirmamos?" o "te confirmo?" mientras el cliente aún está pidiendo productos
+- NUNCA pidas confirmación si falta info (dirección, nombre, tipo de entrega)
+- Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas ni sugerencias
+- Ejemplos de despedida: "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir con nosotros 🍕" 
+
+POST-CONFIRMACIÓN:
+- Si el cliente escribe después de confirmar → "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊"
+- NO sigas la conversación del pedido anterior
+
+MODIFICACIONES (solo pedidos ya confirmados):
 - CAMBIO (<25 min) → ---CAMBIO_PEDIDO---{json}---FIN_CAMBIO---
 - CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
 - ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
@@ -720,17 +731,28 @@ PAGO: Efectivo (contra entrega o en local). Nequi o Daviplata al 3146907745. Si 
 
 TIEMPOS (solo si preguntan): Semana ~15-20min. Finde ~20-30min. ${peak ? "Ahora HORA PICO: ~25-35min" : ""}
 
-FLUJO (un paso por mensaje):
+FLUJO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere
-2. Anota pedido. Sugiere UN complemento. Si dice no → avanza
-3. Cuando termine → resumen con productos + empaques + TOTAL
-4. Pregunta: recoger o domicilio
-5. Si domicilio → nombre y dirección. Si recoger → solo nombre
-6. Indica datos de pago
-7. Todo listo → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---
+2. Anota cada producto. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
+3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+5. Indica datos de pago
+6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y pregunta UNA SOLA VEZ: "Te confirmo el pedido?"
+7. Si dice sí → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
-MODIFICACIONES:
+CONFIRMACIÓN (REGLA CRÍTICA):
+- Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
+- NUNCA preguntes "confirmamos?" o "te confirmo?" mientras el cliente aún está pidiendo productos
+- NUNCA pidas confirmación si falta info (dirección, nombre, tipo de entrega)
+- Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas ni sugerencias
+- Ejemplos de despedida: "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕"
+
+POST-CONFIRMACIÓN:
+- Si el cliente escribe después de confirmar → "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊"
+- NO sigas la conversación del pedido anterior
+
+MODIFICACIONES (solo pedidos ya confirmados):
 - CAMBIO (<25 min) → ---CAMBIO_PEDIDO---{json}---FIN_CAMBIO---
 - CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
 - ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
@@ -745,7 +767,7 @@ REGLAS INQUEBRANTABLES:
 7. IDENTIDAD: Si preguntan si eres bot → admítelo
 8. FRUSTRACIÓN → pasa al humano: "3146907745"
 
-CONFIRMACIÓN: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestres JSON al cliente.
+CONFIRMACIÓN FINAL: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestres JSON al cliente.
 ${ctx}`;
 }
 
@@ -1729,7 +1751,7 @@ Deno.serve(async (req) => {
           const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
           const validated = validateOrder(conv.current_order, isLaBarra);
           await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-          const resp = "Perfecto, tu pedido quedó registrado! Te lo preparamos ya 🍕";
+          const resp = "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
           await supabase
             .from("whatsapp_conversations")
@@ -1794,85 +1816,78 @@ Deno.serve(async (req) => {
 
         if (confirmPatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({
-            role: "customer",
-            content: text,
-            timestamp: new Date().toISOString(),
-            wa_message_id: msg.id,
-          });
+          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
           const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
           const validated = validateOrder(conv.current_order, isLaBarra);
           await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-          const resp = "Perfecto, tu pedido quedó registrado! Te lo preparamos ya 🍕";
+          const resp = "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "confirmed",
-              current_order: validated.order,
-              pending_since: null,
-            })
-            .eq("id", conv.id);
+          await supabase.from("whatsapp_conversations").update({
+            messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
+          }).eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_via_text" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(JSON.stringify({ status: "confirmed_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
         if (cancelPatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({
-            role: "customer",
-            content: text,
-            timestamp: new Date().toISOString(),
-            wa_message_id: msg.id,
-          });
+          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
           const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "none",
-              current_order: null,
-              pending_since: null,
-            })
-            .eq("id", conv.id);
+          await supabase.from("whatsapp_conversations").update({
+            messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
+          }).eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "cancelled_via_text" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(JSON.stringify({ status: "cancelled_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
         if (addMorePatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({
-            role: "customer",
-            content: text,
-            timestamp: new Date().toISOString(),
-            wa_message_id: msg.id,
-          });
+          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
           const resp = "Dale, dime qué más quieres agregar 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "active",
-              pending_since: null,
-            })
-            .eq("id", conv.id);
+          await supabase.from("whatsapp_conversations").update({
+            messages: convMsgs.slice(-30), order_status: "active", pending_since: null,
+          }).eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "add_more_via_text" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(JSON.stringify({ status: "add_more_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
         // If text doesn't match any pattern, fall through to normal AI processing
+      }
+
+      // ===== POST-CONFIRMATION: New message after order was confirmed =====
+      if (conv.order_status === "confirmed") {
+        const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+        // Check if confirmation was recent (within 2 hours)
+        const lastAssistant = [...convMsgs].reverse().find((m: any) => m.role === "assistant");
+        const lastAssistantTime = lastAssistant?.timestamp ? new Date(lastAssistant.timestamp).getTime() : 0;
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+
+        if (lastAssistantTime > twoHoursAgo) {
+          // Recent confirmation — check if it's a modification request or a new order
+          const lowerText = text.toLowerCase().trim();
+          const isModification = /cambi|modific|quita|agrega|añad|cancel/i.test(lowerText);
+
+          if (!isModification) {
+            // Not a modification — offer new order
+            convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+            const resp = "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊";
+            convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({
+              messages: convMsgs.slice(-30), order_status: "none", current_order: null,
+            }).eq("id", conv.id);
+            await sendWA(pid, token, from, resp, true);
+            return new Response(JSON.stringify({ status: "post_confirmation_new_order" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          // If modification, fall through to normal AI processing which handles ---CAMBIO--- and ---ADICION--- tags
+        } else {
+          // Old confirmation (>2 hours) — reset to fresh conversation
+          await supabase.from("whatsapp_conversations").update({
+            order_status: "none", current_order: null,
+          }).eq("id", conv.id);
+          // Fall through to normal processing as new conversation
+        }
       }
 
       // ===== NORMAL MESSAGE PROCESSING =====
