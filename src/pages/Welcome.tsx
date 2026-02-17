@@ -370,9 +370,9 @@ const Welcome = () => {
           {/* Subtitle */}
           <div className={`transition-all duration-1000 delay-700 ${showContent ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 mb-6 sm:mb-8 max-w-4xl mx-auto leading-relaxed font-semibold px-4">
-              La única plataforma que le permite a los dueños de negocio tener
-              <span className="bg-gradient-to-r from-orange-400 to-teal-400 bg-clip-text text-transparent font-bold"> control total </span>
-              de su empresa desde una sola aplicación
+              Inventario que no cuadra, plata que se pierde en caja, decisiones a ciegas…
+              <span className="bg-gradient-to-r from-orange-400 to-teal-400 bg-clip-text text-transparent font-bold"> se acabaron los dolores de cabeza. </span>
+              IA que controla tu inventario, cuadra tu caja y te dice exactamente cómo vender más.
             </p>
           </div>
 
