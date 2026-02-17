@@ -132,12 +132,16 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
         messages: [
           {
             role: "system",
-            content: "Eres un transcriptor de audio. Tu ÚNICA tarea es transcribir exactamente lo que dice la persona. Devuelve SOLO el texto transcrito. Si no entiendes, responde: NO_ENTENDIDO",
+            content:
+              "Eres un transcriptor de audio. Tu ÚNICA tarea es transcribir exactamente lo que dice la persona. Devuelve SOLO el texto transcrito. Si no entiendes, responde: NO_ENTENDIDO",
           },
           {
             role: "user",
             content: [
-              { type: "input_audio", input_audio: { data: base64Audio, format: mimeType.includes("mp4") ? "m4a" : "ogg" } },
+              {
+                type: "input_audio",
+                input_audio: { data: base64Audio, format: mimeType.includes("mp4") ? "m4a" : "ogg" },
+              },
               { type: "text", text: "Transcribe este audio de WhatsApp." },
             ],
           },
@@ -182,11 +186,11 @@ async function sendWA(phoneId: string, token: string, to: string, text: string, 
   for (let i = 0; i < chunks.length; i++) {
     const c = chunks[i];
 
-    if (addHumanDelay) {
+    /* if (addHumanDelay) {
       const delay = i === 0 ? humanDelay(c) : 1500 + Math.random() * 1000;
       console.log(`⏳ Human delay: ${Math.round(delay)}ms before chunk ${i + 1}/${chunks.length}`);
       await sleep(delay);
-    }
+    }*/
 
     // Handle WA 4096 char limit per message
     let rem = c;
@@ -258,7 +262,13 @@ async function sendWAInteractive(
     console.error("WA interactive error:", errText);
     // Fallback to plain text if interactive fails
     console.log("⚠️ Falling back to plain text message");
-    await sendWA(phoneId, token, to, bodyText + "\n\nResponde:\n1️⃣ Confirmar\n2️⃣ Agregar más\n3️⃣ Cancelar", addHumanDelay);
+    await sendWA(
+      phoneId,
+      token,
+      to,
+      bodyText + "\n\nResponde:\n1️⃣ Confirmar\n2️⃣ Agregar más\n3️⃣ Cancelar",
+      addHumanDelay,
+    );
   }
 }
 
@@ -302,9 +312,8 @@ function buildPrompt(
   status: string,
   config?: any,
 ) {
-  const prom = promoted.length > 0
-    ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}`
-    : "";
+  const prom =
+    promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
   let ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
   if (status === "confirmed" && config?._confirmed_at) {
     const minutesSince = Math.floor((Date.now() - new Date(config._confirmed_at).getTime()) / 60000);
@@ -389,7 +398,10 @@ function buildDynamicPrompt(
   if (config.menu_data?.length > 0) {
     let indexBlock = "=== ÍNDICE DEL MENÚ ===\n";
     for (const cat of config.menu_data) {
-      const itemNames = (cat.items || []).filter((i: any) => i.name).map((i: any) => i.name).join(", ");
+      const itemNames = (cat.items || [])
+        .filter((i: any) => i.name)
+        .map((i: any) => i.name)
+        .join(", ");
       if (itemNames) indexBlock += `- ${(cat.name || "").toUpperCase()}: ${itemNames}\n`;
     }
     indexBlock += "=== FIN ÍNDICE ===\n\nREGLA: ANTES de decir 'no tenemos eso', revisa el índice completo.\n\n";
@@ -401,7 +413,9 @@ function buildDynamicPrompt(
         if (!item.name) continue;
         const rec = item.is_recommended ? "⭐ " : "";
         if (item.sizes?.length > 0) {
-          const sizeStr = item.sizes.map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`).join(" / ");
+          const sizeStr = item.sizes
+            .map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`)
+            .join(" / ");
           menuBlock += `- ${rec}${item.name}: ${sizeStr}\n`;
         } else {
           menuBlock += `- ${rec}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}\n`;
@@ -411,7 +425,14 @@ function buildDynamicPrompt(
     }
     menuBlock += "=== FIN MENÚ ===\n";
   } else if (products?.length > 0) {
-    menuBlock = "=== PRODUCTOS ===\n" + products.map((p) => `- ${p.name}: $${(p.price || 0).toLocaleString("es-CO")}${p.description ? ` (${p.description})` : ""}`).join("\n") + "\n=== FIN ===\n";
+    menuBlock =
+      "=== PRODUCTOS ===\n" +
+      products
+        .map(
+          (p) => `- ${p.name}: $${(p.price || 0).toLocaleString("es-CO")}${p.description ? ` (${p.description})` : ""}`,
+        )
+        .join("\n") +
+      "\n=== FIN ===\n";
   }
 
   // Delivery
@@ -432,9 +453,11 @@ function buildDynamicPrompt(
   if (payment.require_proof) paymentBlock += " Pedir foto del comprobante.";
 
   // Packaging
-  const packagingBlock = packaging.length > 0
-    ? "EMPAQUES (domicilio/llevar):\n" + packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
-    : "";
+  const packagingBlock =
+    packaging.length > 0
+      ? "EMPAQUES (domicilio/llevar):\n" +
+        packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
+      : "";
 
   // Time estimates
   const timeBlock = times.weekday
@@ -729,47 +752,47 @@ ${ctx}`;
 // ==================== PRICE VALIDATION (LA BARRA) ====================
 
 const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
-  "Margarita": { personal: 25000, mediana: 35000 },
-  "Pepperoni": { personal: 28000, mediana: 39000 },
-  "Hawaiana": { personal: 28000, mediana: 39000 },
-  "Calzone": { personal: 30000, mediana: 42000 },
-  "Capricciosa": { personal: 30000, mediana: 42000 },
-  "Stracciatella": { personal: 30000, mediana: 42000 },
-  "Camarones": { personal: 34000, mediana: 48000 },
-  "Pulpo": { personal: 34000, mediana: 48000 },
-  "Anchoas": { personal: 30000, mediana: 42000 },
-  "Porchetta": { personal: 30000, mediana: 42000 },
-  "Diavola": { personal: 30000, mediana: 42000 },
-  "Valenciana": { personal: 32000, mediana: 44000 },
-  "Parmesana": { personal: 30000, mediana: 42000 },
+  Margarita: { personal: 25000, mediana: 35000 },
+  Pepperoni: { personal: 28000, mediana: 39000 },
+  Hawaiana: { personal: 28000, mediana: 39000 },
+  Calzone: { personal: 30000, mediana: 42000 },
+  Capricciosa: { personal: 30000, mediana: 42000 },
+  Stracciatella: { personal: 30000, mediana: 42000 },
+  Camarones: { personal: 34000, mediana: 48000 },
+  Pulpo: { personal: 34000, mediana: 48000 },
+  Anchoas: { personal: 30000, mediana: 42000 },
+  Porchetta: { personal: 30000, mediana: 42000 },
+  Diavola: { personal: 30000, mediana: 42000 },
+  Valenciana: { personal: 32000, mediana: 44000 },
+  Parmesana: { personal: 30000, mediana: 42000 },
   "Higos y Queso Azul": { personal: 30000, mediana: 42000 },
-  "Dátiles": { personal: 30000, mediana: 42000 },
-  "Siciliana": { personal: 30000, mediana: 42000 },
-  "Española": { personal: 34000, mediana: 48000 },
+  Dátiles: { personal: 30000, mediana: 42000 },
+  Siciliana: { personal: 30000, mediana: 42000 },
+  Española: { personal: 34000, mediana: 48000 },
   "La Barra": { personal: 34000, mediana: 48000 },
   "Colombiana de la Tata": { personal: 30000, mediana: 42000 },
-  "Turca": { personal: 30000, mediana: 42000 },
-  "Huerto": { personal: 30000, mediana: 42000 },
-  "Alpes": { personal: 30000, mediana: 42000 },
+  Turca: { personal: 30000, mediana: 42000 },
+  Huerto: { personal: 30000, mediana: 42000 },
+  Alpes: { personal: 30000, mediana: 42000 },
   "Prosciutto & Burrata": { personal: 34000, mediana: 48000 },
-  "Cocada": { personal: 24000, mediana: 34000 },
+  Cocada: { personal: 24000, mediana: 34000 },
   "Lemon Crust": { personal: 24000, mediana: 34000 },
   "Hershey's Pizza": { personal: 24000, mediana: 34000 },
   "Dubai Chocolate": { personal: 26000, mediana: 36000 },
-  "Canelate": { personal: 24000, mediana: 34000 },
+  Canelate: { personal: 24000, mediana: 34000 },
   "Arándanos y Queso": { personal: 24000, mediana: 34000 },
   "Arequipe y Maní": { personal: 24000, mediana: 34000 },
   "Frutos Rojos y Brownie": { personal: 24000, mediana: 34000 },
   "Nutella & Oreo": { personal: 24000, mediana: 34000 },
   "3 Leches": { personal: 24000, mediana: 34000 },
-  "Maracumango": { personal: 24000, mediana: 34000 },
+  Maracumango: { personal: 24000, mediana: 34000 },
   "Spaghetti Alla Bolognese": { unico: 39000 },
   "Fettuccine Alla Carbonara": { unico: 39000 },
   "Fettuccine con Camarones": { unico: 44000 },
   "Spaghetti 4 Quesos": { unico: 39000 },
   "Spaghetti al Teléfono": { unico: 39000 },
-  "Ravioles": { unico: 39000 },
-  "Lasagna": { unico: 39000 },
+  Ravioles: { unico: 39000 },
+  Lasagna: { unico: 39000 },
   "Hamburguesa Italiana": { unico: 39000 },
   "Brocheta di Manzo": { unico: 39000 },
   "Langostinos Parrillados": { unico: 52000 },
@@ -788,26 +811,78 @@ const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
 function getPackagingCost(itemName: string): number {
   const n = itemName.toLowerCase();
   // Pizza/postre keywords
-  if (n.includes("pizza") || n.includes("margarita") || n.includes("hawaiana") || n.includes("pepperoni") ||
-      n.includes("calzone") || n.includes("capricciosa") || n.includes("stracciatella") || n.includes("pulpo") ||
-      n.includes("anchoas") || n.includes("porchetta") || n.includes("diavola") || n.includes("valenciana") ||
-      n.includes("parmesana") || n.includes("higos") || n.includes("dátiles") || n.includes("siciliana") ||
-      n.includes("española") || n.includes("la barra") || n.includes("tata") || n.includes("turca") ||
-      n.includes("huerto") || n.includes("alpes") || n.includes("camarones") ||
-      (n.includes("burrata") && n.includes("prosciutto")) ||
-      n.includes("cocada") || n.includes("lemon") || n.includes("hershey") || n.includes("dubai") ||
-      n.includes("canelate") || n.includes("arándanos") || n.includes("arequipe") || n.includes("frutos") ||
-      n.includes("nutella")) return 2000;
+  if (
+    n.includes("pizza") ||
+    n.includes("margarita") ||
+    n.includes("hawaiana") ||
+    n.includes("pepperoni") ||
+    n.includes("calzone") ||
+    n.includes("capricciosa") ||
+    n.includes("stracciatella") ||
+    n.includes("pulpo") ||
+    n.includes("anchoas") ||
+    n.includes("porchetta") ||
+    n.includes("diavola") ||
+    n.includes("valenciana") ||
+    n.includes("parmesana") ||
+    n.includes("higos") ||
+    n.includes("dátiles") ||
+    n.includes("siciliana") ||
+    n.includes("española") ||
+    n.includes("la barra") ||
+    n.includes("tata") ||
+    n.includes("turca") ||
+    n.includes("huerto") ||
+    n.includes("alpes") ||
+    n.includes("camarones") ||
+    (n.includes("burrata") && n.includes("prosciutto")) ||
+    n.includes("cocada") ||
+    n.includes("lemon") ||
+    n.includes("hershey") ||
+    n.includes("dubai") ||
+    n.includes("canelate") ||
+    n.includes("arándanos") ||
+    n.includes("arequipe") ||
+    n.includes("frutos") ||
+    n.includes("nutella")
+  )
+    return 2000;
   // Pasta/sandwich/entrada
-  if (n.includes("spaghetti") || n.includes("fettuccine") || n.includes("ravioles") || n.includes("lasagna") ||
-      n.includes("pasta") || n.includes("carbonara") || n.includes("bolognese") || n.includes("teléfono") ||
-      n.includes("quesos") || n.includes("hamburguesa") || n.includes("brioche") || n.includes("brocheta") ||
-      n.includes("bondiola") || n.includes("langostinos") || n.includes("sandwich") ||
-      n.includes("nuditos") || n.includes("champiñones") || n.includes("brie") || n.includes("burrata") ||
-      n.includes("tapas")) return 3000;
+  if (
+    n.includes("spaghetti") ||
+    n.includes("fettuccine") ||
+    n.includes("ravioles") ||
+    n.includes("lasagna") ||
+    n.includes("pasta") ||
+    n.includes("carbonara") ||
+    n.includes("bolognese") ||
+    n.includes("teléfono") ||
+    n.includes("quesos") ||
+    n.includes("hamburguesa") ||
+    n.includes("brioche") ||
+    n.includes("brocheta") ||
+    n.includes("bondiola") ||
+    n.includes("langostinos") ||
+    n.includes("sandwich") ||
+    n.includes("nuditos") ||
+    n.includes("champiñones") ||
+    n.includes("brie") ||
+    n.includes("burrata") ||
+    n.includes("tapas")
+  )
+    return 3000;
   // Beverages
-  if (n.includes("limonada") || n.includes("sodificada") || n.includes("gaseosa") || n.includes("agua") ||
-      n.includes("coca") || n.includes("cerveza") || n.includes("vino") || n.includes("copa")) return 1000;
+  if (
+    n.includes("limonada") ||
+    n.includes("sodificada") ||
+    n.includes("gaseosa") ||
+    n.includes("agua") ||
+    n.includes("coca") ||
+    n.includes("cerveza") ||
+    n.includes("vino") ||
+    n.includes("copa")
+  )
+    return 1000;
   return 2000;
 }
 
@@ -817,7 +892,8 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
 
   const issues: string[] = [];
   let corrected = false;
-  const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") ||
+  const isDelivery =
+    (order.delivery_type || "").toLowerCase().includes("delivery") ||
     (order.delivery_type || "").toLowerCase().includes("domicilio");
 
   for (const item of order.items) {
@@ -825,14 +901,19 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
 
     // Price validation
     for (const [productName, prices] of Object.entries(LA_BARRA_PRICES)) {
-      if (itemName.toLowerCase().includes(productName.toLowerCase()) ||
-          productName.toLowerCase().includes(itemName.toLowerCase())) {
+      if (
+        itemName.toLowerCase().includes(productName.toLowerCase()) ||
+        productName.toLowerCase().includes(itemName.toLowerCase())
+      ) {
         const declaredPrice = item.unit_price || 0;
         const validPrices = Object.values(prices);
         if (declaredPrice > 0 && !validPrices.includes(declaredPrice)) {
           const closest = validPrices.reduce((a: number, b: number) =>
-            Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a);
-          issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`);
+            Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a,
+          );
+          issues.push(
+            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`,
+          );
           item.unit_price = closest;
           corrected = true;
         }
@@ -908,29 +989,56 @@ function parseOrder(txt: string) {
         const recovered = JSON.parse(jsonMatch[0]);
         if (recovered.items && recovered.total) {
           console.log("⚠️ SAFETY NET: Recovered order from raw JSON");
-          return { order: recovered, clean: txt.replace(jsonMatch[0], "").replace(/```json\s*/g, "").replace(/```/g, "").trim() || "✅ Pedido registrado! 🍽️" };
+          return {
+            order: recovered,
+            clean:
+              txt
+                .replace(jsonMatch[0], "")
+                .replace(/```json\s*/g, "")
+                .replace(/```/g, "")
+                .trim() || "✅ Pedido registrado! 🍽️",
+          };
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     return null;
   }
   try {
-    return { order: JSON.parse(m[1].trim()), clean: txt.replace(/---PEDIDO_CONFIRMADO---[\s\S]*?---FIN_PEDIDO---/, "").trim() };
-  } catch { return null; }
+    return {
+      order: JSON.parse(m[1].trim()),
+      clean: txt.replace(/---PEDIDO_CONFIRMADO---[\s\S]*?---FIN_PEDIDO---/, "").trim(),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function parseOrderModification(txt: string): { type: "addition" | "change"; order: any; clean: string } | null {
   const addMatch = txt.match(/---ADICION_PEDIDO---\s*([\s\S]*?)\s*---FIN_ADICION---/);
   if (addMatch) {
     try {
-      return { type: "addition", order: JSON.parse(addMatch[1].trim()), clean: txt.replace(/---ADICION_PEDIDO---[\s\S]*?---FIN_ADICION---/, "").trim() };
-    } catch { /* ignore */ }
+      return {
+        type: "addition",
+        order: JSON.parse(addMatch[1].trim()),
+        clean: txt.replace(/---ADICION_PEDIDO---[\s\S]*?---FIN_ADICION---/, "").trim(),
+      };
+    } catch {
+      /* ignore */
+    }
   }
   const changeMatch = txt.match(/---CAMBIO_PEDIDO---\s*([\s\S]*?)\s*---FIN_CAMBIO---/);
   if (changeMatch) {
     try {
-      return { type: "change", order: JSON.parse(changeMatch[1].trim()), clean: txt.replace(/---CAMBIO_PEDIDO---[\s\S]*?---FIN_CAMBIO---/, "").trim() };
-    } catch { /* ignore */ }
+      return {
+        type: "change",
+        order: JSON.parse(changeMatch[1].trim()),
+        clean: txt.replace(/---CAMBIO_PEDIDO---[\s\S]*?---FIN_CAMBIO---/, "").trim(),
+      };
+    } catch {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -940,8 +1048,10 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
 /** Build order email HTML */
 function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, paymentProofUrl?: string | null): string {
   const items = (order.items || [])
-    .map((i: any) =>
-      `<tr><td style="padding:10px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`)
+    .map(
+      (i: any) =>
+        `<tr><td style="padding:10px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
+    )
     .join("");
 
   const deliverySection = isDelivery
@@ -999,12 +1109,23 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 
 /** Save order to DB and send confirmation email */
 async function saveOrder(
-  rid: string, cid: string, phone: string, order: any, config: any, paymentProofUrl?: string | null,
+  rid: string,
+  cid: string,
+  phone: string,
+  order: any,
+  config: any,
+  paymentProofUrl?: string | null,
 ) {
   // Dedup guard
   const twoMinAgo = new Date(Date.now() - 120 * 1000).toISOString();
-  const { data: recentDup } = await supabase.from("whatsapp_orders").select("id")
-    .eq("customer_phone", phone).eq("restaurant_id", rid).gt("created_at", twoMinAgo).limit(1).maybeSingle();
+  const { data: recentDup } = await supabase
+    .from("whatsapp_orders")
+    .select("id")
+    .eq("customer_phone", phone)
+    .eq("restaurant_id", rid)
+    .gt("created_at", twoMinAgo)
+    .limit(1)
+    .maybeSingle();
   if (recentDup) {
     console.log(`⚠️ DEDUP: Skipping duplicate order for ${phone}`);
     return;
@@ -1014,17 +1135,32 @@ async function saveOrder(
   const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
   const deliveryType = isDelivery ? "delivery" : "pickup";
 
-  const { data: saved, error } = await supabase.from("whatsapp_orders").insert({
-    restaurant_id: rid, conversation_id: cid, customer_phone: phone,
-    customer_name: order.customer_name || "Cliente WhatsApp",
-    items: order.items || [], total: order.total || 0,
-    delivery_type: deliveryType, delivery_address: order.delivery_address || null,
-    status: "received", email_sent: false,
-  }).select().single();
+  const { data: saved, error } = await supabase
+    .from("whatsapp_orders")
+    .insert({
+      restaurant_id: rid,
+      conversation_id: cid,
+      customer_phone: phone,
+      customer_name: order.customer_name || "Cliente WhatsApp",
+      items: order.items || [],
+      total: order.total || 0,
+      delivery_type: deliveryType,
+      delivery_address: order.delivery_address || null,
+      status: "received",
+      email_sent: false,
+    })
+    .select()
+    .single();
 
-  if (error) { console.error("Save order err:", error); return; }
+  if (error) {
+    console.error("Save order err:", error);
+    return;
+  }
 
-  await supabase.from("whatsapp_conversations").update({ order_status: "confirmed", current_order: order }).eq("id", cid);
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ order_status: "confirmed", current_order: order })
+    .eq("id", cid);
 
   if (!config.order_email) return;
 
@@ -1036,20 +1172,42 @@ async function saveOrder(
 
 /** Save order modification and notify via email */
 async function saveOrderModification(
-  rid: string, cid: string, phone: string, modification: any, modType: "addition" | "change", config: any, originalOrder: any,
+  rid: string,
+  cid: string,
+  phone: string,
+  modification: any,
+  modType: "addition" | "change",
+  config: any,
+  originalOrder: any,
 ) {
-  const updatedOrder = modType === "change"
-    ? modification
-    : { ...originalOrder, items: [...(originalOrder?.items || []), ...(modification.items || [])], total: modification.total || originalOrder?.total };
+  const updatedOrder =
+    modType === "change"
+      ? modification
+      : {
+          ...originalOrder,
+          items: [...(originalOrder?.items || []), ...(modification.items || [])],
+          total: modification.total || originalOrder?.total,
+        };
 
   await supabase.from("whatsapp_conversations").update({ current_order: updatedOrder }).eq("id", cid);
 
-  const { data: existingOrder } = await supabase.from("whatsapp_orders").select("id, items, total")
-    .eq("conversation_id", cid).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: existingOrder } = await supabase
+    .from("whatsapp_orders")
+    .select("id, items, total")
+    .eq("conversation_id", cid)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (existingOrder) {
-    const newItems = modType === "change" ? modification.items : [...((existingOrder.items as any[]) || []), ...(modification.items || [])];
-    await supabase.from("whatsapp_orders").update({ items: newItems, total: modification.total || updatedOrder.total }).eq("id", existingOrder.id);
+    const newItems =
+      modType === "change"
+        ? modification.items
+        : [...((existingOrder.items as any[]) || []), ...(modification.items || [])];
+    await supabase
+      .from("whatsapp_orders")
+      .update({ items: newItems, total: modification.total || updatedOrder.total })
+      .eq("id", existingOrder.id);
   }
 
   if (!config.order_email) return;
@@ -1059,9 +1217,12 @@ async function saveOrderModification(
   const label = isAddition ? "ADICIÓN" : "CAMBIO";
   const color = isAddition ? "#00D4AA" : "#FF6B35";
 
-  const itemsHtml = (modification.items || []).map((i: any) =>
-    `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`
-  ).join("");
+  const itemsHtml = (modification.items || [])
+    .map(
+      (i: any) =>
+        `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
+    )
+    .join("");
 
   const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid ${color}33;">
     <div style="background:linear-gradient(135deg,${color},${color}99);padding:20px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;">${emoji} ${label} DE PEDIDO</h1></div>
@@ -1078,7 +1239,11 @@ async function saveOrderModification(
     <div style="padding:12px 24px;background:#050505;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:11px;">Powered by <span style="background:linear-gradient(135deg,#FF6B35,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">CONEKTAO</span></p></div>
   </div>`;
 
-  await sendEmail(config.order_email, `${emoji} ${label} - ${modification.customer_name || "Cliente"} - $${(modification.total || 0).toLocaleString("es-CO")}`, html);
+  await sendEmail(
+    config.order_email,
+    `${emoji} ${label} - ${modification.customer_name || "Cliente"} - $${(modification.total || 0).toLocaleString("es-CO")}`,
+    html,
+  );
 }
 
 /** Send escalation email to admin */
@@ -1089,10 +1254,13 @@ async function escalate(config: any, phone: string, reason: string, conversation
   if (conversationMessages?.length) {
     conversationHtml = `<div style="margin-top:16px;padding:12px;background:#111;border-radius:8px;border:1px solid #333;">
       <p style="color:#FF6B35;font-weight:bold;margin:0 0 8px;">💬 Últimos mensajes:</p>
-      ${conversationMessages.slice(-15).map((m: any) => {
-        const isC = m.role === "customer";
-        return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isC ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;"><strong style="color:${isC ? "#00D4AA" : "#FF6B35"};">${isC ? "👤 Cliente" : "🤖 Alicia"}:</strong> ${m.content?.substring(0, 200) || ""}</p>`;
-      }).join("")}
+      ${conversationMessages
+        .slice(-15)
+        .map((m: any) => {
+          const isC = m.role === "customer";
+          return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isC ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;"><strong style="color:${isC ? "#00D4AA" : "#FF6B35"};">${isC ? "👤 Cliente" : "🤖 Alicia"}:</strong> ${m.content?.substring(0, 200) || ""}</p>`;
+        })
+        .join("")}
     </div>`;
   }
 
@@ -1124,13 +1292,15 @@ async function runSalesNudgeCheck() {
     const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
 
     // Stalled conversations (ALICIA was last to speak)
-    const { data: dyingConvs } = await supabase.from("whatsapp_conversations")
+    const { data: dyingConvs } = await supabase
+      .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
       .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
       .lt("updated_at", twoMinAgo);
 
     // Abandoned conversations (client messages without response)
-    const { data: abandonedConvs } = await supabase.from("whatsapp_conversations")
+    const { data: abandonedConvs } = await supabase
+      .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
       .not("order_status", "eq", "confirmed")
       .lt("updated_at", twoMinAgo);
@@ -1177,20 +1347,28 @@ async function runSalesNudgeCheck() {
       const isConvAbandoned = consecutiveCustomerMsgs >= 3;
 
       if (isConvAbandoned) {
-        console.log(`🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`);
+        console.log(
+          `🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`,
+        );
       } else {
         if (!lastMsg || lastMsg.role !== "assistant") continue;
         if (lastMsg.is_nudge) continue;
       }
 
       // Get WA credentials
-      const { data: waConfig } = await supabase.from("whatsapp_configs")
-        .select("whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides")
-        .eq("restaurant_id", conv.restaurant_id).maybeSingle();
+      const { data: waConfig } = await supabase
+        .from("whatsapp_configs")
+        .select(
+          "whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides",
+        )
+        .eq("restaurant_id", conv.restaurant_id)
+        .maybeSingle();
 
       const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
-      const waToken = waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET"
-        ? waConfig.whatsapp_access_token : GLOBAL_WA_TOKEN;
+      const waToken =
+        waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET"
+          ? waConfig.whatsapp_access_token
+          : GLOBAL_WA_TOKEN;
 
       if (!phoneId || !waToken) continue;
 
@@ -1206,14 +1384,19 @@ PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conv
 Cliente: ${conv.customer_name || "no proporcionado"}`;
 
       const nudgeMsg = await callAI(closerPrompt, msgs.slice(-10), 0.6);
-      const cleanNudge = nudgeMsg.replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "").replace(/\*+/g, "").trim();
+      const cleanNudge = nudgeMsg
+        .replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "")
+        .replace(/\*+/g, "")
+        .trim();
 
       console.log(`💬 AI NUDGE: ${conv.customer_phone} → "${cleanNudge}"`);
       await sendWA(phoneId, waToken, conv.customer_phone, cleanNudge, true);
 
       msgs.push({ role: "assistant", content: cleanNudge, timestamp: new Date().toISOString(), is_nudge: true });
-      await supabase.from("whatsapp_conversations")
-        .update({ messages: msgs.slice(-30), order_status: "nudge_sent" }).eq("id", conv.id);
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ messages: msgs.slice(-30), order_status: "nudge_sent" })
+        .eq("id", conv.id);
       nudgedCount++;
     }
     return { nudged: nudgedCount };
@@ -1244,7 +1427,8 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       });
       const checkData = await checkRes.json();
       return new Response(JSON.stringify({ subscribe_result: subData, current_subscriptions: checkData }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -1252,55 +1436,113 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       const phone = url.searchParams.get("phone") || "";
       const reason = url.searchParams.get("reason") || "Escalamiento manual";
       const { data: cfgData } = await supabase.from("whatsapp_configs").select("*").limit(1).maybeSingle();
-      if (!cfgData) return new Response(JSON.stringify({ error: "No config" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const { data: convData } = await supabase.from("whatsapp_conversations").select("messages").eq("customer_phone", phone).maybeSingle();
+      if (!cfgData)
+        return new Response(JSON.stringify({ error: "No config" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      const { data: convData } = await supabase
+        .from("whatsapp_conversations")
+        .select("messages")
+        .eq("customer_phone", phone)
+        .maybeSingle();
       await escalate(cfgData, phone, reason, convData?.messages || []);
-      return new Response(JSON.stringify({ sent: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ sent: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     case "reset_conv": {
       const phone = url.searchParams.get("phone") || "";
-      const { error } = await supabase.from("whatsapp_conversations")
+      const { error } = await supabase
+        .from("whatsapp_conversations")
         .update({ order_status: "none", current_order: null, messages: [], payment_proof_url: null })
         .eq("customer_phone", phone);
-      return new Response(JSON.stringify({ reset: !error, error }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ reset: !error, error }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     case "resend_order_email": {
       const orderId = url.searchParams.get("order_id") || "";
-      const { data: orderData, error: oErr } = await supabase.from("whatsapp_orders").select("*").eq("id", orderId).single();
-      if (oErr || !orderData) return new Response(JSON.stringify({ error: "Order not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const { data: cfgData } = await supabase.from("whatsapp_configs").select("order_email").eq("restaurant_id", orderData.restaurant_id).maybeSingle();
-      if (!cfgData?.order_email) return new Response(JSON.stringify({ error: "No email config" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: orderData, error: oErr } = await supabase
+        .from("whatsapp_orders")
+        .select("*")
+        .eq("id", orderId)
+        .single();
+      if (oErr || !orderData)
+        return new Response(JSON.stringify({ error: "Order not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      const { data: cfgData } = await supabase
+        .from("whatsapp_configs")
+        .select("order_email")
+        .eq("restaurant_id", orderData.restaurant_id)
+        .maybeSingle();
+      if (!cfgData?.order_email)
+        return new Response(JSON.stringify({ error: "No email config" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       const isDelivery = orderData.delivery_type === "delivery";
       const html = buildOrderEmailHtml(orderData as any, orderData.customer_phone, isDelivery);
-      const sent = await sendEmail(cfgData.order_email, `🍕 [REENVÍO] Pedido - ${orderData.customer_name} - $${(orderData.total || 0).toLocaleString("es-CO")}`, html);
-      return new Response(JSON.stringify({ sent }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const sent = await sendEmail(
+        cfgData.order_email,
+        `🍕 [REENVÍO] Pedido - ${orderData.customer_name} - $${(orderData.total || 0).toLocaleString("es-CO")}`,
+        html,
+      );
+      return new Response(JSON.stringify({ sent }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     case "update_email": {
       const email = url.searchParams.get("email") || "";
-      const { error } = await supabase.from("whatsapp_configs").update({ order_email: email }).eq("id", "5ab1a230-f503-4573-8b04-79628bdc4a7c");
-      return new Response(JSON.stringify({ updated: !error, email }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { error } = await supabase
+        .from("whatsapp_configs")
+        .update({ order_email: email })
+        .eq("id", "5ab1a230-f503-4573-8b04-79628bdc4a7c");
+      return new Response(JSON.stringify({ updated: !error, email }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     case "check_nudges": {
       const result = await runSalesNudgeCheck();
-      return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     case "send_message": {
       const phone = url.searchParams.get("phone") || "";
       const message = url.searchParams.get("message") || "";
-      if (!phone || !message) return new Response(JSON.stringify({ error: "phone and message required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!phone || !message)
+        return new Response(JSON.stringify({ error: "phone and message required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, phone, message);
-      const { data: conv } = await supabase.from("whatsapp_conversations").select("*").eq("customer_phone", phone).maybeSingle();
+      const { data: conv } = await supabase
+        .from("whatsapp_conversations")
+        .select("*")
+        .eq("customer_phone", phone)
+        .maybeSingle();
       if (conv) {
         const msgs = conv.messages || [];
         msgs.push({ role: "assistant", content: message, ts: new Date().toISOString() });
         await supabase.from("whatsapp_conversations").update({ messages: msgs }).eq("id", conv.id);
       }
-      return new Response(JSON.stringify({ sent: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ sent: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     default:
@@ -1333,7 +1575,8 @@ Deno.serve(async (req) => {
     // Check stale pending confirmations
     try {
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data: staleConvs } = await supabase.from("whatsapp_conversations")
+      const { data: staleConvs } = await supabase
+        .from("whatsapp_conversations")
         .select("id, customer_phone, restaurant_id, pending_since")
         .in("order_status", ["pending_confirmation", "pending_button_confirmation"])
         .lt("pending_since", fiveMinAgo);
@@ -1341,16 +1584,25 @@ Deno.serve(async (req) => {
       if (staleConvs?.length) {
         for (const stale of staleConvs) {
           console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone}`);
-          const followUpMsg = "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' 😊";
+          const followUpMsg =
+            "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' 😊";
           await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, stale.customer_phone, followUpMsg);
-          const { data: staleConv } = await supabase.from("whatsapp_conversations").select("messages").eq("id", stale.id).single();
+          const { data: staleConv } = await supabase
+            .from("whatsapp_conversations")
+            .select("messages")
+            .eq("id", stale.id)
+            .single();
           const staleMsgs = Array.isArray(staleConv?.messages) ? staleConv.messages : [];
           staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations")
-            .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null }).eq("id", stale.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null })
+            .eq("id", stale.id);
         }
       }
-    } catch (e) { console.error("Follow-up check error:", e); }
+    } catch (e) {
+      console.error("Follow-up check error:", e);
+    }
 
     // Run sales nudge check
     await runSalesNudgeCheck();
@@ -1358,7 +1610,11 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
-      if (!value?.messages?.length) return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!value?.messages?.length)
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
 
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
@@ -1387,7 +1643,9 @@ Deno.serve(async (req) => {
             const audioUrl = await downloadAndUploadMedia(audioId, GLOBAL_WA_TOKEN, "audio-messages", "audio/ogg");
             if (audioUrl) {
               const transcription = await transcribeAudio(audioUrl);
-              text = transcription ? `[Audio transcrito]: ${transcription}` : "[El cliente envió un audio que no se pudo transcribir]";
+              text = transcription
+                ? `[Audio transcrito]: ${transcription}`
+                : "[El cliente envió un audio que no se pudo transcribir]";
               if (transcription) console.log(`Audio transcribed for ${from}: "${transcription}"`);
             } else {
               text = "[El cliente envió un audio]";
@@ -1402,23 +1660,40 @@ Deno.serve(async (req) => {
       } else if (msg.type === "sticker") {
         text = "[El cliente envió un sticker 😄]";
       } else if (msg.type === "reaction") {
-        return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       console.log(`Msg from ${from}: "${text}" (type: ${msg.type})`);
-      if (!text.trim()) return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!text.trim())
+        return new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
 
       // ===== GET CONFIG =====
       let config: any = null;
       let token = GLOBAL_WA_TOKEN;
       let pid = phoneId || GLOBAL_WA_PHONE_ID;
 
-      const { data: cd } = await supabase.from("whatsapp_configs").select("*").eq("whatsapp_phone_number_id", phoneId).eq("is_active", true).maybeSingle();
+      const { data: cd } = await supabase
+        .from("whatsapp_configs")
+        .select("*")
+        .eq("whatsapp_phone_number_id", phoneId)
+        .eq("is_active", true)
+        .maybeSingle();
       if (cd) {
         config = cd;
         if (cd.whatsapp_access_token && cd.whatsapp_access_token !== "ENV_SECRET") token = cd.whatsapp_access_token;
       } else {
-        const { data: fb } = await supabase.from("whatsapp_configs").select("*").eq("is_active", true).limit(1).maybeSingle();
+        const { data: fb } = await supabase
+          .from("whatsapp_configs")
+          .select("*")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
         if (fb) {
           config = fb;
           if (fb.whatsapp_access_token && fb.whatsapp_access_token !== "ENV_SECRET") token = fb.whatsapp_access_token;
@@ -1427,7 +1702,10 @@ Deno.serve(async (req) => {
 
       if (!config) {
         await sendWA(pid, token, from, "Lo siento, este número aún no está configurado. 🙏");
-        return new Response(JSON.stringify({ status: "no_config" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "no_config" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       await markRead(pid, token, msg.id);
@@ -1437,7 +1715,13 @@ Deno.serve(async (req) => {
       // ===== HANDLE INTERACTIVE BUTTON REPLIES =====
       if (buttonReplyId) {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-        convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id, button_reply: buttonReplyId });
+        convMsgs.push({
+          role: "customer",
+          content: text,
+          timestamp: new Date().toISOString(),
+          wa_message_id: msg.id,
+          button_reply: buttonReplyId,
+        });
 
         if (buttonReplyId === "confirm_order" && conv.current_order) {
           // DETERMINISTIC: Save order and send email immediately
@@ -1447,31 +1731,57 @@ Deno.serve(async (req) => {
           await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
           const resp = "Perfecto, tu pedido quedó registrado! Te lo preparamos ya 🍕";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "confirmed",
+              current_order: validated.order,
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_via_button" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "confirmed_via_button" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (buttonReplyId === "add_more") {
           const resp = "Dale, dime qué más quieres agregar 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "active", pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "active",
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "add_more" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "add_more" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (buttonReplyId === "cancel_order") {
           const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "none",
+              current_order: null,
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "cancelled" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "cancelled" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
       }
 
@@ -1484,64 +1794,121 @@ Deno.serve(async (req) => {
 
         if (confirmPatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          convMsgs.push({
+            role: "customer",
+            content: text,
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg.id,
+          });
           const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
           const validated = validateOrder(conv.current_order, isLaBarra);
           await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
           const resp = "Perfecto, tu pedido quedó registrado! Te lo preparamos ya 🍕";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "confirmed",
+              current_order: validated.order,
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "confirmed_via_text" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (cancelPatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          convMsgs.push({
+            role: "customer",
+            content: text,
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg.id,
+          });
           const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "none",
+              current_order: null,
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "cancelled_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "cancelled_via_text" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (addMorePatterns.test(lowerText)) {
           const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          convMsgs.push({
+            role: "customer",
+            content: text,
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg.id,
+          });
           const resp = "Dale, dime qué más quieres agregar 😊";
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "active", pending_since: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "active",
+              pending_since: null,
+            })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "add_more_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "add_more_via_text" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         // If text doesn't match any pattern, fall through to normal AI processing
       }
 
       // ===== NORMAL MESSAGE PROCESSING =====
-      const { data: prods } = await supabase.from("products").select("id, name, price, description, category_id").eq("restaurant_id", rId).eq("is_active", true).order("name");
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, name, price, description, category_id")
+        .eq("restaurant_id", rId)
+        .eq("is_active", true)
+        .order("name");
       const { data: rest } = await supabase.from("restaurants").select("id, name").eq("id", rId).single();
       const rName = rest?.name || "Restaurante";
 
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       const currentWaMessageId = msg.id;
-      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl, wa_message_id: currentWaMessageId });
+      msgs.push({
+        role: "customer",
+        content: text,
+        timestamp: new Date().toISOString(),
+        has_image: !!paymentProofUrl,
+        wa_message_id: currentWaMessageId,
+      });
 
       // === MESSAGE BATCHING ===
-      await supabase.from("whatsapp_conversations").update({ messages: msgs.slice(-30) }).eq("id", conv.id);
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ messages: msgs.slice(-30) })
+        .eq("id", conv.id);
 
       console.log(`⏳ MESSAGE BATCH: Waiting 3s for ${from}... (wa_id: ${currentWaMessageId})`);
       await sleep(3000);
 
-      const { data: freshConv } = await supabase.from("whatsapp_conversations")
+      const { data: freshConv } = await supabase
+        .from("whatsapp_conversations")
         .select("messages, order_status, current_order, customer_name, payment_proof_url, updated_at")
-        .eq("id", conv.id).single();
+        .eq("id", conv.id)
+        .single();
 
       const freshMsgs = Array.isArray(freshConv?.messages) ? freshConv.messages : msgs;
 
@@ -1550,13 +1917,20 @@ Deno.serve(async (req) => {
       if (lastCustomerMsg?.wa_message_id && lastCustomerMsg.wa_message_id !== currentWaMessageId) {
         console.log(`⏭️ BATCH SKIP: Newer message found for ${from}. Safety net...`);
         await sleep(5000);
-        const { data: safetyCheck } = await supabase.from("whatsapp_conversations").select("messages").eq("id", conv.id).single();
+        const { data: safetyCheck } = await supabase
+          .from("whatsapp_conversations")
+          .select("messages")
+          .eq("id", conv.id)
+          .single();
         const safetyMsgs = Array.isArray(safetyCheck?.messages) ? safetyCheck.messages : [];
         const lastMsgAfterWait = safetyMsgs[safetyMsgs.length - 1];
 
         if (lastMsgAfterWait?.role === "assistant") {
           console.log(`✅ SAFETY NET OK: Assistant responded for ${from}`);
-          return new Response(JSON.stringify({ status: "batched_safe" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "batched_safe" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
         console.log(`🚨 SAFETY NET TRIGGERED: No response after 8s for ${from}. Emergency processing...`);
       }
@@ -1573,7 +1947,11 @@ Deno.serve(async (req) => {
       if (trailingCustomerTexts.length > 1) {
         console.log(`📦 BATCH MERGED: ${trailingCustomerTexts.length} messages from ${from}`);
       }
-      mergedMsgs.push({ role: "customer", content: trailingCustomerTexts.join("\n"), timestamp: new Date().toISOString() });
+      mergedMsgs.push({
+        role: "customer",
+        content: trailingCustomerTexts.join("\n"),
+        timestamp: new Date().toISOString(),
+      });
 
       // Store payment proof
       if (paymentProofUrl) {
@@ -1584,8 +1962,19 @@ Deno.serve(async (req) => {
       const freshOrderStatus = freshConv?.order_status || conv.order_status;
       const freshCurrentOrder = freshConv?.current_order || conv.current_order;
       const freshCustomerName = freshConv?.customer_name || conv.customer_name;
-      const configWithTime = { ...config, _confirmed_at: freshOrderStatus === "confirmed" ? freshConv?.updated_at || conv.updated_at : null };
-      const sys = buildPrompt(prods || [], config.promoted_products || [], config.greeting_message || "Hola! Bienvenido 👋", rName, freshCurrentOrder, freshOrderStatus, configWithTime);
+      const configWithTime = {
+        ...config,
+        _confirmed_at: freshOrderStatus === "confirmed" ? freshConv?.updated_at || conv.updated_at : null,
+      };
+      const sys = buildPrompt(
+        prods || [],
+        config.promoted_products || [],
+        config.greeting_message || "Hola! Bienvenido 👋",
+        rName,
+        freshCurrentOrder,
+        freshOrderStatus,
+        configWithTime,
+      );
       const ai = await callAI(sys, mergedMsgs);
 
       const parsed = parseOrder(ai);
@@ -1595,42 +1984,66 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // ORDER CONFIRMED BY AI → Send interactive buttons instead of saving immediately
-        const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed || !config.restaurant_name;
+        const isLaBarra =
+          config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed || !config.restaurant_name;
         const validated = validateOrder(parsed.order, isLaBarra);
         if (validated.corrected) parsed.order = validated.order;
         resp = parsed.clean || "✅ Pedido registrado! 🍽️";
 
         // Send the text summary first, then buttons for confirmation
         freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-        await supabase.from("whatsapp_conversations").update({
-          messages: freshMsgs.slice(-30),
-          customer_name: parsed.order.customer_name || freshCustomerName,
-          current_order: parsed.order,
-          order_status: "pending_button_confirmation",
-          pending_since: new Date().toISOString(),
-        }).eq("id", conv.id);
+        await supabase
+          .from("whatsapp_conversations")
+          .update({
+            messages: freshMsgs.slice(-30),
+            customer_name: parsed.order.customer_name || freshCustomerName,
+            current_order: parsed.order,
+            order_status: "pending_button_confirmation",
+            pending_since: new Date().toISOString(),
+          })
+          .eq("id", conv.id);
 
         // Send summary text first
         await sendWA(pid, token, from, resp, true);
 
         // Then send interactive buttons
         const orderSummary = `Tu pedido:\n${(parsed.order.items || []).map((i: any) => `${i.quantity}x ${i.name}`).join("\n")}\nTotal: $${(parsed.order.total || 0).toLocaleString("es-CO")}`;
-        await sendWAInteractive(pid, token, from, orderSummary, [
-          { id: "confirm_order", title: "✅ Confirmar" },
-          { id: "add_more", title: "➕ Agregar más" },
-          { id: "cancel_order", title: "❌ Cancelar" },
-        ], true);
+        await sendWAInteractive(
+          pid,
+          token,
+          from,
+          orderSummary,
+          [
+            { id: "confirm_order", title: "✅ Confirmar" },
+            { id: "add_more", title: "➕ Agregar más" },
+            { id: "cancel_order", title: "❌ Cancelar" },
+          ],
+          true,
+        );
 
-        return new Response(JSON.stringify({ status: "pending_confirmation" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "pending_confirmation" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       } else if (modification) {
-        resp = modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
-        await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, freshCurrentOrder);
+        resp =
+          modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
+        await saveOrderModification(
+          rId,
+          conv.id,
+          from,
+          modification.order,
+          modification.type,
+          config,
+          freshCurrentOrder,
+        );
       }
 
       // Handle special tags
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
-        const reason = resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
+        const reason =
+          resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
         await escalate(config, from, reason, freshMsgs);
       }
       if (resp.includes("---CONSULTA_DOMICILIO---")) {
@@ -1641,42 +2054,79 @@ Deno.serve(async (req) => {
       // Update conversation
       freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
       const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
-      const baseStatus = (freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent") ? "active" : freshOrderStatus;
+      const baseStatus =
+        freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent" ? "active" : freshOrderStatus;
       const newOrderStatus = hasSummary ? "pending_confirmation" : baseStatus;
 
-      await supabase.from("whatsapp_conversations").update({
-        messages: freshMsgs.slice(-30),
-        customer_name: freshCustomerName,
-        current_order: freshCurrentOrder,
-        order_status: newOrderStatus,
-        ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
-      }).eq("id", conv.id);
+      await supabase
+        .from("whatsapp_conversations")
+        .update({
+          messages: freshMsgs.slice(-30),
+          customer_name: freshCustomerName,
+          current_order: freshCurrentOrder,
+          order_status: newOrderStatus,
+          ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
+        })
+        .eq("id", conv.id);
 
       await sendWA(pid, token, from, resp, true);
-      return new Response(JSON.stringify({ status: "ok" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
+      return new Response(JSON.stringify({ status: "ok" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     } catch (e: any) {
       // Enhanced error handling with admin notification
-      console.error("🔥 CRITICAL ERROR:", { error: e?.message || String(e), stack: e?.stack || "no stack", timestamp: new Date().toISOString() });
+      console.error("🔥 CRITICAL ERROR:", {
+        error: e?.message || String(e),
+        stack: e?.stack || "no stack",
+        timestamp: new Date().toISOString(),
+      });
 
       try {
-        const body2 = await req.clone().json().catch(() => null);
+        const body2 = await req
+          .clone()
+          .json()
+          .catch(() => null);
         const from2 = body2?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || "unknown";
 
-        const { data: failConv } = await supabase.from("whatsapp_conversations").select("id, messages, restaurant_id").eq("customer_phone", from2).maybeSingle();
+        const { data: failConv } = await supabase
+          .from("whatsapp_conversations")
+          .select("id, messages, restaurant_id")
+          .eq("customer_phone", from2)
+          .maybeSingle();
         if (failConv) {
           const failMsgs = Array.isArray(failConv.messages) ? failConv.messages : [];
-          failMsgs.push({ role: "system_error", content: `Error: ${e?.message || "unknown"}`, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({ messages: failMsgs.slice(-30) }).eq("id", failConv.id);
+          failMsgs.push({
+            role: "system_error",
+            content: `Error: ${e?.message || "unknown"}`,
+            timestamp: new Date().toISOString(),
+          });
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: failMsgs.slice(-30) })
+            .eq("id", failConv.id);
 
-          const { data: errConfig } = await supabase.from("whatsapp_configs").select("order_email").eq("restaurant_id", failConv.restaurant_id).maybeSingle();
+          const { data: errConfig } = await supabase
+            .from("whatsapp_configs")
+            .select("order_email")
+            .eq("restaurant_id", failConv.restaurant_id)
+            .maybeSingle();
           if (errConfig?.order_email) {
-            await sendEmail(errConfig.order_email, `⚠️ Error procesando mensaje de +${from2}`, `<p>Un mensaje de <b>+${from2}</b> no pudo ser procesado.</p><p>Error: ${e?.message || "unknown"}</p><p>Revisa el dashboard de Alicia.</p>`);
+            await sendEmail(
+              errConfig.order_email,
+              `⚠️ Error procesando mensaje de +${from2}`,
+              `<p>Un mensaje de <b>+${from2}</b> no pudo ser procesado.</p><p>Error: ${e?.message || "unknown"}</p><p>Revisa el dashboard de Alicia.</p>`,
+            );
           }
         }
-      } catch (innerErr) { console.error("Failed to save error state:", innerErr); }
+      } catch (innerErr) {
+        console.error("Failed to save error state:", innerErr);
+      }
 
-      return new Response(JSON.stringify({ error: "Internal error" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
 
