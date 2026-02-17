@@ -7,12 +7,21 @@ const AliciaHero = () => {
     <section className="relative z-10 min-h-screen flex items-center justify-center p-4">
       <div className="max-w-5xl mx-auto text-center">
         {/* ALICIA Avatar */}
-        <div className="mb-10">
-          <img 
-            src={aliciaAvatar} 
-            alt="ALICIA - Vendedora IA" 
-            className="w-48 h-48 sm:w-60 sm:h-60 mx-auto object-contain alicia-breathing"
-          />
+        <div className="mb-10 flex justify-center">
+          <div 
+            className="w-52 h-52 sm:w-64 sm:h-64 rounded-full p-1 alicia-breathing"
+            style={{
+              background: 'linear-gradient(135deg, hsl(25 100% 50%), hsl(174 100% 40%))',
+            }}
+          >
+            <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
+              <img 
+                src={aliciaAvatar} 
+                alt="ALICIA - Vendedora IA" 
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Badge */}
