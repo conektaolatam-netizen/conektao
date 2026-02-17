@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Send, User, Loader2, ShoppingCart, HelpCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const SUGGESTIONS = [
-  "¿Qué puede hacer ALICIA?",
-  "¿Cómo sube el ticket promedio?",
-  "¿Cómo maneja los domicilios?",
-  "¿Qué pasa si un cliente tiene una queja?",
+  { label: "🍕 Quiero pedir una pizza", icon: ShoppingCart },
+  { label: "¿Qué puede hacer ALICIA?", icon: HelpCircle },
+  { label: "¿Cómo sube el ticket promedio?", icon: Sparkles },
+  { label: "¿Cuánto cuesta el plan?", icon: HelpCircle },
 ];
 
 const AliciaDemoChat = () => {
@@ -18,7 +19,7 @@ const AliciaDemoChat = () => {
     {
       role: "assistant",
       content:
-        "¡Hola! 👋 Soy ALICIA, la vendedora IA de Conektao. Pregúntame lo que quieras sobre cómo puedo ayudar a tu restaurante a vender más por WhatsApp.",
+        "¡Hola! 👋 Soy ALICIA, tu vendedora IA.\n\nPuedes preguntarme cómo funciono o simular un pedido como si fueras un cliente de tu restaurante. ¡Pruébame! 🍕",
     },
   ]);
   const [input, setInput] = useState("");
@@ -54,7 +55,7 @@ const AliciaDemoChat = () => {
         ...prev,
         {
           role: "assistant",
-          content: "Hubo un problema conectando conmigo. Por favor intenta de nuevo en un momento.",
+          content: "Hubo un problema conectando conmigo. Por favor intenta de nuevo en un momento. 😊",
         },
       ]);
     } finally {
@@ -62,37 +63,56 @@ const AliciaDemoChat = () => {
     }
   };
 
+  const formatMessage = (content: string) => {
+    return content.split('\n').map((line, i) => (
+      <React.Fragment key={i}>
+        {line}
+        {i < content.split('\n').length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
+
   return (
     <section id="demo" className="relative z-10 py-20 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-foreground/90 to-foreground bg-clip-text text-transparent">
-            Pregúntale lo que quieras
+            Habla con ALICIA ahora
           </h2>
           <p className="text-lg text-muted-foreground font-semibold">
-            Habla con ALICIA ahora mismo y descubre cómo trabaja
+            Pregúntale lo que quieras o simula un pedido como lo haría un cliente real
           </p>
         </div>
 
-        {/* Chat container */}
+        {/* Chat container — WhatsApp-style */}
         <div className="rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl" style={{ boxShadow: "0 0 60px hsl(174 100% 29% / 0.1)" }}>
+          
+          {/* Chat header */}
+          <div className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border/30 bg-muted/30">
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/40 shrink-0">
+              <img src={aliciaAvatar} alt="ALICIA" className="w-full h-full object-cover" style={{ objectPosition: '50% 20%' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-foreground">ALICIA</p>
+              <p className="text-xs text-primary font-medium">En línea • Vendedora IA</p>
+            </div>
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          </div>
+
           {/* Messages */}
-          <div ref={scrollRef} className="h-[400px] overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div ref={scrollRef} className="h-[380px] overflow-y-auto p-4 sm:p-6 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    msg.role === "assistant"
-                      ? "bg-gradient-to-br from-primary to-secondary"
-                      : "bg-muted"
-                  }`}
-                >
-                  {msg.role === "assistant" ? (
-                    <Bot className="w-4 h-4 text-primary-foreground" />
-                  ) : (
+                {msg.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/30">
+                    <img src={aliciaAvatar} alt="ALICIA" className="w-full h-full object-cover" style={{ objectPosition: '50% 20%' }} />
+                  </div>
+                )}
+                {msg.role === "user" && (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-muted">
                     <User className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
+                  </div>
+                )}
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "assistant"
@@ -100,17 +120,19 @@ const AliciaDemoChat = () => {
                       : "bg-gradient-to-r from-primary to-secondary text-primary-foreground"
                   }`}
                 >
-                  {msg.content}
+                  {formatMessage(msg.content)}
                 </div>
               </div>
             ))}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-primary/30">
+                  <img src={aliciaAvatar} alt="ALICIA" className="w-full h-full object-cover" style={{ objectPosition: '50% 20%' }} />
                 </div>
-                <div className="bg-muted/50 rounded-2xl px-4 py-3 border border-border/30">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <div className="bg-muted/50 rounded-2xl px-4 py-3 border border-border/30 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             )}
@@ -122,10 +144,10 @@ const AliciaDemoChat = () => {
               {SUGGESTIONS.map((s, i) => (
                 <button
                   key={i}
-                  onClick={() => send(s)}
-                  className="text-xs px-3 py-1.5 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                  onClick={() => send(s.label)}
+                  className="text-xs px-3 py-2 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-105 flex items-center gap-1.5"
                 >
-                  {s}
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -137,7 +159,7 @@ const AliciaDemoChat = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send(input)}
-              placeholder="Escribe tu pregunta..."
+              placeholder="Escribe un mensaje... ej: 'Quiero una pizza mediana'"
               className="bg-background/50 border-border/50 text-foreground placeholder:text-muted-foreground"
               disabled={isLoading}
             />
