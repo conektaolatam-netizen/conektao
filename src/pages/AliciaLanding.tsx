@@ -10,41 +10,6 @@ import AliciaPlans from "@/components/alicia-saas/AliciaPlans";
 const AliciaLanding = () => {
   return (
     <div className="min-h-screen bg-background overflow-hidden relative">
-      {/* Background waves - same style as Welcome */}
-      <div className="absolute inset-0">
-        <div
-          className="absolute inset-0 opacity-15"
-          style={{
-            background: `
-              radial-gradient(ellipse 1200px 800px at 20% 80%, hsl(25 100% 50% / 0.3) 0%, hsl(25 100% 50% / 0.15) 40%, transparent 80%),
-              radial-gradient(ellipse 800px 1000px at 80% 20%, hsl(25 100% 40% / 0.25) 0%, hsl(25 100% 40% / 0.1) 50%, transparent 85%)
-            `,
-            animation: "wave1 3s ease-in-out infinite",
-            filter: "blur(60px)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-15"
-          style={{
-            background: `
-              radial-gradient(ellipse 1400px 600px at 60% 70%, hsl(174 100% 40% / 0.3) 0%, hsl(174 100% 40% / 0.15) 45%, transparent 85%),
-              radial-gradient(ellipse 700px 1200px at 30% 30%, hsl(190 100% 42% / 0.25) 0%, hsl(190 100% 42% / 0.1) 50%, transparent 90%)
-            `,
-            animation: "wave2 4s ease-in-out infinite reverse",
-            filter: "blur(80px)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            background: `
-              radial-gradient(ellipse 1600px 400px at 70% 50%, hsl(25 100% 50% / 0.3) 0%, hsl(25 100% 50% / 0.12) 55%, transparent 90%)
-            `,
-            animation: "wave3 5s ease-in-out infinite",
-            filter: "blur(100px)",
-          }}
-        />
-      </div>
 
       {/* Nav */}
       <nav className="relative z-20 flex items-center justify-between p-4 sm:p-6 max-w-7xl mx-auto">
