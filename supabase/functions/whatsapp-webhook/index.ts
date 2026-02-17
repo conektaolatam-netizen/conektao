@@ -566,96 +566,28 @@ ${ctx}`;
 
 function buildMenuFromProducts(products: any[]): string {
   if (!products || products.length === 0) return "MENÚ: No disponible en este momento";
-
-  // Detect pizza products that have Personal/Mediana variants and merge them
   const pizzaSizes: Record<string, { desc: string, personal?: number, mediana?: number, cat: string }> = {};
   const otherProducts: { name: string, desc: string, price: number, cat: string }[] = [];
-
   for (const p of products) {
-    const cat = p.category_name || "Otros";
-    const name = (p.name || "").trim();
-    const desc = (p.description || "").trim();
-    const price = Number(p.price);
-
-    // Check if it's a pizza with size suffix
-    const personalMatch = name.match(/^(.+?)\s+Personal$/i);
-    const medianaMatch = name.match(/^(.+?)\s+Mediana$/i);
-
-    if (personalMatch && cat.toLowerCase().includes("pizza")) {
-      const baseName = personalMatch[1].trim();
-      if (!pizzaSizes[baseName]) pizzaSizes[baseName] = { desc, cat };
-      pizzaSizes[baseName].personal = price;
-      if (desc && !pizzaSizes[baseName].desc) pizzaSizes[baseName].desc = desc;
-    } else if (medianaMatch && cat.toLowerCase().includes("pizza")) {
-      const baseName = medianaMatch[1].trim();
-      if (!pizzaSizes[baseName]) pizzaSizes[baseName] = { desc, cat };
-      pizzaSizes[baseName].mediana = price;
-      if (desc && !pizzaSizes[baseName].desc) pizzaSizes[baseName].desc = desc;
-    } else {
-      otherProducts.push({ name, desc, price, cat });
-    }
+    const cat = p.category_name || "Otros", name = (p.name || "").trim(), desc = (p.description || "").trim(), price = Number(p.price);
+    const pm = name.match(/^(.+?)\s+Personal$/i), mm = name.match(/^(.+?)\s+Mediana$/i);
+    if (pm && cat.toLowerCase().includes("pizza")) { const b = pm[1].trim(); if (!pizzaSizes[b]) pizzaSizes[b] = { desc, cat }; pizzaSizes[b].personal = price; }
+    else if (mm && cat.toLowerCase().includes("pizza")) { const b = mm[1].trim(); if (!pizzaSizes[b]) pizzaSizes[b] = { desc, cat }; pizzaSizes[b].mediana = price; }
+    else otherProducts.push({ name, desc, price, cat });
   }
-
-  let menu = "=== MENÚ OFICIAL DE LA BARRA (COP) ===\n";
-  menu += "INSTRUCCIÓN: Cuando el cliente pregunte por un producto, COPIA la descripción EXACTA de aquí. NO inventes descripciones.\n\n";
-
-  // Pizza table with sizes merged
-  if (Object.keys(pizzaSizes).length > 0) {
-    // Group pizzas by category (sal vs dulce)
-    const salPizzas: [string, typeof pizzaSizes[string]][] = [];
-    const dulcePizzas: [string, typeof pizzaSizes[string]][] = [];
-
-    for (const [name, info] of Object.entries(pizzaSizes)) {
-      if (info.cat.toLowerCase().includes("dulce")) {
-        dulcePizzas.push([name, info]);
-      } else {
-        salPizzas.push([name, info]);
-      }
-    }
-
-    if (salPizzas.length > 0) {
-      menu += "🍕 PIZZAS DE SAL:\n";
-      menu += "Producto | Descripción | Personal | Mediana\n";
-      menu += "--------|------------|----------|--------\n";
-      for (const [name, info] of salPizzas.sort((a, b) => a[0].localeCompare(b[0]))) {
-        const pers = info.personal ? `$${info.personal.toLocaleString("es-CO")}` : "—";
-        const med = info.mediana ? `$${info.mediana.toLocaleString("es-CO")}` : "—";
-        menu += `${name} | ${info.desc} | ${pers} | ${med}\n`;
-      }
-      menu += "\n";
-    }
-
-    if (dulcePizzas.length > 0) {
-      menu += "🍫 PIZZAS DULCES (tamaño único):\n";
-      menu += "Producto | Descripción | Precio\n";
-      menu += "--------|------------|------\n";
-      for (const [name, info] of dulcePizzas.sort((a, b) => a[0].localeCompare(b[0]))) {
-        const price = info.personal || info.mediana || 0;
-        menu += `${name} | ${info.desc} | $${price.toLocaleString("es-CO")}\n`;
-      }
-      menu += "\n";
-    }
-  }
-
-  // Group remaining products by category
+  let menu = "=== MENÚ OFICIAL (COP) ===\nINSTRUCCIÓN: COPIA la descripción EXACTA del menú. NO inventes.\n\n";
+  const salPizzas = Object.entries(pizzaSizes).filter(([,i]) => !i.cat.toLowerCase().includes("dulce")).sort((a,b) => a[0].localeCompare(b[0]));
+  const dulcePizzas = Object.entries(pizzaSizes).filter(([,i]) => i.cat.toLowerCase().includes("dulce")).sort((a,b) => a[0].localeCompare(b[0]));
+  if (salPizzas.length > 0) { menu += "🍕 PIZZAS DE SAL:\n"; for (const [n, i] of salPizzas) menu += `${n} | ${i.desc} | ${i.personal ? `$${i.personal.toLocaleString("es-CO")}` : "—"} | ${i.mediana ? `$${i.mediana.toLocaleString("es-CO")}` : "—"}\n`; menu += "\n"; }
+  if (dulcePizzas.length > 0) { menu += "🍫 PIZZAS DULCES:\n"; for (const [n, i] of dulcePizzas) menu += `${n} | ${i.desc} | $${(i.personal || i.mediana || 0).toLocaleString("es-CO")}\n`; menu += "\n"; }
   const groups: Record<string, typeof otherProducts> = {};
-  for (const p of otherProducts) {
-    if (!groups[p.cat]) groups[p.cat] = [];
-    groups[p.cat].push(p);
-  }
-
-  for (const [cat, items] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const p of otherProducts) { if (!groups[p.cat]) groups[p.cat] = []; groups[p.cat].push(p); }
+  for (const [cat, items] of Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]))) {
     menu += `📋 ${cat.toUpperCase()}:\n`;
-    menu += "Producto | Descripción | Precio\n";
-    menu += "--------|------------|------\n";
-    for (const item of items.sort((a, b) => a.name.localeCompare(b.name))) {
-      menu += `${item.name} | ${item.desc || "—"} | $${item.price.toLocaleString("es-CO")}\n`;
-    }
+    for (const item of items.sort((a,b) => a.name.localeCompare(b.name))) menu += `${item.name} | ${item.desc || "—"} | $${item.price.toLocaleString("es-CO")}\n`;
     menu += "\n";
   }
-
-  menu += "=== FIN MENÚ ===";
-  return menu;
+  return menu + "=== FIN MENÚ ===";
 }
 
 function buildLaBarraPrompt(
@@ -825,82 +757,12 @@ function buildPriceMap(products: any[]): Record<string, number> {
   return map;
 }
 
-/** Get packaging cost by product name */
 function getPackagingCost(itemName: string): number {
   const n = itemName.toLowerCase();
-  // Pizza/postre keywords
-  if (
-    n.includes("pizza") ||
-    n.includes("margarita") ||
-    n.includes("hawaiana") ||
-    n.includes("pepperoni") ||
-    n.includes("calzone") ||
-    n.includes("capricciosa") ||
-    n.includes("stracciatella") ||
-    n.includes("pulpo") ||
-    n.includes("anchoas") ||
-    n.includes("porchetta") ||
-    n.includes("diavola") ||
-    n.includes("valenciana") ||
-    n.includes("parmesana") ||
-    n.includes("higos") ||
-    n.includes("dátiles") ||
-    n.includes("siciliana") ||
-    n.includes("española") ||
-    n.includes("la barra") ||
-    n.includes("tata") ||
-    n.includes("turca") ||
-    n.includes("huerto") ||
-    n.includes("alpes") ||
-    n.includes("camarones") ||
-    (n.includes("burrata") && n.includes("prosciutto")) ||
-    n.includes("cocada") ||
-    n.includes("lemon") ||
-    n.includes("hershey") ||
-    n.includes("dubai") ||
-    n.includes("canelate") ||
-    n.includes("arándanos") ||
-    n.includes("arequipe") ||
-    n.includes("frutos") ||
-    n.includes("nutella")
-  )
-    return 2000;
-  // Pasta/sandwich/entrada
-  if (
-    n.includes("spaghetti") ||
-    n.includes("fettuccine") ||
-    n.includes("ravioles") ||
-    n.includes("lasagna") ||
-    n.includes("pasta") ||
-    n.includes("carbonara") ||
-    n.includes("bolognese") ||
-    n.includes("teléfono") ||
-    n.includes("quesos") ||
-    n.includes("hamburguesa") ||
-    n.includes("brioche") ||
-    n.includes("brocheta") ||
-    n.includes("bondiola") ||
-    n.includes("langostinos") ||
-    n.includes("sandwich") ||
-    n.includes("nuditos") ||
-    n.includes("champiñones") ||
-    n.includes("brie") ||
-    n.includes("burrata") ||
-    n.includes("tapas")
-  )
-    return 3000;
-  // Beverages
-  if (
-    n.includes("limonada") ||
-    n.includes("sodificada") ||
-    n.includes("gaseosa") ||
-    n.includes("agua") ||
-    n.includes("coca") ||
-    n.includes("cerveza") ||
-    n.includes("vino") ||
-    n.includes("copa")
-  )
-    return 1000;
+  const pasta = ["spaghetti","fettuccine","ravioles","lasagna","pasta","carbonara","bolognese","teléfono","quesos","hamburguesa","brioche","brocheta","bondiola","langostinos","sandwich","nuditos","champiñones","brie","burrata","tapas"];
+  const drink = ["limonada","sodificada","gaseosa","agua","coca","cerveza","vino","copa"];
+  if (drink.some(k => n.includes(k))) return 1000;
+  if (pasta.some(k => n.includes(k))) return 3000;
   return 2000;
 }
 
@@ -1120,52 +982,13 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
 
 // ==================== ORDER PERSISTENCE & EMAIL ====================
 
-/** Build order email HTML */
 function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, paymentProofUrl?: string | null): string {
-  const items = (order.items || [])
-    .map(
-      (i: any) =>
-        `<tr><td style="padding:10px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
-    )
-    .join("");
-
-  const deliverySection = isDelivery
-    ? `<div style="background:linear-gradient(135deg,rgba(0,212,170,0.15),rgba(255,107,53,0.10));padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #00D4AA;"><p style="margin:0;font-weight:bold;color:#00D4AA;">🏍️ DOMICILIO</p><p style="margin:6px 0 0;font-size:16px;color:#fff;">📍 ${order.delivery_address || "No proporcionada"}</p></div>`
-    : `<div style="background:rgba(255,107,53,0.10);padding:14px 16px;border-radius:10px;margin:12px 0;border-left:4px solid #FF6B35;"><p style="margin:0;font-weight:bold;color:#FF6B35;">🏪 Recoger en local</p></div>`;
-
-  const rawPayment = (order.payment_method || "").toLowerCase();
-  const isEfectivo = rawPayment.includes("efectivo") || rawPayment.includes("cash") || rawPayment.includes("contra");
-
-  let paymentSection = "";
-  if (isEfectivo) {
-    paymentSection = `<div style="padding:14px 16px;background:rgba(0,212,170,0.12);border-radius:10px;border-left:4px solid #00D4AA;margin-top:12px;"><p style="margin:0;font-weight:bold;color:#00D4AA;">💵 Pago en Efectivo</p><p style="margin:4px 0 0;color:#b0b0b0;font-size:13px;">${isDelivery ? "Paga al domiciliario" : "Paga al recoger"}</p></div>`;
-  } else if (paymentProofUrl) {
-    paymentSection = `<div style="padding:14px 16px;background:rgba(0,212,170,0.12);border-radius:10px;border-left:4px solid #00D4AA;margin-top:12px;"><p style="margin:0 0 8px;font-weight:bold;color:#00D4AA;">💳 Comprobante</p><img src="${paymentProofUrl}" style="max-width:100%;border-radius:8px;border:1px solid #333;" alt="Comprobante"/></div>`;
-  } else {
-    paymentSection = `<div style="padding:14px 16px;background:rgba(255,107,53,0.10);border-radius:10px;border-left:4px solid #FF6B35;margin-top:12px;"><p style="margin:0;font-weight:bold;color:#FF6B35;">💳 ${order.payment_method || "No especificado"}</p><p style="margin:4px 0 0;color:#b0b0b0;font-size:13px;">Pendiente comprobante</p></div>`;
-  }
-
-  return `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
-    <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:28px;text-align:center;">
-      <h1 style="margin:0;color:#fff;font-size:22px;letter-spacing:1px;">CONEKTAO</h1>
-      <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">Nuevo Pedido por WhatsApp</p>
-    </div>
-    <div style="padding:24px;">
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <div style="background:#111;padding:12px 16px;border-radius:10px;flex:1;border:1px solid #1a1a1a;"><p style="margin:0;color:#888;font-size:11px;text-transform:uppercase;">Cliente</p><p style="margin:4px 0 0;color:#fff;font-size:16px;font-weight:600;">👤 ${order.customer_name || "Cliente"}</p></div>
-        <div style="background:#111;padding:12px 16px;border-radius:10px;flex:1;border:1px solid #1a1a1a;"><p style="margin:0;color:#888;font-size:11px;text-transform:uppercase;">Teléfono</p><p style="margin:4px 0 0;color:#fff;font-size:16px;">📱 +${phone}</p></div>
-      </div>
-      ${deliverySection}
-      <table style="width:100%;border-collapse:collapse;margin-top:16px;background:#111;border-radius:10px;overflow:hidden;border:1px solid #1a1a1a;">
-        <thead><tr style="background:#151515;"><th style="padding:10px 12px;text-align:left;color:#00D4AA;font-size:12px;text-transform:uppercase;">Producto</th><th style="padding:10px 12px;color:#00D4AA;font-size:12px;">Cant.</th><th style="padding:10px 12px;text-align:right;color:#00D4AA;font-size:12px;">Precio</th><th style="padding:10px 12px;text-align:right;color:#00D4AA;font-size:12px;">Subtotal</th></tr></thead>
-        <tbody>${items}</tbody>
-        <tfoot><tr><td colspan="3" style="padding:14px 12px;text-align:right;font-weight:bold;font-size:18px;color:#fff;border-top:2px solid #00D4AA;">TOTAL:</td><td style="padding:14px 12px;text-align:right;font-weight:bold;font-size:20px;color:#00D4AA;border-top:2px solid #00D4AA;">$${(order.total || 0).toLocaleString("es-CO")}</td></tr></tfoot>
-      </table>
-      ${paymentSection}
-      ${order.observations ? `<div style="margin-top:12px;padding:12px 16px;background:#111;border-radius:10px;border:1px solid #1a1a1a;"><p style="margin:0;color:#888;font-size:11px;">Observaciones</p><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${order.observations}</p></div>` : ""}
-    </div>
-    <div style="padding:16px 24px;background:#050505;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:11px;">Powered by <span style="background:linear-gradient(135deg,#FF6B35,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">CONEKTAO</span></p></div>
-  </div>`;
+  const items = (order.items || []).map((i: any) => `<tr><td style="padding:8px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price||0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price||0)*(i.quantity||1)).toLocaleString("es-CO")}</td></tr>`).join("");
+  const rawPay = (order.payment_method||"").toLowerCase();
+  const isEfectivo = /efectivo|cash|contra/.test(rawPay);
+  const delSec = isDelivery ? `<div style="background:rgba(0,212,170,0.15);padding:12px;border-radius:8px;margin:10px 0;border-left:4px solid #00D4AA;"><b style="color:#00D4AA;">🏍️ DOMICILIO</b><br/><span style="color:#fff;">📍 ${order.delivery_address||"No proporcionada"}</span></div>` : `<div style="background:rgba(255,107,53,0.1);padding:12px;border-radius:8px;margin:10px 0;border-left:4px solid #FF6B35;"><b style="color:#FF6B35;">🏪 Recoger en local</b></div>`;
+  const paySec = isEfectivo ? `<div style="padding:12px;background:rgba(0,212,170,0.12);border-radius:8px;border-left:4px solid #00D4AA;margin-top:10px;"><b style="color:#00D4AA;">💵 Efectivo</b> - ${isDelivery?"Paga al domiciliario":"Paga al recoger"}</div>` : paymentProofUrl ? `<div style="padding:12px;background:rgba(0,212,170,0.12);border-radius:8px;margin-top:10px;"><b style="color:#00D4AA;">💳 Comprobante</b><br/><img src="${paymentProofUrl}" style="max-width:100%;border-radius:8px;"/></div>` : `<div style="padding:12px;background:rgba(255,107,53,0.1);border-radius:8px;margin-top:10px;"><b style="color:#FF6B35;">💳 ${order.payment_method||"Pendiente"}</b></div>`;
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid #1a1a1a;"><div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:20px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;">CONEKTAO</h1><p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:12px;">Nuevo Pedido WhatsApp</p></div><div style="padding:20px;"><div style="display:flex;gap:8px;margin-bottom:12px;"><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Cliente</small><p style="margin:4px 0 0;color:#fff;">👤 ${order.customer_name||"Cliente"}</p></div><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Teléfono</small><p style="margin:4px 0 0;color:#fff;">📱 +${phone}</p></div></div>${delSec}<table style="width:100%;border-collapse:collapse;margin-top:12px;background:#111;border-radius:8px;border:1px solid #1a1a1a;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:#00D4AA;font-size:11px;">Producto</th><th style="padding:8px;color:#00D4AA;font-size:11px;">Cant.</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Precio</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Subtotal</th></tr></thead><tbody>${items}</tbody><tfoot><tr><td colspan="3" style="padding:12px 8px;text-align:right;font-weight:bold;font-size:16px;color:#fff;border-top:2px solid #00D4AA;">TOTAL:</td><td style="padding:12px 8px;text-align:right;font-weight:bold;font-size:18px;color:#00D4AA;border-top:2px solid #00D4AA;">$${(order.total||0).toLocaleString("es-CO")}</td></tr></tfoot></table>${paySec}${order.observations?`<div style="margin-top:10px;padding:10px;background:#111;border-radius:8px;"><small style="color:#888;">Obs.</small><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${order.observations}</p></div>`:""}</div><div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:10px;">Powered by CONEKTAO</p></div></div>`;
 }
 
 /** Send email via Resend */
@@ -1291,257 +1114,63 @@ async function saveOrder(
   }
 }
 
-/** Save order modification and notify via email */
-async function saveOrderModification(
-  rid: string,
-  cid: string,
-  phone: string,
-  modification: any,
-  modType: "addition" | "change",
-  config: any,
-  originalOrder: any,
-) {
-  const updatedOrder =
-    modType === "change"
-      ? modification
-      : {
-          ...originalOrder,
-          items: [...(originalOrder?.items || []), ...(modification.items || [])],
-          total: modification.total || originalOrder?.total,
-        };
-
+async function saveOrderModification(rid: string, cid: string, phone: string, modification: any, modType: "addition"|"change", config: any, originalOrder: any) {
+  const updatedOrder = modType === "change" ? modification : { ...originalOrder, items: [...(originalOrder?.items||[]),...(modification.items||[])], total: modification.total||originalOrder?.total };
   await supabase.from("whatsapp_conversations").update({ current_order: updatedOrder }).eq("id", cid);
-
-  const { data: existingOrder } = await supabase
-    .from("whatsapp_orders")
-    .select("id, items, total")
-    .eq("conversation_id", cid)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+  const { data: existingOrder } = await supabase.from("whatsapp_orders").select("id, items, total").eq("conversation_id", cid).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (existingOrder) {
-    const newItems =
-      modType === "change"
-        ? modification.items
-        : [...((existingOrder.items as any[]) || []), ...(modification.items || [])];
-    await supabase
-      .from("whatsapp_orders")
-      .update({ items: newItems, total: modification.total || updatedOrder.total })
-      .eq("id", existingOrder.id);
+    const newItems = modType === "change" ? modification.items : [...((existingOrder.items as any[])||[]),...(modification.items||[])];
+    await supabase.from("whatsapp_orders").update({ items: newItems, total: modification.total||updatedOrder.total }).eq("id", existingOrder.id);
   }
-
   if (!config.order_email) return;
-
-  const isAddition = modType === "addition";
-  const emoji = isAddition ? "➕" : "⚠️";
-  const label = isAddition ? "ADICIÓN" : "CAMBIO";
-  const color = isAddition ? "#00D4AA" : "#FF6B35";
-
-  const itemsHtml = (modification.items || [])
-    .map(
-      (i: any) =>
-        `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
-    )
-    .join("");
-
-  const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid ${color}33;">
-    <div style="background:linear-gradient(135deg,${color},${color}99);padding:20px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;">${emoji} ${label} DE PEDIDO</h1></div>
-    <div style="padding:20px;">
-      <p style="color:#fff;font-size:15px;">👤 ${modification.customer_name || "Cliente"} · 📱 +${phone}</p>
-      ${!isAddition ? `<div style="background:#2a0a0a;border:1px solid #FF4444;border-radius:10px;padding:14px;margin-bottom:16px;"><p style="margin:0;color:#FF4444;font-weight:bold;">⚠️ El cliente cambió productos del pedido original</p></div>` : ""}
-      <h3 style="color:${color};">${isAddition ? "Productos adicionales:" : "Pedido actualizado:"}</h3>
-      <table style="width:100%;border-collapse:collapse;background:#111;border-radius:10px;overflow:hidden;border:1px solid #1a1a1a;">
-        <thead><tr style="background:#151515;"><th style="padding:8px 12px;text-align:left;color:${color};font-size:12px;">Producto</th><th style="padding:8px 12px;color:${color};font-size:12px;">Cant.</th><th style="padding:8px 12px;text-align:right;color:${color};font-size:12px;">Precio</th></tr></thead>
-        <tbody>${itemsHtml}</tbody>
-      </table>
-      <div style="margin-top:16px;text-align:right;"><span style="color:#888;">Nuevo Total: </span><span style="color:${color};font-size:22px;font-weight:bold;">$${(modification.total || 0).toLocaleString("es-CO")}</span></div>
-    </div>
-    <div style="padding:12px 24px;background:#050505;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:11px;">Powered by <span style="background:linear-gradient(135deg,#FF6B35,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">CONEKTAO</span></p></div>
-  </div>`;
-
-  await sendEmail(
-    config.order_email,
-    `${emoji} ${label} - ${modification.customer_name || "Cliente"} - $${(modification.total || 0).toLocaleString("es-CO")}`,
-    html,
-  );
+  const isAdd = modType === "addition", emoji = isAdd?"➕":"⚠️", label = isAdd?"ADICIÓN":"CAMBIO", color = isAdd?"#00D4AA":"#FF6B35";
+  const itemsHtml = (modification.items||[]).map((i:any) => `<tr><td style="padding:8px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;color:#e0e0e0;">$${((i.unit_price||0)*(i.quantity||1)).toLocaleString("es-CO")}</td></tr>`).join("");
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid ${color}33;"><div style="background:linear-gradient(135deg,${color},${color}99);padding:16px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:18px;">${emoji} ${label} DE PEDIDO</h1></div><div style="padding:16px;"><p style="color:#fff;">👤 ${modification.customer_name||"Cliente"} · 📱 +${phone}</p>${!isAdd?`<div style="background:#2a0a0a;border:1px solid #FF4444;border-radius:8px;padding:10px;margin-bottom:12px;"><p style="margin:0;color:#FF4444;">⚠️ Productos cambiados</p></div>`:""}<table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;border:1px solid #1a1a1a;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:${color};font-size:11px;">Producto</th><th style="padding:8px;color:${color};font-size:11px;">Cant.</th><th style="padding:8px;text-align:right;color:${color};font-size:11px;">Precio</th></tr></thead><tbody>${itemsHtml}</tbody></table><div style="margin-top:12px;text-align:right;"><span style="color:${color};font-size:20px;font-weight:bold;">$${(modification.total||0).toLocaleString("es-CO")}</span></div></div><div style="padding:10px;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:10px;">CONEKTAO</p></div></div>`;
+  await sendEmail(config.order_email, `${emoji} ${label} - ${modification.customer_name||"Cliente"} - $${(modification.total||0).toLocaleString("es-CO")}`, html);
 }
 
-/** Send escalation email to admin */
 async function escalate(config: any, phone: string, reason: string, conversationMessages?: any[]) {
   if (!config.order_email) return;
-
-  let conversationHtml = "";
-  if (conversationMessages?.length) {
-    conversationHtml = `<div style="margin-top:16px;padding:12px;background:#111;border-radius:8px;border:1px solid #333;">
-      <p style="color:#FF6B35;font-weight:bold;margin:0 0 8px;">💬 Últimos mensajes:</p>
-      ${conversationMessages
-        .slice(-15)
-        .map((m: any) => {
-          const isC = m.role === "customer";
-          return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isC ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;"><strong style="color:${isC ? "#00D4AA" : "#FF6B35"};">${isC ? "👤 Cliente" : "🤖 Alicia"}:</strong> ${m.content?.substring(0, 200) || ""}</p>`;
-        })
-        .join("")}
-    </div>`;
-  }
-
-  const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
-    <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:20px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:20px;">🚨 ALICIA necesita autorización</h1></div>
-    <div style="padding:20px;color:#eee;">
-      <div style="background:#1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px;">
-        <p style="margin:0 0 8px;"><strong style="color:#FF6B35;">📱 Cliente:</strong> +${phone}</p>
-        <p style="margin:0 0 8px;"><strong style="color:#FF6B35;">📝 Situación:</strong></p>
-        <p style="margin:0;color:#ccc;line-height:1.5;">${reason}</p>
-      </div>
-      ${conversationHtml}
-      <div style="margin-top:16px;padding:12px;background:#1a2a1a;border-radius:8px;border:1px solid #00D4AA33;">
-        <p style="color:#00D4AA;font-weight:bold;margin:0 0 4px;">💡 ¿Qué hacer?</p>
-        <p style="color:#ccc;margin:0;font-size:13px;">Comunícate con el cliente al +${phone} para resolver.</p>
-      </div>
-    </div>
-    <div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;"><p style="color:#666;font-size:11px;margin:0;">ALICIA by CONEKTAO</p></div>
-  </div>`;
-
-  await sendEmail(config.order_email, `⚠️ ALICIA necesita tu ayuda - Cliente +${phone}`, html);
+  const convHtml = conversationMessages?.length ? `<div style="margin-top:12px;padding:10px;background:#111;border-radius:8px;">${conversationMessages.slice(-10).map((m:any) => `<p style="margin:4px 0;padding:4px 8px;border-radius:4px;background:${m.role==="customer"?"#1a2a1a":"#1a1a2a"};color:#eee;font-size:12px;"><b style="color:${m.role==="customer"?"#00D4AA":"#FF6B35"};">${m.role==="customer"?"👤":"🤖"}</b> ${(m.content||"").substring(0,150)}</p>`).join("")}</div>` : "";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid #1a1a1a;"><div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:16px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:18px;">🚨 ALICIA necesita autorización</h1></div><div style="padding:16px;color:#eee;"><div style="background:#1a1a1a;border-radius:8px;padding:12px;margin-bottom:12px;"><p style="margin:0 0 6px;"><b style="color:#FF6B35;">📱</b> +${phone}</p><p style="margin:0;color:#ccc;">${reason}</p></div>${convHtml}<div style="margin-top:12px;padding:10px;background:#1a2a1a;border-radius:8px;"><p style="color:#00D4AA;margin:0;">💡 Comunícate con el cliente al +${phone}</p></div></div></div>`;
+  await sendEmail(config.order_email, `⚠️ ALICIA - Cliente +${phone}`, html);
 }
 
 // ==================== SALES NUDGE SYSTEM ====================
 
-/** AI-powered follow-up for stalled/abandoned conversations */
 async function runSalesNudgeCheck() {
   try {
-    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-
-    // Stalled conversations (ALICIA was last to speak, not recently nudged)
-    const { data: dyingConvs } = await supabase
-      .from("whatsapp_conversations")
-      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
-      .lt("updated_at", twoMinAgo);
-
-    // Abandoned conversations (client messages without response)
-    const { data: abandonedConvs } = await supabase
-      .from("whatsapp_conversations")
-      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "eq", "confirmed")
-      .lt("updated_at", twoMinAgo);
-
-    // Filter: 3+ consecutive customer messages at end without assistant response
-    const reallyAbandoned = (abandonedConvs || []).filter((conv: any) => {
-      const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-      if (msgs.length < 3) return false;
-      let count = 0;
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        if (msgs[i].role === "customer") count++;
-        else break;
-      }
-      return count >= 3;
-    });
-
-    if (reallyAbandoned.length > 0) {
-      console.log(`🚨 ABANDONED CONVERSATIONS DETECTED: ${reallyAbandoned.length} with 3+ unanswered messages`);
-    }
-
-    // Merge lists (dedup by id)
-    const allConvs = [...(dyingConvs || [])];
-    const existingIds = new Set(allConvs.map((c: any) => c.id));
-    for (const ac of reallyAbandoned) {
-      if (!existingIds.has(ac.id)) {
-        allConvs.push(ac);
-        existingIds.add(ac.id);
-      }
-    }
-
-    if (allConvs.length === 0) return { nudged: 0, abandoned_detected: reallyAbandoned.length };
-
-    let nudgedCount = 0;
-    for (const conv of allConvs) {
-      // ===== FREQUENCY GUARD: Max 1 nudge per 10 minutes =====
-      if (conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString() > tenMinAgo) {
-        console.log(`⏭️ NUDGE SKIP: ${conv.customer_phone} was nudged ${Math.round((Date.now() - new Date(conv.last_nudge_at).getTime()) / 60000)}min ago (min 10min)`);
-        continue;
-      }
-
-      const msgs = Array.isArray(conv.messages) ? conv.messages : [];
-      const lastMsg = msgs[msgs.length - 1];
-
-      // Count consecutive unanswered customer messages
-      let consecutiveCustomerMsgs = 0;
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        if (msgs[i].role === "customer") consecutiveCustomerMsgs++;
-        else break;
-      }
-      const isConvAbandoned = consecutiveCustomerMsgs >= 3;
-
-      if (isConvAbandoned) {
-        console.log(
-          `🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`,
-        );
-      } else {
-        if (!lastMsg || lastMsg.role !== "assistant") continue;
-        if (lastMsg.is_nudge) continue;
-      }
-
-      // Get WA credentials
-      const { data: waConfig } = await supabase
-        .from("whatsapp_configs")
-        .select(
-          "whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides",
-        )
-        .eq("restaurant_id", conv.restaurant_id)
-        .maybeSingle();
-
-      const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
-      const waToken =
-        waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET"
-          ? waConfig.whatsapp_access_token
-          : GLOBAL_WA_TOKEN;
-
-      if (!phoneId || !waToken) continue;
-
-      // Generate contextual follow-up
-      const closerPrompt = isConvAbandoned
-        ? `Eres Alicia. El cliente envió VARIOS mensajes sin respuesta (error técnico). Retoma naturalmente.
-REGLAS: Discúlpate BREVEMENTE ("Perdona la demora"). Lee los últimos mensajes y RESPONDE a lo que preguntaron. NO pidas confirmación. NO markdown. NO "asistente virtual". Max 1 emoji. Mensaje corto.
-PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conversación"}
-Cliente: ${conv.customer_name || "no proporcionado"}`
-        : `Eres Alicia. El cliente dejó de responder hace unos minutos. Haz seguimiento natural.
-REGLAS: Mensaje MUY corto (1-2 líneas). Natural, como mesera amigable. NO pidas confirmación. Solo pregunta si siguen ahí o necesitan algo. NO markdown. Max 1 emoji.
-PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conversación"}
-Cliente: ${conv.customer_name || "no proporcionado"}`;
-
-      const nudgeMsg = await callAI(closerPrompt, msgs.slice(-10), 0.6);
-      const cleanNudge = nudgeMsg
-        .replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "")
-        .replace(/\*+/g, "")
-        .trim();
-
-      console.log(`💬 AI NUDGE: ${conv.customer_phone} → "${cleanNudge}"`);
-
-      // UPDATE last_nudge_at BEFORE sending to prevent parallel duplicates
-      await supabase
-        .from("whatsapp_conversations")
-        .update({
-          last_nudge_at: new Date().toISOString(),
-          order_status: "nudge_sent",
-        })
-        .eq("id", conv.id);
-
-      await sendWA(phoneId, waToken, conv.customer_phone, cleanNudge, true);
-
-      msgs.push({ role: "assistant", content: cleanNudge, timestamp: new Date().toISOString(), is_nudge: true });
-      await supabase
-        .from("whatsapp_conversations")
-        .update({ messages: msgs.slice(-30) })
-        .eq("id", conv.id);
+    const twoMinAgo = new Date(Date.now() - 2*60*1000).toISOString();
+    const tenMinAgo = new Date(Date.now() - 10*60*1000).toISOString();
+    const { data: dyingConvs } = await supabase.from("whatsapp_conversations").select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at").not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")').lt("updated_at", twoMinAgo);
+    const { data: abandonedConvs } = await supabase.from("whatsapp_conversations").select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at").not("order_status", "eq", "confirmed").lt("updated_at", twoMinAgo);
+    const reallyAbandoned = (abandonedConvs||[]).filter((c:any) => { const m = Array.isArray(c.messages)?c.messages:[]; if(m.length<3)return false; let count=0; for(let i=m.length-1;i>=0;i--){if(m[i].role==="customer")count++;else break;} return count>=3; });
+    const allConvs = [...(dyingConvs||[])]; const existingIds = new Set(allConvs.map((c:any)=>c.id));
+    for(const ac of reallyAbandoned){if(!existingIds.has(ac.id)){allConvs.push(ac);existingIds.add(ac.id);}}
+    if(allConvs.length===0)return{nudged:0};
+    let nudgedCount=0;
+    for(const conv of allConvs){
+      if(conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString()>tenMinAgo)continue;
+      const msgs=Array.isArray(conv.messages)?conv.messages:[];
+      const lastMsg=msgs[msgs.length-1];
+      let consecutiveCustomerMsgs=0; for(let i=msgs.length-1;i>=0;i--){if(msgs[i].role==="customer")consecutiveCustomerMsgs++;else break;}
+      const isConvAbandoned=consecutiveCustomerMsgs>=3;
+      if(!isConvAbandoned){if(!lastMsg||lastMsg.role!=="assistant"||lastMsg.is_nudge)continue;}
+      const { data: waConfig } = await supabase.from("whatsapp_configs").select("whatsapp_phone_id, whatsapp_access_token, restaurant_id").eq("restaurant_id", conv.restaurant_id).maybeSingle();
+      const phoneId=waConfig?.whatsapp_phone_id||GLOBAL_WA_PHONE_ID;
+      const waToken=waConfig?.whatsapp_access_token&&waConfig.whatsapp_access_token!=="ENV_SECRET"?waConfig.whatsapp_access_token:GLOBAL_WA_TOKEN;
+      if(!phoneId||!waToken)continue;
+      const closerPrompt=isConvAbandoned?`Eres Alicia. El cliente envió mensajes sin respuesta. Discúlpate BREVEMENTE y responde. NO markdown. Max 1 emoji. Corto.\nPEDIDO: ${conv.current_order?JSON.stringify(conv.current_order):"N/A"}\nCliente: ${conv.customer_name||"?"}`:`Eres Alicia. Cliente dejó de responder. Seguimiento MUY corto. NO markdown. Max 1 emoji.\nPEDIDO: ${conv.current_order?JSON.stringify(conv.current_order):"N/A"}`;
+      const nudgeMsg=await callAI(closerPrompt,msgs.slice(-10),0.6);
+      const cleanNudge=nudgeMsg.replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g,"").replace(/\*+/g,"").trim();
+      await supabase.from("whatsapp_conversations").update({last_nudge_at:new Date().toISOString(),order_status:"nudge_sent"}).eq("id",conv.id);
+      await sendWA(phoneId,waToken,conv.customer_phone,cleanNudge,true);
+      msgs.push({role:"assistant",content:cleanNudge,timestamp:new Date().toISOString(),is_nudge:true});
+      await supabase.from("whatsapp_conversations").update({messages:msgs.slice(-30)}).eq("id",conv.id);
       nudgedCount++;
     }
-    return { nudged: nudgedCount };
-  } catch (e) {
-    console.error("Sales nudge error:", e);
-    return { nudged: 0, error: String(e) };
-  }
+    return{nudged:nudgedCount};
+  }catch(e){console.error("Sales nudge error:",e);return{nudged:0};}
 }
 
 // ==================== ADMIN ENDPOINTS ====================
