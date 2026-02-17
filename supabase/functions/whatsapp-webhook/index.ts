@@ -1924,8 +1924,8 @@ Deno.serve(async (req) => {
         .update({ messages: msgs.slice(-30) })
         .eq("id", conv.id);
 
-      console.log(`⏳ MESSAGE BATCH: Waiting 3s for ${from}... (wa_id: ${currentWaMessageId})`);
-      await sleep(3000);
+      console.log(`⏳ MESSAGE BATCH: Waiting 4s for ${from}... (wa_id: ${currentWaMessageId})`);
+      await sleep(4000);
 
       const { data: freshConv } = await supabase
         .from("whatsapp_conversations")
