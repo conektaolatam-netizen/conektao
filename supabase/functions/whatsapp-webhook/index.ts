@@ -1426,16 +1426,22 @@ Cliente: ${conv.customer_name || "no proporcionado"}`;
         .trim();
 
       console.log(`💬 AI NUDGE: ${conv.customer_phone} → "${cleanNudge}"`);
+
+      // UPDATE last_nudge_at BEFORE sending to prevent parallel duplicates
+      await supabase
+        .from("whatsapp_conversations")
+        .update({
+          last_nudge_at: new Date().toISOString(),
+          order_status: "nudge_sent",
+        })
+        .eq("id", conv.id);
+
       await sendWA(phoneId, waToken, conv.customer_phone, cleanNudge, true);
 
       msgs.push({ role: "assistant", content: cleanNudge, timestamp: new Date().toISOString(), is_nudge: true });
       await supabase
         .from("whatsapp_conversations")
-        .update({
-          messages: msgs.slice(-30),
-          order_status: "nudge_sent",
-          last_nudge_at: new Date().toISOString(),
-        })
+        .update({ messages: msgs.slice(-30) })
         .eq("id", conv.id);
       nudgedCount++;
     }
@@ -1752,10 +1758,11 @@ Deno.serve(async (req) => {
       const rId = config.restaurant_id;
       const conv = await getConversation(rId, from);
 
-      // ===== HANDLE "CONFIRMAR PEDIDO" TEXT TRIGGER =====
-      const lowerTextTrim = text.toLowerCase().trim();
+      // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
+      const lowerTextTrim = text.toLowerCase().trim().replace(/[.,!?¿¡]+/g, "").trim();
+      const isAffirmative = /^(si|sí|confirmar|confirmar pedido|confirmo|dale|listo|va|claro|ok|okey|okay|por favor|porfavor|perfecto|de una|deuna|eso|asi|así|correcto|bien|todo bien|vamos|adelante|manda|envía|envia|ya|eso es|hecho|sale)$/i.test(lowerTextTrim);
       if (
-        lowerTextTrim === "confirmar pedido" &&
+        isAffirmative &&
         conv.current_order &&
         (conv.order_status === "pending_confirmation" ||
           conv.order_status === "pending_button_confirmation" ||
@@ -1766,7 +1773,12 @@ Deno.serve(async (req) => {
         const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
         const validated = validateOrder(conv.current_order, isLaBarra);
         await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-        const resp = "Pedido confirmado! Ya lo estamos preparando con todo el cariño. Gracias por pedir en La Barra 🍕";
+        const confirmations = [
+          "Pedido confirmado! Ya lo estamos preparando con todo el cariño 🍕",
+          "Listo! Tu pedido ya está en camino a la cocina 🍕",
+          "Confirmado! Ya empezamos a prepararlo con mucho amor 🤗",
+        ];
+        const resp = confirmations[Math.floor(Math.random() * confirmations.length)];
         convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
         await supabase
           .from("whatsapp_conversations")
@@ -1784,42 +1796,39 @@ Deno.serve(async (req) => {
         });
       }
 
-      // ===== PENDING CONFIRMATION: remind user to write "confirmar pedido" =====
+      // ===== PENDING CONFIRMATION: handle cancel or pass to AI =====
       if (
         (conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation") &&
         conv.current_order
       ) {
-        const lowerText = text.toLowerCase().trim();
-        // If they wrote something other than "confirmar pedido", remind them
-        if (lowerText !== "confirmar pedido") {
-          const cancelPatterns = /^(no|cancel|cancelar)/i;
-          if (cancelPatterns.test(lowerText)) {
-            const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-            convMsgs.push({
-              role: "customer",
-              content: text,
-              timestamp: new Date().toISOString(),
-              wa_message_id: msg.id,
-            });
-            const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes con mucho gusto 😊";
-            convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-            await supabase
-              .from("whatsapp_conversations")
-              .update({
-                messages: convMsgs.slice(-30),
-                order_status: "none",
-                current_order: null,
-                pending_since: null,
-              })
-              .eq("id", conv.id);
-            await sendWA(pid, token, from, resp, true);
-            return new Response(JSON.stringify({ status: "cancelled_via_text" }), {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          // Fall through to AI processing - let the AI handle it naturally and remind about "confirmar pedido"
+        const lowerText = text.toLowerCase().trim().replace(/[.,!?¿¡]+/g, "").trim();
+        const cancelPatterns = /^(no|cancel|cancelar|no quiero|dejalo|déjalo|nada|olvida)/i;
+        if (cancelPatterns.test(lowerText)) {
+          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+          convMsgs.push({
+            role: "customer",
+            content: text,
+            timestamp: new Date().toISOString(),
+            wa_message_id: msg.id,
+          });
+          const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes con mucho gusto 😊";
+          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              messages: convMsgs.slice(-30),
+              order_status: "none",
+              current_order: null,
+              pending_since: null,
+            })
+            .eq("id", conv.id);
+          await sendWA(pid, token, from, resp, true);
+          return new Response(JSON.stringify({ status: "cancelled_via_text" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
+        // Not cancel, not affirmative (already handled above) — fall through to AI
       }
 
       // ===== POST-CONFIRMATION: New message after order was confirmed =====
@@ -1837,7 +1846,9 @@ Deno.serve(async (req) => {
 
           if (!isModification) {
             // Check if it's a gratitude message — respond warmly without resetting
-            const isGratitude = /gracia|thank|chever|genial|perfecto|excelente|buenísimo|gracias/i.test(lowerText);
+            const isGratitude = /gracia|thank|chever|genial|perfecto|excelente|buenísimo/i.test(lowerText);
+            // Check if it's a follow-up question about their order
+            const isFollowUp = /cuánto|cuanto|demora|tiempo|llega|lleg[oó]|sale|dónde|donde|estado|seguimiento|rastreo|ya sal/i.test(lowerText);
 
             convMsgs.push({
               role: "customer",
@@ -1867,22 +1878,25 @@ Deno.serve(async (req) => {
               });
             }
 
-            // Not gratitude, not modification — offer new order
-            const resp = "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊";
-            convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-            await supabase
-              .from("whatsapp_conversations")
-              .update({
-                messages: convMsgs.slice(-30),
-                order_status: "none",
-                current_order: null,
-              })
-              .eq("id", conv.id);
-            await sendWA(pid, token, from, resp, true);
-            return new Response(JSON.stringify({ status: "post_confirmation_new_order" }), {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+            if (isFollowUp) {
+              // Follow-up question about existing order — answer naturally, don't reset
+              const followUpResp = conv.current_order?.delivery_method === "delivery"
+                ? "Tu pedido ya está en preparación! Normalmente tarda entre 30-45 minutos en llegar 🛵"
+                : "Tu pedido ya está en preparación! Te avisamos cuando esté listo 🍕";
+              convMsgs.push({ role: "assistant", content: followUpResp, timestamp: new Date().toISOString() });
+              await supabase
+                .from("whatsapp_conversations")
+                .update({ messages: convMsgs.slice(-30) })
+                .eq("id", conv.id);
+              await sendWA(pid, token, from, followUpResp, true);
+              return new Response(JSON.stringify({ status: "post_confirmation_followup" }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            // Not gratitude, not follow-up, not modification — let AI handle naturally
+            // Don't reset immediately, fall through to normal AI processing
           }
           // If modification, fall through to normal AI processing which handles ---CAMBIO--- and ---ADICION--- tags
         } else {
