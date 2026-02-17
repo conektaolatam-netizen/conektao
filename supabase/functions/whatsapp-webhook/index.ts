@@ -235,6 +235,44 @@ async function sendWA(phoneId: string, token: string, to: string, text: string, 
   }
 }
 
+// Send WhatsApp interactive reply buttons for order confirmation
+async function sendWAInteractive(
+  phoneId: string,
+  token: string,
+  to: string,
+  bodyText: string,
+  buttons: { id: string; title: string }[],
+) {
+  const trimmedToken = token.trim();
+  const r = await fetch(`https://graph.facebook.com/v22.0/${phoneId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: bodyText.substring(0, 1024) },
+        action: {
+          buttons: buttons.slice(0, 3).map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title.substring(0, 20) },
+          })),
+        },
+      },
+    }),
+  });
+  if (!r.ok) {
+    const errText = await r.text();
+    console.error("WA interactive error:", errText);
+    // Fallback to plain text if interactive fails
+    await sendWA(phoneId, token, to, bodyText);
+  } else {
+    console.log(`✅ Interactive buttons sent to ${to}: ${buttons.map(b => b.id).join(", ")}`);
+  }
+}
+
 async function markRead(phoneId: string, token: string, msgId: string) {
   await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
     method: "POST",
@@ -1778,7 +1816,7 @@ Deno.serve(async (req) => {
       const { data: staleConvs } = await supabase
         .from("whatsapp_conversations")
         .select("id, customer_phone, restaurant_id, pending_since")
-        .eq("order_status", "pending_confirmation")
+        .in("order_status", ["pending_confirmation", "pending_button_confirmation"])
         .lt("pending_since", fiveMinAgo);
       
       if (staleConvs && staleConvs.length > 0) {
@@ -1820,6 +1858,79 @@ Deno.serve(async (req) => {
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
+
+      // Handle interactive button replies (deterministic order confirmation)
+      if (msg.type === "interactive" && msg.interactive?.button_reply?.id) {
+        const buttonId = msg.interactive.button_reply.id;
+        const buttonTitle = msg.interactive.button_reply.title || "";
+        console.log(`🔘 BUTTON REPLY from ${from}: ${buttonId} ("${buttonTitle}")`);
+
+        await markRead(phoneId || GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, msg.id);
+
+        // Get config
+        const { data: btnConfig } = await supabase
+          .from("whatsapp_configs")
+          .select("*")
+          .eq("whatsapp_phone_number_id", phoneId)
+          .eq("is_active", true)
+          .maybeSingle();
+        const cfgBtn = btnConfig || (await supabase.from("whatsapp_configs").select("*").eq("is_active", true).limit(1).maybeSingle()).data;
+        const btnRid = cfgBtn?.restaurant_id;
+        if (!btnRid || !cfgBtn) {
+          return new Response(JSON.stringify({ status: "no_config" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const btnToken = (cfgBtn.whatsapp_access_token && cfgBtn.whatsapp_access_token !== "ENV_SECRET") ? cfgBtn.whatsapp_access_token : GLOBAL_WA_TOKEN;
+        const btnPid = phoneId || GLOBAL_WA_PHONE_ID;
+
+        const btnConv = await getConversation(btnRid, from);
+        const btnMsgs = Array.isArray(btnConv.messages) ? btnConv.messages : [];
+
+        if (buttonId === "confirm_order") {
+          // DETERMINISTIC ORDER CONFIRMATION - guaranteed save + email
+          const pendingOrder = btnConv.current_order;
+          if (pendingOrder && pendingOrder.items) {
+            console.log(`✅ DETERMINISTIC CONFIRM: Saving order for ${from} via button`);
+            const storedProof = btnConv.payment_proof_url || null;
+            await saveOrder(btnRid, btnConv.id, from, pendingOrder, cfgBtn, storedProof);
+            btnMsgs.push({ role: "customer", content: "✅ Confirmar pedido", timestamp: new Date().toISOString(), wa_message_id: msg.id });
+            btnMsgs.push({ role: "assistant", content: "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({
+              messages: btnMsgs.slice(-30),
+              order_status: "confirmed",
+              pending_since: null,
+            }).eq("id", btnConv.id);
+            await sendWA(btnPid, btnToken, from, "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", true);
+          } else {
+            await sendWA(btnPid, btnToken, from, "No encontré un pedido pendiente. Escríbeme qué quieres pedir 😊", true);
+          }
+          return new Response(JSON.stringify({ status: "button_confirmed" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+        } else if (buttonId === "add_more") {
+          // Customer wants to add more items
+          btnMsgs.push({ role: "customer", content: "➕ Agregar más productos", timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          btnMsgs.push({ role: "assistant", content: "Dale, qué más te agrego?", timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: btnMsgs.slice(-30),
+            order_status: "active",
+            pending_since: null,
+          }).eq("id", btnConv.id);
+          await sendWA(btnPid, btnToken, from, "Dale, qué más te agrego?", true);
+          return new Response(JSON.stringify({ status: "button_add_more" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+        } else if (buttonId === "cancel_order") {
+          // Customer cancels
+          btnMsgs.push({ role: "customer", content: "❌ Cancelar pedido", timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          btnMsgs.push({ role: "assistant", content: "Listo, cancelé el pedido. Si quieres pedir algo más adelante, escríbeme con confianza", timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: btnMsgs.slice(-30),
+            order_status: "none",
+            current_order: null,
+            pending_since: null,
+          }).eq("id", btnConv.id);
+          await sendWA(btnPid, btnToken, from, "Listo, cancelé el pedido. Si quieres pedir algo más adelante, escríbeme con confianza", true);
+          return new Response(JSON.stringify({ status: "button_cancelled" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
 
       // Handle different message types
       let text = msg.text?.body || msg.button?.text || "";
@@ -2008,10 +2119,52 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
       }
 
-      // Pass confirmed_at timestamp for order modification rules
+      // === TEXT-BASED CONFIRMATION FALLBACK ===
+      // If status is pending_button_confirmation and customer types "sí"/"confirmo"/"dale" etc.,
+      // treat it as a button press (in case they don't use the button)
       const freshOrderStatus = freshConv?.order_status || conv.order_status;
       const freshCurrentOrder = freshConv?.current_order || conv.current_order;
       const freshCustomerName = freshConv?.customer_name || conv.customer_name;
+      
+      if (freshOrderStatus === "pending_button_confirmation" && freshCurrentOrder?.items) {
+        const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase().trim();
+        const isConfirmation = /^(s[ií]|dale|va|ok|listo|confirmo|confirma|confirm|bueno|claro|eso|perfecto)$/i.test(lastCustomerText) || 
+                               /^s[ií]\s/i.test(lastCustomerText);
+        const isCancellation = /^(no|cancel|cancelar|nada|ya no)$/i.test(lastCustomerText);
+        
+        if (isConfirmation) {
+          console.log(`✅ TEXT CONFIRM FALLBACK: Customer typed "${lastCustomerText}" instead of button`);
+          const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
+          await saveOrder(rId, conv.id, from, freshCurrentOrder, config, storedProof);
+          freshMsgs.push({ role: "assistant", content: "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: freshMsgs.slice(-30),
+            order_status: "confirmed",
+            current_order: freshCurrentOrder,
+            customer_name: freshCurrentOrder.customer_name || freshCustomerName,
+            pending_since: null,
+          }).eq("id", conv.id);
+          await sendWA(pid, token, from, "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", true);
+          return new Response(JSON.stringify({ status: "text_confirmed" }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (isCancellation) {
+          freshMsgs.push({ role: "assistant", content: "Listo, cancelé el pedido. Escríbeme si quieres pedir algo más adelante", timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: freshMsgs.slice(-30),
+            order_status: "none",
+            current_order: null,
+            pending_since: null,
+          }).eq("id", conv.id);
+          await sendWA(pid, token, from, "Listo, cancelé el pedido. Escríbeme si quieres pedir algo más adelante", true);
+          return new Response(JSON.stringify({ status: "text_cancelled" }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // If not a clear yes/no, fall through to AI processing (customer might be asking a question)
+      }
+
       const configWithTime = { ...config, _confirmed_at: freshOrderStatus === "confirmed" ? (freshConv?.updated_at || conv.updated_at) : null };
       const sys = buildPrompt(
         prods || [],
@@ -2038,15 +2191,47 @@ Deno.serve(async (req) => {
         if (validated.corrected) {
           parsed.order = validated.order;
         }
-        resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
-        await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
+
+        // === INTERACTIVE BUTTONS: Send confirmation buttons instead of saving immediately ===
+        // Build order summary for the interactive message
+        const orderItems = (parsed.order.items || []).map((i: any) => 
+          `${i.quantity}x ${i.name} $${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}`
+        ).join("\n");
+        const deliveryInfo = (parsed.order.delivery_type || "").toLowerCase().includes("domi") || (parsed.order.delivery_type || "").toLowerCase().includes("delivery")
+          ? `🏍️ Domicilio: ${parsed.order.delivery_address || ""}` 
+          : "🏪 Recoger en local";
+        const summaryText = `${parsed.clean || "Tu pedido:"}\n\n${orderItems}\n\nTotal: $${(parsed.order.total || 0).toLocaleString("es-CO")}\n${deliveryInfo}\n\nConfirmas?`;
+
+        // Save pending order to current_order for button handler to pick up
+        freshMsgs.push({ role: "assistant", content: summaryText, timestamp: new Date().toISOString() });
+        await supabase.from("whatsapp_conversations").update({
+          messages: freshMsgs.slice(-30),
+          customer_name: parsed.order.customer_name || freshCustomerName,
+          current_order: parsed.order,
+          order_status: "pending_button_confirmation",
+          pending_since: new Date().toISOString(),
+        }).eq("id", conv.id);
+
+        // Send interactive buttons
+        await sendWAInteractive(pid, token, from, summaryText, [
+          { id: "confirm_order", title: "✅ Confirmar" },
+          { id: "add_more", title: "➕ Agregar más" },
+          { id: "cancel_order", title: "❌ Cancelar" },
+        ]);
+
+        console.log(`🔘 INTERACTIVE BUTTONS SENT to ${from} for order $${parsed.order.total}`);
+        return new Response(JSON.stringify({ status: "buttons_sent" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+        // === END INTERACTIVE BUTTONS ===
+
       } else if (modification) {
         resp = modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
         await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, freshCurrentOrder);
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
-        // Extract context from what ALICIA said to provide a richer reason
         const escalationReason = resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
         await escalate(config, from, escalationReason, freshMsgs);
       }
@@ -2062,17 +2247,16 @@ Deno.serve(async (req) => {
       const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
       // Reset nudge/followup status when client responds again
       const baseStatus = (freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent") ? "active" : freshOrderStatus;
-      const newOrderStatus = parsed ? "confirmed" : (hasSummary ? "pending_confirmation" : baseStatus);
+      const newOrderStatus = hasSummary ? "pending_confirmation" : baseStatus;
 
       await supabase
         .from("whatsapp_conversations")
         .update({
           messages: freshMsgs.slice(-30),
-          customer_name: parsed?.order?.customer_name || freshCustomerName,
-          current_order: parsed ? parsed.order : freshCurrentOrder,
+          customer_name: freshCustomerName,
+          current_order: freshCurrentOrder,
           order_status: newOrderStatus,
           ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
-          ...(parsed ? { pending_since: null } : {}),
         })
         .eq("id", conv.id);
 
