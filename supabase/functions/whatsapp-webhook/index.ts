@@ -124,7 +124,8 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
         messages: [
           {
             role: "system",
-            content: "Eres un transcriptor de audio. Tu ÚNICA tarea es transcribir exactamente lo que dice la persona en el audio. Devuelve SOLO el texto transcrito, sin comentarios, sin explicaciones, sin comillas. Si no puedes entender el audio, responde exactamente: NO_ENTENDIDO"
+            content:
+              "Eres un transcriptor de audio. Tu ÚNICA tarea es transcribir exactamente lo que dice la persona en el audio. Devuelve SOLO el texto transcrito, sin comentarios, sin explicaciones, sin comillas. Si no puedes entender el audio, responde exactamente: NO_ENTENDIDO",
           },
           {
             role: "user",
@@ -134,14 +135,14 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
                 input_audio: {
                   data: base64Audio,
                   format: mimeType.includes("mp4") ? "m4a" : "ogg",
-                }
+                },
               },
               {
                 type: "text",
-                text: "Transcribe este audio de WhatsApp. Solo devuelve el texto exacto."
-              }
-            ]
-          }
+                text: "Transcribe este audio de WhatsApp. Solo devuelve el texto exacto.",
+              },
+            ],
+          },
         ],
       }),
     });
@@ -177,38 +178,35 @@ function sleep(ms: number): Promise<void> {
 function splitIntoHumanChunks(text: string): string[] {
   // If short enough, send as one
   if (text.length <= 200) return [text];
-  
+
   // Try to split on double newlines first, then single newlines
-  const parts = text.split(/\n\n+/).filter(p => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) return parts.map(p => p.trim());
-  
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) return parts.map((p) => p.trim());
+
   // If still one big block, split on single newlines
-  const lines = text.split(/\n/).filter(p => p.trim());
+  const lines = text.split(/\n/).filter((p) => p.trim());
   if (lines.length >= 2) {
     // Group into 2-3 chunks
     const mid = Math.ceil(lines.length / 2);
-    return [
-      lines.slice(0, mid).join("\n"),
-      lines.slice(mid).join("\n"),
-    ].filter(p => p.trim());
+    return [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
   }
-  
+
   return [text];
 }
 
 async function sendWA(phoneId: string, token: string, to: string, text: string, addHumanDelay = false) {
   const chunks = splitIntoHumanChunks(text);
-  
+
   for (let i = 0; i < chunks.length; i++) {
     const c = chunks[i];
-    
+
     // Add human-like delay before sending
     if (addHumanDelay) {
-      const delay = i === 0 ? humanDelay(c) : (1500 + Math.random() * 1000); // 1.5-2.5s between chunks
+      const delay = i === 0 ? humanDelay(c) : 1500 + Math.random() * 1000; // 1.5-2.5s between chunks
       console.log(`⏳ Human delay: ${Math.round(delay)}ms before chunk ${i + 1}/${chunks.length}`);
       await sleep(delay);
     }
-    
+
     // Handle WA 4096 char limit per message
     let rem = c;
     while (rem.length > 0) {
@@ -223,7 +221,7 @@ async function sendWA(phoneId: string, token: string, to: string, text: string, 
         segment = rem.substring(0, s);
         rem = rem.substring(s).trim();
       }
-      
+
       const trimmedToken = token.trim();
       const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
         method: "POST",
@@ -232,44 +230,6 @@ async function sendWA(phoneId: string, token: string, to: string, text: string, 
       });
       if (!r.ok) console.error("WA error:", await r.text());
     }
-  }
-}
-
-// Send WhatsApp interactive reply buttons for order confirmation
-async function sendWAInteractive(
-  phoneId: string,
-  token: string,
-  to: string,
-  bodyText: string,
-  buttons: { id: string; title: string }[],
-) {
-  const trimmedToken = token.trim();
-  const r = await fetch(`https://graph.facebook.com/v22.0/${phoneId}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${trimmedToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: bodyText.substring(0, 1024) },
-        action: {
-          buttons: buttons.slice(0, 3).map((b) => ({
-            type: "reply",
-            reply: { id: b.id, title: b.title.substring(0, 20) },
-          })),
-        },
-      },
-    }),
-  });
-  if (!r.ok) {
-    const errText = await r.text();
-    console.error("WA interactive error:", errText);
-    // Fallback to plain text if interactive fails
-    await sendWA(phoneId, token, to, bodyText);
-  } else {
-    console.log(`✅ Interactive buttons sent to ${to}: ${buttons.map(b => b.id).join(", ")}`);
   }
 }
 
@@ -298,7 +258,15 @@ async function getConversation(rid: string, phone: string) {
   return cr;
 }
 
-function buildPrompt(products: any[], promoted: string[], greeting: string, name: string, order: any, status: string, config?: any) {
+function buildPrompt(
+  products: any[],
+  promoted: string[],
+  greeting: string,
+  name: string,
+  order: any,
+  status: string,
+  config?: any,
+) {
   const prom =
     promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
   let ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
@@ -318,7 +286,7 @@ function buildPrompt(products: any[], promoted: string[], greeting: string, name
   // ====== FORCE La Barra hardcoded prompt (has all critical business rules) ======
   const LA_BARRA_RESTAURANT_ID = "899cb7a7-7de1-47c7-a684-f24658309755";
   const isLaBarraConfig = config?.restaurant_id === LA_BARRA_RESTAURANT_ID;
-  
+
   if (isLaBarraConfig) {
     return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
   }
@@ -334,7 +302,20 @@ function buildPrompt(products: any[], promoted: string[], greeting: string, name
   return buildLaBarraPrompt(prom, ctx, peak, we, greeting, name, order, status);
 }
 
-function buildDynamicPrompt(config: any, products: any[], promoted: string[], prom: string, ctx: string, peak: boolean, we: boolean, h: number, d: number, greeting: string, order: any, status: string): string {
+function buildDynamicPrompt(
+  config: any,
+  products: any[],
+  promoted: string[],
+  prom: string,
+  ctx: string,
+  peak: boolean,
+  we: boolean,
+  h: number,
+  d: number,
+  greeting: string,
+  order: any,
+  status: string,
+): string {
   const personality = config.personality_rules || {};
   const delivery = config.delivery_config || {};
   const payment = config.payment_config || {};
@@ -352,11 +333,11 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
   let scheduleBlock = "";
   const openTime = hours.open_time ? parseFloat(hours.open_time.replace(":", ".")) : null;
   const closeTime = hours.close_time ? parseFloat(hours.close_time.replace(":", ".")) : null;
-  
+
   if (openTime !== null && closeTime !== null) {
-    const currentDecimal = h + (new Date().getMinutes() / 60);
+    const currentDecimal = h + new Date().getMinutes() / 60;
     const prepStart = hours.preparation_start || hours.open_time;
-    
+
     if (currentDecimal < openTime) {
       const hoursUntil = Math.floor(openTime - currentDecimal);
       scheduleBlock = `ESTADO ACTUAL: Cerrado. Abrimos a las ${hours.open_time}.`;
@@ -377,7 +358,8 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
     const today = new Date().toISOString().split("T")[0];
     const active = dailyOverrides.filter((o: any) => !o.expires || o.expires >= today);
     if (active.length > 0) {
-      overridesBlock = "\nCAMBIOS TEMPORALES DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");
+      overridesBlock =
+        "\nCAMBIOS TEMPORALES DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");
     }
   }
 
@@ -387,19 +369,25 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
     // Build semantic index from menu categories
     let indexBlock = "=== ÍNDICE DEL MENÚ (consulta PRIMERO antes de decir que algo no existe) ===\n";
     for (const cat of config.menu_data) {
-      const itemNames = (cat.items || []).filter((i: any) => i.name).map((i: any) => i.name).join(", ");
+      const itemNames = (cat.items || [])
+        .filter((i: any) => i.name)
+        .map((i: any) => i.name)
+        .join(", ");
       if (itemNames) indexBlock += `- ${(cat.name || "").toUpperCase()}: ${itemNames}\n`;
     }
     indexBlock += "=== FIN ÍNDICE ===\n\n";
-    indexBlock += "REGLA ANTI-NEGACIÓN: ANTES de decir 'no manejamos eso', revisa el índice completo. Si piden con palabras diferentes, busca por categoría.\n\n";
+    indexBlock +=
+      "REGLA ANTI-NEGACIÓN: ANTES de decir 'no manejamos eso', revisa el índice completo. Si piden con palabras diferentes, busca por categoría.\n\n";
     menuBlock = indexBlock + "=== MENÚ OFICIAL CON PRECIOS ===\n\n";
     for (const cat of config.menu_data) {
       menuBlock += `${(cat.name || "").toUpperCase()}:\n`;
-      for (const item of (cat.items || [])) {
+      for (const item of cat.items || []) {
         if (!item.name) continue;
         const recMark = item.is_recommended ? "⭐ " : "";
         if (item.sizes && item.sizes.length > 0) {
-          const sizeStr = item.sizes.map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`).join(" / ");
+          const sizeStr = item.sizes
+            .map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`)
+            .join(" / ");
           menuBlock += `- ${recMark}${item.name}: ${sizeStr}\n`;
         } else {
           menuBlock += `- ${recMark}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}\n`;
@@ -437,7 +425,8 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
   // Packaging block
   let packagingBlock = "";
   if (packaging.length > 0) {
-    packagingBlock = "EMPAQUES (incluir en pedidos para llevar):\n" +
+    packagingBlock =
+      "EMPAQUES (incluir en pedidos para llevar):\n" +
       packaging.map((p: any) => `- Empaque ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n");
   }
 
@@ -452,9 +441,8 @@ function buildDynamicPrompt(config: any, products: any[], promoted: string[], pr
     : "";
 
   // Custom rules
-  const rulesBlock = customRules.length > 0
-    ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n")
-    : "";
+  const rulesBlock =
+    customRules.length > 0 ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n") : "";
 
   // Tone instructions
   let toneBlock = "";
@@ -554,7 +542,7 @@ DISAMBIGUATION: Si un nombre es ambiguo, pregunta. Ejemplo: "Quiero camarones" �
 5. DESGLOSE: producto + precio + empaque + total. Los números DEBEN cuadrar
 6. DIRECCIÓN: Cuando la den, GRÁBALA. Si ya la dieron, NO la pidas otra vez. DEBE aparecer en el JSON
 7. IDENTIDAD: Si preguntan si eres bot/IA → admítelo con naturalidad. NUNCA niegues ser IA
-8. MODO ALERTA: Cliente frustrado o conversación estancada → pasa al humano: "${escalation.human_phone || 'administrador'}"
+8. MODO ALERTA: Cliente frustrado o conversación estancada → pasa al humano: "${escalation.human_phone || "administrador"}"
 9. CONTEXTO: LEE historial completo. No pidas info que ya dieron
 === FIN REGLAS ===
 
@@ -569,7 +557,16 @@ CONFIRMACIÓN: Todo listo → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUN
 ${ctx}`;
 }
 
-function buildLaBarraPrompt(prom: string, ctx: string, peak: boolean, we: boolean, greeting: string, name: string, order: any, status: string): string {
+function buildLaBarraPrompt(
+  prom: string,
+  ctx: string,
+  peak: boolean,
+  we: boolean,
+  greeting: string,
+  name: string,
+  order: any,
+  status: string,
+): string {
   // Calculate current Colombia time for schedule logic
   const now = new Date();
   const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
@@ -967,30 +964,30 @@ ${ctx}`;
 
 // La Barra price map for post-AI validation
 const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
-  "Margarita": { personal: 21000, mediana: 35000 },
-  "Hawaiana": { personal: 24000, mediana: 37000 },
+  Margarita: { personal: 21000, mediana: 35000 },
+  Hawaiana: { personal: 24000, mediana: 37000 },
   "Pollo & Champiñones": { personal: 27000, mediana: 39000 },
-  "Pepperoni": { personal: 32000, mediana: 45000 },
+  Pepperoni: { personal: 32000, mediana: 45000 },
   "Del Huerto": { personal: 35000, mediana: 48000 },
-  "Camarones": { personal: 38000, mediana: 52000 },
+  Camarones: { personal: 38000, mediana: 52000 },
   "La Capricciosa": { personal: 35000, mediana: 52000 },
   "Colombiana de la Tata": { personal: 32000, mediana: 47000 },
-  "Alpes": { personal: 33000, mediana: 49000 },
+  Alpes: { personal: 33000, mediana: 49000 },
   "La Turca": { personal: 39000, mediana: 52000 },
-  "Porchetta": { personal: 39000, mediana: 52000 },
+  Porchetta: { personal: 39000, mediana: 52000 },
   "A la Española": { personal: 36000, mediana: 49000 },
-  "Siciliana": { personal: 36000, mediana: 49000 },
-  "Dátiles": { personal: 38000, mediana: 49000 },
+  Siciliana: { personal: 36000, mediana: 49000 },
+  Dátiles: { personal: 38000, mediana: 49000 },
   "La Barra": { personal: 36000, mediana: 49000 },
   "Prosciutto & Burrata": { mediana: 54000 },
-  "Stracciatella": { personal: 39000, mediana: 54000 },
-  "Anchoas": { personal: 39000, mediana: 53000 },
-  "Pulpo": { mediana: 54000 },
-  "Valencia": { personal: 39000, mediana: 52000 },
-  "Parmesana": { personal: 36000, mediana: 50000 },
+  Stracciatella: { personal: 39000, mediana: 54000 },
+  Anchoas: { personal: 39000, mediana: 53000 },
+  Pulpo: { mediana: 54000 },
+  Valencia: { personal: 39000, mediana: 52000 },
+  Parmesana: { personal: 36000, mediana: 50000 },
   "Higos & Prosciutto Croccante": { personal: 38000, mediana: 52000 },
-  "Diavola": { personal: 38000, mediana: 52000 },
-  "Calzone": { personal: 32000 },
+  Diavola: { personal: 38000, mediana: 52000 },
+  Calzone: { personal: 32000 },
   "Tapas Españolas": { unico: 39000 },
   "Spaghetti Alla Bolognese": { unico: 39000 },
   "Fettuccine Carbonara": { unico: 39000 },
@@ -998,7 +995,7 @@ const LA_BARRA_PRICES: Record<string, Record<string, number>> = {
   "Spaghetti A Los Cuatro Quesos": { unico: 42000 },
   "Spaghetti Al Teléfono": { unico: 42000 },
   "Ravioles Del Chef": { unico: 48000 },
-  "Lasagna": { unico: 43000 },
+  Lasagna: { unico: 43000 },
   "Hamburguesa Italiana": { unico: 38000 },
   "Brocheta di Manzo": { unico: 39000 },
   "Langostinos Parrillados": { unico: 52000 },
@@ -1026,47 +1023,117 @@ const LA_BARRA_PACKAGING: Record<string, number> = {
 
 function getPackagingCost(itemName: string): number {
   const n = itemName.toLowerCase();
-  if (n.includes("pizza") || n.includes("margarita") || n.includes("hawaiana") || n.includes("pepperoni") || 
-      n.includes("calzone") || n.includes("capricciosa") || n.includes("stracciatella") || n.includes("pulpo") ||
-      n.includes("anchoas") || n.includes("porchetta") || n.includes("diavola") || n.includes("valenciana") ||
-      n.includes("parmesana") || n.includes("higos") || n.includes("dátiles") || n.includes("siciliana") ||
-      n.includes("española") || n.includes("la barra") || n.includes("tata") || n.includes("turca") ||
-      n.includes("huerto") || n.includes("alpes") || n.includes("camarones") || n.includes("burrata") && n.includes("prosciutto") ||
-      n.includes("cocada") || n.includes("lemon") || n.includes("hershey") || n.includes("dubai") || n.includes("canelate") ||
-      n.includes("arándanos") || n.includes("arequipe") || n.includes("frutos") || n.includes("nutella")) return 2000;
-  if (n.includes("spaghetti") || n.includes("fettuccine") || n.includes("ravioles") || n.includes("lasagna") ||
-      n.includes("pasta") || n.includes("carbonara") || n.includes("bolognese") || n.includes("teléfono") || n.includes("quesos")) return 3000;
-  if (n.includes("hamburguesa") || n.includes("brioche") || n.includes("brocheta") || n.includes("bondiola") ||
-      n.includes("langostinos") || n.includes("sandwich")) return 3000;
-  if (n.includes("nuditos") || n.includes("champiñones") || n.includes("brie") || n.includes("burrata") || n.includes("tapas")) return 3000;
-  if (n.includes("limonada") || n.includes("sodificada") || n.includes("gaseosa") || n.includes("agua") || 
-      n.includes("coca") || n.includes("cerveza") || n.includes("vino") || n.includes("copa")) return 1000;
+  if (
+    n.includes("pizza") ||
+    n.includes("margarita") ||
+    n.includes("hawaiana") ||
+    n.includes("pepperoni") ||
+    n.includes("calzone") ||
+    n.includes("capricciosa") ||
+    n.includes("stracciatella") ||
+    n.includes("pulpo") ||
+    n.includes("anchoas") ||
+    n.includes("porchetta") ||
+    n.includes("diavola") ||
+    n.includes("valenciana") ||
+    n.includes("parmesana") ||
+    n.includes("higos") ||
+    n.includes("dátiles") ||
+    n.includes("siciliana") ||
+    n.includes("española") ||
+    n.includes("la barra") ||
+    n.includes("tata") ||
+    n.includes("turca") ||
+    n.includes("huerto") ||
+    n.includes("alpes") ||
+    n.includes("camarones") ||
+    (n.includes("burrata") && n.includes("prosciutto")) ||
+    n.includes("cocada") ||
+    n.includes("lemon") ||
+    n.includes("hershey") ||
+    n.includes("dubai") ||
+    n.includes("canelate") ||
+    n.includes("arándanos") ||
+    n.includes("arequipe") ||
+    n.includes("frutos") ||
+    n.includes("nutella")
+  )
+    return 2000;
+  if (
+    n.includes("spaghetti") ||
+    n.includes("fettuccine") ||
+    n.includes("ravioles") ||
+    n.includes("lasagna") ||
+    n.includes("pasta") ||
+    n.includes("carbonara") ||
+    n.includes("bolognese") ||
+    n.includes("teléfono") ||
+    n.includes("quesos")
+  )
+    return 3000;
+  if (
+    n.includes("hamburguesa") ||
+    n.includes("brioche") ||
+    n.includes("brocheta") ||
+    n.includes("bondiola") ||
+    n.includes("langostinos") ||
+    n.includes("sandwich")
+  )
+    return 3000;
+  if (
+    n.includes("nuditos") ||
+    n.includes("champiñones") ||
+    n.includes("brie") ||
+    n.includes("burrata") ||
+    n.includes("tapas")
+  )
+    return 3000;
+  if (
+    n.includes("limonada") ||
+    n.includes("sodificada") ||
+    n.includes("gaseosa") ||
+    n.includes("agua") ||
+    n.includes("coca") ||
+    n.includes("cerveza") ||
+    n.includes("vino") ||
+    n.includes("copa")
+  )
+    return 1000;
   return 2000; // Default packaging
 }
 
 function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected: boolean; issues: string[] } {
   if (!isLaBarra || !order?.items) return { order, corrected: false, issues: [] };
-  
+
   const issues: string[] = [];
   let corrected = false;
-  const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") || (order.delivery_type || "").toLowerCase().includes("domicilio");
+  const isDelivery =
+    (order.delivery_type || "").toLowerCase().includes("delivery") ||
+    (order.delivery_type || "").toLowerCase().includes("domicilio");
 
   for (const item of order.items) {
     const itemName = item.name || "";
-    
+
     // === PRICE VALIDATION against master price map ===
     for (const [productName, prices] of Object.entries(LA_BARRA_PRICES)) {
-      if (itemName.toLowerCase().includes(productName.toLowerCase()) || productName.toLowerCase().includes(itemName.toLowerCase())) {
+      if (
+        itemName.toLowerCase().includes(productName.toLowerCase()) ||
+        productName.toLowerCase().includes(itemName.toLowerCase())
+      ) {
         // Found a match - validate price
         const qty = item.quantity || 1;
         const declaredPrice = item.unit_price || 0;
-        
+
         // Check if price matches any known size
         const validPrices = Object.values(prices);
         if (declaredPrice > 0 && !validPrices.includes(declaredPrice)) {
           // Price doesn't match! Find the closest valid price
-          const closest = validPrices.reduce((a: number, b: number) => Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a);
-          issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`);
+          const closest = validPrices.reduce((a: number, b: number) =>
+            Math.abs(b - declaredPrice) < Math.abs(a - declaredPrice) ? b : a,
+          );
+          issues.push(
+            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${closest.toLocaleString()}`,
+          );
           item.unit_price = closest;
           corrected = true;
         }
@@ -1090,7 +1157,7 @@ function validateOrder(order: any, isLaBarra: boolean): { order: any; corrected:
     subtotal += (item.unit_price || 0) * (item.quantity || 1);
     packagingTotal += (item.packaging_cost || 0) * (item.quantity || 1);
   }
-  
+
   const calculatedTotal = subtotal + packagingTotal;
   if (order.total !== calculatedTotal) {
     issues.push(`TOTAL CORREGIDO: de $${(order.total || 0).toLocaleString()} a $${calculatedTotal.toLocaleString()}`);
@@ -1139,7 +1206,7 @@ async function runSalesNudgeCheck() {
       .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
       .lt("updated_at", twoMinAgo);
 
-    // Cambio 4: También buscar conversaciones "abandonadas" - 
+    // Cambio 4: También buscar conversaciones "abandonadas" -
     // donde el cliente envió 3+ mensajes seguidos sin respuesta del assistant
     const { data: abandonedConvs } = await supabase
       .from("whatsapp_conversations")
@@ -1160,7 +1227,9 @@ async function runSalesNudgeCheck() {
     });
 
     if (reallyAbandoned.length > 0) {
-      console.log(`🚨 ABANDONED CONVERSATIONS DETECTED: ${reallyAbandoned.length} conversations with 3+ unanswered customer messages`);
+      console.log(
+        `🚨 ABANDONED CONVERSATIONS DETECTED: ${reallyAbandoned.length} conversations with 3+ unanswered customer messages`,
+      );
     }
 
     // Merge both lists (dedup by id)
@@ -1179,7 +1248,7 @@ async function runSalesNudgeCheck() {
     for (const conv of allConvs) {
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       const lastMsg = msgs[msgs.length - 1];
-      
+
       // Check if this is an abandoned conversation (customer messages without response)
       let consecutiveCustomerMsgs = 0;
       for (let i = msgs.length - 1; i >= 0; i--) {
@@ -1187,10 +1256,12 @@ async function runSalesNudgeCheck() {
         else break;
       }
       const isAbandoned = consecutiveCustomerMsgs >= 3;
-      
+
       if (isAbandoned) {
         // EMERGENCY: Force-process the abandoned conversation
-        console.log(`🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`);
+        console.log(
+          `🚨 NUDGE RESCUE: ${conv.customer_phone} has ${consecutiveCustomerMsgs} unanswered messages. Force-processing...`,
+        );
         // Don't skip - fall through to generate AI response for accumulated messages
       } else {
         // Original logic: Only nudge if ALICIA was the last one to speak (client went quiet)
@@ -1202,18 +1273,22 @@ async function runSalesNudgeCheck() {
       // Get WA credentials for this restaurant
       const { data: waConfig } = await supabase
         .from("whatsapp_configs")
-        .select("whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides")
+        .select(
+          "whatsapp_phone_id, whatsapp_token, whatsapp_access_token, restaurant_name, greeting_message, promoted_products, menu_data, setup_completed, restaurant_id, delivery_config, payment_config, packaging_rules, operating_hours, time_estimates, escalation_config, custom_rules, sales_rules, personality_rules, location_address, location_details, restaurant_description, menu_link, daily_overrides",
+        )
         .eq("restaurant_id", conv.restaurant_id)
         .maybeSingle();
 
       const phoneId = waConfig?.whatsapp_phone_id || GLOBAL_WA_PHONE_ID;
-      const waToken = waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET" 
-        ? waConfig.whatsapp_access_token : GLOBAL_WA_TOKEN;
+      const waToken =
+        waConfig?.whatsapp_access_token && waConfig.whatsapp_access_token !== "ENV_SECRET"
+          ? waConfig.whatsapp_access_token
+          : GLOBAL_WA_TOKEN;
 
       if (!phoneId || !waToken) continue;
 
       // Use different prompt for abandoned (unanswered) vs stalled (client went quiet) conversations
-      const isAbandoned = (() => {
+      isAbandoned = (() => {
         let count = 0;
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].role === "customer") count++;
@@ -1261,7 +1336,7 @@ Nombre del cliente: ${conv.customer_name || "no proporcionado"}
 Genera UN SOLO mensaje de seguimiento para cerrar la venta.`;
 
       const nudgeMsg = await callAI(closerPrompt, msgs.slice(-10), 0.6);
-      
+
       // Clean any tags that AI might have added
       const cleanNudge = nudgeMsg
         .replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "")
@@ -1296,10 +1371,16 @@ function parseOrder(txt: string) {
         const recovered = JSON.parse(jsonMatch[0]);
         if (recovered.items && recovered.total) {
           console.log("⚠️ SAFETY NET: Recovered order from raw JSON in AI response");
-          const clean = txt.replace(jsonMatch[0], "").replace(/```json\s*/g, "").replace(/```/g, "").trim();
+          const clean = txt
+            .replace(jsonMatch[0], "")
+            .replace(/```json\s*/g, "")
+            .replace(/```/g, "")
+            .trim();
           return { order: recovered, clean: clean || "✅ ¡Pedido registrado! 🍽️" };
         }
-      } catch { /* not valid JSON, ignore */ }
+      } catch {
+        /* not valid JSON, ignore */
+      }
     }
     return null;
   }
@@ -1323,7 +1404,9 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
         order: JSON.parse(addMatch[1].trim()),
         clean: txt.replace(/---ADICION_PEDIDO---[\s\S]*?---FIN_ADICION---/, "").trim(),
       };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   // Check for change
   const changeMatch = txt.match(/---CAMBIO_PEDIDO---\s*([\s\S]*?)\s*---FIN_CAMBIO---/);
@@ -1334,7 +1417,9 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
         order: JSON.parse(changeMatch[1].trim()),
         clean: txt.replace(/---CAMBIO_PEDIDO---[\s\S]*?---FIN_CAMBIO---/, "").trim(),
       };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -1349,16 +1434,16 @@ async function saveOrderModification(
   originalOrder: any,
 ) {
   // Update the conversation with the new order
-  const updatedOrder = modType === "change" ? modification : {
-    ...originalOrder,
-    items: [...(originalOrder?.items || []), ...(modification.items || [])],
-    total: modification.total || originalOrder?.total,
-  };
+  const updatedOrder =
+    modType === "change"
+      ? modification
+      : {
+          ...originalOrder,
+          items: [...(originalOrder?.items || []), ...(modification.items || [])],
+          total: modification.total || originalOrder?.total,
+        };
 
-  await supabase
-    .from("whatsapp_conversations")
-    .update({ current_order: updatedOrder })
-    .eq("id", cid);
+  await supabase.from("whatsapp_conversations").update({ current_order: updatedOrder }).eq("id", cid);
 
   // Also update the whatsapp_orders table
   const { data: existingOrder } = await supabase
@@ -1370,12 +1455,12 @@ async function saveOrderModification(
     .maybeSingle();
 
   if (existingOrder) {
-    const newItems = modType === "change" ? modification.items : [...(existingOrder.items as any[] || []), ...(modification.items || [])];
+    const newItems =
+      modType === "change"
+        ? modification.items
+        : [...((existingOrder.items as any[]) || []), ...(modification.items || [])];
     const newTotal = modification.total || updatedOrder.total;
-    await supabase
-      .from("whatsapp_orders")
-      .update({ items: newItems, total: newTotal })
-      .eq("id", existingOrder.id);
+    await supabase.from("whatsapp_orders").update({ items: newItems, total: newTotal }).eq("id", existingOrder.id);
   }
 
   // Send email notification
@@ -1389,8 +1474,9 @@ async function saveOrderModification(
   const customerName = originalOrder?.customer_name || modification.customer_name || "Cliente";
 
   const itemsHtml = (modification.items || [])
-    .map((i: any) =>
-      `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td></tr>`,
+    .map(
+      (i: any) =>
+        `<tr><td style="padding:8px 12px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px 12px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td></tr>`,
     )
     .join("");
 
@@ -1582,12 +1668,14 @@ async function escalate(config: any, phone: string, reason: string, conversation
     conversationHtml = `
       <div style="margin-top:16px;padding:12px;background:#111;border-radius:8px;border:1px solid #333;">
         <p style="color:#FF6B35;font-weight:bold;margin:0 0 8px;">💬 Últimos mensajes de la conversación:</p>
-        ${recentMsgs.map((m: any) => {
-          const isCustomer = m.role === "customer";
-          return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isCustomer ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;">
+        ${recentMsgs
+          .map((m: any) => {
+            const isCustomer = m.role === "customer";
+            return `<p style="margin:4px 0;padding:6px 10px;border-radius:6px;background:${isCustomer ? "#1a2a1a" : "#1a1a2a"};color:#eee;font-size:13px;">
             <strong style="color:${isCustomer ? "#00D4AA" : "#FF6B35"};">${isCustomer ? "👤 Cliente" : "🤖 Alicia"}:</strong> ${m.content?.substring(0, 200) || ""}
           </p>`;
-        }).join("")}
+          })
+          .join("")}
       </div>`;
   }
 
@@ -1666,16 +1754,21 @@ Deno.serve(async (req) => {
     const { data: cfgData } = await supabase.from("whatsapp_configs").select("*").limit(1).maybeSingle();
     if (!cfgData) {
       return new Response(JSON.stringify({ error: "No config found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     // Get conversation messages for context
-    const { data: convData } = await supabase.from("whatsapp_conversations")
-      .select("messages").eq("customer_phone", phone).maybeSingle();
+    const { data: convData } = await supabase
+      .from("whatsapp_conversations")
+      .select("messages")
+      .eq("customer_phone", phone)
+      .maybeSingle();
     const msgs = convData?.messages || [];
     await escalate(cfgData, phone, reason, msgs);
     return new Response(JSON.stringify({ sent: true, phone, reason }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -1702,7 +1795,8 @@ Deno.serve(async (req) => {
       .single();
     if (oErr || !orderData) {
       return new Response(JSON.stringify({ error: "Order not found", oErr }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const { data: cfgData } = await supabase
@@ -1713,11 +1807,15 @@ Deno.serve(async (req) => {
     const rk = Deno.env.get("RESEND_API_KEY");
     if (!rk || !cfgData?.order_email) {
       return new Response(JSON.stringify({ error: "No RESEND_API_KEY or order_email" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const items = (orderData.items as any[] || [])
-      .map((i: any) => `<tr><td style="padding:8px;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;color:#e0e0e0;">$${(i.unit_price||0).toLocaleString("es-CO")}</td></tr>`)
+    const items = ((orderData.items as any[]) || [])
+      .map(
+        (i: any) =>
+          `<tr><td style="padding:8px;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td></tr>`,
+      )
       .join("");
     const isDelivery = orderData.delivery_type === "delivery";
     const er = await fetch("https://api.resend.com/emails", {
@@ -1726,7 +1824,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "CONEKTAO Pedidos <onboarding@resend.dev>",
         to: [cfgData.order_email],
-        subject: `🍕 [REENVÍO] Pedido ${isDelivery?"Domicilio":"Recoger"} - ${orderData.customer_name} - $${(orderData.total||0).toLocaleString("es-CO")}`,
+        subject: `🍕 [REENVÍO] Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${orderData.customer_name} - $${(orderData.total || 0).toLocaleString("es-CO")}`,
         html: `<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:16px;overflow:hidden;border:1px solid #1a1a1a;">
           <div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:24px;text-align:center;">
             <h1 style="margin:0;color:#fff;font-size:20px;">REENVÍO DE PEDIDO</h1>
@@ -1734,16 +1832,17 @@ Deno.serve(async (req) => {
           </div>
           <div style="padding:20px;">
             <p style="color:#fff;font-size:16px;">👤 ${orderData.customer_name} · 📱 +${orderData.customer_phone}</p>
-            ${isDelivery ? `<p style="color:#00D4AA;font-size:14px;">🏍️ DOMICILIO: ${orderData.delivery_address||"No proporcionada"}</p>` : `<p style="color:#FF6B35;">🏪 Recoger en local</p>`}
+            ${isDelivery ? `<p style="color:#00D4AA;font-size:14px;">🏍️ DOMICILIO: ${orderData.delivery_address || "No proporcionada"}</p>` : `<p style="color:#FF6B35;">🏪 Recoger en local</p>`}
             <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;margin-top:12px;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:#00D4AA;font-size:12px;">Producto</th><th style="padding:8px;color:#00D4AA;font-size:12px;">Cant.</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:12px;">Precio</th></tr></thead><tbody>${items}</tbody></table>
-            <p style="text-align:right;color:#00D4AA;font-size:20px;font-weight:bold;margin-top:12px;">TOTAL: $${(orderData.total||0).toLocaleString("es-CO")}</p>
+            <p style="text-align:right;color:#00D4AA;font-size:20px;font-weight:bold;margin-top:12px;">TOTAL: $${(orderData.total || 0).toLocaleString("es-CO")}</p>
           </div>
         </div>`,
       }),
     });
     const resendResult = await er.text();
     return new Response(JSON.stringify({ sent: er.ok, status: er.status, resend_response: resendResult }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -1781,7 +1880,7 @@ Deno.serve(async (req) => {
     const phoneId = GLOBAL_WA_PHONE_ID;
     const token = GLOBAL_WA_TOKEN;
     await sendWA(phoneId, token, phone, message);
-    
+
     // Also save to conversation history so ALICIA has context
     const { data: conv } = await supabase
       .from("whatsapp_conversations")
@@ -1793,7 +1892,7 @@ Deno.serve(async (req) => {
       msgs.push({ role: "assistant", content: message, ts: new Date().toISOString() });
       await supabase.from("whatsapp_conversations").update({ messages: msgs }).eq("id", conv.id);
     }
-    
+
     return new Response(JSON.stringify({ sent: true, phone, message }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1816,15 +1915,16 @@ Deno.serve(async (req) => {
       const { data: staleConvs } = await supabase
         .from("whatsapp_conversations")
         .select("id, customer_phone, restaurant_id, pending_since")
-        .in("order_status", ["pending_confirmation", "pending_button_confirmation"])
+        .eq("order_status", "pending_confirmation")
         .lt("pending_since", fiveMinAgo);
-      
+
       if (staleConvs && staleConvs.length > 0) {
         for (const stale of staleConvs) {
           console.log(`⚠️ FOLLOW-UP: Stale pending order for ${stale.customer_phone} since ${stale.pending_since}`);
-          const followUpMsg = "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' y lo registro de una vez 😊";
+          const followUpMsg =
+            "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' y lo registro de una vez 😊";
           await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, stale.customer_phone, followUpMsg);
-          
+
           // Update conversation to avoid re-sending
           const { data: staleConv } = await supabase
             .from("whatsapp_conversations")
@@ -1858,79 +1958,6 @@ Deno.serve(async (req) => {
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
-
-      // Handle interactive button replies (deterministic order confirmation)
-      if (msg.type === "interactive" && msg.interactive?.button_reply?.id) {
-        const buttonId = msg.interactive.button_reply.id;
-        const buttonTitle = msg.interactive.button_reply.title || "";
-        console.log(`🔘 BUTTON REPLY from ${from}: ${buttonId} ("${buttonTitle}")`);
-
-        await markRead(phoneId || GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, msg.id);
-
-        // Get config
-        const { data: btnConfig } = await supabase
-          .from("whatsapp_configs")
-          .select("*")
-          .eq("whatsapp_phone_number_id", phoneId)
-          .eq("is_active", true)
-          .maybeSingle();
-        const cfgBtn = btnConfig || (await supabase.from("whatsapp_configs").select("*").eq("is_active", true).limit(1).maybeSingle()).data;
-        const btnRid = cfgBtn?.restaurant_id;
-        if (!btnRid || !cfgBtn) {
-          return new Response(JSON.stringify({ status: "no_config" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        const btnToken = (cfgBtn.whatsapp_access_token && cfgBtn.whatsapp_access_token !== "ENV_SECRET") ? cfgBtn.whatsapp_access_token : GLOBAL_WA_TOKEN;
-        const btnPid = phoneId || GLOBAL_WA_PHONE_ID;
-
-        const btnConv = await getConversation(btnRid, from);
-        const btnMsgs = Array.isArray(btnConv.messages) ? btnConv.messages : [];
-
-        if (buttonId === "confirm_order") {
-          // DETERMINISTIC ORDER CONFIRMATION - guaranteed save + email
-          const pendingOrder = btnConv.current_order;
-          if (pendingOrder && pendingOrder.items) {
-            console.log(`✅ DETERMINISTIC CONFIRM: Saving order for ${from} via button`);
-            const storedProof = btnConv.payment_proof_url || null;
-            await saveOrder(btnRid, btnConv.id, from, pendingOrder, cfgBtn, storedProof);
-            btnMsgs.push({ role: "customer", content: "✅ Confirmar pedido", timestamp: new Date().toISOString(), wa_message_id: msg.id });
-            btnMsgs.push({ role: "assistant", content: "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({
-              messages: btnMsgs.slice(-30),
-              order_status: "confirmed",
-              pending_since: null,
-            }).eq("id", btnConv.id);
-            await sendWA(btnPid, btnToken, from, "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", true);
-          } else {
-            await sendWA(btnPid, btnToken, from, "No encontré un pedido pendiente. Escríbeme qué quieres pedir 😊", true);
-          }
-          return new Response(JSON.stringify({ status: "button_confirmed" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-        } else if (buttonId === "add_more") {
-          // Customer wants to add more items
-          btnMsgs.push({ role: "customer", content: "➕ Agregar más productos", timestamp: new Date().toISOString(), wa_message_id: msg.id });
-          btnMsgs.push({ role: "assistant", content: "Dale, qué más te agrego?", timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: btnMsgs.slice(-30),
-            order_status: "active",
-            pending_since: null,
-          }).eq("id", btnConv.id);
-          await sendWA(btnPid, btnToken, from, "Dale, qué más te agrego?", true);
-          return new Response(JSON.stringify({ status: "button_add_more" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-        } else if (buttonId === "cancel_order") {
-          // Customer cancels
-          btnMsgs.push({ role: "customer", content: "❌ Cancelar pedido", timestamp: new Date().toISOString(), wa_message_id: msg.id });
-          btnMsgs.push({ role: "assistant", content: "Listo, cancelé el pedido. Si quieres pedir algo más adelante, escríbeme con confianza", timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: btnMsgs.slice(-30),
-            order_status: "none",
-            current_order: null,
-            pending_since: null,
-          }).eq("id", btnConv.id);
-          await sendWA(btnPid, btnToken, from, "Listo, cancelé el pedido. Si quieres pedir algo más adelante, escríbeme con confianza", true);
-          return new Response(JSON.stringify({ status: "button_cancelled" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      }
 
       // Handle different message types
       let text = msg.text?.body || msg.button?.text || "";
@@ -2038,7 +2065,13 @@ Deno.serve(async (req) => {
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       // Cambio 5: Guardar wa_message_id en cada mensaje para tracking preciso
       const currentWaMessageId = msg.id; // ID único de WhatsApp (wamid.xxx)
-      msgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), has_image: !!paymentProofUrl, wa_message_id: currentWaMessageId });
+      msgs.push({
+        role: "customer",
+        content: text,
+        timestamp: new Date().toISOString(),
+        has_image: !!paymentProofUrl,
+        wa_message_id: currentWaMessageId,
+      });
 
       // === MESSAGE BATCHING (CRITICAL FIX v2) ===
       // Save the message immediately to DB, then wait 3s for more messages
@@ -2060,14 +2093,16 @@ Deno.serve(async (req) => {
 
       // Use fresh messages (may include additional messages saved by parallel webhook calls)
       const freshMsgs = Array.isArray(freshConv?.messages) ? freshConv.messages : msgs;
-      
+
       // Cambio 1: Dedup por wa_message_id en vez de content
       // Encontrar el último mensaje del cliente y comparar por ID único, no por texto
       const lastCustomerMsg = [...freshMsgs].reverse().find((m: any) => m.role === "customer");
       if (lastCustomerMsg && lastCustomerMsg.wa_message_id && lastCustomerMsg.wa_message_id !== currentWaMessageId) {
         // Un mensaje más nuevo llegó - ese webhook lo manejará
-        console.log(`⏭️ BATCH SKIP: Newer message found for ${from} (ours: ${currentWaMessageId}, latest: ${lastCustomerMsg.wa_message_id}). Entering safety net...`);
-        
+        console.log(
+          `⏭️ BATCH SKIP: Newer message found for ${from} (ours: ${currentWaMessageId}, latest: ${lastCustomerMsg.wa_message_id}). Entering safety net...`,
+        );
+
         // Cambio 2: Safety net - esperar 5s más y verificar si hubo respuesta
         await sleep(5000);
         const { data: safetyCheck } = await supabase
@@ -2077,7 +2112,7 @@ Deno.serve(async (req) => {
           .single();
         const safetyMsgs = Array.isArray(safetyCheck?.messages) ? safetyCheck.messages : [];
         const lastMsgAfterWait = safetyMsgs[safetyMsgs.length - 1];
-        
+
         if (lastMsgAfterWait && lastMsgAfterWait.role === "assistant") {
           // El otro webhook procesó correctamente, podemos salir
           console.log(`✅ SAFETY NET OK: Assistant responded after batch skip for ${from}`);
@@ -2086,7 +2121,7 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        
+
         // EMERGENCIA: Pasaron 8s (3+5) y no hay respuesta del assistant
         // Este webhook se hace cargo del procesamiento
         console.log(`🚨 SAFETY NET TRIGGERED: No assistant response after 8s for ${from}. Emergency processing...`);
@@ -2109,9 +2144,15 @@ Deno.serve(async (req) => {
         mergedMsgs.push(freshMsgs[i]);
       }
       if (trailingCustomerTexts.length > 1) {
-        console.log(`📦 BATCH MERGED: ${trailingCustomerTexts.length} messages from ${from}: "${trailingCustomerTexts.join(" | ")}"`);
+        console.log(
+          `📦 BATCH MERGED: ${trailingCustomerTexts.length} messages from ${from}: "${trailingCustomerTexts.join(" | ")}"`,
+        );
       }
-      mergedMsgs.push({ role: "customer", content: trailingCustomerTexts.join("\n"), timestamp: new Date().toISOString() });
+      mergedMsgs.push({
+        role: "customer",
+        content: trailingCustomerTexts.join("\n"),
+        timestamp: new Date().toISOString(),
+      });
       // === END MESSAGE BATCHING ===
 
       // Store payment proof URL when image received
@@ -2119,53 +2160,14 @@ Deno.serve(async (req) => {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
       }
 
-      // === TEXT-BASED CONFIRMATION FALLBACK ===
-      // If status is pending_button_confirmation and customer types "sí"/"confirmo"/"dale" etc.,
-      // treat it as a button press (in case they don't use the button)
+      // Pass confirmed_at timestamp for order modification rules
       const freshOrderStatus = freshConv?.order_status || conv.order_status;
       const freshCurrentOrder = freshConv?.current_order || conv.current_order;
       const freshCustomerName = freshConv?.customer_name || conv.customer_name;
-      
-      if (freshOrderStatus === "pending_button_confirmation" && freshCurrentOrder?.items) {
-        const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase().trim();
-        const isConfirmation = /^(s[ií]|dale|va|ok|listo|confirmo|confirma|confirm|bueno|claro|eso|perfecto)$/i.test(lastCustomerText) || 
-                               /^s[ií]\s/i.test(lastCustomerText);
-        const isCancellation = /^(no|cancel|cancelar|nada|ya no)$/i.test(lastCustomerText);
-        
-        if (isConfirmation) {
-          console.log(`✅ TEXT CONFIRM FALLBACK: Customer typed "${lastCustomerText}" instead of button`);
-          const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
-          await saveOrder(rId, conv.id, from, freshCurrentOrder, config, storedProof);
-          freshMsgs.push({ role: "assistant", content: "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: freshMsgs.slice(-30),
-            order_status: "confirmed",
-            current_order: freshCurrentOrder,
-            customer_name: freshCurrentOrder.customer_name || freshCustomerName,
-            pending_since: null,
-          }).eq("id", conv.id);
-          await sendWA(pid, token, from, "Listo, tu pedido quedó registrado! Te lo estamos preparando 🍕", true);
-          return new Response(JSON.stringify({ status: "text_confirmed" }), {
-            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (isCancellation) {
-          freshMsgs.push({ role: "assistant", content: "Listo, cancelé el pedido. Escríbeme si quieres pedir algo más adelante", timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: freshMsgs.slice(-30),
-            order_status: "none",
-            current_order: null,
-            pending_since: null,
-          }).eq("id", conv.id);
-          await sendWA(pid, token, from, "Listo, cancelé el pedido. Escríbeme si quieres pedir algo más adelante", true);
-          return new Response(JSON.stringify({ status: "text_cancelled" }), {
-            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        // If not a clear yes/no, fall through to AI processing (customer might be asking a question)
-      }
-
-      const configWithTime = { ...config, _confirmed_at: freshOrderStatus === "confirmed" ? (freshConv?.updated_at || conv.updated_at) : null };
+      const configWithTime = {
+        ...config,
+        _confirmed_at: freshOrderStatus === "confirmed" ? freshConv?.updated_at || conv.updated_at : null,
+      };
       const sys = buildPrompt(
         prods || [],
         config.promoted_products || [],
@@ -2186,53 +2188,34 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // Validate order prices and packaging for La Barra
-        const isLaBarra = config.restaurant_id === "899cb7a7-7de1-47c7-a684-f24658309755" || !config.setup_completed || !config.restaurant_name;
+        const isLaBarra =
+          config.restaurant_id === "899cb7a7-7de1-47c7-a684-f24658309755" ||
+          !config.setup_completed ||
+          !config.restaurant_name;
         const validated = validateOrder(parsed.order, isLaBarra);
         if (validated.corrected) {
           parsed.order = validated.order;
         }
-
-        // === INTERACTIVE BUTTONS: Send confirmation buttons instead of saving immediately ===
-        // Build order summary for the interactive message
-        const orderItems = (parsed.order.items || []).map((i: any) => 
-          `${i.quantity}x ${i.name} $${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}`
-        ).join("\n");
-        const deliveryInfo = (parsed.order.delivery_type || "").toLowerCase().includes("domi") || (parsed.order.delivery_type || "").toLowerCase().includes("delivery")
-          ? `🏍️ Domicilio: ${parsed.order.delivery_address || ""}` 
-          : "🏪 Recoger en local";
-        const summaryText = `${parsed.clean || "Tu pedido:"}\n\n${orderItems}\n\nTotal: $${(parsed.order.total || 0).toLocaleString("es-CO")}\n${deliveryInfo}\n\nConfirmas?`;
-
-        // Save pending order to current_order for button handler to pick up
-        freshMsgs.push({ role: "assistant", content: summaryText, timestamp: new Date().toISOString() });
-        await supabase.from("whatsapp_conversations").update({
-          messages: freshMsgs.slice(-30),
-          customer_name: parsed.order.customer_name || freshCustomerName,
-          current_order: parsed.order,
-          order_status: "pending_button_confirmation",
-          pending_since: new Date().toISOString(),
-        }).eq("id", conv.id);
-
-        // Send interactive buttons
-        await sendWAInteractive(pid, token, from, summaryText, [
-          { id: "confirm_order", title: "✅ Confirmar" },
-          { id: "add_more", title: "➕ Agregar más" },
-          { id: "cancel_order", title: "❌ Cancelar" },
-        ]);
-
-        console.log(`🔘 INTERACTIVE BUTTONS SENT to ${from} for order $${parsed.order.total}`);
-        return new Response(JSON.stringify({ status: "buttons_sent" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-        // === END INTERACTIVE BUTTONS ===
-
+        resp = parsed.clean || "✅ ¡Pedido registrado! 🍽️";
+        await saveOrder(rId, conv.id, from, parsed.order, config, storedProof);
       } else if (modification) {
-        resp = modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
-        await saveOrderModification(rId, conv.id, from, modification.order, modification.type, config, freshCurrentOrder);
+        resp =
+          modification.clean || (modification.type === "addition" ? "✅ Adición registrada!" : "✅ Cambio registrado!");
+        await saveOrderModification(
+          rId,
+          conv.id,
+          from,
+          modification.order,
+          modification.type,
+          config,
+          freshCurrentOrder,
+        );
       }
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
-        const escalationReason = resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
+        // Extract context from what ALICIA said to provide a richer reason
+        const escalationReason =
+          resp.length > 10 ? `Alicia respondió: "${resp.substring(0, 300)}"` : "Cliente necesita atención humana";
         await escalate(config, from, escalationReason, freshMsgs);
       }
       if (resp.includes("---CONSULTA_DOMICILIO---")) {
@@ -2246,17 +2229,19 @@ Deno.serve(async (req) => {
       // Detect if ALICIA just sent a summary with total (pending confirmation from customer)
       const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
       // Reset nudge/followup status when client responds again
-      const baseStatus = (freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent") ? "active" : freshOrderStatus;
-      const newOrderStatus = hasSummary ? "pending_confirmation" : baseStatus;
+      const baseStatus =
+        freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent" ? "active" : freshOrderStatus;
+      const newOrderStatus = parsed ? "confirmed" : hasSummary ? "pending_confirmation" : baseStatus;
 
       await supabase
         .from("whatsapp_conversations")
         .update({
           messages: freshMsgs.slice(-30),
-          customer_name: freshCustomerName,
-          current_order: freshCurrentOrder,
+          customer_name: parsed?.order?.customer_name || freshCustomerName,
+          current_order: parsed ? parsed.order : freshCurrentOrder,
           order_status: newOrderStatus,
           ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
+          ...(parsed ? { pending_since: null } : {}),
         })
         .eq("id", conv.id);
 
@@ -2275,7 +2260,7 @@ Deno.serve(async (req) => {
         wa_message_id: msg?.id,
         timestamp: new Date().toISOString(),
       });
-      
+
       // Intentar guardar un registro del fallo en la conversación
       try {
         const { data: failConv } = await supabase
@@ -2285,9 +2270,9 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (failConv) {
           const failMsgs = Array.isArray(failConv.messages) ? failConv.messages : [];
-          failMsgs.push({ 
-            role: "system_error", 
-            content: `Error procesando mensaje: ${e?.message || "unknown"}`, 
+          failMsgs.push({
+            role: "system_error",
+            content: `Error procesando mensaje: ${e?.message || "unknown"}`,
             timestamp: new Date().toISOString(),
             wa_message_id: msg?.id,
           });
@@ -2295,7 +2280,7 @@ Deno.serve(async (req) => {
             .from("whatsapp_conversations")
             .update({ messages: failMsgs.slice(-30) })
             .eq("id", failConv.id);
-          
+
           // Notificar al admin por email si hay RESEND configurado
           const rk = Deno.env.get("RESEND_API_KEY");
           const { data: errConfig } = await supabase
@@ -2319,7 +2304,7 @@ Deno.serve(async (req) => {
       } catch (innerErr) {
         console.error("Failed to save error state:", innerErr);
       }
-      
+
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
