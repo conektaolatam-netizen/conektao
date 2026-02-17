@@ -1836,13 +1836,38 @@ Deno.serve(async (req) => {
           const isModification = /cambi|modific|quita|agrega|añad|cancel/i.test(lowerText);
 
           if (!isModification) {
-            // Not a modification — offer new order
+            // Check if it's a gratitude message — respond warmly without resetting
+            const isGratitude = /gracia|thank|chever|genial|perfecto|excelente|buenísimo|gracias/i.test(lowerText);
+
             convMsgs.push({
               role: "customer",
               content: text,
               timestamp: new Date().toISOString(),
               wa_message_id: msg.id,
             });
+
+            if (isGratitude) {
+              // Warm farewell — don't reset, don't offer new order
+              const farewells = [
+                "Con mucho gusto! Que disfrutes tu pedido 🤗",
+                "A ti! Buen provecho y aquí estamos cuando quieras 😊",
+                "De nada! Que lo disfruten mucho 🤗",
+                "Un placer atenderte! Buen provecho 😊",
+              ];
+              const resp = farewells[Math.floor(Math.random() * farewells.length)];
+              convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+              await supabase
+                .from("whatsapp_conversations")
+                .update({ messages: convMsgs.slice(-30) })
+                .eq("id", conv.id);
+              await sendWA(pid, token, from, resp, true);
+              return new Response(JSON.stringify({ status: "post_confirmation_gratitude" }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
+            // Not gratitude, not modification — offer new order
             const resp = "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
             await supabase
