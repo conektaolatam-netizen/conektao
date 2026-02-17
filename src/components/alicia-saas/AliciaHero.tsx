@@ -1,5 +1,6 @@
 import React from "react";
 import { Bot, Sparkles } from "lucide-react";
+import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 const AliciaHero = () => {
   return (
@@ -8,15 +9,13 @@ const AliciaHero = () => {
         {/* ALICIA Avatar */}
         <div className="relative mb-10">
           <div
-            className="w-40 h-40 sm:w-52 sm:h-52 mx-auto rounded-full flex items-center justify-center alicia-breathing"
+            className="w-40 h-40 sm:w-52 sm:h-52 mx-auto rounded-full overflow-hidden alicia-breathing"
             style={{
-              background:
-                "radial-gradient(circle at 30% 30%, hsl(174 100% 40%) 0%, hsl(174 100% 29%) 40%, hsl(25 100% 50%) 100%)",
               boxShadow:
                 "0 0 80px hsl(174 100% 29% / 0.5), 0 0 160px hsl(25 100% 50% / 0.3)",
             }}
           >
-            <Bot className="w-20 h-20 sm:w-28 sm:h-28 text-white drop-shadow-2xl" />
+            <img src={aliciaAvatar} alt="ALICIA - Vendedora IA" className="w-full h-full object-cover" />
           </div>
           {/* Orbiting sparkles */}
           {[...Array(4)].map((_, i) => (
