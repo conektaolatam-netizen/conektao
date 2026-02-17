@@ -528,9 +528,14 @@ FLUJO (un paso por mensaje, NO te saltes pasos):
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
 5. Indica datos de pago
-6. Presenta resumen COMPLETO (productos + empaques + total) y pregunta: "Todo bien con el pedido?"
-7. Cuando el cliente confirme (sí, dale, listo, va, ok, correcto, etc.) → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida
+6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "Todo bien con el pedido?" Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
+7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
+
+IMPORTANTE SOBRE EL TAG:
+- El tag ---PEDIDO_CONFIRMADO--- va en el PASO 6 (al presentar el resumen), NO después de que confirmen
+- SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
+- Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
 CONFIRMACIÓN (REGLA CRÍTICA):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
@@ -554,7 +559,7 @@ REGLAS INQUEBRANTABLES:
 8. FRUSTRACIÓN: Cliente frustrado → pasa al humano: "${escalation.human_phone || "administrador"}"
 9. VERDAD: NUNCA inventes información sobre el negocio, sedes o productos
 
-CONFIRMACIÓN FINAL: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestres JSON al cliente.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación. NUNCA muestres JSON al cliente.
 ${ctx}`;
 }
 
@@ -762,9 +767,14 @@ FLUJO (un paso por mensaje, NO te saltes pasos):
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide dirección. Si NO tienes el nombre aún → pídelo. Si YA lo tienes (revisa historial y contexto) → NO lo pidas de nuevo
 5. Indica datos de pago
-6. Presenta resumen COMPLETO (productos + empaques + total) y pregunta: "Todo bien con el pedido?"
-7. Cuando el cliente confirme (sí, dale, listo, va, ok, correcto, etc.) → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida
+6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "Todo bien con el pedido?" Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
+7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
+
+IMPORTANTE SOBRE EL TAG:
+- El tag ---PEDIDO_CONFIRMADO--- va en el PASO 6 (al presentar el resumen), NO después de que confirmen
+- SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
+- Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
 CONFIRMACIÓN (REGLA CRÍTICA):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
@@ -794,7 +804,7 @@ REGLAS INQUEBRANTABLES:
 8. FRUSTRACIÓN → pasa al humano: "3146907745"
 9. VERDAD: NUNCA inventes información sobre el negocio, sedes o productos
 
-CONFIRMACIÓN FINAL: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO---. NUNCA muestres JSON al cliente.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación. NUNCA muestres JSON al cliente.
 ${ctx}`;
 }
 
@@ -996,13 +1006,13 @@ async function callAI(sys: string, msgs: any[], temperature = 0.4) {
 function parseOrder(txt: string) {
   const m = txt.match(/---PEDIDO_CONFIRMADO---\s*([\s\S]*?)\s*---FIN_PEDIDO---/);
   if (!m) {
-    // Safety net: detect raw JSON with order structure
+    // Safety net 1: detect raw JSON with order structure
     const jsonMatch = txt.match(/\{[\s\S]*?"items"\s*:\s*\[[\s\S]*?\][\s\S]*?"total"\s*:\s*\d+[\s\S]*?\}/);
     if (jsonMatch) {
       try {
         const recovered = JSON.parse(jsonMatch[0]);
         if (recovered.items && recovered.total) {
-          console.log("⚠️ SAFETY NET: Recovered order from raw JSON");
+          console.log("⚠️ SAFETY NET JSON: Recovered order from raw JSON");
           return {
             order: recovered,
             clean:
@@ -1017,6 +1027,53 @@ function parseOrder(txt: string) {
         /* ignore */
       }
     }
+
+    // Safety net 2: detect text-based order summary with prices (e.g. "$32.000", "Total: $60.000")
+    // This catches when the AI presents a summary without the tag
+    const hasMultiplePrices = (txt.match(/\$[\d.,]+/g) || []).length >= 2;
+    const hasTotalKeyword = /total[:\s]*\$[\d.,]+/i.test(txt);
+    const hasConfirmQuestion = /todo bien|confirm|está bien|correcto\?|de acuerdo/i.test(txt);
+    
+    if (hasMultiplePrices && hasTotalKeyword && hasConfirmQuestion) {
+      console.log("⚠️ SAFETY NET TEXT: Detected text-based order summary without tag. Extracting...");
+      
+      // Extract items from bullet points or lines with prices
+      const items: any[] = [];
+      const lines = txt.split("\n");
+      for (const line of lines) {
+        const itemMatch = line.match(/[*•\-]?\s*(.+?):\s*\$?([\d.,]+)/);
+        if (itemMatch) {
+          const name = itemMatch[1].trim();
+          const price = parseInt(itemMatch[2].replace(/[.,]/g, ""));
+          // Skip lines that are subtotal/total/empaque summary lines
+          if (/^(sub)?total|^empaque/i.test(name)) continue;
+          if (price > 0 && name.length > 1) {
+            items.push({ name, quantity: 1, unit_price: price, packaging_cost: 0 });
+          }
+        }
+      }
+      
+      // Extract total
+      const totalMatch = txt.match(/total[:\s]*\$?([\d.,]+)/i);
+      const total = totalMatch ? parseInt(totalMatch[1].replace(/[.,]/g, "")) : 0;
+      
+      if (items.length > 0 && total > 0) {
+        const order = { items, total, subtotal: total, packaging_total: 0, delivery_type: "pickup", delivery_address: null, customer_name: "", payment_method: "efectivo", observations: "" };
+        
+        // Try to extract delivery info from text
+        if (/domicilio|delivery/i.test(txt)) order.delivery_type = "delivery";
+        const addrMatch = txt.match(/(?:direcci[oó]n|para|hacia)[:\s]*(.+?)(?:\n|$)/i);
+        if (addrMatch) order.delivery_address = addrMatch[1].trim();
+        
+        // Extract customer name if present
+        const nameMatch = txt.match(/(?:nombre|cliente)[:\s]*(.+?)(?:\n|,|$)/i);
+        if (nameMatch) order.customer_name = nameMatch[1].trim();
+        
+        console.log(`⚠️ SAFETY NET TEXT: Recovered ${items.length} items, total $${total}`);
+        return { order, clean: txt };
+      }
+    }
+    
     return null;
   }
   try {
