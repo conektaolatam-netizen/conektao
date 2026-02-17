@@ -488,8 +488,9 @@ ${overridesBlock}
 REGLAS DE COMPORTAMIENTO:
 - Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
 - ${toneBlock}
-- Varía: "dale", "listo", "va", "claro", "bueno", "perfecto"
-- PROHIBIDO: "oki", "cositas ricas", "delicias", "¡Excelente elección!", signos dobles (!!)
+- Sé ENTUSIASTA y ATENTA. Transmite que te ENCANTA ayudar. Usa expresiones como: "con mucho gusto!", "claro que sí!", "qué rico!", "excelente!", "me encanta!"
+- Varía: "dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto", "por supuesto"
+- PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
 - Si preguntan si eres bot → admítelo. NUNCA niegues ser IA
 
 ${config.restaurant_description ? `NEGOCIO: ${config.restaurant_description}` : ""}
@@ -515,24 +516,26 @@ ${paymentBlock}
 ${escalationBlock}
 
 FLUJO (un paso por mensaje, NO te saltes pasos):
-1. Saluda y pregunta qué quiere
-2. Anota cada producto. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
+1. Saluda con entusiasmo y pregunta qué quiere
+2. Anota cada producto con ánimo. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
 5. Indica datos de pago
-6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y pregunta UNA SOLA VEZ: "Te confirmo el pedido?"
-7. Si dice sí → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
+6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y di: "Para confirmar tu pedido escríbeme: confirmar pedido"
+7. SOLO cuando el cliente escriba exactamente "confirmar pedido" → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
 CONFIRMACIÓN (REGLA CRÍTICA):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
 - NUNCA preguntes "confirmamos?" o "te confirmo?" mientras el cliente aún está pidiendo productos
 - NUNCA pidas confirmación si falta info (dirección, nombre, tipo de entrega)
+- El cliente DEBE escribir "confirmar pedido" para que se procese. Díselo claramente
+- Si el cliente dice "sí" o "dale" pero NO "confirmar pedido" → recuérdale amablemente: "Para confirmar tu pedido solo escríbeme: confirmar pedido 😊"
 - Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas ni sugerencias
 - Ejemplos de despedida: "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir con nosotros 🍕" 
 
 POST-CONFIRMACIÓN:
-- Si el cliente escribe después de confirmar → "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊"
+- Si el cliente escribe después de confirmar → "Hola de nuevo! Quieres hacer un nuevo pedido? Con mucho gusto te ayudo 😊"
 - NO sigas la conversación del pedido anterior
 
 MODIFICACIONES (solo pedidos ya confirmados):
@@ -577,7 +580,7 @@ function buildLaBarraPrompt(
     scheduleBlock = `ESTADO: ABIERTOS. 3:00 PM - 11:00 PM. Atendiendo normalmente.`;
   }
 
-  return `Eres Alicia, trabajas en "La Barra Crea Tu Pizza" en Ibagué. Eres IA que atiende por WhatsApp como la mejor mesera. Si preguntan si eres bot → admítelo: "Sí, soy IA, pero te atiendo como la mejor mesera 😊".
+  return `Eres Alicia, trabajas en "La Barra Crea Tu Pizza" en Ibagué. Eres IA que atiende por WhatsApp con MUCHA energía y entusiasmo, como la mejor mesera del mundo. Te ENCANTA ayudar a los clientes y se nota en cada mensaje. Si preguntan si eres bot → admítelo: "Sí, soy IA, pero te atiendo con todo el cariño del mundo 😊".
 
 HORARIO: Abrimos TODOS LOS DÍAS 3:00 PM - 11:00 PM (a veces nos extendemos). NUNCA digas otra hora.
 Antes de las 3 PM → toma pedido y di "a partir de las 3:30 pm empezamos a preparar"
@@ -589,17 +592,18 @@ SEDES: La Samaria y El Vergel (oficiales). La Estación (franquicia vendida, NO 
 
 REGLAS DE COMPORTAMIENTO:
 - Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS (1-2 líneas)
-- Tono amable, cercano, profesional. A veces abrevia: "q", "pa"
-- NO siempre empieces con el nombre. Varía: "Dale", "Listo", "Hola"
-- PROHIBIDO: "oki", "cositas ricas", "delicias", "¡Excelente elección!", (!!) dobles
-- Varía vocabulario: "dale", "listo", "va", "claro", "bueno", "perfecto"
+- Tono ENTUSIASTA, cercano, profesional. Transmite que te encanta ayudar
+- Sé ATENTA: muestra interés genuino por lo que el cliente quiere
+- A veces abrevia: "q", "pa". Varía: "Dale", "Listo", "Hola", "Con gusto", "Claro que sí"
+- PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
+- Usa expresiones entusiastas: "qué rica elección!", "me encanta esa!", "buenísima opción!"
 - Si preguntan si eres bot → ADMÍTELO. NUNCA niegues ser IA
 
 EJEMPLOS:
-Bien: "Dale, te anoto eso" | "Va, una pepperoni mediana" | "Listo, algo más o con eso?"
+Bien: "Dale, te anoto eso con mucho gusto!" | "Va, una pepperoni mediana, qué rica!" | "Listo, algo más o con eso?"
 Mal: "¡Excelente elección! Te anoto una pizza Pepperoni mediana. ¿Deseas agregar algo más?"
 
-APERTURA: Sé proactiva → "Hola! Ya sabes qué quieres o te envío la carta?"
+APERTURA: Sé proactiva y entusiasta → "Hola! Qué gusto tenerte por acá 😊 Ya sabes qué quieres o te envío la carta?"
 UBICACIÓN: LA SAMARIA, 44 con 5ta, Ibagué. Solo esta sede
 
 VENTA: Sugiere UN complemento natural. Si dice "no" → SE ACABÓ. Cero insistencia. Máximo 1 sugerencia por pedido
@@ -732,24 +736,26 @@ PAGO: Efectivo (contra entrega o en local). Nequi o Daviplata al 3146907745. Si 
 TIEMPOS (solo si preguntan): Semana ~15-20min. Finde ~20-30min. ${peak ? "Ahora HORA PICO: ~25-35min" : ""}
 
 FLUJO (un paso por mensaje, NO te saltes pasos):
-1. Saluda y pregunta qué quiere
-2. Anota cada producto. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
+1. Saluda con entusiasmo y pregunta qué quiere
+2. Anota cada producto con ánimo. Después de cada uno pregunta: "Algo más?" (NO preguntes "confirmamos?" aquí)
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
 5. Indica datos de pago
-6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y pregunta UNA SOLA VEZ: "Te confirmo el pedido?"
-7. Si dice sí → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
+6. AHORA SÍ → presenta resumen COMPLETO (productos + empaques + total) y di: "Para confirmar tu pedido escríbeme: confirmar pedido"
+7. SOLO cuando el cliente escriba exactamente "confirmar pedido" → ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- + despedida cálida y DEFINITIVA
 JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
 CONFIRMACIÓN (REGLA CRÍTICA):
 - Solo pide confirmación UNA VEZ, después del resumen final con TODOS los datos completos
 - NUNCA preguntes "confirmamos?" o "te confirmo?" mientras el cliente aún está pidiendo productos
 - NUNCA pidas confirmación si falta info (dirección, nombre, tipo de entrega)
+- El cliente DEBE escribir "confirmar pedido" para que se procese. Díselo claramente
+- Si el cliente dice "sí" o "dale" pero NO "confirmar pedido" → recuérdale amablemente: "Para confirmar tu pedido solo escríbeme: confirmar pedido 😊"
 - Después de que confirme → despedida DEFINITIVA. NO hagas más preguntas ni sugerencias
-- Ejemplos de despedida: "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕"
+- Ejemplos de despedida: "Pedido confirmado! Ya lo estamos preparando con todo el cariño. Gracias por pedir en La Barra 🍕"
 
 POST-CONFIRMACIÓN:
-- Si el cliente escribe después de confirmar → "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊"
+- Si el cliente escribe después de confirmar → "Hola de nuevo! Quieres hacer un nuevo pedido? Con mucho gusto te ayudo 😊"
 - NO sigas la conversación del pedido anterior
 
 MODIFICACIONES (solo pedidos ya confirmados):
@@ -1607,7 +1613,7 @@ Deno.serve(async (req) => {
         for (const stale of staleConvs) {
           console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone}`);
           const followUpMsg =
-            "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Quieres que lo confirme? Solo dime 'sí' 😊";
+            "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Si quieres confirmarlo, escríbeme: confirmar pedido 😊";
           await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, stale.customer_phone, followUpMsg);
           const { data: staleConv } = await supabase
             .from("whatsapp_conversations")
@@ -1734,126 +1740,43 @@ Deno.serve(async (req) => {
       const rId = config.restaurant_id;
       const conv = await getConversation(rId, from);
 
-      // ===== HANDLE INTERACTIVE BUTTON REPLIES =====
-      if (buttonReplyId) {
+      // ===== HANDLE "CONFIRMAR PEDIDO" TEXT TRIGGER =====
+      const lowerTextTrim = text.toLowerCase().trim();
+      if (lowerTextTrim === "confirmar pedido" && conv.current_order && 
+          (conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation" || conv.order_status === "active")) {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-        convMsgs.push({
-          role: "customer",
-          content: text,
-          timestamp: new Date().toISOString(),
-          wa_message_id: msg.id,
-          button_reply: buttonReplyId,
-        });
-
-        if (buttonReplyId === "confirm_order" && conv.current_order) {
-          // DETERMINISTIC: Save order and send email immediately
-          console.log(`✅ BUTTON CONFIRM: ${from} confirmed order via button`);
-          const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
-          const validated = validateOrder(conv.current_order, isLaBarra);
-          await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-          const resp = "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "confirmed",
-              current_order: validated.order,
-              pending_since: null,
-            })
-            .eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_via_button" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (buttonReplyId === "add_more") {
-          const resp = "Dale, dime qué más quieres agregar 😊";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "active",
-              pending_since: null,
-            })
-            .eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "add_more" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (buttonReplyId === "cancel_order") {
-          const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes 😊";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({
-              messages: convMsgs.slice(-30),
-              order_status: "none",
-              current_order: null,
-              pending_since: null,
-            })
-            .eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "cancelled" }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+        const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
+        const validated = validateOrder(conv.current_order, isLaBarra);
+        await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
+        const resp = "Pedido confirmado! Ya lo estamos preparando con todo el cariño. Gracias por pedir en La Barra 🍕";
+        convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+        await supabase.from("whatsapp_conversations").update({
+          messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
+        }).eq("id", conv.id);
+        await sendWA(pid, token, from, resp, true);
+        return new Response(JSON.stringify({ status: "confirmed_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // ===== TEXT FALLBACK FOR PENDING BUTTON CONFIRMATION =====
-      if (conv.order_status === "pending_button_confirmation" && conv.current_order) {
+      // ===== PENDING CONFIRMATION: remind user to write "confirmar pedido" =====
+      if ((conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation") && conv.current_order) {
         const lowerText = text.toLowerCase().trim();
-        const confirmPatterns = /^(s[ií]|dale|ok|confirma|listo|va|claro|bueno|confirmo|1)/i;
-        const cancelPatterns = /^(no|cancel|3)/i;
-        const addMorePatterns = /^(agrega|más|2|otro)/i;
-
-        if (confirmPatterns.test(lowerText)) {
-          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
-          const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
-          const validated = validateOrder(conv.current_order, isLaBarra);
-          await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
-          const resp = "Listo, pedido confirmado! En unos minutos empezamos a preparar. Gracias por pedir en La Barra 🍕";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
-          }).eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // If they wrote something other than "confirmar pedido", remind them
+        if (lowerText !== "confirmar pedido") {
+          const cancelPatterns = /^(no|cancel|cancelar)/i;
+          if (cancelPatterns.test(lowerText)) {
+            const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+            convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+            const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes con mucho gusto 😊";
+            convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({
+              messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
+            }).eq("id", conv.id);
+            await sendWA(pid, token, from, resp, true);
+            return new Response(JSON.stringify({ status: "cancelled_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          // Fall through to AI processing - let the AI handle it naturally and remind about "confirmar pedido"
         }
-
-        if (cancelPatterns.test(lowerText)) {
-          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
-          const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes 😊";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
-          }).eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "cancelled_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
-        if (addMorePatterns.test(lowerText)) {
-          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
-          const resp = "Dale, dime qué más quieres agregar 😊";
-          convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({
-            messages: convMsgs.slice(-30), order_status: "active", pending_since: null,
-          }).eq("id", conv.id);
-          await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "add_more_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-
-        // If text doesn't match any pattern, fall through to normal AI processing
       }
 
       // ===== POST-CONFIRMATION: New message after order was confirmed =====
@@ -1998,14 +1921,14 @@ Deno.serve(async (req) => {
       const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 
       if (parsed) {
-        // ORDER CONFIRMED BY AI → Send interactive buttons instead of saving immediately
+        // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
         const isLaBarra =
           config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed || !config.restaurant_name;
         const validated = validateOrder(parsed.order, isLaBarra);
         if (validated.corrected) parsed.order = validated.order;
-        resp = parsed.clean || "✅ Pedido registrado! 🍽️";
+        resp = parsed.clean || "Pedido registrado! 🍽️";
 
-        // Send the text summary first, then buttons for confirmation
+        // Store order and set pending confirmation status
         freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
         await supabase
           .from("whatsapp_conversations")
@@ -2013,28 +1936,13 @@ Deno.serve(async (req) => {
             messages: freshMsgs.slice(-30),
             customer_name: parsed.order.customer_name || freshCustomerName,
             current_order: parsed.order,
-            order_status: "pending_button_confirmation",
+            order_status: "pending_confirmation",
             pending_since: new Date().toISOString(),
           })
           .eq("id", conv.id);
 
-        // Send summary text first
+        // Send summary text only (no buttons)
         await sendWA(pid, token, from, resp, true);
-
-        // Then send interactive buttons
-        const orderSummary = `Tu pedido:\n${(parsed.order.items || []).map((i: any) => `${i.quantity}x ${i.name}`).join("\n")}\nTotal: $${(parsed.order.total || 0).toLocaleString("es-CO")}`;
-        await sendWAInteractive(
-          pid,
-          token,
-          from,
-          orderSummary,
-          [
-            { id: "confirm_order", title: "✅ Confirmar" },
-            { id: "add_more", title: "➕ Agregar más" },
-            { id: "cancel_order", title: "❌ Cancelar" },
-          ],
-          true,
-        );
 
         return new Response(JSON.stringify({ status: "pending_confirmation" }), {
           status: 200,
