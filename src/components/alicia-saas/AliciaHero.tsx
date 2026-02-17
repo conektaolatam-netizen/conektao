@@ -7,15 +7,12 @@ const AliciaHero = () => {
     <section className="relative z-10 min-h-screen flex items-center justify-center p-4">
       <div className="max-w-5xl mx-auto text-center">
         {/* ALICIA Avatar */}
-        <div className="relative mb-10">
-          <div
-            className="w-48 h-48 sm:w-60 sm:h-60 mx-auto relative alicia-breathing"
-            style={{
-              filter: "drop-shadow(0 0 60px hsl(174 100% 29% / 0.6)) drop-shadow(0 0 120px hsl(25 100% 50% / 0.4))",
-            }}
-          >
-            <img src={aliciaAvatar} alt="ALICIA - Vendedora IA" className="w-full h-full object-contain" />
-          </div>
+        <div className="mb-10">
+          <img 
+            src={aliciaAvatar} 
+            alt="ALICIA - Vendedora IA" 
+            className="w-48 h-48 sm:w-60 sm:h-60 mx-auto object-contain alicia-breathing" 
+          />
         </div>
 
         {/* Badge */}
