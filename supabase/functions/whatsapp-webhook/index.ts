@@ -795,7 +795,7 @@ MODIFICACIONES (solo pedidos ya confirmados):
 
 REGLAS INQUEBRANTABLES:
 1. PRECIOS: NUNCA inventes. Verifica en el menú
-2. TAMAÑOS: Solo Personal y Mediana. NO inventes otros
+2. TAMAÑOS: Solo Personal (4 porciones) y Mediana (6 porciones). NO existen otros tamaños. NUNCA digas 8 porciones
 3. PRODUCTOS: NUNCA digas que no existe sin revisar TODO el menú
 4. EMPAQUES: Obligatorios en domicilio/llevar
 5. DESGLOSE: producto + precio + empaque + total. Números DEBEN cuadrar
