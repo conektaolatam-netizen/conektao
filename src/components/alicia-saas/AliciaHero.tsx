@@ -9,13 +9,12 @@ const AliciaHero = () => {
         {/* ALICIA Avatar */}
         <div className="relative mb-10">
           <div
-            className="w-40 h-40 sm:w-52 sm:h-52 mx-auto rounded-full overflow-hidden alicia-breathing"
+            className="w-48 h-48 sm:w-60 sm:h-60 mx-auto relative alicia-breathing"
             style={{
-              boxShadow:
-                "0 0 80px hsl(174 100% 29% / 0.5), 0 0 160px hsl(25 100% 50% / 0.3)",
+              filter: "drop-shadow(0 0 60px hsl(174 100% 29% / 0.6)) drop-shadow(0 0 120px hsl(25 100% 50% / 0.4))",
             }}
           >
-            <img src={aliciaAvatar} alt="ALICIA - Vendedora IA" className="w-full h-full object-cover" />
+            <img src={aliciaAvatar} alt="ALICIA - Vendedora IA" className="w-full h-full object-contain" />
           </div>
           {/* Orbiting sparkles */}
           {[...Array(4)].map((_, i) => (
