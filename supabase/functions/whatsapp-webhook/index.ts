@@ -561,22 +561,93 @@ ${ctx}`;
 function buildMenuFromProducts(products: any[]): string {
   if (!products || products.length === 0) return "MENÚ: No disponible en este momento";
 
-  // Group by category
-  const groups: Record<string, {name: string, price: number}[]> = {};
+  // Detect pizza products that have Personal/Mediana variants and merge them
+  const pizzaSizes: Record<string, { desc: string, personal?: number, mediana?: number, cat: string }> = {};
+  const otherProducts: { name: string, desc: string, price: number, cat: string }[] = [];
+
   for (const p of products) {
     const cat = p.category_name || "Otros";
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push({ name: p.name, price: p.price });
+    const name = (p.name || "").trim();
+    const desc = (p.description || "").trim();
+    const price = Number(p.price);
+
+    // Check if it's a pizza with size suffix
+    const personalMatch = name.match(/^(.+?)\s+Personal$/i);
+    const medianaMatch = name.match(/^(.+?)\s+Mediana$/i);
+
+    if (personalMatch && cat.toLowerCase().includes("pizza")) {
+      const baseName = personalMatch[1].trim();
+      if (!pizzaSizes[baseName]) pizzaSizes[baseName] = { desc, cat };
+      pizzaSizes[baseName].personal = price;
+      if (desc && !pizzaSizes[baseName].desc) pizzaSizes[baseName].desc = desc;
+    } else if (medianaMatch && cat.toLowerCase().includes("pizza")) {
+      const baseName = medianaMatch[1].trim();
+      if (!pizzaSizes[baseName]) pizzaSizes[baseName] = { desc, cat };
+      pizzaSizes[baseName].mediana = price;
+      if (desc && !pizzaSizes[baseName].desc) pizzaSizes[baseName].desc = desc;
+    } else {
+      otherProducts.push({ name, desc, price, cat });
+    }
   }
 
-  let menu = "=== MENÚ OFICIAL (COP) ===\n\n";
-  for (const [cat, items] of Object.entries(groups)) {
-    menu += `${cat.toUpperCase()}:\n`;
-    for (const item of items) {
-      menu += `- ${item.name} $${Number(item.price).toLocaleString("es-CO")}\n`;
+  let menu = "=== MENÚ OFICIAL DE LA BARRA (COP) ===\n";
+  menu += "INSTRUCCIÓN: Cuando el cliente pregunte por un producto, COPIA la descripción EXACTA de aquí. NO inventes descripciones.\n\n";
+
+  // Pizza table with sizes merged
+  if (Object.keys(pizzaSizes).length > 0) {
+    // Group pizzas by category (sal vs dulce)
+    const salPizzas: [string, typeof pizzaSizes[string]][] = [];
+    const dulcePizzas: [string, typeof pizzaSizes[string]][] = [];
+
+    for (const [name, info] of Object.entries(pizzaSizes)) {
+      if (info.cat.toLowerCase().includes("dulce")) {
+        dulcePizzas.push([name, info]);
+      } else {
+        salPizzas.push([name, info]);
+      }
+    }
+
+    if (salPizzas.length > 0) {
+      menu += "🍕 PIZZAS DE SAL:\n";
+      menu += "Producto | Descripción | Personal | Mediana\n";
+      menu += "--------|------------|----------|--------\n";
+      for (const [name, info] of salPizzas.sort((a, b) => a[0].localeCompare(b[0]))) {
+        const pers = info.personal ? `$${info.personal.toLocaleString("es-CO")}` : "—";
+        const med = info.mediana ? `$${info.mediana.toLocaleString("es-CO")}` : "—";
+        menu += `${name} | ${info.desc} | ${pers} | ${med}\n`;
+      }
+      menu += "\n";
+    }
+
+    if (dulcePizzas.length > 0) {
+      menu += "🍫 PIZZAS DULCES (tamaño único):\n";
+      menu += "Producto | Descripción | Precio\n";
+      menu += "--------|------------|------\n";
+      for (const [name, info] of dulcePizzas.sort((a, b) => a[0].localeCompare(b[0]))) {
+        const price = info.personal || info.mediana || 0;
+        menu += `${name} | ${info.desc} | $${price.toLocaleString("es-CO")}\n`;
+      }
+      menu += "\n";
+    }
+  }
+
+  // Group remaining products by category
+  const groups: Record<string, typeof otherProducts> = {};
+  for (const p of otherProducts) {
+    if (!groups[p.cat]) groups[p.cat] = [];
+    groups[p.cat].push(p);
+  }
+
+  for (const [cat, items] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
+    menu += `📋 ${cat.toUpperCase()}:\n`;
+    menu += "Producto | Descripción | Precio\n";
+    menu += "--------|------------|------\n";
+    for (const item of items.sort((a, b) => a.name.localeCompare(b.name))) {
+      menu += `${item.name} | ${item.desc || "—"} | $${item.price.toLocaleString("es-CO")}\n`;
     }
     menu += "\n";
   }
+
   menu += "=== FIN MENÚ ===";
   return menu;
 }
@@ -658,12 +729,14 @@ ${products && products.length > 0 ? buildMenuFromProducts(products) : "MENÚ: co
 
 REGLA ANTI-ALUCINACIÓN DE PRODUCTOS (CRÍTICA, INQUEBRANTABLE):
 - SOLO puedes ofrecer productos que aparecen en el MENÚ OFICIAL de arriba
-- Si el cliente pide algo → BUSCA en el menú con variaciones del nombre (singular/plural, con/sin tildes, nombres parciales)
-- "frutos del bosque" puede ser "Frutos Del Bosque Dulce" → BÚSCALO antes de negar
+- Cuando el cliente pregunte por un producto → BUSCA en la tabla y USA la descripción EXACTA que aparece ahí
+- NUNCA escribas una descripción de tu propia cosecha. COPIA textualmente la columna "Descripción" del menú
+- Ejemplo: si piden "Parmesana" → busca en la tabla → responde: "La Parmesana lleva napolitana, mozzarella, pepperoni, queso azul, perejil al ajillo, parmesano. Personal $34,000 / Mediana $48,000"
+- "frutos del bosque" → busca → "Frutos Del Bosque Dulce": frutos del bosque caramelizados, helado y crema chantilly $18,000
 - Si un producto existe en el menú con nombre similar → ofrécelo. NO digas "no tenemos"
-- Si realmente NO está en el menú → di "No lo veo en nuestra carta" y sugiere alternativas QUE SÍ EXISTAN en el menú
-- NUNCA JAMÁS inventes nombres de productos que no están en el menú. Si no existe, NO lo ofrezcas
-- Búsqueda flexible: ignora mayúsculas, tildes, palabras como "pizza de", "la", etc.
+- Si realmente NO está en el menú → di "No lo veo en nuestra carta" y sugiere alternativas QUE SÍ EXISTAN
+- NUNCA JAMÁS inventes nombres de productos que no están en el menú
+- Búsqueda flexible: ignora mayúsculas, tildes, "pizza de", "la", singular/plural
 
 DISAMBIGUATION:
 - "Camarones" → preguntar: pizza, entrada, fettuccine o brioche?
