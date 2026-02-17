@@ -722,13 +722,13 @@ const Welcome = () => {
               />
               <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                 <div
-                  className="w-20 h-20 shrink-0 rounded-full overflow-hidden"
+                  className="w-20 h-20 shrink-0"
                   style={{
-                    boxShadow: '0 0 40px rgba(20,184,166,0.5), 0 0 80px rgba(255,106,0,0.3)',
+                    filter: 'drop-shadow(0 0 20px rgba(20,184,166,0.5)) drop-shadow(0 0 40px rgba(255,106,0,0.3))',
                     animation: 'brainPulse 3s ease-in-out infinite'
                   }}
                 >
-                  <img src={aliciaAvatarImg} alt="ALICIA" className="w-full h-full object-cover" />
+                  <img src={aliciaAvatarImg} alt="ALICIA" className="w-full h-full object-contain" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-1">
