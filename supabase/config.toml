@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.alicia-daily-override]
 verify_jwt = false
+
+[functions.whatsapp-templates]
+verify_jwt = false

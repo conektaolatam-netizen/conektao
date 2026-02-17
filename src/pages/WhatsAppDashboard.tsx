@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search } from "lucide-react";
+import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
+import TemplatesPanel from "@/components/alicia-dashboard/TemplatesPanel";
 
 interface Message {
   role: string;
@@ -32,6 +33,7 @@ export default function WhatsAppDashboard() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [wabaId, setWabaId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("orders");
 
   useEffect(() => {
@@ -39,7 +41,18 @@ export default function WhatsAppDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", user.id).maybeSingle();
-        if (profile?.restaurant_id) setRestaurantId(profile.restaurant_id);
+        if (profile?.restaurant_id) {
+          setRestaurantId(profile.restaurant_id);
+          // Fetch WABA ID from whatsapp_configs
+          const { data: config } = await supabase
+            .from("whatsapp_configs")
+            .select("waba_id")
+            .eq("restaurant_id", profile.restaurant_id)
+            .maybeSingle();
+          if (config?.waba_id) {
+            setWabaId(config.waba_id as string);
+          }
+        }
       }
     };
     fetchRestaurant();
@@ -149,6 +162,10 @@ export default function WhatsAppDashboard() {
             <TabsTrigger value="conversations" className="flex items-center gap-1.5">
               <MessageSquare className="w-4 h-4" />
               Conversaciones
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
+              Plantillas
             </TabsTrigger>
           </TabsList>
         </div>
@@ -290,6 +307,16 @@ export default function WhatsAppDashboard() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="flex-1 m-0 overflow-hidden">
+          {wabaId ? (
+            <TemplatesPanel wabaId={wabaId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
+              <p className="text-sm">Configura tu WhatsApp Business primero para gestionar plantillas</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
