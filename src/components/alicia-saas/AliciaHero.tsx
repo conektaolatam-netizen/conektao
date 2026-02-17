@@ -12,7 +12,6 @@ const AliciaHero = () => {
             src={aliciaAvatar} 
             alt="ALICIA - Vendedora IA" 
             className="w-48 h-48 sm:w-60 sm:h-60 mx-auto object-contain alicia-breathing"
-            style={{ mixBlendMode: 'multiply' }}
           />
         </div>
 
