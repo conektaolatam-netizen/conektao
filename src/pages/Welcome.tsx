@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import aliciaAvatarImg from "@/assets/alicia-avatar.png";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -721,14 +722,13 @@ const Welcome = () => {
               />
               <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                 <div
-                  className="w-20 h-20 shrink-0 rounded-full flex items-center justify-center"
+                  className="w-20 h-20 shrink-0 rounded-full overflow-hidden"
                   style={{
-                    background: 'radial-gradient(circle at 30% 30%, rgba(20,184,166,1) 0%, rgba(255,106,0,0.8) 100%)',
                     boxShadow: '0 0 40px rgba(20,184,166,0.5), 0 0 80px rgba(255,106,0,0.3)',
                     animation: 'brainPulse 3s ease-in-out infinite'
                   }}
                 >
-                  <Bot className="w-10 h-10 text-white" />
+                  <img src={aliciaAvatarImg} alt="ALICIA" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-1">
