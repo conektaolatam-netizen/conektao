@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_conversations ADD COLUMN last_nudge_at TIMESTAMPTZ DEFAULT NULL;

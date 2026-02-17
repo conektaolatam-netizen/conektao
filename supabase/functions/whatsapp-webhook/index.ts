@@ -1319,18 +1319,19 @@ async function escalate(config: any, phone: string, reason: string, conversation
 async function runSalesNudgeCheck() {
   try {
     const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // Stalled conversations (ALICIA was last to speak)
+    // Stalled conversations (ALICIA was last to speak, not recently nudged)
     const { data: dyingConvs } = await supabase
       .from("whatsapp_conversations")
-      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
+      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
       .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
       .lt("updated_at", twoMinAgo);
 
     // Abandoned conversations (client messages without response)
     const { data: abandonedConvs } = await supabase
       .from("whatsapp_conversations")
-      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order")
+      .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
       .not("order_status", "eq", "confirmed")
       .lt("updated_at", twoMinAgo);
 
@@ -1364,6 +1365,12 @@ async function runSalesNudgeCheck() {
 
     let nudgedCount = 0;
     for (const conv of allConvs) {
+      // ===== FREQUENCY GUARD: Max 1 nudge per 10 minutes =====
+      if (conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString() > tenMinAgo) {
+        console.log(`⏭️ NUDGE SKIP: ${conv.customer_phone} was nudged ${Math.round((Date.now() - new Date(conv.last_nudge_at).getTime()) / 60000)}min ago (min 10min)`);
+        continue;
+      }
+
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       const lastMsg = msgs[msgs.length - 1];
 
@@ -1407,8 +1414,8 @@ async function runSalesNudgeCheck() {
 REGLAS: Discúlpate BREVEMENTE ("Perdona la demora"). Lee los últimos mensajes y RESPONDE. Si hay pedido, resume y pregunta si confirma. NO markdown. NO "asistente virtual". Max 1 emoji. Mensaje corto.
 PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conversación"}
 Cliente: ${conv.customer_name || "no proporcionado"}`
-        : `Eres Alicia. El cliente dejó de responder hace 2+ min. Cierra la venta natural.
-REGLAS: Mensaje MUY corto (1-2 líneas). Natural, como mesera amigable. Resume pedido si hay. NO markdown. Max 1 emoji. Varía: "Te confirmo?", "Te lo anoto?", resumen rápido.
+        : `Eres Alicia. El cliente dejó de responder hace unos minutos. Haz seguimiento natural.
+REGLAS: Mensaje MUY corto (1-2 líneas). Natural, como mesera amigable. NO pidas confirmación. Solo pregunta si siguen ahí o necesitan algo. NO markdown. Max 1 emoji.
 PEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "Revisa conversación"}
 Cliente: ${conv.customer_name || "no proporcionado"}`;
 
@@ -1424,7 +1431,11 @@ Cliente: ${conv.customer_name || "no proporcionado"}`;
       msgs.push({ role: "assistant", content: cleanNudge, timestamp: new Date().toISOString(), is_nudge: true });
       await supabase
         .from("whatsapp_conversations")
-        .update({ messages: msgs.slice(-30), order_status: "nudge_sent" })
+        .update({
+          messages: msgs.slice(-30),
+          order_status: "nudge_sent",
+          last_nudge_at: new Date().toISOString(),
+        })
         .eq("id", conv.id);
       nudgedCount++;
     }

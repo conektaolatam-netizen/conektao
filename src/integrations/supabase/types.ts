@@ -4884,6 +4884,7 @@ export type Database = {
           customer_name: string | null
           customer_phone: string
           id: string
+          last_nudge_at: string | null
           messages: Json
           order_status: string
           payment_proof_url: string | null
@@ -4897,6 +4898,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone: string
           id?: string
+          last_nudge_at?: string | null
           messages?: Json
           order_status?: string
           payment_proof_url?: string | null
@@ -4910,6 +4912,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string
           id?: string
+          last_nudge_at?: string | null
           messages?: Json
           order_status?: string
           payment_proof_url?: string | null
