@@ -728,8 +728,9 @@ EMPAQUES (domicilio/llevar, van SÍ O SÍ):
 
 ${prom}
 
-DOMICILIO: Gratis en el Vergel, La Samaria, Rincón de Piedra, Calambeo. Otras zonas → el domicilio se paga aparte
-Si preguntan costo exacto → ---CONSULTA_DOMICILIO---
+DOMICILIO: 
+- DOMICILIO GRATIS ($0): SOLO estos conjuntos → Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle
+- CUALQUIER otra dirección: el domicilio NO es gratis. Dile: "El domicilio se paga directamente al domiciliario cuando llegue"
 
 PAGO: Efectivo (contra entrega o en local). Nequi o Daviplata al 3146907745. Si transferencia → pedir comprobante
 
@@ -1742,8 +1743,13 @@ Deno.serve(async (req) => {
 
       // ===== HANDLE "CONFIRMAR PEDIDO" TEXT TRIGGER =====
       const lowerTextTrim = text.toLowerCase().trim();
-      if (lowerTextTrim === "confirmar pedido" && conv.current_order && 
-          (conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation" || conv.order_status === "active")) {
+      if (
+        lowerTextTrim === "confirmar pedido" &&
+        conv.current_order &&
+        (conv.order_status === "pending_confirmation" ||
+          conv.order_status === "pending_button_confirmation" ||
+          conv.order_status === "active")
+      ) {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
         const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
@@ -1751,29 +1757,55 @@ Deno.serve(async (req) => {
         await saveOrder(rId, conv.id, from, validated.order, config, conv.payment_proof_url);
         const resp = "Pedido confirmado! Ya lo estamos preparando con todo el cariño. Gracias por pedir en La Barra 🍕";
         convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-        await supabase.from("whatsapp_conversations").update({
-          messages: convMsgs.slice(-30), order_status: "confirmed", current_order: validated.order, pending_since: null,
-        }).eq("id", conv.id);
+        await supabase
+          .from("whatsapp_conversations")
+          .update({
+            messages: convMsgs.slice(-30),
+            order_status: "confirmed",
+            current_order: validated.order,
+            pending_since: null,
+          })
+          .eq("id", conv.id);
         await sendWA(pid, token, from, resp, true);
-        return new Response(JSON.stringify({ status: "confirmed_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "confirmed_via_text" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // ===== PENDING CONFIRMATION: remind user to write "confirmar pedido" =====
-      if ((conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation") && conv.current_order) {
+      if (
+        (conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation") &&
+        conv.current_order
+      ) {
         const lowerText = text.toLowerCase().trim();
         // If they wrote something other than "confirmar pedido", remind them
         if (lowerText !== "confirmar pedido") {
           const cancelPatterns = /^(no|cancel|cancelar)/i;
           if (cancelPatterns.test(lowerText)) {
             const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-            convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+            convMsgs.push({
+              role: "customer",
+              content: text,
+              timestamp: new Date().toISOString(),
+              wa_message_id: msg.id,
+            });
             const resp = "Listo, cancelé el pedido. Si cambias de opinión, me escribes con mucho gusto 😊";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({
-              messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null,
-            }).eq("id", conv.id);
+            await supabase
+              .from("whatsapp_conversations")
+              .update({
+                messages: convMsgs.slice(-30),
+                order_status: "none",
+                current_order: null,
+                pending_since: null,
+              })
+              .eq("id", conv.id);
             await sendWA(pid, token, from, resp, true);
-            return new Response(JSON.stringify({ status: "cancelled_via_text" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ status: "cancelled_via_text" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
           // Fall through to AI processing - let the AI handle it naturally and remind about "confirmar pedido"
         }
@@ -1794,21 +1826,38 @@ Deno.serve(async (req) => {
 
           if (!isModification) {
             // Not a modification — offer new order
-            convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+            convMsgs.push({
+              role: "customer",
+              content: text,
+              timestamp: new Date().toISOString(),
+              wa_message_id: msg.id,
+            });
             const resp = "Quieres hacer un nuevo pedido? Con gusto te ayudo 😊";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({
-              messages: convMsgs.slice(-30), order_status: "none", current_order: null,
-            }).eq("id", conv.id);
+            await supabase
+              .from("whatsapp_conversations")
+              .update({
+                messages: convMsgs.slice(-30),
+                order_status: "none",
+                current_order: null,
+              })
+              .eq("id", conv.id);
             await sendWA(pid, token, from, resp, true);
-            return new Response(JSON.stringify({ status: "post_confirmation_new_order" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ status: "post_confirmation_new_order" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
           // If modification, fall through to normal AI processing which handles ---CAMBIO--- and ---ADICION--- tags
         } else {
           // Old confirmation (>2 hours) — reset to fresh conversation
-          await supabase.from("whatsapp_conversations").update({
-            order_status: "none", current_order: null,
-          }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({
+              order_status: "none",
+              current_order: null,
+            })
+            .eq("id", conv.id);
           // Fall through to normal processing as new conversation
         }
       }
