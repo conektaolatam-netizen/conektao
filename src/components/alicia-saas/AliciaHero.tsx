@@ -18,8 +18,8 @@ const AliciaHero = () => {
               <img 
                 src={aliciaAvatar} 
                 alt="ALICIA - Vendedora IA" 
-                className="w-[120%] h-[120%] object-cover rounded-full"
-                style={{ objectPosition: '50% 30%' }}
+                className="w-[130%] h-[130%] object-cover rounded-full"
+                style={{ objectPosition: '50% 20%' }}
               />
             </div>
           </div>
