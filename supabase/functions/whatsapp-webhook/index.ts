@@ -2025,10 +2025,10 @@ Deno.serve(async (req) => {
 
       // Update conversation
       freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-      const hasSummary = !parsed && /\$[\d.,]+/.test(resp) && /(total|resumen|confirma)/i.test(resp);
+      // Only parseOrder() sets pending_confirmation — no auto-detection
       const baseStatus =
         freshOrderStatus === "nudge_sent" || freshOrderStatus === "followup_sent" ? "active" : freshOrderStatus;
-      const newOrderStatus = hasSummary ? "pending_confirmation" : baseStatus;
+      const newOrderStatus = baseStatus;
 
       await supabase
         .from("whatsapp_conversations")
@@ -2037,7 +2037,6 @@ Deno.serve(async (req) => {
           customer_name: freshCustomerName,
           current_order: freshCurrentOrder,
           order_status: newOrderStatus,
-          ...(hasSummary ? { pending_since: new Date().toISOString() } : {}),
         })
         .eq("id", conv.id);
 
