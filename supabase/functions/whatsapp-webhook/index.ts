@@ -992,23 +992,30 @@ function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, pay
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid #1a1a1a;"><div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:20px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;">CONEKTAO</h1><p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:12px;">Nuevo Pedido WhatsApp</p></div><div style="padding:20px;"><div style="display:flex;gap:8px;margin-bottom:12px;"><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Cliente</small><p style="margin:4px 0 0;color:#fff;">👤 ${order.customer_name||"Cliente"}</p></div><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Teléfono</small><p style="margin:4px 0 0;color:#fff;">📱 +${phone}</p></div></div>${delSec}<table style="width:100%;border-collapse:collapse;margin-top:12px;background:#111;border-radius:8px;border:1px solid #1a1a1a;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:#00D4AA;font-size:11px;">Producto</th><th style="padding:8px;color:#00D4AA;font-size:11px;">Cant.</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Precio</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Subtotal</th></tr></thead><tbody>${items}</tbody><tfoot><tr><td colspan="3" style="padding:12px 8px;text-align:right;font-weight:bold;font-size:16px;color:#fff;border-top:2px solid #00D4AA;">TOTAL:</td><td style="padding:12px 8px;text-align:right;font-weight:bold;font-size:18px;color:#00D4AA;border-top:2px solid #00D4AA;">$${(order.total||0).toLocaleString("es-CO")}</td></tr></tfoot></table>${paySec}${order.observations?`<div style="margin-top:10px;padding:10px;background:#111;border-radius:8px;"><small style="color:#888;">Obs.</small><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${order.observations}</p></div>`:""}</div><div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:10px;">Powered by CONEKTAO</p></div></div>`;
 }
 
-/** Send email via Resend — uses verified domain sender if configured */
+/** Send email via Brevo — uses pedidos@conektao.com verified domain */
 async function sendEmail(to: string, subject: string, html: string, fromOverride?: string): Promise<boolean> {
-  const rk = Deno.env.get("RESEND_API_KEY");
-  if (!rk) { console.error("EMAIL_SKIP: RESEND_API_KEY not set"); return false; }
-  // Use verified domain if available (set RESEND_FROM_EMAIL in secrets), else sandbox fallback
-  const fromEmail = fromOverride || Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
-  const fromAddress = `CONEKTAO Pedidos <${fromEmail}>`;
-  const res = await fetch("https://api.resend.com/emails", {
+  const apiKey = Deno.env.get("BREVO_API_KEY");
+  if (!apiKey) { console.error("EMAIL_SKIP: BREVO_API_KEY not set"); return false; }
+  const fromEmail = fromOverride || "pedidos@conektao.com";
+  const fromName = "CONEKTAO Pedidos";
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
-    headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: fromAddress, to: [to], subject, html }),
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: fromName, email: fromEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
   const body = await res.text();
-  console.log(`Resend [${fromAddress} → ${to}]: status=${res.status} body=${body}`);
+  console.log(`Brevo [${fromEmail} → ${to}]: status=${res.status} body=${body}`);
   if (!res.ok) {
-    // Log structured failure for debugging
-    console.error(`EMAIL_FAIL { from: "${fromAddress}", to: "${to}", status: ${res.status}, body: "${body}" }`);
+    console.error(`EMAIL_FAIL { from: "${fromEmail}", to: "${to}", status: ${res.status}, body: "${body}" }`);
   }
   return res.ok;
 }
