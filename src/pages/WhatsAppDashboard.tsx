@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText } from "lucide-react";
+import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
 import TemplatesPanel from "@/components/alicia-dashboard/TemplatesPanel";
@@ -27,6 +29,152 @@ interface Conversation {
   current_order: any;
 }
 
+interface BlockedNumber {
+  id: string;
+  phone_number: string;
+  reason: string | null;
+  created_at: string;
+}
+
+// ===== BLOCKED NUMBERS PANEL =====
+function BlockedNumbersPanel({ restaurantId }: { restaurantId: string }) {
+  const [blocked, setBlocked] = useState<BlockedNumber[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newPhone, setNewPhone] = useState("");
+  const [newReason, setNewReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fetchBlocked = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("whatsapp_blocked_numbers")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .order("created_at", { ascending: false });
+    if (data) setBlocked(data as BlockedNumber[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchBlocked();
+  }, [restaurantId]);
+
+  const handleBlock = async () => {
+    const cleaned = newPhone.replace(/[\s+\-()]/g, "");
+    if (!cleaned || cleaned.length < 8) {
+      toast.error("Ingresa un número válido (ej: 573162131254)");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("whatsapp_blocked_numbers").insert({
+      restaurant_id: restaurantId,
+      phone_number: cleaned,
+      reason: newReason || null,
+    });
+    setSaving(false);
+    if (error) {
+      if (error.code === "23505") {
+        toast.error("Este número ya está bloqueado");
+      } else {
+        toast.error("Error al bloquear: " + error.message);
+      }
+    } else {
+      toast.success(`🚫 Número ${cleaned} bloqueado`);
+      setNewPhone("");
+      setNewReason("");
+      fetchBlocked();
+    }
+  };
+
+  const handleUnblock = async (id: string, phone: string) => {
+    const { error } = await supabase.from("whatsapp_blocked_numbers").delete().eq("id", id);
+    if (error) {
+      toast.error("Error al desbloquear");
+    } else {
+      toast.success(`✅ Número ${phone} desbloqueado`);
+      fetchBlocked();
+    }
+  };
+
+  const formatPhone = (phone: string) => {
+    if (phone.startsWith("57") && phone.length === 12) {
+      return `+57 ${phone.slice(2, 5)} ${phone.slice(5, 8)} ${phone.slice(8)}`;
+    }
+    return `+${phone}`;
+  };
+
+  return (
+    <div className="p-6 max-w-xl mx-auto space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <ShieldOff className="w-5 h-5 text-destructive" />
+          Números bloqueados
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Los números bloqueados no recibirán respuesta de Alicia. Sus mensajes se ignorarán silenciosamente.
+        </p>
+      </div>
+
+      {/* Form */}
+      <div className="bg-muted/40 rounded-xl p-4 space-y-3 border border-border">
+        <p className="text-sm font-medium">Bloquear número nuevo</p>
+        <Input
+          placeholder="Número completo sin + (ej: 573162131254)"
+          value={newPhone}
+          onChange={(e) => setNewPhone(e.target.value)}
+        />
+        <Input
+          placeholder="Motivo (opcional)"
+          value={newReason}
+          onChange={(e) => setNewReason(e.target.value)}
+        />
+        <Button
+          onClick={handleBlock}
+          disabled={saving || !newPhone}
+          variant="destructive"
+          className="w-full"
+        >
+          {saving ? "Bloqueando..." : "🚫 Bloquear número"}
+        </Button>
+      </div>
+
+      {/* List */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-muted-foreground">
+          {loading ? "Cargando..." : `${blocked.length} número${blocked.length !== 1 ? "s" : ""} bloqueado${blocked.length !== 1 ? "s" : ""}`}
+        </p>
+        {blocked.length === 0 && !loading && (
+          <div className="text-center py-10 text-muted-foreground text-sm">
+            <ShieldOff className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p>No hay números bloqueados</p>
+          </div>
+        )}
+        {blocked.map((b) => (
+          <div key={b.id} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
+            <div>
+              <p className="font-mono text-sm font-medium">{formatPhone(b.phone_number)}</p>
+              {b.reason && <p className="text-xs text-muted-foreground mt-0.5">{b.reason}</p>}
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {new Date(b.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => handleUnblock(b.id, b.phone_number)}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Desbloquear
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== MAIN DASHBOARD =====
 export default function WhatsAppDashboard() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -43,7 +191,6 @@ export default function WhatsAppDashboard() {
         const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", user.id).maybeSingle();
         if (profile?.restaurant_id) {
           setRestaurantId(profile.restaurant_id);
-          // Fetch WABA ID from whatsapp_configs
           const { data: config } = await supabase
             .from("whatsapp_configs")
             .select("waba_id")
@@ -84,7 +231,7 @@ export default function WhatsAppDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Proactive nudge check: call every 2 minutes so ALICIA follows up on stalled orders
+  // Proactive nudge check every 2 minutes
   useEffect(() => {
     const checkNudges = async () => {
       try {
@@ -98,11 +245,29 @@ export default function WhatsAppDashboard() {
         console.error("Nudge check error:", e);
       }
     };
-    // Run immediately on mount then every 2 minutes
     checkNudges();
     const nudgeInterval = setInterval(checkNudges, 2 * 60 * 1000);
     return () => clearInterval(nudgeInterval);
   }, []);
+
+  // Block number directly from a conversation
+  const blockFromConversation = async (conv: Conversation) => {
+    if (!restaurantId) return;
+    const { error } = await supabase.from("whatsapp_blocked_numbers").insert({
+      restaurant_id: restaurantId,
+      phone_number: conv.customer_phone,
+      reason: `Bloqueado desde conversación - ${conv.customer_name || conv.customer_phone}`,
+    });
+    if (error && error.code === "23505") {
+      toast.info("Este número ya estaba bloqueado");
+    } else if (error) {
+      toast.error("Error al bloquear");
+    } else {
+      toast.success(`🚫 ${conv.customer_name || conv.customer_phone} bloqueado`);
+      setSelected(null);
+      setActiveTab("blocked");
+    }
+  };
 
   const formatPhone = (phone: string) => {
     if (phone.startsWith("57")) return `+57 ${phone.slice(2, 5)} ${phone.slice(5, 8)} ${phone.slice(8)}`;
@@ -151,7 +316,6 @@ export default function WhatsAppDashboard() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground">
-      {/* Top tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="border-b border-border px-4 pt-2">
           <TabsList className="bg-muted/50">
@@ -167,6 +331,10 @@ export default function WhatsAppDashboard() {
               <FileText className="w-4 h-4" />
               Plantillas
             </TabsTrigger>
+            <TabsTrigger value="blocked" className="flex items-center gap-1.5">
+              <ShieldOff className="w-4 h-4" />
+              Bloqueados
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -176,7 +344,7 @@ export default function WhatsAppDashboard() {
 
         <TabsContent value="conversations" className="flex-1 m-0 overflow-hidden">
           <div className="h-full flex">
-            {/* Sidebar - Conversation List */}
+            {/* Sidebar */}
             <div className={`${selected ? "hidden md:flex" : "flex"} flex-col w-full md:w-[380px] border-r border-border`}>
               <div className="p-4 border-b border-border space-y-3">
                 <div className="flex items-center justify-between">
@@ -243,6 +411,17 @@ export default function WhatsAppDashboard() {
                       </div>
                     </div>
                     {statusBadge(selected.order_status)}
+                    {/* Block button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
+                      onClick={() => blockFromConversation(selected)}
+                      title="Bloquear este número"
+                    >
+                      <ShieldOff className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Bloquear</span>
+                    </Button>
                   </div>
 
                   {selected.current_order && (
@@ -315,6 +494,16 @@ export default function WhatsAppDashboard() {
           ) : (
             <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
               <p className="text-sm">Configura tu WhatsApp Business primero para gestionar plantillas</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="blocked" className="flex-1 m-0 overflow-y-auto">
+          {restaurantId ? (
+            <BlockedNumbersPanel restaurantId={restaurantId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
+              <p className="text-sm">Cargando...</p>
             </div>
           )}
         </TabsContent>

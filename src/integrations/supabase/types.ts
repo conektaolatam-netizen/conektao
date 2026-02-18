@@ -4764,6 +4764,41 @@ export type Database = {
           },
         ]
       }
+      whatsapp_blocked_numbers: {
+        Row: {
+          blocked_by: string | null
+          created_at: string
+          id: string
+          phone_number: string
+          reason: string | null
+          restaurant_id: string
+        }
+        Insert: {
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          phone_number: string
+          reason?: string | null
+          restaurant_id: string
+        }
+        Update: {
+          blocked_by?: string | null
+          created_at?: string
+          id?: string
+          phone_number?: string
+          reason?: string | null
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_blocked_numbers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_configs: {
         Row: {
           created_at: string
