@@ -4764,6 +4764,50 @@ export type Database = {
           },
         ]
       }
+      wa_customer_profiles: {
+        Row: {
+          addresses: Json
+          created_at: string
+          id: string
+          last_order_at: string | null
+          name: string | null
+          phone: string
+          restaurant_id: string
+          total_orders: number
+          updated_at: string
+        }
+        Insert: {
+          addresses?: Json
+          created_at?: string
+          id?: string
+          last_order_at?: string | null
+          name?: string | null
+          phone: string
+          restaurant_id: string
+          total_orders?: number
+          updated_at?: string
+        }
+        Update: {
+          addresses?: Json
+          created_at?: string
+          id?: string
+          last_order_at?: string | null
+          name?: string | null
+          phone?: string
+          restaurant_id?: string
+          total_orders?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_customer_profiles_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_blocked_numbers: {
         Row: {
           blocked_by: string | null

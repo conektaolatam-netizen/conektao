@@ -326,7 +326,191 @@ async function getConversation(rid: string, phone: string) {
   return cr;
 }
 
+// ==================== WA CUSTOMER MEMORY ====================
+
+/**
+ * Get (or create+backfill) a customer memory profile.
+ * - On first visit: backfills from whatsapp_orders history (max 5 orders).
+ * - On return visits: returns the existing profile immediately.
+ * This function NEVER throws — returns null on any error so the main flow is never blocked.
+ */
+async function getOrCreateWaCustomer(phone: string, rid: string): Promise<any | null> {
+  try {
+    // 1. Try to fetch existing profile
+    const { data: existing } = await supabase
+      .from("wa_customer_profiles")
+      .select("*")
+      .eq("restaurant_id", rid)
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`👤 WA_PROFILE_HIT: ${phone} → name=${existing.name}, addresses=${existing.addresses?.length || 0}`);
+      return existing;
+    }
+
+    // 2. First visit — backfill from order history
+    const { data: pastOrders } = await supabase
+      .from("whatsapp_orders")
+      .select("customer_name, delivery_address, created_at")
+      .eq("restaurant_id", rid)
+      .eq("customer_phone", phone)
+      .not("delivery_address", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const name: string | null = pastOrders?.[0]?.customer_name || null;
+    const addresses: any[] = [];
+    const seen = new Set<string>();
+    for (const o of (pastOrders || [])) {
+      const addr = (o.delivery_address || "").trim();
+      if (addr && !seen.has(addr)) {
+        seen.add(addr);
+        addresses.push({ address: addr, label: null, last_used_at: o.created_at });
+      }
+    }
+
+    const { data: created } = await supabase
+      .from("wa_customer_profiles")
+      .upsert(
+        {
+          restaurant_id: rid,
+          phone,
+          name,
+          addresses,
+          total_orders: pastOrders?.length || 0,
+          last_order_at: pastOrders?.[0]?.created_at || null,
+        },
+        { onConflict: "restaurant_id,phone" }
+      )
+      .select()
+      .single();
+
+    console.log(`👤 WA_PROFILE_CREATED: ${phone} → name=${name}, addresses=${addresses.length} (backfilled)`);
+    return created || null;
+  } catch (err) {
+    console.error(`👤 WA_PROFILE_ERROR: ${phone} — ${err}`);
+    return null; // Never block main flow
+  }
+}
+
+/**
+ * Update customer profile after an order is confirmed.
+ * - Upserts the delivery address into the addresses array.
+ * - Sorts addresses by last_used_at descending.
+ * - Keeps max 5 unique addresses (oldest removed if needed).
+ * This function NEVER throws — called fire-and-forget from saveOrder().
+ */
+async function updateWaCustomerProfile(
+  phone: string,
+  rid: string,
+  name: string | null,
+  deliveryAddress: string | null
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from("wa_customer_profiles")
+      .select("*")
+      .eq("restaurant_id", rid)
+      .eq("phone", phone)
+      .maybeSingle();
+
+    const now = new Date().toISOString();
+    const existingAddresses: any[] = profile?.addresses || [];
+
+    let newAddresses = [...existingAddresses];
+    if (deliveryAddress && deliveryAddress.trim()) {
+      const addr = deliveryAddress.trim();
+      // Remove if already exists (we'll re-add with fresh last_used_at)
+      newAddresses = newAddresses.filter((a: any) => a.address !== addr);
+      newAddresses.unshift({ address: addr, label: null, last_used_at: now });
+      // Keep max 5 unique addresses
+      newAddresses = newAddresses.slice(0, 5);
+    }
+
+    await supabase
+      .from("wa_customer_profiles")
+      .upsert(
+        {
+          restaurant_id: rid,
+          phone,
+          name: name || profile?.name || null,
+          addresses: newAddresses,
+          last_order_at: now,
+          total_orders: (profile?.total_orders || 0) + 1,
+        },
+        { onConflict: "restaurant_id,phone" }
+      );
+
+    console.log(`👤 WA_PROFILE_UPDATED: ${phone} → name=${name}, addr=${deliveryAddress || "pickup"}`);
+  } catch (err) {
+    console.error(`👤 WA_PROFILE_UPDATE_ERROR: ${phone} — ${err}`);
+    // Never block — order already confirmed and email already sent
+  }
+}
+
+/**
+ * Build a memory context block to inject into the prompt.
+ * Returns an empty string for new customers (no changes to flow).
+ *
+ * Casos:
+ *   A: nombre + 1 dirección  → pregunta si es la misma o es otra
+ *   B: nombre + 2+ dir       → ofrece elegir entre las 2 últimas (max)
+ *   C: nombre sin dirección  → usa nombre, pide dirección normalmente
+ *   D: sin nada              → retorna "" (flujo normal sin cambios)
+ */
+function buildCustomerMemoryContext(customer: any | null): string {
+  if (!customer) return "";
+  const { name, addresses } = customer;
+
+  const hasName = !!(name && name.trim() && name !== "Cliente WhatsApp" && name !== "Cliente");
+  const activeAddresses: any[] = Array.isArray(addresses) ? addresses.slice(0, 2) : []; // Max 2 para el prompt
+
+  if (!hasName && activeAddresses.length === 0) return ""; // Caso D — cliente completamente nuevo
+
+  const lines: string[] = [];
+  lines.push("--- MEMORIA CLIENTE RECURRENTE ---");
+
+  if (hasName) {
+    lines.push(`- Nombre conocido: "${name}" → Ya tienes su nombre. NO lo pidas. Úsalo directamente.`);
+  }
+
+  if (activeAddresses.length === 1) {
+    // Caso A
+    const addr = activeAddresses[0].address;
+    lines.push(`- Dirección guardada: "${addr}" (última usada).`);
+    lines.push(`- Cuando llegue el paso de dirección (pedido domicilio), pregunta EXACTAMENTE:`);
+    lines.push(`  "¿Te lo envío a ${addr} como la última vez o es otra dirección?"`);
+    lines.push(`- Si confirma ("sí", "la misma", "esa", etc.) → usa "${addr}" como delivery_address.`);
+    lines.push(`- Si dice otra → pídela y úsala. El sistema la guarda automáticamente.`);
+  } else if (activeAddresses.length >= 2) {
+    // Caso B
+    const addr1 = activeAddresses[0].address;
+    const addr2 = activeAddresses[1].address;
+    // Acortar para el mensaje (primeras 25 chars + "...")
+    const short1 = addr1.length > 30 ? addr1.substring(0, 28) + "…" : addr1;
+    const short2 = addr2.length > 30 ? addr2.substring(0, 28) + "…" : addr2;
+    lines.push(`- Direcciones guardadas:`);
+    lines.push(`  1. "${addr1}" (última usada)`);
+    lines.push(`  2. "${addr2}"`);
+    lines.push(`- Cuando llegue el paso de dirección (pedido domicilio), pregunta:`);
+    lines.push(`  "¿A dónde te lo envío: ${short1} o ${short2}? Si es otra, me la mandas."`);
+    lines.push(`- Máximo 2 opciones. NO listar más. Si dice número → usa la dirección completa correspondiente.`);
+    lines.push(`- Si dice "otra" o da una nueva → pídela y úsala.`);
+  } else if (hasName && activeAddresses.length === 0) {
+    // Caso C — solo nombre
+    lines.push(`- Sin dirección guardada → pedir normalmente cuando corresponda al domicilio.`);
+  }
+
+  lines.push(`- REGLA: Si el pedido es para recoger (pickup), NO preguntes por dirección.`);
+  lines.push(`- REGLA: Máximo 1 pregunta por mensaje. Nada de menús largos.`);
+  lines.push("--- FIN MEMORIA ---");
+
+  return "\n\n" + lines.join("\n");
+}
+
 // ==================== AI PROMPT BUILDING ====================
+
 
 function buildPrompt(
   products: any[],
@@ -1176,6 +1360,15 @@ async function saveOrder(
     // Email exception — order STAYS confirmed
     console.error(`📧 EMAIL_EXCEPTION { order_id: "${saved.id}", err: "${emailErr}" } — order confirmed regardless`);
   }
+
+  // ── STEP 4: Update WA customer profile (FIRE-AND-FORGET — never blocks) ──
+  // This runs after email logic so any failure here cannot affect confirmation or email.
+  updateWaCustomerProfile(
+    phone,
+    rid,
+    order.customer_name || null,
+    isDelivery ? (order.delivery_address || null) : null
+  ).catch((e) => console.error(`👤 WA_PROFILE_SAVE_ERROR: ${e}`));
 
   return saved.id;
 }
@@ -2122,6 +2315,12 @@ Deno.serve(async (req) => {
         ...config,
         _confirmed_at: freshOrderStatus === "confirmed" ? freshConv?.updated_at || conv.updated_at : null,
       };
+
+      // === CUSTOMER MEMORY INJECTION ===
+      // Load persistent customer profile (non-blocking — returns null on failure)
+      const waCustomer = await getOrCreateWaCustomer(from, rId);
+      const customerMemoryCtx = buildCustomerMemoryContext(waCustomer);
+
       const sys = buildPrompt(
         prodsWithCategory || [],
         config.promoted_products || [],
@@ -2130,8 +2329,8 @@ Deno.serve(async (req) => {
         freshCurrentOrder,
         freshOrderStatus,
         configWithTime,
-        freshCustomerName || "",
-      );
+        freshCustomerName || waCustomer?.name || "",
+      ) + customerMemoryCtx;
       const ai = await callAI(sys, mergedMsgs);
 
       const parsed = parseOrder(ai);
