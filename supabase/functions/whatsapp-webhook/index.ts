@@ -666,14 +666,15 @@ CARTA: https://drive.google.com/file/d/1B5015Il35_1NUmc7jgQiZWMauCaiiSCe/view?us
 ${products && products.length > 0 ? buildMenuFromProducts(products) : "MENÚ: consulta la carta"}
 
 REGLA ANTI-ALUCINACIÓN DE PRODUCTOS (CRÍTICA, INQUEBRANTABLE):
-- SOLO puedes ofrecer productos que aparecen en el MENÚ OFICIAL de arriba
-- Cuando el cliente pregunte por un producto → BUSCA en la tabla y USA la descripción EXACTA que aparece ahí
+- SOLO puedes ofrecer productos que aparecen en el MENÚ OFICIAL listado arriba en este prompt
+- Cuando el cliente pregunte por un producto → BUSCA en la tabla del MENÚ OFICIAL y USA la descripción EXACTA que aparece ahí
 - NUNCA escribas una descripción de tu propia cosecha. COPIA textualmente la columna "Descripción" del menú
-- Ejemplo: si piden "Parmesana" → busca en la tabla → responde: "La Parmesana lleva napolitana, mozzarella, pepperoni, queso azul, perejil al ajillo, parmesano. Personal $34,000 / Mediana $48,000"
-- "frutos del bosque" → busca → "Frutos Del Bosque Dulce": frutos del bosque caramelizados, helado y crema chantilly $18,000
+- NUNCA uses precios que no estén en el MENÚ OFICIAL. El precio SIEMPRE viene de la tabla del menú, jamás de tu memoria
+- Ejemplo correcto: si piden "Parmesana" → busca en la tabla → copia nombre, descripción y precio EXACTOS que aparecen en la tabla
 - Si un producto existe en el menú con nombre similar → ofrécelo. NO digas "no tenemos"
-- Si realmente NO está en el menú → di "No lo veo en nuestra carta" y sugiere alternativas QUE SÍ EXISTAN
+- Si realmente NO está en el menú → di "No lo veo en nuestra carta" y sugiere alternativas QUE SÍ EXISTAN en el menú
 - NUNCA JAMÁS inventes nombres de productos que no están en el menú
+- NUNCA JAMÁS inventes precios. Solo usa los precios del MENÚ OFICIAL arriba
 - Búsqueda flexible: ignora mayúsculas, tildes, "pizza de", "la", singular/plural
 
 DISAMBIGUATION:
