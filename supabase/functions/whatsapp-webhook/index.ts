@@ -1261,15 +1261,33 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
     }
 
     case "resend_recent_orders": {
-      // Reenvía emails de todos los pedidos recientes a conektaolatam@gmail.com
+      // Reenvía emails de todos los pedidos recientes al correo configurado en whatsapp_configs
+      let bodyResend: any = {};
+      try { bodyResend = await req.clone().json(); } catch(_) {}
       const daysBack = parseInt(url.searchParams.get("days") || "7");
-      const overrideTo = url.searchParams.get("to") || "conektaolatam@gmail.com";
       const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
-      const { data: recentOrders } = await supabase
+      const resendRestaurantId = bodyResend.restaurant_id;
+
+      // Read configured order_email from whatsapp_configs (respects the actual config)
+      let overrideTo = bodyResend.override_email || null;
+      if (!overrideTo && resendRestaurantId) {
+        const { data: cfgRow } = await supabase
+          .from("whatsapp_configs")
+          .select("order_email")
+          .eq("restaurant_id", resendRestaurantId)
+          .maybeSingle();
+        overrideTo = cfgRow?.order_email || null;
+      }
+      if (!overrideTo) overrideTo = "conektaolatam@gmail.com"; // final fallback
+
+      const ordersQuery = supabase
         .from("whatsapp_orders")
         .select("*")
         .gte("created_at", since)
         .order("created_at", { ascending: false });
+      if (resendRestaurantId) ordersQuery.eq("restaurant_id", resendRestaurantId);
+
+      const { data: recentOrders } = await ordersQuery;
       if (!recentOrders?.length)
         return new Response(JSON.stringify({ sent: 0, message: "No orders found in period" }), {
           status: 200,
