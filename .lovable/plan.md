@@ -1,80 +1,123 @@
 
-# Plan: Auditoria y Correccion Total del Catalogo de Alicia WhatsApp
+## Diagnóstico: Clientes Recurrentes Bloqueando Email
 
-## Resumen del Problema
+### Problema Identificado
 
-Alicia esta usando precios incorrectos porque la tabla `products` en Supabase tiene datos desactualizados. De los ~100 productos activos, la mayoria tiene precios por debajo del valor real. Ademas, faltan productos del listado oficial y la tabla no tiene columna `is_recommended`.
+**La causa raíz está en `getConversation()` (línea 287-302).**
 
-## Discrepancias Detectadas
+La función busca una conversación por `restaurant_id + customer_phone`. Si ya existe una conversación para ese número (de un pedido anterior de hoy o de días anteriores), la reutiliza. Esto significa:
 
-Se encontraron **diferencias de precio en practicamente todos los productos**. Ejemplos criticos:
+- Cliente pide a las 12pm → conversación creada, `order_status = "emailed"`
+- Cliente pide a las 2pm → `getConversation()` devuelve la MISMA conversación con `order_status = "emailed"`
+- El bloque de IDEMPOTENCY (línea 1700-1724) detecta `order_status === "emailed"` + `current_order` existente → **bloquea el flujo completo antes de llegar a confirmación**
 
-| Producto | Precio BD Actual | Precio Oficial |
-|----------|-----------------|----------------|
-| Gaseosa | $7.000 | $8.000 |
-| Hamburguesa Italiana | $34.000 | $38.000 |
-| Langostinos Parrillados | $48.000 | $52.000 |
-| Mojito | $36.000 | $40.000 |
-| Piña Colada | $32.000 | $38.000 |
-| Fettuccine Con Camarones | $44.000 | $46.000 |
-| Todas las pizzas | Incorrectas | Deben actualizarse |
-| Todas las pizzas dulces | Incorrectas | Deben actualizarse |
+El bloqueo no es en el email directamente, sino en el flujo de conversación que nunca llega a `saveOrder()`.
 
-## Pasos de Implementacion
+### Problema Secundario: DEDUP por Teléfono en 2 Minutos (Línea 1079-1092)
 
-### Paso 1: Agregar columna `is_recommended` a la tabla products
-- Migracion SQL para agregar la columna boolean con default `false`
-- Esto permite que Alicia marque productos recomendados con estrella
+```typescript
+// ── DEDUP GUARD 2: time-based fallback (2 min window)
+const { data: recentDup } = await supabase
+  .from("whatsapp_orders")
+  .select("id")
+  .eq("customer_phone", phone)      // ← por teléfono
+  .eq("restaurant_id", rid)
+  .gt("created_at", twoMinAgo)      // ← solo últimos 2 min
+  .limit(1)
+  .maybeSingle();
+if (recentDup) {
+  return recentDup.id;  // ← bloquea sin enviar email
+}
+```
 
-### Paso 2: Crear categorias faltantes
-- Las categorias "Entradas", "Cocina Italiana" y "Pizzas Dulces" ya existen en la BD pero algunos productos los referenciaban con IDs diferentes
-- Verificar que todos los category_id apuntan correctamente
+Este guard existe para deduplicar dobles-webhooks de Meta (Meta puede enviar el mismo mensaje 2 veces en milisegundos). Es válido para eso. Pero si el cliente genuinamente hace 2 pedidos en menos de 2 minutos, también los bloquea. Sin embargo, el caso más crítico es el primero.
 
-### Paso 3: Desactivar TODOS los productos actuales de La Barra
-- `UPDATE products SET is_active = false WHERE user_id IN (perfiles de La Barra)`
-- Esto garantiza que no queden productos fantasma activos
+### Solución: 3 Cambios Quirúrgicos
 
-### Paso 4: Insertar/Actualizar los 109 productos oficiales
-- Para cada producto del listado oficial:
-  - Si existe por nombre exacto (case-insensitive) y misma categoria: UPDATE precio, descripcion, is_recommended, is_active=true
-  - Si no existe: INSERT nuevo registro
-- Productos con multiples tamaños (Sangria Tinto copa/jarra/jarra grande) se manejan como registros separados con nombres diferenciados
+**Cambio 1 — `getConversation()`: Resetear conversación al detectar cliente que vuelve a pedir**
 
-### Paso 5: Limpiar duplicados
-- Verificar que no queden dos productos activos con el mismo nombre en la misma categoria
-- Conservar el registro mas reciente en caso de duplicados
+La lógica correcta es: si la conversación existente está en estado `confirmed`, `emailed`, o `sent`, significa que el pedido anterior ya está cerrado. Un nuevo mensaje de este cliente debe iniciar un flujo fresco.
 
-### Paso 6: Manejo especial de Sangrias
-- Sangria Tinto tiene 3 precios: $26.000 / $57.000 / $86.000
-- Sangria Blanco tiene 3 precios: $28.000 / $60.000 / $92.000
-- Se crearan como: "Sangria Tinto Copa", "Sangria Tinto Jarra", "Sangria Tinto Jarra Grande" (igual para Blanco)
-- Esto requiere confirmacion del usuario sobre los nombres de los tamaños
+```typescript
+async function getConversation(rid: string, phone: string) {
+  const { data: ex } = await supabase
+    .from("whatsapp_conversations")
+    .select("*")
+    .eq("restaurant_id", rid)
+    .eq("customer_phone", phone)
+    .maybeSingle();
+  
+  if (ex) {
+    // Si el pedido anterior ya está cerrado (confirmed/emailed/sent)
+    // → resetear a estado 'none' para permitir nuevo pedido
+    const closedStatuses = ["confirmed", "emailed", "sent"];
+    if (closedStatuses.includes(ex.order_status)) {
+      const { data: reset } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          order_status: "none",
+          current_order: null,
+          pending_since: null,
+          payment_proof_url: null,
+        })
+        .eq("id", ex.id)
+        .select()
+        .single();
+      console.log(`🔄 CONV_RESET: Phone ${phone} returning after closed order → fresh state`);
+      return reset || ex;
+    }
+    return ex;
+  }
+  
+  // Nueva conversación
+  const { data: cr, error } = await supabase
+    .from("whatsapp_conversations")
+    .insert({ restaurant_id: rid, customer_phone: phone, messages: [], order_status: "none" })
+    .select()
+    .single();
+  if (error) throw error;
+  return cr;
+}
+```
 
-### Paso 7: Manejo de Tapas Españolas
-- El listado incluye 3 variantes de tapas, se crearan como productos separados con nombres descriptivos
+**Cambio 2 — IDEMPOTENCY check (línea 1700): Ajustar para no bloquear si ya fue reseteada**
 
-### Paso 8: Verificar que `buildMenuFromProducts` refleja los cambios
-- La funcion ya lee dinamicamente de la BD, no requiere cambios en codigo
-- Los precios se actualizaran automaticamente en el proximo mensaje de Alicia
+El reset en `getConversation()` garantiza que `conv.order_status` nunca sea `confirmed/emailed` al iniciar un nuevo pedido. El bloque de idempotency existente es correcto — solo actúa si `current_order` existe, que tras el reset será `null`.
 
-### Paso 9: Verificar `validateOrder`
-- La funcion ya valida precios contra BD en tiempo real
-- Con los precios correctos, las validaciones seran correctas automaticamente
+**Cambio 3 — DEDUP GUARD 2: Acortar ventana de 120s a 30s**
 
-## Lo que NO se modifica
-- El flujo conversacional de Alicia (personalidad, pasos, confirmaciones)
-- La funcion `buildMenuFromProducts` (ya funciona correctamente)
-- La funcion `validateOrder` (ya funciona correctamente)
-- El historial de pedidos antiguos
-- La logica de empaques y domicilios
+120 segundos es demasiado amplio. Meta re-envía webhooks en menos de 5 segundos. 30 segundos es suficiente para deduplicar dobles-webhooks sin bloquear pedidos legítimos consecutivos.
 
-## Detalles Tecnicos
+```typescript
+const thirtySecAgo = new Date(Date.now() - 30 * 1000).toISOString();
+// en lugar de 120 * 1000
+```
 
-### Archivos a modificar
-- **Migracion SQL**: Agregar columna `is_recommended` a `products`
-- **Operaciones de datos**: UPDATE/INSERT en tabla `products` (109 registros)
-- **No se modifica**: `supabase/functions/whatsapp-webhook/index.ts`
+### Archivos a Modificar
 
-### Pregunta pendiente
-- Las Sangrias tienen 3 precios cada una. Necesito saber como nombrar los tamaños (Copa/Jarra/Jarra Grande, o Vaso/Media/Completa, etc.)
-- La linea del listado `)| 39000 | Tapas Españolas | no` parece un error de formato. Confirmar si son 3 variantes de tapas o una sola.
+- `supabase/functions/whatsapp-webhook/index.ts`
+  - `getConversation()` (línea 287-302): agregar lógica de reset de conversación cerrada
+  - DEDUP GUARD 2 (línea 1080): cambiar ventana de 120s a 30s
+
+### Idempotencia Final (Correcto)
+
+| Escenario | Comportamiento |
+|---|---|
+| Cliente pide 12pm → email enviado | `order_status = "emailed"` |
+| Cliente dice "gracias" → mismo pedido | IDEMPOTENCY actúa correctamente (current_order existe) |
+| Cliente vuelve a las 2pm → nuevo pedido | `getConversation()` detecta "emailed" → resetea → flujo fresco → email nuevo |
+| Mismo webhook de Meta llega 2 veces (< 30s) | DEDUP GUARD 2 bloquea duplicado |
+| Cliente pide 3 veces en 20 min | 3 pedidos distintos → 3 emails |
+| "Sí confirmar" enviado 2 veces mismo pedido | IDEMPOTENCY por `conversation_id + status=received` bloquea solo 1 |
+
+### Lo que NO cambia
+
+- Prompt de Alicia
+- Personalidad
+- Flujo de confirmación
+- Lógica de email
+- Cálculo de precios
+- Base de datos (sin migraciones)
+- Lógica de pago
+- Estados de conversación
+- Tags internos
