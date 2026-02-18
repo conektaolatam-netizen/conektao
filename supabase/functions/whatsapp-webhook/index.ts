@@ -1613,6 +1613,35 @@ Deno.serve(async (req) => {
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
       const lowerTextTrim = text.toLowerCase().trim().replace(/[.,!?¿¡]+/g, "").trim();
       
+      // --- EMAIL RETRY: If confirmed but email never sent, retry before anything else ---
+      if (conv.order_status === "confirmed" && conv.current_order) {
+        const { data: pendingOrder } = await supabase
+          .from("whatsapp_orders")
+          .select("id, email_sent")
+          .eq("conversation_id", conv.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (pendingOrder && !pendingOrder.email_sent) {
+          console.log(`📧 EMAIL_PENDING_RETRY: order_id=${pendingOrder.id} - retrying email`);
+          const orderData: any = conv.current_order;
+          const isDelivery = (orderData?.delivery_type === "delivery");
+          const html = buildOrderEmailHtml(orderData, from, isDelivery);
+          const subject = `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${orderData?.customer_name || "Cliente"} - $${(orderData?.total || 0).toLocaleString("es-CO")}`;
+          const retried = await sendEmail(config.order_email, subject, html);
+          if (retried) {
+            await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", pendingOrder.id);
+            await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", conv.id);
+            console.log(`📧 EMAIL_RETRY_SUCCESS: order_id=${pendingOrder.id} → emailed`);
+            // Update conv locally for the rest of this request
+            conv.order_status = "emailed";
+          } else {
+            console.log(`📧 EMAIL_RETRY_FAIL: order_id=${pendingOrder.id} - will retry on next message`);
+          }
+        }
+      }
+
       // --- IDEMPOTENCY: If already confirmed/emailed, never re-confirm ---
       if (
         (conv.order_status === "confirmed" || conv.order_status === "emailed") &&
