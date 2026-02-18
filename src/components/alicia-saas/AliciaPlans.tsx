@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Check, Zap, Building } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import AliciaContactModal from "./AliciaContactModal";
 
 const AliciaPlans = () => {
-  const navigate = useNavigate();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"alicia" | "enterprise">("alicia");
   const { ref: titleRef, isVisible: titleVisible } = useScrollReveal();
   const { ref: cardsRef, isVisible: cardsVisible } = useScrollReveal({ threshold: 0.1 });
 
@@ -73,7 +74,7 @@ const AliciaPlans = () => {
             </ul>
 
             <button
-              onClick={() => navigate("/alicia/registro?plan=alicia")}
+              onClick={() => { setSelectedPlan("alicia"); setModalOpen(true); }}
               className="w-full py-3 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 touch-feedback"
             >
               Contratar a ALICIA
@@ -118,10 +119,7 @@ const AliciaPlans = () => {
             </ul>
 
             <button
-              onClick={() => {
-                const el = document.getElementById("contacto");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
+              onClick={() => { setSelectedPlan("enterprise"); setModalOpen(true); }}
               className="w-full py-3 rounded-xl font-semibold text-secondary border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 active:scale-95 touch-feedback"
             >
               Contactar ventas
@@ -129,6 +127,12 @@ const AliciaPlans = () => {
           </div>
         </div>
       </div>
+
+      <AliciaContactModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        plan={selectedPlan}
+      />
     </section>
   );
 };
