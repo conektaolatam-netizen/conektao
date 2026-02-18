@@ -1,210 +1,155 @@
 
-## Diagnóstico Final y Plan de Implementación: Memoria de Cliente en Alicia
+# Mejora UX Mobile /alicia — Scroll Effects + Carga Instantánea del Avatar
 
-### Estado Actual Confirmado
+## Objetivo
+Hacer que la página `/alicia` en celular se sienta premium, fluida y moderna — estilo Apple. Sin cambiar orden ni contenido. Solo efectos visuales y velocidad de carga.
 
-**¿Qué existe hoy?**
-- `whatsapp_orders`: guarda `customer_phone`, `customer_name`, `delivery_address` por pedido. Es la única fuente de historial.
-- `whatsapp_conversations`: guarda `customer_name` en su columna pero se **resetea** en cada nuevo pedido (per el fix anterior — `getConversation()` borra `current_order` pero mantiene `customer_name` si ya estaba en la fila).
-- El hook ya existe en línea 683: `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo` — pero `freshCustomerName` solo viene de `whatsapp_conversations.customer_name`, que puede estar vacío o ser de otro pedido.
-- **No existe tabla de perfiles de clientes WhatsApp.** El `customers` que existe es para facturación electrónica (documento, NIT, email), completamente distinto.
-- **No existe historial de direcciones** — solo la más reciente en cada `whatsapp_orders`.
+## Diagnóstico Actual
 
-**¿Qué pasa hoy con cliente recurrente?**
-- Alicia vuelve a pedir nombre y dirección siempre, aunque el cliente ya haya pedido 10 veces antes. El historial de pedidos pasados nunca se lee para enriquecer el contexto.
+**Problemas detectados:**
+1. **Avatar lenta en cargar**: La imagen se carga como `<img src="/lovable-uploads/...">` sin preload ni skeleton, así que el usuario ve el anillo gradient vacío por un momento antes de que aparezca la foto.
+2. **Cero efectos de scroll**: Todos los elementos aparecen estáticos. No hay `IntersectionObserver`, no hay entrada animada al hacer scroll — los cards, pasos y beneficios simplemente están ahí desde el inicio.
+3. **Mobile sin optimización de tacto**: Los botones y cards no tienen feedback háptico visual inmediato en mobile. Los `hover:` de CSS no funcionan en touch.
 
----
+## Solución — 3 Capas de Mejoras
 
-### Lo que se toca (mínimo quirúrgico)
+### Capa 1: Carga Instantánea del Avatar (Apple-style)
 
-**1 tabla nueva:** `wa_customer_profiles`  
-**1 función nueva:** `getOrCreateWaCustomer(phone, rid)` dentro del edge function  
-**1 upsert nuevo:** al guardar pedido (`saveOrder`) → actualiza perfil  
-**1 inyección de contexto:** antes de llamar `buildPrompt()` en el flujo normal
+**En `AliciaHero.tsx`:**
+- Agregar `loading="eager"` + `fetchPriority="high"` al `<img>` del avatar
+- Mostrar un **skeleton shimmer** mientras carga, que hace `fade-out` suave cuando la imagen termina de cargar (con `onLoad` callback + estado `loaded`)
+- El skeleton tiene el mismo gradiente naranja/turquesa que el borde, así se ve como si el avatar estuviera "materializándose"
+- Añadir `decoding="async"` para no bloquear el render
 
-**No se toca:**
-- Prompt central de personalidad
-- Lógica de confirmación (`saveOrder`, tags, estados)
-- Envío de email
-- Cálculo de precios / empaque
-- Tablas existentes (sin ALTER a `whatsapp_orders` ni `whatsapp_conversations`)
+```tsx
+const [avatarLoaded, setAvatarLoaded] = useState(false);
 
----
+// Skeleton con shimmer naranja/turquesa mientras carga
+<div className={`absolute inset-0 rounded-full transition-opacity duration-500 ${avatarLoaded ? 'opacity-0' : 'opacity-100'}`}
+  style={{ background: 'linear-gradient(135deg, hsl(25 100% 50% / 0.3), hsl(174 100% 40% / 0.3))' }}>
+  <div className="shimmer-apple" />
+</div>
 
-### Tabla Nueva: `wa_customer_profiles`
-
-```sql
-CREATE TABLE public.wa_customer_profiles (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  phone text NOT NULL,
-  name text,
-  addresses jsonb DEFAULT '[]'::jsonb,  -- [{address, label, last_used_at}]
-  last_order_at timestamptz,
-  total_orders integer DEFAULT 0,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE(restaurant_id, phone)
-);
-
--- RLS: solo backend (service role)
-ALTER TABLE public.wa_customer_profiles ENABLE ROW LEVEL SECURITY;
+<img
+  src="/lovable-uploads/c9d1c030-551a-4426-afb8-92aad9669c40.png"
+  loading="eager"
+  fetchPriority="high"
+  decoding="async"
+  onLoad={() => setAvatarLoaded(true)}
+  className={`transition-opacity duration-700 ${avatarLoaded ? 'opacity-100' : 'opacity-0'} ...`}
+/>
 ```
 
-La columna `addresses` es un array JSONB con estructura:
-```json
-[
-  {"address": "Balcones del Vergel Torre 5 Apto 401", "label": null, "last_used_at": "2026-02-18T15:00:00Z"},
-  {"address": "Wakari Torre 1 Apto 1404", "label": "Mamá", "last_used_at": "2026-02-17T20:00:00Z"}
-]
-```
+**Animación de entrada del avatar**: El avatar hace una entrada tipo Apple — empieza en `scale(0.85) opacity(0)` y hace `spring` a `scale(1) opacity(1)` en 600ms con `ease-out`. Se usa CSS puro (no framer-motion) para no añadir dependencias.
 
-Ordenadas por `last_used_at` descendente: `[0]` = última usada, `[1]` = anterior.
+### Capa 2: Scroll Effects — `useScrollReveal` Hook Propio
 
----
+Crear un hook `useScrollReveal` basado en `IntersectionObserver` que no agrega dependencias externas:
 
-### Lógica Nueva en Edge Function
-
-**Función `getOrCreateWaCustomer(phone, rid)`:**
-```typescript
-async function getOrCreateWaCustomer(phone: string, rid: string) {
-  const { data } = await supabase
-    .from("wa_customer_profiles")
-    .select("*")
-    .eq("restaurant_id", rid)
-    .eq("phone", phone)
-    .maybeSingle();
+```tsx
+// src/hooks/useScrollReveal.ts
+export function useScrollReveal(options = {}) {
+  const ref = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
   
-  if (data) return data;
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+      { threshold: 0.15, rootMargin: '0px 0px -60px 0px', ...options }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
   
-  // Inicializar desde historial de pedidos previos
-  const { data: pastOrders } = await supabase
-    .from("whatsapp_orders")
-    .select("customer_name, delivery_address, created_at")
-    .eq("restaurant_id", rid)
-    .eq("customer_phone", phone)
-    .not("delivery_address", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(5);
-  
-  const name = pastOrders?.[0]?.customer_name || null;
-  const addresses = [];
-  const seen = new Set<string>();
-  for (const o of (pastOrders || [])) {
-    if (o.delivery_address && !seen.has(o.delivery_address)) {
-      seen.add(o.delivery_address);
-      addresses.push({ address: o.delivery_address, label: null, last_used_at: o.created_at });
-    }
-  }
-  
-  const { data: created } = await supabase
-    .from("wa_customer_profiles")
-    .upsert({ restaurant_id: rid, phone, name, addresses, total_orders: pastOrders?.length || 0 }, { onConflict: "restaurant_id,phone" })
-    .select().single();
-  
-  return created;
+  return { ref, isVisible };
 }
 ```
 
-**Upsert en `saveOrder()` al final (después de guardar el pedido):**
-```typescript
-// Actualizar perfil del cliente WA
-if (order.delivery_address) {
-  // Leer perfil actual, añadir dirección si no existe, actualizar last_used_at
-  const { data: profile } = await supabase.from("wa_customer_profiles")...
-  // upsert con addresses actualizado
+### Capa 3: Efectos por Sección
+
+**`AliciaHero`** — ya visible al cargar, no necesita scroll reveal. Solo mejora de avatar.
+
+**`AliciaSteps`** — Cada card entra con:
+- `translateY(40px) → 0` + `opacity(0) → 1`
+- Delay escalonado: card 1 = 0ms, card 2 = 100ms, card 3 = 200ms, card 4 = 300ms
+- En mobile: en vez de los 4 side-by-side, se apilan verticalmente y cada uno aparece al llegar al viewport
+
+**`AliciaBenefits`** — Los 4 metric cards entran con efecto de "conteo" visual:
+- Cada card hace `scale(0.9) blur(4px) → scale(1) blur(0)` al entrar
+- El número grande (`+15%`, `100%`, `24/7`) hace una animación de "pop" separada con delay de 200ms después de que el card aparece
+- En mobile (el glow `onMouseEnter/Leave` no funciona en touch): reemplazado por un `box-shadow` permanente suave que se activa con `isVisible`
+
+**`AliciaDemoChat`** — El card del chat entra con:
+- `translateY(60px) → 0` con `ease-out` 700ms
+- El borde glow del chat hace `pulse` suave después de entrar (refuerza que "está vivo")
+
+**`AliciaPlans`** — Los 2 cards de planes entran:
+- Card izquierdo: entra desde `translateX(-30px)`
+- Card derecho: entra desde `translateX(30px)`
+- Simultáneo al llegar al viewport
+
+**Sección Contacto y Footer** — Fade-in simple `opacity(0) → 1` con `translateY(20px) → 0`
+
+### CSS Nuevo en `index.css`
+
+```css
+/* Shimmer Apple-style para avatar */
+@keyframes shimmerApple {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
+
+.shimmer-apple {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: linear-gradient(90deg, transparent 25%, hsl(25 100% 50% / 0.2) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmerApple 1.5s infinite;
+}
+
+/* Scroll reveal base */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Variantes de entrada */
+.scroll-reveal-left { transform: translateX(-30px) translateY(0); }
+.scroll-reveal-left.visible { transform: translateX(0); }
+.scroll-reveal-right { transform: translateX(30px) translateY(0); }
+.scroll-reveal-right.visible { transform: translateX(0); }
+.scroll-reveal-scale { transform: scale(0.9); filter: blur(4px); }
+.scroll-reveal-scale.visible { transform: scale(1); filter: blur(0px); }
+
+/* Delays para escalonado */
+.reveal-delay-1 { transition-delay: 0ms; }
+.reveal-delay-2 { transition-delay: 120ms; }
+.reveal-delay-3 { transition-delay: 240ms; }
+.reveal-delay-4 { transition-delay: 360ms; }
 ```
 
-**Inyección de contexto en el flujo normal (línea ~2117):**
-```typescript
-// ANTES de buildPrompt()
-const waCustomer = await getOrCreateWaCustomer(from, rId);
-const customerMemoryCtx = buildCustomerMemoryContext(waCustomer);
-// customerMemoryCtx se añade al final del sistema prompt de Alicia
-```
+## Archivos a Modificar
 
-**Función `buildCustomerMemoryContext(customer)`:**
-Genera el bloque de texto a inyectar según el caso:
-
-- **Caso A — tiene nombre + 1 dirección:**
-  ```
-  MEMORIA CLIENTE RECURRENTE:
-  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
-  - Dirección guardada: "Balcones del Vergel Torre 5 Apto 401" (última usada)
-  - Cuando llegue el paso de dirección, pregunta: "¿Te lo envío a Balcones del Vergel Torre 5 Apto 401 como la última vez o es otra?"
-  - Si confirma → úsala. Si dice otra → pídela y el sistema la guarda.
-  - NO hagas más preguntas de las necesarias.
-  ```
-
-- **Caso B — tiene nombre + 2+ direcciones:**
-  ```
-  MEMORIA CLIENTE RECURRENTE:
-  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
-  - Direcciones guardadas:
-    1. "Balcones del Vergel Torre 5 Apto 401" (última usada)
-    2. "Wakari Torre 1 Apto 1404"
-  - Pregunta: "¿A dónde te lo envío: Balcones del Vergel o Wakari? Si es otra, me la mandas."
-  - Máximo 2 opciones. NO listar más.
-  ```
-
-- **Caso C — tiene solo nombre, sin dirección:**
-  ```
-  MEMORIA CLIENTE RECURRENTE:
-  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
-  - Sin dirección guardada → pedirla normalmente cuando corresponda.
-  ```
-
-- **Caso D — cliente nuevo:** no se añade nada al prompt (flujo normal).
-
----
-
-### Flujo Completo con Memoria
-
-```text
-1. Mensaje llega de phone X
-2. getConversation() → conv fresca (ya implementado)
-3. getOrCreateWaCustomer() → lee historial de whatsapp_orders
-4. buildCustomerMemoryContext() → genera bloque de texto
-5. buildPrompt() recibe: freshCustomerName + customerMemoryCtx al final
-6. Alicia responde SIN pedir lo que ya sabe
-7. Al confirmar pedido: saveOrder() hace upsert en wa_customer_profiles
-   → añade/actualiza dirección, actualiza total_orders, last_order_at
-```
-
----
-
-### Puntos Críticos de Seguridad
-
-- `getOrCreateWaCustomer()` es llamada SOLO en el bloque de procesamiento normal (después del bloqueo IDEMPOTENCY, antes de `callAI`). No se llama en confirmación ni en email, no afecta esos flujos.
-- El upsert de `saveOrder()` usa `try/catch` separado — si falla, el pedido ya está guardado y el email ya fue enviado. El perfil del cliente nunca bloquea la operación principal.
-- RLS: tabla con service role only → el edge function usa service role, ningún cliente puede leerla/modificarla directamente.
-- El `DEDUP GUARD 2` (30s, ya implementado) no interactúa con esta tabla.
-
----
-
-### Archivos a Modificar
-
-- `supabase/functions/whatsapp-webhook/index.ts`:
-  1. Añadir `getOrCreateWaCustomer()` (función nueva, ~30 líneas)
-  2. Añadir `buildCustomerMemoryContext()` (función nueva, ~25 líneas)
-  3. Añadir upsert de perfil al final de `saveOrder()` (~15 líneas)
-  4. Llamar `getOrCreateWaCustomer()` antes de `buildPrompt()` en el flujo principal (~3 líneas)
-  5. Pasar `customerMemoryCtx` como parámetro adicional al final del prompt
-
-### Migración de Base de Datos
-
-- Crear tabla `wa_customer_profiles` con RLS habilitado (service role only)
-- No modificar tablas existentes
-
-### Escenarios Validados
-
-| Escenario | Resultado Esperado |
+| Archivo | Cambio |
 |---|---|
-| Cliente nuevo | Flujo normal, sin cambios |
-| Cliente con 1 pedido previo | Alicia saluda por nombre, propone dirección anterior |
-| Cliente con 2+ pedidos / 2 direcciones | Ofrece elegir entre las 2 últimas |
-| Cliente confirma misma dirección | Upsert actualiza `last_used_at` |
-| Cliente da nueva dirección | Se agrega al array `addresses`, sin borrar anteriores |
-| Fallo en upsert de perfil | Pedido ya confirmado, email ya enviado, fallo silencioso |
-| Cliente pide en pickup (recoger) | Solo nombre, sin lógica de dirección |
+| `src/components/alicia-saas/AliciaHero.tsx` | Avatar eager load + skeleton shimmer + entrada animada |
+| `src/components/alicia-saas/AliciaSteps.tsx` | Scroll reveal escalonado por card |
+| `src/components/alicia-saas/AliciaBenefits.tsx` | Scroll reveal + pop en métricas + glow mobile-friendly |
+| `src/components/alicia-saas/AliciaDemoChat.tsx` | Scroll reveal + glow pulse post-entrada |
+| `src/components/alicia-saas/AliciaPlans.tsx` | Scroll reveal left/right |
+| `src/pages/AliciaLanding.tsx` | Sección contacto + footer con reveal |
+| `src/hooks/useScrollReveal.ts` | Hook nuevo (archivo nuevo, ~25 líneas) |
+| `src/index.css` | Keyframes + clases CSS nuevas |
+
+## Lo que NO cambia
+- Orden de secciones
+- Texto e información de cada sección
+- Lógica del chat demo (AliciaDemoChat)
+- Colores del design system
+- El prompt de Alicia
+- Flujo de pedidos
+- Nada de backend
