@@ -1,32 +1,50 @@
-import React from "react";
+import React, { useState } from "react";
 import { Bot, Sparkles } from "lucide-react";
-import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 const AliciaHero = () => {
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
+
   return (
     <section className="relative z-10 min-h-screen flex items-center justify-center p-4">
       <div className="max-w-5xl mx-auto text-center">
+
         {/* ALICIA Avatar */}
-        <div className="mb-10 flex justify-center">
+        <div className="mb-10 flex justify-center alicia-hero-enter">
           <div
             className="w-52 h-52 sm:w-64 sm:h-64 rounded-full p-1 alicia-breathing"
             style={{
-              background: 'linear-gradient(135deg, hsl(25 100% 50%), hsl(174 100% 40%))'
-            }}>
+              background: "linear-gradient(135deg, hsl(25 100% 50%), hsl(174 100% 40%))",
+            }}
+          >
+            <div className="relative w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
+              {/* Shimmer skeleton */}
+              <div
+                className={`absolute inset-0 rounded-full transition-opacity duration-700 ${
+                  avatarLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+                }`}
+              >
+                <div className="shimmer-apple w-full h-full rounded-full" />
+              </div>
 
-            <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
+              {/* Avatar */}
               <img
-
+                src="/lovable-uploads/c9d1c030-551a-4426-afb8-92aad9669c40.png"
                 alt="ALICIA - Vendedora IA"
-                className="w-[130%] h-[130%] object-cover rounded-full"
-                style={{ objectPosition: '50% 20%' }} src="/lovable-uploads/c9d1c030-551a-4426-afb8-92aad9669c40.png" />
-
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                onLoad={() => setAvatarLoaded(true)}
+                className={`w-[130%] h-[130%] object-cover rounded-full transition-opacity duration-700 ${
+                  avatarLoaded ? "opacity-100" : "opacity-0"
+                }`}
+                style={{ objectPosition: "50% 20%" }}
+              />
             </div>
           </div>
         </div>
 
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-5 py-2 mb-6 rounded-full border border-primary/30 bg-black/60 backdrop-blur-xl">
+        <div className="inline-flex items-center gap-2 px-5 py-2 mb-6 rounded-full border border-primary/30 bg-black/60 backdrop-blur-xl alicia-hero-enter" style={{ animationDelay: "100ms" }}>
           <Sparkles className="w-4 h-4 text-primary animate-pulse" />
           <span className="text-sm font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Vendedora IA por WhatsApp
@@ -34,7 +52,7 @@ const AliciaHero = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 alicia-hero-enter" style={{ animationDelay: "200ms" }}>
           <span className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground bg-clip-text text-transparent">
             Conoce a{" "}
           </span>
@@ -42,15 +60,15 @@ const AliciaHero = () => {
             className="bg-gradient-to-r from-primary via-primary to-secondary bg-clip-text text-transparent"
             style={{
               filter:
-              "brightness(1.4) saturate(1.8) drop-shadow(0 0 20px hsl(25 100% 50% / 0.6)) drop-shadow(0 0 40px hsl(174 100% 29% / 0.4))"
-            }}>
-
+                "brightness(1.4) saturate(1.8) drop-shadow(0 0 20px hsl(25 100% 50% / 0.6)) drop-shadow(0 0 40px hsl(174 100% 29% / 0.4))",
+            }}
+          >
             ALICIA
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-semibold mb-8 px-4">
+        <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-semibold mb-8 px-4 alicia-hero-enter" style={{ animationDelay: "300ms" }}>
           Tu mejor vendedora.{" "}
           <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-bold">
             24/7. Sin descansos. Sin errores.
@@ -58,24 +76,24 @@ const AliciaHero = () => {
         </p>
 
         {/* CTA */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center px-4 alicia-hero-enter" style={{ animationDelay: "420ms" }}>
           <a
             href="#demo"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-primary-foreground rounded-xl bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 border border-primary/30">
-
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-primary-foreground rounded-xl bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/30"
+          >
             <Bot className="mr-2 h-5 w-5" />
             Prueba a ALICIA
           </a>
           <a
             href="#planes"
-            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-secondary rounded-xl border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 hover:scale-105">
-
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-secondary rounded-xl border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 hover:scale-105 active:scale-95"
+          >
             Ver Planes
           </a>
         </div>
       </div>
-    </section>);
-
+    </section>
+  );
 };
 
 export default AliciaHero;
