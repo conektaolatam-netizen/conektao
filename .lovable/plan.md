@@ -1,52 +1,80 @@
 
+# Plan: Auditoria y Correccion Total del Catalogo de Alicia WhatsApp
 
-# Plan: Mejorar el Cierre de Confirmacion de ALICIA
+## Resumen del Problema
 
-## Problema Actual
-ALICIA a veces repite la pregunta de confirmacion, reenvia el resumen, o ignora respuestas afirmativas simples como "dale", "sisas", "hagale". Tambien la respuesta post-confirmacion no menciona que el pedido fue enviado a cocina.
+Alicia esta usando precios incorrectos porque la tabla `products` en Supabase tiene datos desactualizados. De los ~100 productos activos, la mayoria tiene precios por debajo del valor real. Ademas, faltan productos del listado oficial y la tabla no tiene columna `is_recommended`.
 
-## Cambios a Realizar
+## Discrepancias Detectadas
 
-### 1. Actualizar el prompt de La Barra (lineas ~764-808)
-- Cambiar la pregunta de confirmacion de "Todo bien con el pedido?" a: "Me confirmas tu pedido para empezarlo a preparar? Responde: 'Si, confirmar' o escribe que quieres cambiar."
-- Agregar reglas anti-loop: PROHIBIDO repetir el resumen si ya se presento. PROHIBIDO preguntar confirmacion si order_status ya es pending_confirmation.
-- Agregar lista explicita de palabras afirmativas colombianas: "sisas", "de una", "hagale", "va", "vamos", "hecho"
-- Agregar regla: 1 sola pregunta por mensaje, mensajes cortos
+Se encontraron **diferencias de precio en practicamente todos los productos**. Ejemplos criticos:
 
-### 2. Actualizar el prompt SaaS generico (lineas ~525-562)
-- Mismos cambios que La Barra para consistencia
+| Producto | Precio BD Actual | Precio Oficial |
+|----------|-----------------|----------------|
+| Gaseosa | $7.000 | $8.000 |
+| Hamburguesa Italiana | $34.000 | $38.000 |
+| Langostinos Parrillados | $48.000 | $52.000 |
+| Mojito | $36.000 | $40.000 |
+| Piña Colada | $32.000 | $38.000 |
+| Fettuccine Con Camarones | $44.000 | $46.000 |
+| Todas las pizzas | Incorrectas | Deben actualizarse |
+| Todas las pizzas dulces | Incorrectas | Deben actualizarse |
 
-### 3. Actualizar las respuestas hardcodeadas de confirmacion (lineas ~1824-1829)
-- Cambiar los mensajes aleatorios actuales por el formato especificado:
-  - Incluir "Pedido confirmado"
-  - Incluir "Ya lo estamos preparando"
-  - Incluir "Pedido enviado a cocina"
-  - Incluir instruccion de pago segun tipo (domicilio: pago al domiciliario, transferencia: pedir comprobante)
-  - Preguntar si quiere agregar algo mas
+## Pasos de Implementacion
 
-### 4. Ampliar la deteccion de respuestas afirmativas (linea ~1805)
-- Agregar: "sisas", "hagale", "hágale", "hecho", "eso es", emojis afirmativos en el regex
+### Paso 1: Agregar columna `is_recommended` a la tabla products
+- Migracion SQL para agregar la columna boolean con default `false`
+- Esto permite que Alicia marque productos recomendados con estrella
 
-### 5. Agregar manejo de "quiero cambiar" en estado pending_confirmation
-- Si el cliente dice que quiere cambiar algo, resetear order_status a "active" (no "none") y responder: "Listo, cuentame que quieres cambiar y lo ajusto."
-- Actualmente solo detecta "no/cancel" como cancelacion, pero no detecta "cambiar/modificar/agregar" como intencion de edicion
+### Paso 2: Crear categorias faltantes
+- Las categorias "Entradas", "Cocina Italiana" y "Pizzas Dulces" ya existen en la BD pero algunos productos los referenciaban con IDs diferentes
+- Verificar que todos los category_id apuntan correctamente
+
+### Paso 3: Desactivar TODOS los productos actuales de La Barra
+- `UPDATE products SET is_active = false WHERE user_id IN (perfiles de La Barra)`
+- Esto garantiza que no queden productos fantasma activos
+
+### Paso 4: Insertar/Actualizar los 109 productos oficiales
+- Para cada producto del listado oficial:
+  - Si existe por nombre exacto (case-insensitive) y misma categoria: UPDATE precio, descripcion, is_recommended, is_active=true
+  - Si no existe: INSERT nuevo registro
+- Productos con multiples tamaños (Sangria Tinto copa/jarra/jarra grande) se manejan como registros separados con nombres diferenciados
+
+### Paso 5: Limpiar duplicados
+- Verificar que no queden dos productos activos con el mismo nombre en la misma categoria
+- Conservar el registro mas reciente en caso de duplicados
+
+### Paso 6: Manejo especial de Sangrias
+- Sangria Tinto tiene 3 precios: $26.000 / $57.000 / $86.000
+- Sangria Blanco tiene 3 precios: $28.000 / $60.000 / $92.000
+- Se crearan como: "Sangria Tinto Copa", "Sangria Tinto Jarra", "Sangria Tinto Jarra Grande" (igual para Blanco)
+- Esto requiere confirmacion del usuario sobre los nombres de los tamaños
+
+### Paso 7: Manejo de Tapas Españolas
+- El listado incluye 3 variantes de tapas, se crearan como productos separados con nombres descriptivos
+
+### Paso 8: Verificar que `buildMenuFromProducts` refleja los cambios
+- La funcion ya lee dinamicamente de la BD, no requiere cambios en codigo
+- Los precios se actualizaran automaticamente en el proximo mensaje de Alicia
+
+### Paso 9: Verificar `validateOrder`
+- La funcion ya valida precios contra BD en tiempo real
+- Con los precios correctos, las validaciones seran correctas automaticamente
+
+## Lo que NO se modifica
+- El flujo conversacional de Alicia (personalidad, pasos, confirmaciones)
+- La funcion `buildMenuFromProducts` (ya funciona correctamente)
+- La funcion `validateOrder` (ya funciona correctamente)
+- El historial de pedidos antiguos
+- La logica de empaques y domicilios
 
 ## Detalles Tecnicos
 
 ### Archivos a modificar
-- `supabase/functions/whatsapp-webhook/index.ts`
+- **Migracion SQL**: Agregar columna `is_recommended` a `products`
+- **Operaciones de datos**: UPDATE/INSERT en tabla `products` (109 registros)
+- **No se modifica**: `supabase/functions/whatsapp-webhook/index.ts`
 
-### Cambios especificos:
-1. **Prompt La Barra** (~linea 770): Reemplazar frase de confirmacion y agregar reglas anti-loop
-2. **Prompt SaaS** (~linea 531): Misma actualizacion
-3. **Regex afirmativo** (~linea 1805): Agregar "sisas|hagale|hágale|hecho"
-4. **Mensajes de confirmacion** (~linea 1824-1840): Reemplazar mensajes genericos por formato con info de pago y cocina
-5. **Cancel patterns** (~linea 1853): Agregar deteccion de "cambiar|modificar|agregar|corregir" para redirigir en vez de cancelar
-6. **Deploy** la edge function
-
-### Lo que NO se toca:
-- El flujo de toma de pedido (pasos 1-5) - ya funciona
-- parseOrder() y la logica de tags - ya funciona
-- saveOrder() y envio de email - ya funciona
-- El sistema de nudges - ya funciona
-
+### Pregunta pendiente
+- Las Sangrias tienen 3 precios cada una. Necesito saber como nombrar los tamaños (Copa/Jarra/Jarra Grande, o Vaso/Media/Completa, etc.)
+- La linea del listado `)| 39000 | Tapas Españolas | no` parece un error de formato. Confirmar si son 3 variantes de tapas o una sola.
