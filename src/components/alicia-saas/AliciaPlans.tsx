@@ -1,14 +1,20 @@
 import React from "react";
 import { Check, Zap, Building } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const AliciaPlans = () => {
   const navigate = useNavigate();
+  const { ref: titleRef, isVisible: titleVisible } = useScrollReveal();
+  const { ref: cardsRef, isVisible: cardsVisible } = useScrollReveal({ threshold: 0.1 });
 
   return (
     <section id="planes" className="relative z-10 py-20 px-4">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-16">
+        <div
+          ref={titleRef as React.RefObject<HTMLDivElement>}
+          className={`text-center mb-16 scroll-reveal ${titleVisible ? "visible" : ""}`}
+        >
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-foreground/90 to-foreground bg-clip-text text-transparent">
             Planes
           </h2>
@@ -17,10 +23,13 @@ const AliciaPlans = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div
+          ref={cardsRef as React.RefObject<HTMLDivElement>}
+          className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto"
+        >
           {/* Plan ALICIA */}
           <div
-            className="relative rounded-2xl border-2 border-primary/40 bg-card/80 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-primary/60"
+            className={`relative rounded-2xl border-2 border-primary/40 bg-card/80 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-primary/60 scroll-reveal-left reveal-delay-0 ${cardsVisible ? "visible" : ""}`}
             style={{ boxShadow: "0 0 50px hsl(25 100% 50% / 0.15)" }}
           >
             <div className="absolute -top-3 left-6">
@@ -65,14 +74,16 @@ const AliciaPlans = () => {
 
             <button
               onClick={() => navigate("/alicia/registro?plan=alicia")}
-              className="w-full py-3 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-primary/40"
+              className="w-full py-3 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 touch-feedback"
             >
               Contratar a ALICIA
             </button>
           </div>
 
           {/* Plan Enterprise */}
-          <div className="relative rounded-2xl border border-border/50 bg-card/50 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-secondary/40">
+          <div
+            className={`relative rounded-2xl border border-border/50 bg-card/50 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-secondary/40 scroll-reveal-right reveal-delay-1 ${cardsVisible ? "visible" : ""}`}
+          >
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-secondary-hover flex items-center justify-center">
                 <Building className="w-6 h-6 text-secondary-foreground" />
@@ -111,7 +122,7 @@ const AliciaPlans = () => {
                 const el = document.getElementById("contacto");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="w-full py-3 rounded-xl font-semibold text-secondary border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300"
+              className="w-full py-3 rounded-xl font-semibold text-secondary border-2 border-secondary/50 hover:bg-secondary hover:text-secondary-foreground transition-all duration-300 active:scale-95 touch-feedback"
             >
               Contactar ventas
             </button>

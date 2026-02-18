@@ -3,6 +3,7 @@ import { Send, User, Loader2, ShoppingCart, HelpCircle, Sparkles } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -25,6 +26,8 @@ const AliciaDemoChat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { ref: sectionRef, isVisible } = useScrollReveal({ threshold: 0.1 });
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -75,7 +78,7 @@ const AliciaDemoChat = () => {
   return (
     <section id="demo" className="relative z-10 py-20 px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-10">
+        <div className={`text-center mb-10 scroll-reveal ${isVisible ? "visible" : ""}`}>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-foreground/90 to-foreground bg-clip-text text-transparent">
             Habla con ALICIA ahora
           </h2>
@@ -84,9 +87,12 @@ const AliciaDemoChat = () => {
           </p>
         </div>
 
-        {/* Chat container — WhatsApp-style */}
-        <div className="rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl" style={{ boxShadow: "0 0 60px hsl(174 100% 29% / 0.1)" }}>
-          
+        {/* Chat container */}
+        <div
+          ref={sectionRef as React.RefObject<HTMLDivElement>}
+          className={`rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl scroll-reveal reveal-delay-2 ${isVisible ? "visible chat-glow-active" : ""}`}
+          style={{ boxShadow: "0 0 60px hsl(174 100% 29% / 0.1)" }}
+        >
           {/* Chat header */}
           <div className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border/30 bg-muted/30">
             <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/40 shrink-0">
@@ -145,7 +151,7 @@ const AliciaDemoChat = () => {
                 <button
                   key={i}
                   onClick={() => send(s.label)}
-                  className="text-xs px-3 py-2 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-105 flex items-center gap-1.5"
+                  className="text-xs px-3 py-2 rounded-full border border-primary/30 text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 touch-feedback"
                 >
                   {s.label}
                 </button>
@@ -166,7 +172,7 @@ const AliciaDemoChat = () => {
             <Button
               onClick={() => send(input)}
               disabled={isLoading || !input.trim()}
-              className="bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover text-primary-foreground shrink-0"
+              className="bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover text-primary-foreground shrink-0 touch-feedback"
             >
               <Send className="w-4 h-4" />
             </Button>
