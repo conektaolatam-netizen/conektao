@@ -19,8 +19,8 @@ const AliciaLanding = () => {
       <nav className="relative z-20 flex items-center justify-between p-4 sm:p-6 max-w-7xl mx-auto">
         <Link
           to="/welcome"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-feedback"
-        >
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-feedback">
+
           <ArrowLeft className="w-4 h-4" />
           Volver a Conektao
         </Link>
@@ -43,8 +43,8 @@ const AliciaLanding = () => {
       <section
         id="contacto"
         ref={ctaRef as React.RefObject<HTMLElement>}
-        className={`relative z-10 py-20 px-4 scroll-reveal ${ctaVisible ? "visible" : ""}`}
-      >
+        className={`relative z-10 py-20 px-4 scroll-reveal ${ctaVisible ? "visible" : ""}`}>
+
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             ¿Tienes preguntas?
@@ -53,11 +53,11 @@ const AliciaLanding = () => {
             Escríbenos y te asesoramos sobre el plan ideal para tu negocio
           </p>
           <a
-            href="https://wa.me/573001234567?text=Hola%2C%20quiero%20saber%20más%20sobre%20ALICIA"
+
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 active:scale-95 touch-feedback"
-          >
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 active:scale-95 touch-feedback" href="https://wa.me/3176436656">
+
             Contactar por WhatsApp
           </a>
         </div>
@@ -66,8 +66,8 @@ const AliciaLanding = () => {
       {/* Footer */}
       <footer
         ref={footerRef as React.RefObject<HTMLElement>}
-        className={`relative z-10 py-8 px-4 border-t border-primary/20 scroll-reveal ${footerVisible ? "visible" : ""}`}
-      >
+        className={`relative z-10 py-8 px-4 border-t border-primary/20 scroll-reveal ${footerVisible ? "visible" : ""}`}>
+
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
@@ -81,8 +81,8 @@ const AliciaLanding = () => {
           </p>
         </div>
       </footer>
-    </div>
-  );
+    </div>);
+
 };
 
 export default AliciaLanding;
