@@ -1253,6 +1253,42 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       });
     }
 
+    case "resend_recent_orders": {
+      // Reenvía emails de todos los pedidos recientes a conektaolatam@gmail.com
+      const daysBack = parseInt(url.searchParams.get("days") || "7");
+      const overrideTo = url.searchParams.get("to") || "conektaolatam@gmail.com";
+      const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentOrders } = await supabase
+        .from("whatsapp_orders")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false });
+      if (!recentOrders?.length)
+        return new Response(JSON.stringify({ sent: 0, message: "No orders found in period" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      let sentCount = 0;
+      const results: any[] = [];
+      for (const order of recentOrders) {
+        try {
+          const isDelivery = order.delivery_type === "delivery";
+          const html = buildOrderEmailHtml(order as any, order.customer_phone, isDelivery);
+          const dateStr = new Date(order.created_at).toLocaleString("es-CO", { timeZone: "America/Bogota" });
+          const subject = `🍕 [${dateStr}] ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`;
+          const sent = await sendEmail(overrideTo, subject, html);
+          if (sent) sentCount++;
+          results.push({ order_id: order.id, customer: order.customer_name, total: order.total, sent, date: order.created_at });
+        } catch (e: any) {
+          results.push({ order_id: order.id, error: e?.message });
+        }
+      }
+      return new Response(JSON.stringify({ sent: sentCount, total: recentOrders.length, to: overrideTo, results }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     case "resend_order_email": {
       const orderId = url.searchParams.get("order_id") || "";
       const { data: orderData, error: oErr } = await supabase
