@@ -715,13 +715,13 @@ const Welcome = () => {
             >
               {/* Animated gradient orb — oversized so the shape dissolves into pure light */}
               <div
-                className="absolute opacity-30 group-hover:opacity-50 transition-opacity duration-500 pointer-events-none"
+                className="absolute opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none"
                 style={{
                   width: '300%',
                   height: '300%',
                   top: '-100%',
                   left: '-100%',
-                  background: 'radial-gradient(ellipse 60% 50% at 40% 50%, rgba(255,140,0,0.55) 0%, rgba(20,184,166,0.45) 45%, transparent 75%)',
+                  background: 'radial-gradient(ellipse 60% 50% at 40% 50%, rgba(255,140,0,0.3) 0%, rgba(20,184,166,0.2) 45%, transparent 75%)',
                   animation: 'wave1 4s ease-in-out infinite',
                   borderRadius: '50%',
                 }}
