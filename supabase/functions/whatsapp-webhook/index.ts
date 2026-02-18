@@ -992,21 +992,28 @@ function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, pay
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid #1a1a1a;"><div style="background:linear-gradient(135deg,#FF6B35,#00D4AA);padding:20px;text-align:center;"><h1 style="margin:0;color:#fff;font-size:20px;">CONEKTAO</h1><p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:12px;">Nuevo Pedido WhatsApp</p></div><div style="padding:20px;"><div style="display:flex;gap:8px;margin-bottom:12px;"><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Cliente</small><p style="margin:4px 0 0;color:#fff;">👤 ${order.customer_name||"Cliente"}</p></div><div style="background:#111;padding:10px;border-radius:8px;flex:1;"><small style="color:#888;">Teléfono</small><p style="margin:4px 0 0;color:#fff;">📱 +${phone}</p></div></div>${delSec}<table style="width:100%;border-collapse:collapse;margin-top:12px;background:#111;border-radius:8px;border:1px solid #1a1a1a;"><thead><tr style="background:#151515;"><th style="padding:8px;text-align:left;color:#00D4AA;font-size:11px;">Producto</th><th style="padding:8px;color:#00D4AA;font-size:11px;">Cant.</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Precio</th><th style="padding:8px;text-align:right;color:#00D4AA;font-size:11px;">Subtotal</th></tr></thead><tbody>${items}</tbody><tfoot><tr><td colspan="3" style="padding:12px 8px;text-align:right;font-weight:bold;font-size:16px;color:#fff;border-top:2px solid #00D4AA;">TOTAL:</td><td style="padding:12px 8px;text-align:right;font-weight:bold;font-size:18px;color:#00D4AA;border-top:2px solid #00D4AA;">$${(order.total||0).toLocaleString("es-CO")}</td></tr></tfoot></table>${paySec}${order.observations?`<div style="margin-top:10px;padding:10px;background:#111;border-radius:8px;"><small style="color:#888;">Obs.</small><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${order.observations}</p></div>`:""}</div><div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;"><p style="margin:0;color:#555;font-size:10px;">Powered by CONEKTAO</p></div></div>`;
 }
 
-/** Send email via Resend */
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+/** Send email via Resend — uses verified domain sender if configured */
+async function sendEmail(to: string, subject: string, html: string, fromOverride?: string): Promise<boolean> {
   const rk = Deno.env.get("RESEND_API_KEY");
-  if (!rk) return false;
+  if (!rk) { console.error("EMAIL_SKIP: RESEND_API_KEY not set"); return false; }
+  // Use verified domain if available (set RESEND_FROM_EMAIL in secrets), else sandbox fallback
+  const fromEmail = fromOverride || Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
+  const fromAddress = `CONEKTAO Pedidos <${fromEmail}>`;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "CONEKTAO Pedidos <onboarding@resend.dev>", to: [to], subject, html }),
+    body: JSON.stringify({ from: fromAddress, to: [to], subject, html }),
   });
   const body = await res.text();
-  console.log("Resend:", res.status, body);
+  console.log(`Resend [${fromAddress} → ${to}]: status=${res.status} body=${body}`);
+  if (!res.ok) {
+    // Log structured failure for debugging
+    console.error(`EMAIL_FAIL { from: "${fromAddress}", to: "${to}", status: ${res.status}, body: "${body}" }`);
+  }
   return res.ok;
 }
 
-/** Save order to DB and send confirmation email */
+/** Save order to DB and send confirmation email — EMAIL NEVER BLOCKS CONFIRMATION */
 async function saveOrder(
   rid: string,
   cid: string,
@@ -1015,7 +1022,7 @@ async function saveOrder(
   config: any,
   paymentProofUrl?: string | null,
 ) {
-  // Dedup guard: check by conversation_id (more precise than phone+time)
+  // ── DEDUP GUARD 1: by conversation_id ──────────────────────────────────────
   const { data: existingOrder } = await supabase
     .from("whatsapp_orders")
     .select("id, email_sent")
@@ -1024,28 +1031,33 @@ async function saveOrder(
     .eq("status", "received")
     .limit(1)
     .maybeSingle();
-  
+
   if (existingOrder) {
     console.log(`⚠️ DEDUP: Order already exists for conversation ${cid} (order ${existingOrder.id})`);
-    // If email wasn't sent, retry
+    // Email was not sent on previous attempt → retry now (non-blocking)
     if (!existingOrder.email_sent && config.order_email) {
       console.log(`📧 EMAIL_RETRY: Retrying email for existing order ${existingOrder.id}`);
       const rawType = (order.delivery_type || "pickup").toLowerCase();
       const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
       const html = buildOrderEmailHtml(order, phone, isDelivery, paymentProofUrl);
       const subject = `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`;
-      const sent = await sendEmail(config.order_email, subject, html);
-      if (sent) {
-        await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", existingOrder.id);
-        console.log(`📧 EMAIL_SEND_OK { order_id: "${existingOrder.id}" }`);
-      } else {
-        console.log(`📧 EMAIL_SEND_FAIL { order_id: "${existingOrder.id}" }`);
+      try {
+        const sent = await sendEmail(config.order_email, subject, html);
+        if (sent) {
+          await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", existingOrder.id);
+          await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
+          console.log(`📧 EMAIL_RETRY_OK { order_id: "${existingOrder.id}" }`);
+        } else {
+          console.log(`📧 EMAIL_RETRY_FAIL { order_id: "${existingOrder.id}" }`);
+        }
+      } catch (emailErr) {
+        console.error(`📧 EMAIL_RETRY_ERROR { order_id: "${existingOrder.id}", err: "${emailErr}" }`);
       }
     }
-    return;
+    return existingOrder.id;
   }
 
-  // Also check time-based dedup as fallback
+  // ── DEDUP GUARD 2: time-based fallback (2 min window) ─────────────────────
   const twoMinAgo = new Date(Date.now() - 120 * 1000).toISOString();
   const { data: recentDup } = await supabase
     .from("whatsapp_orders")
@@ -1057,13 +1069,14 @@ async function saveOrder(
     .maybeSingle();
   if (recentDup) {
     console.log(`⚠️ DEDUP_TIME: Skipping duplicate order for ${phone} (within 2min)`);
-    return;
+    return recentDup.id;
   }
 
   const rawType = (order.delivery_type || "pickup").toLowerCase();
   const isDelivery = rawType.includes("domicilio") || rawType.includes("delivery");
   const deliveryType = isDelivery ? "delivery" : "pickup";
 
+  // ── STEP 1: Insert order in DB ─────────────────────────────────────────────
   const { data: saved, error } = await supabase
     .from("whatsapp_orders")
     .insert({
@@ -1082,37 +1095,44 @@ async function saveOrder(
     .single();
 
   if (error) {
-    console.error(`💾 DB_UPDATE_FAIL { phone: "${phone}", error: "${error.message}" }`);
-    return;
+    console.error(`💾 DB_INSERT_FAIL { phone: "${phone}", error: "${error.message}" }`);
+    return null;
   }
-  console.log(`💾 DB_UPDATE_OK { order_id: "${saved.id}", phone: "${phone}", total: ${order.total} }`);
+  console.log(`💾 DB_INSERT_OK { order_id: "${saved.id}", phone: "${phone}", total: ${order.total} }`);
 
-  // Update conversation status
+  // ── STEP 2: IMMEDIATELY mark conversation as confirmed (BEFORE email attempt) ──
+  // This ensures the order stays confirmed even if email fails
   await supabase
     .from("whatsapp_conversations")
-    .update({ order_status: "confirmed", current_order: order })
+    .update({ order_status: "confirmed", current_order: order, pending_since: null })
     .eq("id", cid);
+  console.log(`✅ CONV_STATUS_CONFIRMED { conv_id: "${cid}" }`);
 
-  // Send email
+  // ── STEP 3: Send email (NON-BLOCKING — failure never reverts confirmation) ──
   if (!config.order_email) {
-    console.log(`📧 EMAIL_SKIP: No order_email configured`);
-    return;
+    console.log(`📧 EMAIL_SKIP: No order_email configured for restaurant ${rid}`);
+    return saved.id;
   }
 
-  const html = buildOrderEmailHtml(order, phone, isDelivery, paymentProofUrl);
-  const subject = `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`;
-  const sent = await sendEmail(config.order_email, subject, html);
-  if (sent) {
-    await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
-    // Update conversation to "emailed" status
-    await supabase
-      .from("whatsapp_conversations")
-      .update({ order_status: "emailed" })
-      .eq("id", cid);
-    console.log(`📧 EMAIL_SEND_OK { order_id: "${saved.id}", to: "${config.order_email}" }`);
-  } else {
-    console.log(`📧 EMAIL_SEND_FAIL { order_id: "${saved.id}", to: "${config.order_email}" }`);
+  try {
+    const html = buildOrderEmailHtml(order, phone, isDelivery, paymentProofUrl);
+    const subject = `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`;
+    const sent = await sendEmail(config.order_email, subject, html);
+    if (sent) {
+      // Only update email_sent + status, never revert to unconfirmed
+      await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+      await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
+      console.log(`📧 EMAIL_SEND_OK { order_id: "${saved.id}", to: "${config.order_email}" }`);
+    } else {
+      // Email failed — order STAYS confirmed, just not "emailed"
+      console.log(`📧 EMAIL_SEND_FAIL { order_id: "${saved.id}", to: "${config.order_email}" } — order confirmed regardless`);
+    }
+  } catch (emailErr) {
+    // Email exception — order STAYS confirmed
+    console.error(`📧 EMAIL_EXCEPTION { order_id: "${saved.id}", err: "${emailErr}" } — order confirmed regardless`);
   }
+
+  return saved.id;
 }
 
 async function saveOrderModification(rid: string, cid: string, phone: string, modification: any, modType: "addition"|"change", config: any, originalOrder: any) {
@@ -1516,100 +1536,125 @@ Deno.serve(async (req) => {
       const emojiAffirmative = /[✅👍🔥]/.test(text);
       const isAffirmative = !negativeKeywords.test(lowerTextTrim) && (affirmativeKeywords.test(lowerTextTrim) || emojiAffirmative);
       
+      // ── BACKEND DETERMINISTIC CONFIRMATION ─────────────────────────────────────
+      // The LLM ONLY converses. The backend decides to confirm.
+      // If user is affirmative AND there's a valid order (either in conv or in DB fallback):
       if (
         isAffirmative &&
-        conv.current_order &&
         (conv.order_status === "pending_confirmation" ||
           conv.order_status === "pending_button_confirmation" ||
           conv.order_status === "active")
       ) {
-        console.log(`✅ CONFIRM_DETECTED { phone: "${from}", status: "${conv.order_status}", matched_phrase: "${lowerTextTrim}" }`);
+        // ── RESOLVE ORDER: from conv OR from DB fallback (tag-failure protection) ──
+        let resolvedOrder = conv.current_order;
         
-        const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
-        convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
-        
-        // --- IDEMPOTENCY KEY: Check for duplicate confirmation ---
-        const idempotencyKey = `${from}_${conv.id}_CONFIRM`;
-        const { data: existingEvent } = await supabase
-          .from("whatsapp_orders")
-          .select("id")
-          .eq("conversation_id", conv.id)
-          .eq("restaurant_id", rId)
-          .eq("status", "received")
-          .limit(1)
-          .maybeSingle();
-        
-        if (existingEvent) {
-          console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
-          const resp = "Ya quedó confirmado ✅ Tu pedido está en preparación";
+        if (!resolvedOrder) {
+          // Gemini may have failed to output the tag — look for the most recent DB order
+          const { data: lastDbOrder } = await supabase
+            .from("whatsapp_orders")
+            .select("*")
+            .eq("conversation_id", conv.id)
+            .eq("restaurant_id", rId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (lastDbOrder && lastDbOrder.status !== "confirmed") {
+            resolvedOrder = { items: lastDbOrder.items, total: lastDbOrder.total, delivery_type: lastDbOrder.delivery_type, delivery_address: lastDbOrder.delivery_address, customer_name: lastDbOrder.customer_name, payment_method: "efectivo" };
+            console.log(`🔄 FALLBACK_ORDER: Resolved order from DB for conv ${conv.id}, total: ${lastDbOrder.total}`);
+          }
+        }
+
+        if (!resolvedOrder) {
+          // No order found anywhere — user said "yes" but there's nothing to confirm
+          // This happens when they say something affirmative before ordering
+          console.log(`⚠️ CONFIRM_NO_ORDER { phone: "${from}", status: "${conv.order_status}" } — falling through to AI`);
+          // Do NOT return here — fall through to normal AI processing
+        } else {
+          console.log(`✅ CONFIRM_DETECTED { phone: "${from}", status: "${conv.order_status}", matched_phrase: "${lowerTextTrim}" }`);
+          
+          const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+          
+          // ── IDEMPOTENCY: Check for existing confirmed order ────────────────
+          const { data: existingEvent } = await supabase
+            .from("whatsapp_orders")
+            .select("id")
+            .eq("conversation_id", conv.id)
+            .eq("restaurant_id", rId)
+            .eq("status", "received")
+            .limit(1)
+            .maybeSingle();
+          
+          if (existingEvent) {
+            console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
+            const resp = "Ya quedó confirmado ✅ Tu pedido está en preparación";
+            convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+            await supabase
+              .from("whatsapp_conversations")
+              .update({ messages: convMsgs.slice(-30), order_status: "confirmed", pending_since: null })
+              .eq("id", conv.id);
+            await sendWA(pid, token, from, resp, true);
+            return new Response(JSON.stringify({ status: "confirmed_idempotent" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // ── PRICE SNAPSHOT: Re-validate prices from DB at confirmation time ──
+          const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
+          const { data: restaurantProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
+          const profileIds = (restaurantProfiles || []).map((p: any) => p.id);
+          const { data: confirmProds } = profileIds.length > 0
+            ? await supabase.from("products").select("id, name, price, categories(name)").in("user_id", profileIds).eq("is_active", true)
+            : { data: [] };
+          const validated = validateOrder(resolvedOrder, isLaBarra, confirmProds || []);
+          
+          // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
+          const storedProof = conv.payment_proof_url || null;
+          await saveOrder(rId, conv.id, from, validated.order, config, storedProof);
+          console.log(`💾 ORDER_SAVED { conv=${conv.id}, phone: "${from}" }`);
+
+          // Build confirmation message with payment info
+          const orderData = typeof validated.order === 'object' ? validated.order : {};
+          const customerName = (orderData as any)?.customer_name || '';
+          const deliveryType = (orderData as any)?.delivery_type || '';
+          const paymentMethod = (orderData as any)?.payment_method || '';
+          const isDelivery = /domicilio|delivery/i.test(deliveryType);
+          
+          let paymentInstruction = '';
+          if (isDelivery) {
+            if (paymentMethod && /transferencia|nequi|daviplata/i.test(paymentMethod)) {
+              paymentInstruction = '\n\n💳 Envíame el comprobante de pago cuando lo tengas';
+            } else {
+              paymentInstruction = '\n\n💵 Pagas al domiciliario cuando llegue';
+            }
+          }
+          const nameGreeting = customerName ? `, ${customerName}` : '';
+          const resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
+          
+          // Save assistant message + final redundant state update
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+
           await supabase
             .from("whatsapp_conversations")
             .update({
               messages: convMsgs.slice(-30),
               order_status: "confirmed",
+              current_order: validated.order,
               pending_since: null,
             })
             .eq("id", conv.id);
+          
+          console.log(`FINAL_STATE { conv_id: "${conv.id}", status: "confirmed", phone: "${from}" }`);
+          
           await sendWA(pid, token, from, resp, true);
-          return new Response(JSON.stringify({ status: "confirmed_idempotent" }), {
+          return new Response(JSON.stringify({ status: "confirmed_via_backend" }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        
-        const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
-        const { data: restaurantProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
-        const profileIds = (restaurantProfiles || []).map((p: any) => p.id);
-        const { data: confirmProds } = profileIds.length > 0
-          ? await supabase.from("products").select("id, name, price, categories(name)").in("user_id", profileIds).eq("is_active", true)
-          : { data: [] };
-        const validated = validateOrder(conv.current_order, isLaBarra, confirmProds || []);
-        
-        // --- TRANSACTIONAL: Save order + update conversation atomically ---
-        const storedProof = conv.payment_proof_url || null;
-        await saveOrder(rId, conv.id, from, validated.order, config, storedProof);
-        console.log(`💾 DB_UPDATE_OK { order_id: conv=${conv.id}, phone: "${from}" }`);
-
-        // Build confirmation message with payment info
-        const orderData = typeof validated.order === 'object' ? validated.order : {};
-        const customerName = (orderData as any)?.customer_name || '';
-        const deliveryType = (orderData as any)?.delivery_type || '';
-        const paymentMethod = (orderData as any)?.payment_method || '';
-        const isDelivery = /domicilio|delivery/i.test(deliveryType);
-        
-        let paymentInstruction = '';
-        if (isDelivery) {
-          if (paymentMethod && /transferencia|nequi|daviplata/i.test(paymentMethod)) {
-            paymentInstruction = '\n\n💳 Envíame el comprobante de pago cuando lo tengas';
-          } else {
-            paymentInstruction = '\n\n💵 Pagas al domiciliario cuando llegue';
-          }
-        }
-        const nameGreeting = customerName ? `, ${customerName}` : '';
-        const resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
-        
-        // --- SAVE ASSISTANT MESSAGE (critical: this was sometimes missing) ---
-        convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
-        
-        // --- UPDATE CONVERSATION STATUS atomically ---
-        await supabase
-          .from("whatsapp_conversations")
-          .update({
-            messages: convMsgs.slice(-30),
-            order_status: "confirmed",
-            current_order: validated.order,
-            pending_since: null,
-          })
-          .eq("id", conv.id);
-        
-        console.log(`📊 FINAL_STATE { conv_id: "${conv.id}", status: "confirmed", phone: "${from}" }`);
-        
-        await sendWA(pid, token, from, resp, true);
-        return new Response(JSON.stringify({ status: "confirmed_via_text" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        // resolvedOrder null -> user said yes without an active order -> fall through to AI
       }
 
       // ===== PENDING CONFIRMATION: handle cancel or pass to AI =====
