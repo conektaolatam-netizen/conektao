@@ -66,13 +66,98 @@ const AliciaDemoChat = () => {
     }
   };
 
-  const formatMessage = (content: string) => {
-    return content.split('\n').map((line, i) => (
-      <React.Fragment key={i}>
-        {line}
-        {i < content.split('\n').length - 1 && <br />}
-      </React.Fragment>
-    ));
+  const formatMessage = (content: string, isAssistant: boolean) => {
+    const lines = content.split('\n');
+    const result: React.ReactNode[] = [];
+    let i = 0;
+
+    const renderInline = (text: string): React.ReactNode[] => {
+      const parts: React.ReactNode[] = [];
+      // **bold** and *italic* and `code`
+      const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+      let last = 0;
+      let match;
+      let key = 0;
+      while ((match = regex.exec(text)) !== null) {
+        if (match.index > last) parts.push(text.slice(last, match.index));
+        if (match[2]) {
+          parts.push(<strong key={key++} className="font-bold">{match[2]}</strong>);
+        } else if (match[3]) {
+          parts.push(<em key={key++} className="italic">{match[3]}</em>);
+        } else if (match[4]) {
+          parts.push(
+            <code key={key++} className={`px-1.5 py-0.5 rounded text-xs font-mono ${isAssistant ? 'bg-primary/10 text-primary' : 'bg-white/20 text-white'}`}>
+              {match[4]}
+            </code>
+          );
+        }
+        last = match.index + match[0].length;
+      }
+      if (last < text.length) parts.push(text.slice(last));
+      return parts;
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Empty line → spacer
+      if (line.trim() === '') {
+        result.push(<div key={`sp-${i}`} className="h-1" />);
+        i++;
+        continue;
+      }
+
+      // Bullet list: lines starting with - or •
+      if (/^[-•]\s/.test(line.trim())) {
+        const listItems: string[] = [];
+        while (i < lines.length && /^[-•]\s/.test(lines[i].trim())) {
+          listItems.push(lines[i].trim().replace(/^[-•]\s/, ''));
+          i++;
+        }
+        result.push(
+          <ul key={`ul-${i}`} className="space-y-1 my-1">
+            {listItems.map((item, idx) => (
+              <li key={idx} className="flex items-start gap-2">
+                <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${isAssistant ? 'bg-primary' : 'bg-white/70'}`} />
+                <span>{renderInline(item)}</span>
+              </li>
+            ))}
+          </ul>
+        );
+        continue;
+      }
+
+      // Numbered list: 1. 2. etc
+      if (/^\d+\.\s/.test(line.trim())) {
+        const listItems: { num: string; text: string }[] = [];
+        while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+          const m = lines[i].trim().match(/^(\d+)\.\s(.+)/);
+          if (m) listItems.push({ num: m[1], text: m[2] });
+          i++;
+        }
+        result.push(
+          <ol key={`ol-${i}`} className="space-y-1 my-1">
+            {listItems.map((item, idx) => (
+              <li key={idx} className="flex items-start gap-2">
+                <span className={`font-bold text-xs shrink-0 mt-0.5 ${isAssistant ? 'text-primary' : 'text-white/80'}`}>{item.num}.</span>
+                <span>{renderInline(item.text)}</span>
+              </li>
+            ))}
+          </ol>
+        );
+        continue;
+      }
+
+      // Normal line
+      result.push(
+        <p key={`p-${i}`} className="leading-relaxed">
+          {renderInline(line)}
+        </p>
+      );
+      i++;
+    }
+
+    return <div className="space-y-0.5">{result}</div>;
   };
 
   return (
@@ -126,7 +211,7 @@ const AliciaDemoChat = () => {
                       : "bg-gradient-to-r from-primary to-secondary text-primary-foreground"
                   }`}
                 >
-                  {formatMessage(msg.content)}
+                  {formatMessage(msg.content, msg.role === "assistant")}
                 </div>
               </div>
             ))}
