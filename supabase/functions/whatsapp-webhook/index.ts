@@ -283,7 +283,10 @@ async function markRead(phoneId: string, token: string, msgId: string) {
 
 // ==================== CONVERSATION MANAGEMENT ====================
 
-/** Get or create a conversation record */
+/** Get or create a conversation record.
+ * If the existing conversation has a closed order (confirmed/emailed/sent),
+ * reset it so recurring customers can place a NEW order without any block.
+ * Idempotency still applies per order_id — not per phone/customer. */
 async function getConversation(rid: string, phone: string) {
   const { data: ex } = await supabase
     .from("whatsapp_conversations")
@@ -291,7 +294,29 @@ async function getConversation(rid: string, phone: string) {
     .eq("restaurant_id", rid)
     .eq("customer_phone", phone)
     .maybeSingle();
-  if (ex) return ex;
+
+  if (ex) {
+    // Pedido anterior ya cerrado → resetear para permitir nuevo pedido independiente
+    const closedStatuses = ["confirmed", "emailed", "sent"];
+    if (closedStatuses.includes(ex.order_status)) {
+      const { data: reset } = await supabase
+        .from("whatsapp_conversations")
+        .update({
+          order_status: "none",
+          current_order: null,
+          pending_since: null,
+          payment_proof_url: null,
+        })
+        .eq("id", ex.id)
+        .select()
+        .single();
+      console.log(`🔄 CONV_RESET: ${phone} retorna tras pedido cerrado (${ex.order_status}) → estado fresco`);
+      return reset || ex;
+    }
+    return ex;
+  }
+
+  // Nueva conversación
   const { data: cr, error } = await supabase
     .from("whatsapp_conversations")
     .insert({ restaurant_id: rid, customer_phone: phone, messages: [], order_status: "none" })
@@ -1077,7 +1102,8 @@ async function saveOrder(
   }
 
   // ── DEDUP GUARD 2: time-based fallback (2 min window) ─────────────────────
-  const twoMinAgo = new Date(Date.now() - 120 * 1000).toISOString();
+  // 30s es suficiente para deduplicar dobles-webhooks de Meta (< 5s); 120s bloqueaba pedidos legítimos consecutivos
+  const twoMinAgo = new Date(Date.now() - 30 * 1000).toISOString();
   const { data: recentDup } = await supabase
     .from("whatsapp_orders")
     .select("id")
