@@ -1289,6 +1289,80 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       });
     }
 
+    case "save_manual_order": {
+      // Inserta un pedido manual y envía email — para conversaciones donde current_order quedó null
+      // POST body: { conversation_id, customer_phone, customer_name, items, total, delivery_type, delivery_address, payment_method, restaurant_id }
+      let body: any = {};
+      try { body = await req.clone().json(); } catch(_) {}
+      const rid = body.restaurant_id || "899cb7a7-7de1-47c7-a684-f24658309755";
+      const cid = body.conversation_id;
+      const phone = body.customer_phone;
+      if (!cid || !phone)
+        return new Response(JSON.stringify({ error: "conversation_id and customer_phone required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+
+      const order = {
+        customer_name: body.customer_name || "Cliente",
+        items: body.items || [],
+        total: body.total || 0,
+        subtotal: body.subtotal || body.total || 0,
+        delivery_type: body.delivery_type || "delivery",
+        delivery_address: body.delivery_address || null,
+        payment_method: body.payment_method || "Efectivo",
+        observations: body.observations || null,
+        packaging_total: body.packaging_total || 0,
+      };
+
+      // Insert order
+      const { data: saved, error: insErr } = await supabase
+        .from("whatsapp_orders")
+        .insert({
+          restaurant_id: rid,
+          conversation_id: cid,
+          customer_phone: phone,
+          customer_name: order.customer_name,
+          items: order.items,
+          total: order.total,
+          delivery_type: order.delivery_type === "delivery" ? "delivery" : "pickup",
+          delivery_address: order.delivery_address,
+          status: "received",
+          email_sent: false,
+        })
+        .select().single();
+
+      if (insErr)
+        return new Response(JSON.stringify({ error: insErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+
+      // Update conversation to confirmed
+      await supabase.from("whatsapp_conversations")
+        .update({ order_status: "confirmed", current_order: order, pending_since: null })
+        .eq("id", cid);
+
+      // Send email
+      const { data: cfg } = await supabase.from("whatsapp_configs")
+        .select("order_email").eq("restaurant_id", rid).maybeSingle();
+
+      let emailSent = false;
+      if (cfg?.order_email) {
+        const isDelivery = order.delivery_type === "delivery";
+        const html = buildOrderEmailHtml(order, phone, isDelivery);
+        const dateStr = new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
+        const subject = `🍕 Pedido ${isDelivery?"Domicilio":"Recoger"} - ${order.customer_name} - $${order.total.toLocaleString("es-CO")}`;
+        emailSent = await sendEmail(cfg.order_email, subject, html);
+        if (emailSent) {
+          await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+          await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
+        }
+      }
+
+      return new Response(JSON.stringify({ order_id: saved.id, email_sent: emailSent, to: cfg?.order_email }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     case "resend_order_email": {
       const orderId = url.searchParams.get("order_id") || "";
       const { data: orderData, error: oErr } = await supabase
