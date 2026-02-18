@@ -713,11 +713,17 @@ const Welcome = () => {
               className="group relative cursor-pointer rounded-2xl border-2 border-orange-500/30 bg-black/60 backdrop-blur-xl p-8 transition-all duration-500 hover:scale-[1.02] hover:border-orange-500/60 overflow-hidden"
               style={{ boxShadow: '0 0 60px rgba(255,165,0,0.15)' }}
             >
-              {/* Animated gradient border */}
-              <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500"
+              {/* Animated gradient orb — oversized so the shape dissolves into pure light */}
+              <div
+                className="absolute opacity-30 group-hover:opacity-50 transition-opacity duration-500 pointer-events-none"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,165,0,0.3) 0%, rgba(20,184,166,0.3) 50%, rgba(255,165,0,0.3) 100%)',
-                  animation: 'wave1 3s ease-in-out infinite'
+                  width: '300%',
+                  height: '300%',
+                  top: '-100%',
+                  left: '-100%',
+                  background: 'radial-gradient(ellipse 60% 50% at 40% 50%, rgba(255,140,0,0.55) 0%, rgba(20,184,166,0.45) 45%, transparent 75%)',
+                  animation: 'wave1 4s ease-in-out infinite',
+                  borderRadius: '50%',
                 }}
               />
               <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
