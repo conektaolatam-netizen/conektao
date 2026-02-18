@@ -1608,6 +1608,24 @@ Deno.serve(async (req) => {
 
       await markRead(pid, token, msg.id);
       const rId = config.restaurant_id;
+
+      // ===== BLOCKED NUMBER CHECK =====
+      const { data: blockedEntry } = await supabase
+        .from("whatsapp_blocked_numbers")
+        .select("id")
+        .eq("restaurant_id", rId)
+        .eq("phone_number", from)
+        .maybeSingle();
+
+      if (blockedEntry) {
+        console.log(`🚫 BLOCKED: Message from ${from} ignored (blocked number)`);
+        return new Response(JSON.stringify({ status: "blocked" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // ===== END BLOCKED NUMBER CHECK =====
+
       const conv = await getConversation(rId, from);
 
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
