@@ -1,123 +1,210 @@
 
-## Diagnóstico: Clientes Recurrentes Bloqueando Email
+## Diagnóstico Final y Plan de Implementación: Memoria de Cliente en Alicia
 
-### Problema Identificado
+### Estado Actual Confirmado
 
-**La causa raíz está en `getConversation()` (línea 287-302).**
+**¿Qué existe hoy?**
+- `whatsapp_orders`: guarda `customer_phone`, `customer_name`, `delivery_address` por pedido. Es la única fuente de historial.
+- `whatsapp_conversations`: guarda `customer_name` en su columna pero se **resetea** en cada nuevo pedido (per el fix anterior — `getConversation()` borra `current_order` pero mantiene `customer_name` si ya estaba en la fila).
+- El hook ya existe en línea 683: `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo` — pero `freshCustomerName` solo viene de `whatsapp_conversations.customer_name`, que puede estar vacío o ser de otro pedido.
+- **No existe tabla de perfiles de clientes WhatsApp.** El `customers` que existe es para facturación electrónica (documento, NIT, email), completamente distinto.
+- **No existe historial de direcciones** — solo la más reciente en cada `whatsapp_orders`.
 
-La función busca una conversación por `restaurant_id + customer_phone`. Si ya existe una conversación para ese número (de un pedido anterior de hoy o de días anteriores), la reutiliza. Esto significa:
+**¿Qué pasa hoy con cliente recurrente?**
+- Alicia vuelve a pedir nombre y dirección siempre, aunque el cliente ya haya pedido 10 veces antes. El historial de pedidos pasados nunca se lee para enriquecer el contexto.
 
-- Cliente pide a las 12pm → conversación creada, `order_status = "emailed"`
-- Cliente pide a las 2pm → `getConversation()` devuelve la MISMA conversación con `order_status = "emailed"`
-- El bloque de IDEMPOTENCY (línea 1700-1724) detecta `order_status === "emailed"` + `current_order` existente → **bloquea el flujo completo antes de llegar a confirmación**
+---
 
-El bloqueo no es en el email directamente, sino en el flujo de conversación que nunca llega a `saveOrder()`.
+### Lo que se toca (mínimo quirúrgico)
 
-### Problema Secundario: DEDUP por Teléfono en 2 Minutos (Línea 1079-1092)
+**1 tabla nueva:** `wa_customer_profiles`  
+**1 función nueva:** `getOrCreateWaCustomer(phone, rid)` dentro del edge function  
+**1 upsert nuevo:** al guardar pedido (`saveOrder`) → actualiza perfil  
+**1 inyección de contexto:** antes de llamar `buildPrompt()` en el flujo normal
 
-```typescript
-// ── DEDUP GUARD 2: time-based fallback (2 min window)
-const { data: recentDup } = await supabase
-  .from("whatsapp_orders")
-  .select("id")
-  .eq("customer_phone", phone)      // ← por teléfono
-  .eq("restaurant_id", rid)
-  .gt("created_at", twoMinAgo)      // ← solo últimos 2 min
-  .limit(1)
-  .maybeSingle();
-if (recentDup) {
-  return recentDup.id;  // ← bloquea sin enviar email
-}
+**No se toca:**
+- Prompt central de personalidad
+- Lógica de confirmación (`saveOrder`, tags, estados)
+- Envío de email
+- Cálculo de precios / empaque
+- Tablas existentes (sin ALTER a `whatsapp_orders` ni `whatsapp_conversations`)
+
+---
+
+### Tabla Nueva: `wa_customer_profiles`
+
+```sql
+CREATE TABLE public.wa_customer_profiles (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  phone text NOT NULL,
+  name text,
+  addresses jsonb DEFAULT '[]'::jsonb,  -- [{address, label, last_used_at}]
+  last_order_at timestamptz,
+  total_orders integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(restaurant_id, phone)
+);
+
+-- RLS: solo backend (service role)
+ALTER TABLE public.wa_customer_profiles ENABLE ROW LEVEL SECURITY;
 ```
 
-Este guard existe para deduplicar dobles-webhooks de Meta (Meta puede enviar el mismo mensaje 2 veces en milisegundos). Es válido para eso. Pero si el cliente genuinamente hace 2 pedidos en menos de 2 minutos, también los bloquea. Sin embargo, el caso más crítico es el primero.
+La columna `addresses` es un array JSONB con estructura:
+```json
+[
+  {"address": "Balcones del Vergel Torre 5 Apto 401", "label": null, "last_used_at": "2026-02-18T15:00:00Z"},
+  {"address": "Wakari Torre 1 Apto 1404", "label": "Mamá", "last_used_at": "2026-02-17T20:00:00Z"}
+]
+```
 
-### Solución: 3 Cambios Quirúrgicos
+Ordenadas por `last_used_at` descendente: `[0]` = última usada, `[1]` = anterior.
 
-**Cambio 1 — `getConversation()`: Resetear conversación al detectar cliente que vuelve a pedir**
+---
 
-La lógica correcta es: si la conversación existente está en estado `confirmed`, `emailed`, o `sent`, significa que el pedido anterior ya está cerrado. Un nuevo mensaje de este cliente debe iniciar un flujo fresco.
+### Lógica Nueva en Edge Function
 
+**Función `getOrCreateWaCustomer(phone, rid)`:**
 ```typescript
-async function getConversation(rid: string, phone: string) {
-  const { data: ex } = await supabase
-    .from("whatsapp_conversations")
+async function getOrCreateWaCustomer(phone: string, rid: string) {
+  const { data } = await supabase
+    .from("wa_customer_profiles")
     .select("*")
     .eq("restaurant_id", rid)
-    .eq("customer_phone", phone)
+    .eq("phone", phone)
     .maybeSingle();
   
-  if (ex) {
-    // Si el pedido anterior ya está cerrado (confirmed/emailed/sent)
-    // → resetear a estado 'none' para permitir nuevo pedido
-    const closedStatuses = ["confirmed", "emailed", "sent"];
-    if (closedStatuses.includes(ex.order_status)) {
-      const { data: reset } = await supabase
-        .from("whatsapp_conversations")
-        .update({
-          order_status: "none",
-          current_order: null,
-          pending_since: null,
-          payment_proof_url: null,
-        })
-        .eq("id", ex.id)
-        .select()
-        .single();
-      console.log(`🔄 CONV_RESET: Phone ${phone} returning after closed order → fresh state`);
-      return reset || ex;
+  if (data) return data;
+  
+  // Inicializar desde historial de pedidos previos
+  const { data: pastOrders } = await supabase
+    .from("whatsapp_orders")
+    .select("customer_name, delivery_address, created_at")
+    .eq("restaurant_id", rid)
+    .eq("customer_phone", phone)
+    .not("delivery_address", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  
+  const name = pastOrders?.[0]?.customer_name || null;
+  const addresses = [];
+  const seen = new Set<string>();
+  for (const o of (pastOrders || [])) {
+    if (o.delivery_address && !seen.has(o.delivery_address)) {
+      seen.add(o.delivery_address);
+      addresses.push({ address: o.delivery_address, label: null, last_used_at: o.created_at });
     }
-    return ex;
   }
   
-  // Nueva conversación
-  const { data: cr, error } = await supabase
-    .from("whatsapp_conversations")
-    .insert({ restaurant_id: rid, customer_phone: phone, messages: [], order_status: "none" })
-    .select()
-    .single();
-  if (error) throw error;
-  return cr;
+  const { data: created } = await supabase
+    .from("wa_customer_profiles")
+    .upsert({ restaurant_id: rid, phone, name, addresses, total_orders: pastOrders?.length || 0 }, { onConflict: "restaurant_id,phone" })
+    .select().single();
+  
+  return created;
 }
 ```
 
-**Cambio 2 — IDEMPOTENCY check (línea 1700): Ajustar para no bloquear si ya fue reseteada**
-
-El reset en `getConversation()` garantiza que `conv.order_status` nunca sea `confirmed/emailed` al iniciar un nuevo pedido. El bloque de idempotency existente es correcto — solo actúa si `current_order` existe, que tras el reset será `null`.
-
-**Cambio 3 — DEDUP GUARD 2: Acortar ventana de 120s a 30s**
-
-120 segundos es demasiado amplio. Meta re-envía webhooks en menos de 5 segundos. 30 segundos es suficiente para deduplicar dobles-webhooks sin bloquear pedidos legítimos consecutivos.
-
+**Upsert en `saveOrder()` al final (después de guardar el pedido):**
 ```typescript
-const thirtySecAgo = new Date(Date.now() - 30 * 1000).toISOString();
-// en lugar de 120 * 1000
+// Actualizar perfil del cliente WA
+if (order.delivery_address) {
+  // Leer perfil actual, añadir dirección si no existe, actualizar last_used_at
+  const { data: profile } = await supabase.from("wa_customer_profiles")...
+  // upsert con addresses actualizado
+}
 ```
+
+**Inyección de contexto en el flujo normal (línea ~2117):**
+```typescript
+// ANTES de buildPrompt()
+const waCustomer = await getOrCreateWaCustomer(from, rId);
+const customerMemoryCtx = buildCustomerMemoryContext(waCustomer);
+// customerMemoryCtx se añade al final del sistema prompt de Alicia
+```
+
+**Función `buildCustomerMemoryContext(customer)`:**
+Genera el bloque de texto a inyectar según el caso:
+
+- **Caso A — tiene nombre + 1 dirección:**
+  ```
+  MEMORIA CLIENTE RECURRENTE:
+  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
+  - Dirección guardada: "Balcones del Vergel Torre 5 Apto 401" (última usada)
+  - Cuando llegue el paso de dirección, pregunta: "¿Te lo envío a Balcones del Vergel Torre 5 Apto 401 como la última vez o es otra?"
+  - Si confirma → úsala. Si dice otra → pídela y el sistema la guarda.
+  - NO hagas más preguntas de las necesarias.
+  ```
+
+- **Caso B — tiene nombre + 2+ direcciones:**
+  ```
+  MEMORIA CLIENTE RECURRENTE:
+  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
+  - Direcciones guardadas:
+    1. "Balcones del Vergel Torre 5 Apto 401" (última usada)
+    2. "Wakari Torre 1 Apto 1404"
+  - Pregunta: "¿A dónde te lo envío: Balcones del Vergel o Wakari? Si es otra, me la mandas."
+  - Máximo 2 opciones. NO listar más.
+  ```
+
+- **Caso C — tiene solo nombre, sin dirección:**
+  ```
+  MEMORIA CLIENTE RECURRENTE:
+  - Nombre conocido: "Laura" → Ya tienes su nombre. NO lo pidas.
+  - Sin dirección guardada → pedirla normalmente cuando corresponda.
+  ```
+
+- **Caso D — cliente nuevo:** no se añade nada al prompt (flujo normal).
+
+---
+
+### Flujo Completo con Memoria
+
+```text
+1. Mensaje llega de phone X
+2. getConversation() → conv fresca (ya implementado)
+3. getOrCreateWaCustomer() → lee historial de whatsapp_orders
+4. buildCustomerMemoryContext() → genera bloque de texto
+5. buildPrompt() recibe: freshCustomerName + customerMemoryCtx al final
+6. Alicia responde SIN pedir lo que ya sabe
+7. Al confirmar pedido: saveOrder() hace upsert en wa_customer_profiles
+   → añade/actualiza dirección, actualiza total_orders, last_order_at
+```
+
+---
+
+### Puntos Críticos de Seguridad
+
+- `getOrCreateWaCustomer()` es llamada SOLO en el bloque de procesamiento normal (después del bloqueo IDEMPOTENCY, antes de `callAI`). No se llama en confirmación ni en email, no afecta esos flujos.
+- El upsert de `saveOrder()` usa `try/catch` separado — si falla, el pedido ya está guardado y el email ya fue enviado. El perfil del cliente nunca bloquea la operación principal.
+- RLS: tabla con service role only → el edge function usa service role, ningún cliente puede leerla/modificarla directamente.
+- El `DEDUP GUARD 2` (30s, ya implementado) no interactúa con esta tabla.
+
+---
 
 ### Archivos a Modificar
 
-- `supabase/functions/whatsapp-webhook/index.ts`
-  - `getConversation()` (línea 287-302): agregar lógica de reset de conversación cerrada
-  - DEDUP GUARD 2 (línea 1080): cambiar ventana de 120s a 30s
+- `supabase/functions/whatsapp-webhook/index.ts`:
+  1. Añadir `getOrCreateWaCustomer()` (función nueva, ~30 líneas)
+  2. Añadir `buildCustomerMemoryContext()` (función nueva, ~25 líneas)
+  3. Añadir upsert de perfil al final de `saveOrder()` (~15 líneas)
+  4. Llamar `getOrCreateWaCustomer()` antes de `buildPrompt()` en el flujo principal (~3 líneas)
+  5. Pasar `customerMemoryCtx` como parámetro adicional al final del prompt
 
-### Idempotencia Final (Correcto)
+### Migración de Base de Datos
 
-| Escenario | Comportamiento |
+- Crear tabla `wa_customer_profiles` con RLS habilitado (service role only)
+- No modificar tablas existentes
+
+### Escenarios Validados
+
+| Escenario | Resultado Esperado |
 |---|---|
-| Cliente pide 12pm → email enviado | `order_status = "emailed"` |
-| Cliente dice "gracias" → mismo pedido | IDEMPOTENCY actúa correctamente (current_order existe) |
-| Cliente vuelve a las 2pm → nuevo pedido | `getConversation()` detecta "emailed" → resetea → flujo fresco → email nuevo |
-| Mismo webhook de Meta llega 2 veces (< 30s) | DEDUP GUARD 2 bloquea duplicado |
-| Cliente pide 3 veces en 20 min | 3 pedidos distintos → 3 emails |
-| "Sí confirmar" enviado 2 veces mismo pedido | IDEMPOTENCY por `conversation_id + status=received` bloquea solo 1 |
-
-### Lo que NO cambia
-
-- Prompt de Alicia
-- Personalidad
-- Flujo de confirmación
-- Lógica de email
-- Cálculo de precios
-- Base de datos (sin migraciones)
-- Lógica de pago
-- Estados de conversación
-- Tags internos
+| Cliente nuevo | Flujo normal, sin cambios |
+| Cliente con 1 pedido previo | Alicia saluda por nombre, propone dirección anterior |
+| Cliente con 2+ pedidos / 2 direcciones | Ofrece elegir entre las 2 últimas |
+| Cliente confirma misma dirección | Upsert actualiza `last_used_at` |
+| Cliente da nueva dirección | Se agrega al array `addresses`, sin borrar anteriores |
+| Fallo en upsert de perfil | Pedido ya confirmado, email ya enviado, fallo silencioso |
+| Cliente pide en pickup (recoger) | Solo nombre, sin lógica de dirección |
