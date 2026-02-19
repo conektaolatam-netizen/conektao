@@ -886,14 +886,21 @@ REGLA ANTI-ALUCINACIÓN DE PRODUCTOS (CRÍTICA, INQUEBRANTABLE):
 - NUNCA JAMÁS inventes nombres de productos que no están en el menú
 - NUNCA JAMÁS inventes precios. Solo usa los precios del MENÚ OFICIAL arriba
 - Búsqueda flexible: ignora mayúsculas, tildes, "pizza de", "la", singular/plural
+- EJEMPLO CRÍTICO: Si el cliente pide "Coca-Cola 1.5L" o "Coca-Cola 1 litro" o "Cola litro" → NO existe en el menú. Responde: "No tenemos Coca-Cola en ese tamaño. Tenemos Gaseosa ¿te la anoto?" y lista las bebidas que SÍ existen en el menú.
+- PROHIBIDO inventar tamaños o versiones de bebidas. Si el menú dice "Gaseosa" sin especificar litros → así se vende, sin especificar.
+
 
 DISAMBIGUATION:
 - "Camarones" → preguntar: pizza, entrada, fettuccine o brioche?
 - "Burrata" → preguntar: entrada Burrata La Barra, Burrata Tempura, o Pizza Prosciutto & Burrata?
 - "Pasta" → preguntar cuál de las disponibles en el menú
 
-EMPAQUES (domicilio/llevar, van SÍ O SÍ):
-- Pizza/postre: $2.000 | Pasta/entrada/sándwich/hamburguesa: $3.000 | Bebida: $1.000
+EMPAQUES (domicilio/llevar):
+- SOLO aplica empaque a productos PREPARADOS por La Barra: pizzas, pastas, entradas, hamburguesas, postres, limonadas, sodificadas, cócteles (Aperol, Mojito), sangrías.
+- NO aplica empaque a bebidas embotelladas/enlatadas: Gaseosa, Agua mineral, Agua con gas, St. Pellegrino, Cerveza (Corona, Stella, Artesanal), Vinos en botella.
+- Montos: pizza/postre: $2.000 | pasta/entrada/sándwich/hamburguesa: $3.000 | bebida preparada: $1.000
+- Si el cliente pide bebida embotellada → NO incluyas empaque en el resumen ni en el JSON.
+
 
 ${prom}
 
@@ -979,11 +986,46 @@ function buildPriceMap(products: any[]): Record<string, number> {
   return map;
 }
 
-function getPackagingCost(itemName: string): number {
+/** Build packaging policy map: name_lower -> requires_packaging (from DB) */
+function buildPackagingMap(products: any[]): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  for (const p of products) {
+    if (p.name !== undefined) {
+      map[p.name.toLowerCase()] = p.requires_packaging === true;
+    }
+  }
+  return map;
+}
+
+/**
+ * Returns packaging cost for an item.
+ * RULE: Only "prepared" beverages (limonadas, sodificadas, cócteles, etc.) get packaging.
+ * Bottled/canned drinks (gaseosas, aguas, cervezas, wines) = 0 packaging.
+ * Logic is DB-driven (requires_packaging field), but this function is a fallback for
+ * items not found in the DB map. The primary source of truth is the product's requires_packaging.
+ */
+function getPackagingCost(itemName: string, requiresPackaging?: boolean): number {
+  // If we have DB data, trust it completely
+  if (requiresPackaging === true) {
+    const n = itemName.toLowerCase();
+    const pasta = ["spaghetti","fettuccine","ravioles","lasagna","pasta","carbonara","bolognese","teléfono","quesos","hamburguesa","brioche","brocheta","bondiola","langostinos","sandwich","nuditos","champiñones","brie","burrata","tapas"];
+    if (pasta.some(k => n.includes(k))) return 3000;
+    // prepared beverages: $1000
+    const prepBeverage = ["limonada","sodificada","aperol","mojito","sangria","sangría","cóctel","coctel","tinto de verano"];
+    if (prepBeverage.some(k => n.includes(k))) return 1000;
+    return 2000; // default for prepared items (pizza, postre, etc.)
+  }
+  if (requiresPackaging === false) return 0;
+
+  // Fallback (no DB data): infer from name — bottled/canned = 0
   const n = itemName.toLowerCase();
+  const noPackagingKeywords = ["gaseosa","agua","corona","stella","artesanal","cerveza","vino","pellegrino","mineral","con gas","coca-cola","coca cola"];
+  if (noPackagingKeywords.some(k => n.includes(k))) return 0;
+  // Prepared beverages
+  const prepBeverage = ["limonada","sodificada","aperol","mojito","sangria","sangría","cóctel","coctel","tinto de verano"];
+  if (prepBeverage.some(k => n.includes(k))) return 1000;
+  // Food
   const pasta = ["spaghetti","fettuccine","ravioles","lasagna","pasta","carbonara","bolognese","teléfono","quesos","hamburguesa","brioche","brocheta","bondiola","langostinos","sandwich","nuditos","champiñones","brie","burrata","tapas"];
-  const drink = ["limonada","sodificada","gaseosa","agua","coca","cerveza","vino","copa"];
-  if (drink.some(k => n.includes(k))) return 1000;
   if (pasta.some(k => n.includes(k))) return 3000;
   return 2000;
 }
@@ -993,6 +1035,7 @@ function validateOrder(order: any, isLaBarra: boolean, products?: any[]): { orde
   if (!isLaBarra || !order?.items) return { order, corrected: false, issues: [] };
 
   const priceMap = products ? buildPriceMap(products) : {};
+  const packagingMap = products ? buildPackagingMap(products) : {};
   const issues: string[] = [];
   let corrected = false;
   const isDelivery =
@@ -1004,10 +1047,10 @@ function validateOrder(order: any, isLaBarra: boolean, products?: any[]): { orde
     const itemLower = itemName.toLowerCase();
 
     // Price validation using dynamic price map from DB
+    let bestMatch: string | null = null;
+    let bestPrice = 0;
     if (Object.keys(priceMap).length > 0) {
       // Find best matching product by fuzzy name match
-      let bestMatch: string | null = null;
-      let bestPrice = 0;
       for (const [prodName, price] of Object.entries(priceMap)) {
         if (
           itemLower.includes(prodName) ||
@@ -1033,14 +1076,41 @@ function validateOrder(order: any, isLaBarra: boolean, products?: any[]): { orde
       }
     }
 
-    // Packaging validation for delivery
-    if (isDelivery && (!item.packaging_cost || item.packaging_cost <= 0)) {
-      const pkg = getPackagingCost(itemName);
-      item.packaging_cost = pkg;
-      issues.push(`Empaque faltante para ${itemName}: +$${pkg}`);
-      corrected = true;
+    // ── PACKAGING: driven exclusively by DB field requires_packaging ──
+    if (isDelivery) {
+      // Look up requires_packaging from the packaging map (DB source of truth)
+      let dbRequiresPackaging: boolean | undefined = undefined;
+      if (bestMatch && packagingMap[bestMatch] !== undefined) {
+        dbRequiresPackaging = packagingMap[bestMatch];
+      } else {
+        // Try direct lookup
+        for (const [prodName, reqPkg] of Object.entries(packagingMap)) {
+          if (itemLower.includes(prodName) || prodName.includes(itemLower)) {
+            dbRequiresPackaging = reqPkg;
+            break;
+          }
+        }
+      }
+
+      // If product does not require packaging → force 0
+      if (dbRequiresPackaging === false) {
+        if ((item.packaging_cost || 0) !== 0) {
+          issues.push(`Empaque ELIMINADO para ${itemName} (producto embotellado/enlatado)`);
+          item.packaging_cost = 0;
+          corrected = true;
+        }
+      } else if (!item.packaging_cost || item.packaging_cost <= 0) {
+        // Requires packaging but missing → add it
+        const pkg = getPackagingCost(itemName, dbRequiresPackaging);
+        if (pkg > 0) {
+          item.packaging_cost = pkg;
+          issues.push(`Empaque faltante para ${itemName}: +$${pkg}`);
+          corrected = true;
+        }
+      }
     }
   }
+
 
   // Recalculate totals
   let subtotal = 0;
@@ -2019,7 +2089,7 @@ Deno.serve(async (req) => {
           const { data: restaurantProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
           const profileIds = (restaurantProfiles || []).map((p: any) => p.id);
           const { data: confirmProds } = profileIds.length > 0
-            ? await supabase.from("products").select("id, name, price, categories(name)").in("user_id", profileIds).eq("is_active", true)
+            ? await supabase.from("products").select("id, name, price, requires_packaging, categories(name)").in("user_id", profileIds).eq("is_active", true)
             : { data: [] };
           const validated = validateOrder(resolvedOrder, isLaBarra, confirmProds || []);
           
@@ -2219,7 +2289,7 @@ Deno.serve(async (req) => {
       const { data: prods } = restProfileIds.length > 0
         ? await supabase
             .from("products")
-            .select("id, name, price, description, category_id, categories(name)")
+            .select("id, name, price, description, category_id, requires_packaging, categories(name)")
             .in("user_id", restProfileIds)
             .eq("is_active", true)
             .order("name")
