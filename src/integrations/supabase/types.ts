@@ -3039,6 +3039,7 @@ export type Database = {
           is_recommended: boolean
           name: string
           price: number
+          requires_packaging: boolean
           sku: string | null
           updated_at: string | null
           user_id: string | null
@@ -3054,6 +3055,7 @@ export type Database = {
           is_recommended?: boolean
           name: string
           price: number
+          requires_packaging?: boolean
           sku?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -3069,6 +3071,7 @@ export type Database = {
           is_recommended?: boolean
           name?: string
           price?: number
+          requires_packaging?: boolean
           sku?: string | null
           updated_at?: string | null
           user_id?: string | null
