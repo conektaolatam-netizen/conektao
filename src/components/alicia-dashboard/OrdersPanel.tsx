@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat } from "lucide-react";
+import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat, Mail, MailCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,7 @@ interface Order {
   delivery_address: string | null;
   status: string;
   email_sent: boolean;
+  payment_proof_url: string | null;
   created_at: string;
 }
 
@@ -176,9 +177,23 @@ export default function OrdersPanel() {
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className={`${cfg.color} border-current text-xs`}>
-                    {cfg.label}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {order.email_sent && (
+                      <span title="Email enviado" className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                        <MailCheck className="w-3 h-3" />
+                        Email
+                      </span>
+                    )}
+                    {order.payment_proof_url && (
+                      <span title="Comprobante recibido" className="flex items-center gap-1 text-[10px] text-blue-400 font-medium">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Comprobante
+                      </span>
+                    )}
+                    <Badge variant="outline" className={`${cfg.color} border-current text-xs`}>
+                      {cfg.label}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Delivery info */}
