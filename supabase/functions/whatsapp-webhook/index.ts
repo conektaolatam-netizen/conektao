@@ -1342,13 +1342,16 @@ async function saveOrder(
       try {
         const sent = await sendEmail(config.order_email, subject, html);
         if (sent) {
-          await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", existingOrder.id);
+          await supabase.from("whatsapp_orders").update({ email_sent: true, status: "confirmed" }).eq("id", existingOrder.id);
           await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
           console.log(`📧 EMAIL_RETRY_OK { order_id: "${existingOrder.id}" }`);
         } else {
+          // Email failed but order is still confirmed
+          await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", existingOrder.id);
           console.log(`📧 EMAIL_RETRY_FAIL { order_id: "${existingOrder.id}" }`);
         }
       } catch (emailErr) {
+        await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", existingOrder.id);
         console.error(`📧 EMAIL_RETRY_ERROR { order_id: "${existingOrder.id}", err: "${emailErr}" }`);
       }
     }
@@ -1389,6 +1392,7 @@ async function saveOrder(
       delivery_address: order.delivery_address || null,
       status: "received",
       email_sent: false,
+      payment_proof_url: paymentProofUrl || null,
     })
     .select()
     .single();
@@ -1410,6 +1414,8 @@ async function saveOrder(
   // ── STEP 3: Send email (NON-BLOCKING — failure never reverts confirmation) ──
   if (!config.order_email) {
     console.log(`📧 EMAIL_SKIP: No order_email configured for restaurant ${rid}`);
+    // Still mark as confirmed even if no email configured
+    await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", saved.id);
     return saved.id;
   }
 
@@ -1418,16 +1424,18 @@ async function saveOrder(
     const subject = `🍕 Pedido ${isDelivery ? "Domicilio" : "Recoger"} - ${order.customer_name || "Cliente"} - $${(order.total || 0).toLocaleString("es-CO")}`;
     const sent = await sendEmail(config.order_email, subject, html);
     if (sent) {
-      // Only update email_sent + status, never revert to unconfirmed
-      await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+      // Update status to confirmed + email_sent — never revert to received
+      await supabase.from("whatsapp_orders").update({ email_sent: true, status: "confirmed" }).eq("id", saved.id);
       await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
       console.log(`📧 EMAIL_SEND_OK { order_id: "${saved.id}", to: "${config.order_email}" }`);
     } else {
-      // Email failed — order STAYS confirmed, just not "emailed"
+      // Email failed — order confirmed in dashboard regardless
+      await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", saved.id);
       console.log(`📧 EMAIL_SEND_FAIL { order_id: "${saved.id}", to: "${config.order_email}" } — order confirmed regardless`);
     }
   } catch (emailErr) {
-    // Email exception — order STAYS confirmed
+    // Email exception — order confirmed in dashboard regardless
+    await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", saved.id);
     console.error(`📧 EMAIL_EXCEPTION { order_id: "${saved.id}", err: "${emailErr}" } — order confirmed regardless`);
   }
 
@@ -1679,7 +1687,7 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
         const subject = `🍕 Pedido ${isDelivery?"Domicilio":"Recoger"} - ${order.customer_name} - $${order.total.toLocaleString("es-CO")}`;
         emailSent = await sendEmail(cfg.order_email, subject, html);
         if (emailSent) {
-          await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
+          await supabase.from("whatsapp_orders").update({ email_sent: true, status: "confirmed" }).eq("id", saved.id);
           await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
         }
       }
@@ -2094,7 +2102,8 @@ Deno.serve(async (req) => {
           const validated = validateOrder(resolvedOrder, isLaBarra, confirmProds || []);
           
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
-          const storedProof = conv.payment_proof_url || null;
+          // Use freshConv to capture proof uploaded in the same batch window
+          const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
           await saveOrder(rId, conv.id, from, validated.order, config, storedProof);
           console.log(`💾 ORDER_SAVED { conv=${conv.id}, phone: "${from}" }`);
 
