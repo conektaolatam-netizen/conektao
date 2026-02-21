@@ -5026,6 +5026,7 @@ export type Database = {
           email_sent: boolean
           id: string
           items: Json
+          payment_method: string | null
           payment_proof_url: string | null
           restaurant_id: string
           status: string
@@ -5041,6 +5042,7 @@ export type Database = {
           email_sent?: boolean
           id?: string
           items?: Json
+          payment_method?: string | null
           payment_proof_url?: string | null
           restaurant_id: string
           status?: string
@@ -5056,6 +5058,7 @@ export type Database = {
           email_sent?: boolean
           id?: string
           items?: Json
+          payment_method?: string | null
           payment_proof_url?: string | null
           restaurant_id?: string
           status?: string

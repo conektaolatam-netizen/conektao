@@ -1537,9 +1537,24 @@ async function saveOrder(
       status: "received",
       email_sent: false,
       payment_proof_url: paymentProofUrl || null,
+      payment_method: order.payment_method || null,
     })
     .select()
     .single();
+
+  // ATOMIC DEDUP: If unique constraint violation, return existing order
+  if (error && error.code === "23505") {
+    console.log(`🔒 ATOMIC_DEDUP: Unique constraint caught duplicate for conv ${cid}`);
+    const { data: existingAtomic } = await supabase
+      .from("whatsapp_orders")
+      .select("id")
+      .eq("conversation_id", cid)
+      .eq("restaurant_id", rid)
+      .in("status", ["received", "confirmed"])
+      .limit(1)
+      .maybeSingle();
+    return existingAtomic?.id || null;
+  }
 
   if (error) {
     console.error(`💾 DB_INSERT_FAIL { phone: "${phone}", error: "${error.message}" }`);
@@ -2360,7 +2375,7 @@ Deno.serve(async (req) => {
             .select("id")
             .eq("conversation_id", conv.id)
             .eq("restaurant_id", rId)
-            .eq("status", "received")
+            .in("status", ["received", "confirmed"])
             .limit(1)
             .maybeSingle();
 
