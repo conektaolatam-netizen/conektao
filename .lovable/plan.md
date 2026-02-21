@@ -1,110 +1,143 @@
 
 
-## Carga de Menu con IA — Completar flujo end-to-end
+# Dashboard Modular Desbloqueable - Plan de Implementacion
 
-### Que ya existe
+## Resumen
 
-- Edge function `menu-onboarding-parse` que envia imagenes a Gemini y retorna JSON estructurado (categorias, productos, precios, confianza)
-- Componente `MenuOnboardingUpload` que sube imagenes a storage y llama a la edge function
-- Componente `MenuOnboardingReview` que muestra resultados editables con advertencias de baja confianza
-- Tabla `menu_import_sessions` para tracking
-- Tabla `products` con columnas: name, description, price, category_id, user_id, restaurant_id, sku, is_active
-- Tabla `categories` con columnas: name, user_id, restaurant_id
-
-### Que falta
-
-El flujo actual termina en "debug JSON". Nunca inserta en `products` ni `categories`. Ademas:
-
-1. No hay advertencia visible de que la informacion fue extraida por IA
-2. No hay logica de creacion de categorias (find-or-create)
-3. No hay insercion de productos tras confirmacion
-4. No se actualiza `menu_import_sessions` con el resultado final
-5. El componente `AliciaConfigMenu` no tiene boton para importar menu con IA
-6. No acepta PDFs (solo imagenes)
+Transformar el dashboard actual en un sistema modular progresivo donde usuarios nuevos ven Alicia como modulo principal y el resto como bloqueado/proximo, sin romper la experiencia de clientes activos (La Barra y otros con plan existente).
 
 ---
 
-### Plan de implementacion
+## Fase 1: Base de Datos - Tabla de planes y registro de interes
 
-#### 1. Agregar advertencia IA en MenuOnboardingReview
+### 1.1 Modificar `subscription_settings`
 
-Antes del listado de productos, mostrar un banner amarillo/naranja:
+La tabla `subscription_settings` ya existe con campo `plan_type` (default `'basic'`). Se necesita:
 
-```
-"Esta informacion fue extraida por IA. Revisala cuidadosamente antes de guardar."
-```
-
-Con icono de AlertTriangle y fondo amarillo suave.
-
-#### 2. Crear funcion `saveMenuToDatabase` en MenuOnboardingFlow
-
-Cuando el usuario confirma en la pantalla de review, ejecutar:
-
-1. Para cada `section` en los datos confirmados:
-   - Buscar o crear la categoria en `categories` (match por nombre, case-insensitive)
-   - Guardar el `category_id` resultante
-
-2. Para cada `item` en cada seccion:
-   - Insertar en `products` con:
-     - `name`: nombre del producto
-     - `description`: descripcion extraida
-     - `price`: precio de la primera variante (o variante "Normal")
-     - `category_id`: la categoria encontrada/creada
-     - `user_id`: usuario actual
-     - `restaurant_id`: desde profile
-     - `sku`: auto-generado (primeras letras + timestamp)
-     - `is_active`: true
-   - Si tiene multiples variantes (tamanos), crear un producto por variante con nombre compuesto: "Producto (Tamano)"
-
-3. Actualizar `menu_import_sessions`:
-   - `status` -> 'completed'
-   - `final_data` -> datos confirmados
-   - `products_created` -> conteo
-   - `categories_created` -> conteo
-   - `completed_at` -> now()
-
-4. Mostrar toast de exito: "X productos creados en Y categorias"
-
-#### 3. Integrar en AliciaConfigMenu
-
-Agregar boton "Importar menu con IA" en el componente AliciaConfigMenu que abre un Dialog con el flujo MenuOnboardingFlow embebido. Al completar, recargar la lista de productos.
-
-#### 4. Aceptar PDFs
-
-Modificar `MenuOnboardingUpload` para aceptar `application/pdf` ademas de imagenes. El edge function ya recibe URLs, asi que solo necesita cambiar el `accept` del input y el filtro de validacion.
-
----
-
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/components/onboarding/MenuOnboardingReview.tsx` | Agregar banner de advertencia IA antes del listado |
-| `src/components/onboarding/MenuOnboardingFlow.tsx` | Implementar `saveMenuToDatabase()` en `onComplete` — crear categorias + productos en Supabase |
-| `src/components/onboarding/MenuOnboardingUpload.tsx` | Aceptar PDFs (`accept="image/*,.pdf"`) |
-| `src/components/alicia-config/AliciaConfigMenu.tsx` | Agregar boton "Importar menu con IA" con Dialog que embebe el flujo |
-| `src/pages/MenuOnboardingTest.tsx` | Conectar a la logica real de guardado en vez de solo mostrar JSON |
-
-### Archivos que NO se tocan
-
-- Edge function `menu-onboarding-parse` (ya funciona correctamente con Gemini)
-- Esquema de BD (tablas `products`, `categories`, `menu_import_sessions` ya tienen todas las columnas necesarias)
-- Webhook de WhatsApp
-- Flujo de La Barra en produccion
-
-### Flujo completo del usuario
+- Agregar el valor `alicia_only` como default para nuevos usuarios
+- Crear tabla `module_interest_requests` para capturar "Quiero acceso prioritario"
 
 ```text
-1. Dueno entra a configuracion de Alicia > tab Menu
-2. Click "Importar menu con IA"
-3. Sube fotos o PDF del menu
-4. Sistema sube a storage, envia a Gemini
-5. Gemini extrae productos, precios, categorias
-6. UI muestra resultados editables
-7. Banner amarillo: "Extraido por IA. Revisa antes de guardar."
-8. Dueno edita nombres, corrige precios, elimina duplicados
-9. Click "Confirmar X productos"
-10. Sistema crea categorias + productos en BD
-11. Toast: "12 productos creados en 4 categorias"
-12. Menu se refleja inmediatamente en Alicia y POS
+Migracion SQL:
+- ALTER subscription_settings: cambiar default de plan_type a 'alicia_only'
+- CREATE TABLE module_interest_requests (
+    id uuid PK,
+    restaurant_id uuid FK,
+    user_id uuid FK,
+    module_key text NOT NULL,
+    created_at timestamptz
+  )
+- RLS policies para ambas tablas
 ```
+
+### 1.2 Mapeo de planes a modulos
+
+```text
+alicia_only  -> Solo Alicia
+basic/pos_pro -> Facturacion, Inventario, Cocina, Personal, Documentos, Marketplace
+full_suite   -> Todo (IA Conektao, Contabilidad IA, Auditoria, Marketing IA)
+```
+
+---
+
+## Fase 2: Hook `useModuleAccess`
+
+Crear `src/hooks/useModuleAccess.ts`:
+
+- Consulta `subscription_settings.plan_type` del restaurante actual
+- Expone: `canAccess(moduleKey)`, `planType`, `isLocked(moduleKey)`, `loading`
+- Retorna `true` para todos los modulos si `plan_type` es `full_suite` o `pos_pro` (segun modulo)
+- Clientes existentes con `plan_type = 'basic'` se tratan como `pos_pro` (no romper nada)
+
+---
+
+## Fase 3: Dashboard Condicional (`Dashboard.tsx`)
+
+### 3.1 Hero Section - Alicia Card (plan `alicia_only`)
+
+Cuando `planType === 'alicia_only'`:
+
+- Reemplazar las 3 tarjetas de ventas por una tarjeta hero grande de Alicia
+- Avatar con glow turquesa/naranja
+- Boton "Configurar Alicia" (si no tiene `whatsapp_configs.setup_completed`) o "Entrar a Alicia" (si ya esta configurada)
+- Click redirige a `/alicia-dashboard` o `/alicia/config`
+
+Cuando `planType !== 'alicia_only'`:
+
+- Mantener las tarjetas de ventas actuales (sin cambios)
+
+### 3.2 Modulos Bloqueados
+
+Para modulos donde `isLocked(moduleKey)` es `true`:
+
+- Renderizar con opacidad reducida (gris)
+- Icono de candado superpuesto
+- Tooltip: "Disponible en el plan POS Inteligente"
+- Click abre modal elegante (no navega al modulo)
+
+### 3.3 Modal "Proximamente"
+
+Componente `LockedModuleModal.tsx`:
+
+- Diseno oscuro con gradientes Conektao
+- Texto: "Proximamente disponible. Dejanos tus datos para activarlo primero."
+- Boton: "Quiero acceso prioritario"
+- Al hacer click: `INSERT INTO module_interest_requests`
+- Feedback: "Listo, te avisaremos cuando este disponible"
+
+### 3.4 Marketplace
+
+Para `alicia_only`: mostrar tarjeta semi-transparente "En preparacion", no clickeable.
+
+---
+
+## Fase 4: Proteccion en `Index.tsx`
+
+En `renderModule()`, agregar verificacion con `useModuleAccess`:
+
+- Si el modulo esta bloqueado, no renderizar el componente
+- Mostrar pantalla de "Modulo no disponible en tu plan" con CTA de upgrade
+- Esto previene acceso directo via URL o sidebar
+
+---
+
+## Riesgos y Mitigaciones
+
+```text
+Riesgo                                  | Mitigacion
+----------------------------------------|------------------------------------------
+Romper clientes activos (La Barra)      | plan_type='basic' se trata como pos_pro
+Acceso directo via sidebar              | Proteccion en Index.tsx renderModule()
+Nuevos usuarios sin subscription_settings| Crear row automaticamente al crear restaurante
+Latencia en consulta de plan            | Cache con React Query (staleTime: 5min)
+```
+
+---
+
+## Orden de Implementacion
+
+1. Migracion SQL (tabla + defaults)
+2. Hook `useModuleAccess`
+3. Componente `LockedModuleModal`
+4. Modificar `Dashboard.tsx` (hero Alicia + modulos bloqueados)
+5. Proteger `Index.tsx` (renderModule)
+
+## Archivos a Crear
+
+- `src/hooks/useModuleAccess.ts`
+- `src/components/dashboard/LockedModuleModal.tsx`
+- `src/components/dashboard/AliciaHeroCard.tsx`
+
+## Archivos a Modificar
+
+- `src/components/Dashboard.tsx` (logica condicional por plan)
+- `src/pages/Index.tsx` (proteccion en renderModule)
+- 1 migracion SQL
+
+## Lo que NO se toca
+
+- Edge functions (whatsapp-webhook, etc.)
+- Logica de pedidos
+- Sistema de Alicia backend
+- Rutas existentes (/alicia-dashboard, /alicia/config)
+
