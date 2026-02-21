@@ -1,168 +1,110 @@
 
 
-## Base de Datos Multi-Negocio — Migracion Estructural
+## Carga de Menu con IA — Completar flujo end-to-end
 
-### Diagnostico actual
+### Que ya existe
 
-El sistema tiene dos patrones de ownership incompatibles:
+- Edge function `menu-onboarding-parse` que envia imagenes a Gemini y retorna JSON estructurado (categorias, productos, precios, confianza)
+- Componente `MenuOnboardingUpload` que sube imagenes a storage y llama a la edge function
+- Componente `MenuOnboardingReview` que muestra resultados editables con advertencias de baja confianza
+- Tabla `menu_import_sessions` para tracking
+- Tabla `products` con columnas: name, description, price, category_id, user_id, restaurant_id, sku, is_active
+- Tabla `categories` con columnas: name, user_id, restaurant_id
 
-**Tablas CON `restaurant_id` (47 tablas):** whatsapp_orders, whatsapp_conversations, whatsapp_configs, ingredients, kitchen_orders, cash_registers, audit_logs, etc. — Estas ya son multi-negocio.
+### Que falta
 
-**Tablas SIN `restaurant_id` (usan `user_id`):** products, categories, inventory, sales, recipes, notifications — Estas son el problema. Si dos negocios tienen el mismo owner o un empleado cambia de restaurante, los datos se mezclan.
+El flujo actual termina en "debug JSON". Nunca inserta en `products` ni `categories`. Ademas:
+
+1. No hay advertencia visible de que la informacion fue extraida por IA
+2. No hay logica de creacion de categorias (find-or-create)
+3. No hay insercion de productos tras confirmacion
+4. No se actualiza `menu_import_sessions` con el resultado final
+5. El componente `AliciaConfigMenu` no tiene boton para importar menu con IA
+6. No acepta PDFs (solo imagenes)
+
+---
 
 ### Plan de implementacion
 
----
+#### 1. Agregar advertencia IA en MenuOnboardingReview
 
-### Paso 1 — NO crear tabla `businesses` nueva
+Antes del listado de productos, mostrar un banner amarillo/naranja:
 
-La tabla `restaurants` ya cumple exactamente el rol de `businesses`:
-- `id`, `name`, `owner_id`, `address`, `created_at`
-- Ya es FK de 47 tablas
-- `whatsapp_configs` ya tiene `restaurant_id` + `whatsapp_phone_number_id`
-
-Crear una tabla `businesses` separada duplicaria la logica y romperia todo lo existente. En su lugar, se enriquece `restaurants` con los campos faltantes.
-
-**Migracion SQL:**
-```sql
-ALTER TABLE restaurants
-  ADD COLUMN IF NOT EXISTS branch text,
-  ADD COLUMN IF NOT EXISTS whatsapp_number text,
-  ADD COLUMN IF NOT EXISTS contact_email text,
-  ADD COLUMN IF NOT EXISTS branding jsonb DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+```
+"Esta informacion fue extraida por IA. Revisala cuidadosamente antes de guardar."
 ```
 
-Despues, sincronizar datos existentes de La Barra desde `whatsapp_configs`:
-```sql
-UPDATE restaurants
-SET whatsapp_number = '573014017559',
-    contact_email = (SELECT order_email FROM whatsapp_configs WHERE restaurant_id = restaurants.id LIMIT 1),
-    is_active = true
-WHERE id = '899cb7a7-7de1-47c7-a684-f24658309755';
+Con icono de AlertTriangle y fondo amarillo suave.
+
+#### 2. Crear funcion `saveMenuToDatabase` en MenuOnboardingFlow
+
+Cuando el usuario confirma en la pantalla de review, ejecutar:
+
+1. Para cada `section` en los datos confirmados:
+   - Buscar o crear la categoria en `categories` (match por nombre, case-insensitive)
+   - Guardar el `category_id` resultante
+
+2. Para cada `item` en cada seccion:
+   - Insertar en `products` con:
+     - `name`: nombre del producto
+     - `description`: descripcion extraida
+     - `price`: precio de la primera variante (o variante "Normal")
+     - `category_id`: la categoria encontrada/creada
+     - `user_id`: usuario actual
+     - `restaurant_id`: desde profile
+     - `sku`: auto-generado (primeras letras + timestamp)
+     - `is_active`: true
+   - Si tiene multiples variantes (tamanos), crear un producto por variante con nombre compuesto: "Producto (Tamano)"
+
+3. Actualizar `menu_import_sessions`:
+   - `status` -> 'completed'
+   - `final_data` -> datos confirmados
+   - `products_created` -> conteo
+   - `categories_created` -> conteo
+   - `completed_at` -> now()
+
+4. Mostrar toast de exito: "X productos creados en Y categorias"
+
+#### 3. Integrar en AliciaConfigMenu
+
+Agregar boton "Importar menu con IA" en el componente AliciaConfigMenu que abre un Dialog con el flujo MenuOnboardingFlow embebido. Al completar, recargar la lista de productos.
+
+#### 4. Aceptar PDFs
+
+Modificar `MenuOnboardingUpload` para aceptar `application/pdf` ademas de imagenes. El edge function ya recibe URLs, asi que solo necesita cambiar el `accept` del input y el filtro de validacion.
+
+---
+
+### Archivos a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/onboarding/MenuOnboardingReview.tsx` | Agregar banner de advertencia IA antes del listado |
+| `src/components/onboarding/MenuOnboardingFlow.tsx` | Implementar `saveMenuToDatabase()` en `onComplete` — crear categorias + productos en Supabase |
+| `src/components/onboarding/MenuOnboardingUpload.tsx` | Aceptar PDFs (`accept="image/*,.pdf"`) |
+| `src/components/alicia-config/AliciaConfigMenu.tsx` | Agregar boton "Importar menu con IA" con Dialog que embebe el flujo |
+| `src/pages/MenuOnboardingTest.tsx` | Conectar a la logica real de guardado en vez de solo mostrar JSON |
+
+### Archivos que NO se tocan
+
+- Edge function `menu-onboarding-parse` (ya funciona correctamente con Gemini)
+- Esquema de BD (tablas `products`, `categories`, `menu_import_sessions` ya tienen todas las columnas necesarias)
+- Webhook de WhatsApp
+- Flujo de La Barra en produccion
+
+### Flujo completo del usuario
+
+```text
+1. Dueno entra a configuracion de Alicia > tab Menu
+2. Click "Importar menu con IA"
+3. Sube fotos o PDF del menu
+4. Sistema sube a storage, envia a Gemini
+5. Gemini extrae productos, precios, categorias
+6. UI muestra resultados editables
+7. Banner amarillo: "Extraido por IA. Revisa antes de guardar."
+8. Dueno edita nombres, corrige precios, elimina duplicados
+9. Click "Confirmar X productos"
+10. Sistema crea categorias + productos en BD
+11. Toast: "12 productos creados en 4 categorias"
+12. Menu se refleja inmediatamente en Alicia y POS
 ```
-
----
-
-### Paso 2 — Agregar `restaurant_id` a tablas criticas
-
-Las 6 tablas que usan `user_id` sin `restaurant_id` necesitan la columna:
-
-```sql
--- products
-ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-
--- categories  
-ALTER TABLE categories ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-
--- inventory
-ALTER TABLE inventory ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-
--- sales (ya tiene user_id, necesita restaurant_id)
-ALTER TABLE sales ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-
--- recipes
-ALTER TABLE recipes ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-
--- notifications
-ALTER TABLE notifications ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
-```
-
----
-
-### Paso 3 — Migrar datos historicos
-
-Poblar `restaurant_id` para todos los registros existentes usando la relacion `user_id -> profiles.restaurant_id`:
-
-```sql
-UPDATE products SET restaurant_id = (
-  SELECT restaurant_id FROM profiles WHERE profiles.id = products.user_id
-) WHERE restaurant_id IS NULL AND user_id IS NOT NULL;
-
--- Mismo patron para categories, inventory, sales, recipes, notifications
-```
-
----
-
-### Paso 4 — Indices para performance
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_products_restaurant ON products(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_categories_restaurant ON categories(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_restaurant ON inventory(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_sales_restaurant ON sales(restaurant_id);
-```
-
----
-
-### Paso 5 — Mapeo automatico WhatsApp -> business_id
-
-Ya funciona asi en el webhook:
-1. Meta envia `phone_number_id` en el payload
-2. Webhook busca `whatsapp_configs WHERE whatsapp_phone_number_id = phone_number_id`
-3. Obtiene `restaurant_id` (= business_id)
-4. Todas las operaciones usan ese `restaurant_id`
-
-Para que sea mas robusto, agregar indice unico:
-```sql
-CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_configs_phone 
-  ON whatsapp_configs(whatsapp_phone_number_id);
-```
-
----
-
-### Paso 6 — Actualizar codigo frontend
-
-Modificar los hooks y componentes que consultan `products`, `sales`, etc. por `user_id` para que tambien filtren por `restaurant_id`:
-
-**Archivos a modificar:**
-- `src/components/POSSystem.tsx` — `loadProducts()` filtrar por `restaurant_id` en vez de solo `user_id`
-- `src/components/POSBilling.tsx` — mismo cambio en `loadProducts()`
-- `src/context/DataContext.tsx` — `loadProducts()` y `loadSales()` usar `restaurant_id`
-- `src/hooks/useAuth.tsx` — ya provee `profile.restaurant_id`, no necesita cambio
-
-**Patron de cambio (ejemplo products):**
-```typescript
-// ANTES
-.eq('user_id', user.id)
-
-// DESPUES (retrocompatible)
-.eq('restaurant_id', profile.restaurant_id)
-```
-
----
-
-### Paso 7 — Actualizar webhook para guardar `restaurant_id` en productos
-
-Cuando se crean productos desde el menu import o dashboard, asegurar que `restaurant_id` se incluya en el INSERT.
-
----
-
-### Resumen de migracion SQL total
-
-| Accion | Tabla | Tipo |
-|---|---|---|
-| Agregar columnas branch, whatsapp_number, etc. | restaurants | ALTER |
-| Agregar restaurant_id | products | ALTER |
-| Agregar restaurant_id | categories | ALTER |
-| Agregar restaurant_id | inventory | ALTER |
-| Agregar restaurant_id | sales | ALTER |
-| Agregar restaurant_id | recipes | ALTER |
-| Agregar restaurant_id | notifications | ALTER |
-| Poblar restaurant_id desde profiles | 6 tablas | UPDATE |
-| Indice unico phone_number_id | whatsapp_configs | INDEX |
-| Indices de busqueda | 4 tablas | INDEX |
-
-### Lo que NO se toca
-
-- Tabla `whatsapp_configs` (ya es multi-negocio)
-- Tabla `whatsapp_orders` (ya tiene restaurant_id)
-- Tabla `whatsapp_conversations` (ya tiene restaurant_id)
-- Tabla `ingredients` (ya tiene restaurant_id)
-- Edge function webhook (ya resuelve por phone_number_id)
-- Flujo de pedidos de La Barra en produccion
-
-### Riesgo y mitigacion
-
-El unico riesgo es que los UPDATEs de migracion de datos fallen si algun `user_id` no tiene `profiles.restaurant_id`. Mitigacion: usar LEFT JOIN y dejar NULL para huerfanos, verificar despues con query de auditoria.
-
