@@ -111,7 +111,8 @@ const POSSystem = () => {
           category:categories(name),
           inventory(current_stock, unit)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('restaurant_id', profile.restaurant_id);
 
       if (error) {
         console.error('Supabase error loading products:', error);
@@ -264,6 +265,7 @@ const POSSystem = () => {
         .from('sales')
         .insert({
           user_id: user.id,
+          restaurant_id: profile?.restaurant_id,
           total_amount: calculateTotal(),
           payment_method: paymentMethod,
           customer_email: customerEmail || null,

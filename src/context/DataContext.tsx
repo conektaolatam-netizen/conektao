@@ -240,7 +240,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           category:categories(name),
           inventory(current_stock, min_stock, unit)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('restaurant_id', profile.restaurant_id);
 
       if (error) throw error;
 
@@ -377,6 +378,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('sales')
         .select('*')
+        .eq('restaurant_id', profile.restaurant_id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

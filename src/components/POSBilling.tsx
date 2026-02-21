@@ -296,7 +296,8 @@ const POSBilling = () => {
         supabase
           .from('products')
           .select('*')
-          .eq('is_active', true),
+          .eq('is_active', true)
+          .eq('restaurant_id', profile.restaurant_id),
         supabase
           .from('recipes')
           .select('*')
