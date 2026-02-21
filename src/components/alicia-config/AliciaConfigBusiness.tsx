@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Store } from "lucide-react";
 
 interface Props { config: any; onSave: (fields: Record<string, any>) => Promise<void>; }
 
@@ -21,15 +20,33 @@ export default function AliciaConfigBusiness({ config, onSave }: Props) {
   };
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Tu Negocio</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <div><Label>Nombre del negocio</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Mi Restaurante" /></div>
-        <div><Label>Historia / Descripción</Label><Textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Cuenta la historia de tu negocio..." rows={4} /></div>
-        <div><Label>Dirección principal</Label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Calle 44 #5-20, Ciudad" /></div>
-        <div><Label>Detalles de ubicación (sedes, referencias)</Label><Textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Estamos en el centro comercial..." rows={2} /></div>
-        <Button onClick={handleSave} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</Button>
-      </CardContent>
-    </Card>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-r from-teal-500 to-orange-400 px-5 py-4 flex items-center gap-3">
+        <div className="bg-white/20 rounded-lg p-2"><Store className="h-5 w-5 text-white" /></div>
+        <div><h3 className="text-lg font-semibold text-white">Tu Negocio</h3><p className="text-xs text-white/80">Cuéntale a Alicia sobre tu negocio</p></div>
+      </div>
+      <div className="p-5 space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">¿Cómo se llama tu negocio?</label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Mi Restaurante" className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cuéntanos la historia de tu negocio</label>
+          <p className="text-xs text-gray-400 mb-1">Alicia usará esto para conectar con tus clientes</p>
+          <Textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Somos un restaurante familiar que..." rows={3} className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">¿Dónde están ubicados?</label>
+          <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Calle 44 #5-20, Ciudad" className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">¿Tienen varias sedes o referencias especiales?</label>
+          <Textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Estamos en el centro comercial, piso 2..." rows={2} className="border-gray-200" />
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
+          {saving ? "Guardando..." : "Guardar"}
+        </Button>
+      </div>
+    </div>
   );
 }

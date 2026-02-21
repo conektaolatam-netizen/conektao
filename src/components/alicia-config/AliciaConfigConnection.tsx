@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Wifi } from "lucide-react";
 
 interface Props { config: any; onSave: (fields: Record<string, any>) => Promise<void>; }
 
@@ -21,19 +19,36 @@ export default function AliciaConfigConnection({ config, onSave }: Props) {
   };
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Conexión WhatsApp</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex gap-2">
-          <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-yellow-700">Estos datos son técnicos. Solo modifícalos si sabes lo que haces o con soporte de Conektao.</p>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-r from-teal-500 to-orange-400 px-5 py-4 flex items-center gap-3">
+        <div className="bg-white/20 rounded-lg p-2"><Wifi className="h-5 w-5 text-white" /></div>
+        <div><h3 className="text-lg font-semibold text-white">Conexión WhatsApp</h3><p className="text-xs text-white/80">Datos técnicos de tu conexión</p></div>
+      </div>
+      <div className="p-5 space-y-5">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700">Estos datos son técnicos. Solo modifícalos si sabes lo que haces o con soporte de Conektao.</p>
         </div>
-        <div><Label>Phone Number ID (Meta)</Label><Input value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="942285825640689" /></div>
-        <div><Label>Access Token (Meta)</Label><Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="EAF..." /></div>
-        <div><Label>WABA ID</Label><Input value={wabaId} onChange={e => setWabaId(e.target.value)} placeholder="1203273002014817" /></div>
-        <div><Label>Email para recibir pedidos</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="pedidos@minegocio.com" /></div>
-        <Button onClick={handleSave} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</Button>
-      </CardContent>
-    </Card>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number ID (Meta)</label>
+          <Input value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="942285825640689" className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Access Token (Meta)</label>
+          <Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="EAF..." className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">WABA ID</label>
+          <Input value={wabaId} onChange={e => setWabaId(e.target.value)} placeholder="1203273002014817" className="border-gray-200" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email para recibir pedidos</label>
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="pedidos@minegocio.com" className="border-gray-200" />
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
+          {saving ? "Guardando..." : "Guardar"}
+        </Button>
+      </div>
+    </div>
   );
 }
