@@ -1,98 +1,159 @@
 
 
-## Diagnostico de las 6 fallas criticas
+## Dashboard de Configuracion de Alicia — Rediseno UX Onboarding
 
-### 1. "Pedido listo" — Alicia dice que pueden pasar sin confirmacion
+### Objetivo
 
-**Donde falla:** La regla ya existe parcialmente en el prompt de La Barra (linea 916-917), pero es generica. No hay una prohibicion explicita de frases como "ya puedes pasar", "tu pedido esta listo". Ademas, la respuesta post-confirmacion hardcodeada de follow-up (linea 2554) dice "Te avisamos cuando este listo" para pickup, lo cual es correcto, pero la IA puede generar frases como "ya esta listo" por su cuenta.
-
-**Que se modifica:** Agregar regla explicita al prompt de La Barra (linea ~916) y al prompt dinamico: "PROHIBIDO decir: 'ya puedes pasar', 'tu pedido esta listo', 'ya esta listo', 'puedes venir'. Si tipo = recoger, responde: 'Te avisamos cuando este listo para recoger'. NUNCA asumas que un pedido esta listo."
-
-**Riesgo:** Cero. Solo es una regla de texto en el prompt.
-
-### 2. Datafono — se ofrece sin restriccion
-
-**Donde falla:** `payment_config.methods` incluye `["transferencia", "efectivo", "datafono"]`. El prompt dinamico (linea 657-658) los lista todos: `PAGO: transferencia, efectivo, datafono`. El prompt de La Barra (linea 938) solo menciona efectivo y transferencia, pero el LLM puede ver "datafono" en el config e inferirlo. Ademas, no existe campo `delivery_with_card_terminal` en el config.
-
-**Que se modifica:**
-- Agregar regla en prompt La Barra: "Datafono NO se ofrece proactivamente. Si el cliente lo pide: 'No siempre podemos llevar datafono, te confirmo disponibilidad'. Metodos a ofrecer: efectivo o transferencia."
-- En prompt dinamico: filtrar "datafono" de la lista visible; solo mencionarlo si el cliente lo pide, con caveat.
-
-**Riesgo:** Cero. Solo reglas de prompt.
-
-### 3. Comprobante de transferencia no llega al email
-
-**Donde falla:** Bug critico en linea 2387. El codigo referencia `freshConv` que NO esta declarado en ese scope:
-
-```text
-const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
-```
-
-`freshConv` se declara en linea 2626 (despues del batching), pero la confirmacion ocurre en lineas 2293-2431 (antes del batching). Esto causa un error de Temporal Dead Zone (TDZ) cuando `paymentProofUrl` es null (la mayoria de los casos, cuando la imagen se envio en un mensaje anterior).
-
-Resultado: el proof nunca se pasa a `saveOrder`, y TODOS los pedidos tienen `payment_proof_url: null` en la BD (confirmado por query).
-
-**Que se modifica:** Reemplazar linea 2387 con una consulta fresca a `whatsapp_conversations` para obtener el `payment_proof_url` actualizado, antes de llamar a `saveOrder`. Asi:
-
-```typescript
-// Fetch fresh proof from DB (image may have been saved in a previous message)
-const { data: proofCheck } = await supabase
-  .from("whatsapp_conversations")
-  .select("payment_proof_url")
-  .eq("id", conv.id)
-  .single();
-const storedProof = paymentProofUrl || proofCheck?.payment_proof_url || conv.payment_proof_url || null;
-```
-
-**Riesgo:** Bajo. Solo agrega una query de lectura antes de saveOrder.
-
-### 4. Estados del dashboard — todo queda como "received"
-
-**Donde falla:** La BD muestra TODOS los pedidos con `status: "received"` a pesar de que `email_sent: true`. El codigo de la ultima correccion (actualizar status a "confirmed") esta presente en el archivo, pero hay un conflicto en el dedup guard (lineas 1454-1461): busca pedidos con `.eq("status", "received")`. Si el status se actualizo a "confirmed", el dedup guard no los encuentra, y crea un DUPLICADO en vez de actualizar.
-
-Ademas, las ordenes existentes en BD (anteriores al deploy) nunca fueron migradas — siguen como "received".
-
-**Que se modifica:**
-- Cambiar el dedup guard para buscar cualquier status (no solo "received"): `.in("status", ["received", "confirmed"])`.
-- Ejecutar un UPDATE masivo para corregir ordenes existentes: `UPDATE whatsapp_orders SET status = 'confirmed' WHERE email_sent = true AND status = 'received'`.
-
-**Riesgo:** Bajo. Solo amplia el filtro de dedup y corrige datos historicos.
-
-### 5. Calculo — validacion doble
-
-**Donde falla:** Ya existe `validateOrder()` (lineas 1136-1238) que recalcula precios y totales desde la BD. Sin embargo, no hay guardia contra totales negativos ni contra omision de items.
-
-**Que se modifica:** Agregar en `validateOrder`:
-- Guardia: `if (calculatedTotal <= 0) { issues.push("Total negativo/cero corregido"); calculatedTotal = subtotal; }`
-- Guardia: items sin precio se ignoran o escalan.
-
-**Riesgo:** Cero. Proteccion adicional.
-
-### 6. Historial y pedidos duplicados ligados a numeros distintos
-
-**Diagnostico:** La BD muestra dos pares de duplicados del 18 de Feb:
-- Carolina Madrigal (573118014362): dos pedidos identicos de $119,000 separados por 7 segundos
-- Diana Galindo (573162131254): dos pedidos identicos de $38,000 separados por 6 segundos
-
-Esto es por el dedup time window de 30 segundos (linea 1496) que deberia atraparlos, pero el segundo pedido puede haber llegado por una ruta diferente (confirmacion backend vs AI parsing). NO hay pedidos ligados a numeros incorrectos — los duplicados son del MISMO numero.
-
-**Que se modifica:** Agregar `payment_method` al OrdersPanel para mejor visibilidad. El dedup guard ya funciona correctamente con 30s window; los duplicados del 18 Feb pudieron haber sido creados por rutas paralelas (webhook duplicado de Meta). Agregar log adicional para rastrear.
+Transformar el dashboard actual (8 componentes con Cards genericas) en una experiencia tipo "onboarding de empleado nuevo" con branding Conektao (degradado turquesa + naranja, fondo blanco limpio), secciones faltantes, y preguntas simples tipo formulario guiado.
 
 ---
 
-## Archivos a modificar
+### Que existe hoy
 
-| Archivo | Cambio |
+8 componentes funcionales que guardan en `whatsapp_configs`:
+- AliciaConfigBusiness, Menu, Delivery, Payments, Packaging, Personality, Schedule, Connection
+
+Problemas actuales:
+- Cards sin identidad visual (fondo oscuro generico)
+- Faltan secciones: Productos Estrella, Upselling, Restricciones, Informacion Especial
+- UX tecnica, no conversacional (labels + inputs planos)
+- No hay progreso visual ni flujo guiado
+- Pagos no pregunta "datafono en domicilio" como pregunta simple
+
+---
+
+### Cambios de diseno
+
+#### 1. AliciaConfigPage.tsx — Rediseno completo
+
+- Fondo blanco limpio (`bg-white`)
+- Header con degradado turquesa-naranja sutil (barra superior)
+- Progreso visual: indicador de secciones completadas (checks verdes)
+- Navegacion lateral en desktop (sidebar con iconos + labels), acordeon en mobile
+- Cada seccion muestra estado: completada (check verde), pendiente (circulo gris)
+- Boton "Generar mi Alicia" al final (activa `is_active + setup_completed`)
+
+#### 2. Componentes existentes — Rediseno UX conversacional
+
+Cada componente se redisena con:
+- Fondo blanco, bordes suaves, sombra minima
+- Titulo con icono + degradado turquesa-naranja en el header
+- Preguntas simples en lenguaje humano
+- Inputs agrupados logicamente
+
+Cambios especificos por componente:
+
+**AliciaConfigBusiness** — sin cambios funcionales, solo visual
+
+**AliciaConfigPayments** — agregar pregunta:
+```
+"Puedes llevar datafono a domicilio?"
+[ ] Si, siempre
+[ ] A veces (Alicia confirma disponibilidad)
+[ ] No
+```
+Nuevo campo: `delivery_card_terminal` en `payment_config`
+
+**AliciaConfigDelivery** — agregar:
+- Radio de domicilio (texto libre o predefinido)
+- Costo de domicilio para zonas con cobro (numerico)
+
+**AliciaConfigSchedule** — sin cambios funcionales, solo visual
+
+**AliciaConfigPersonality** — sin cambios funcionales, solo visual
+
+**AliciaConfigPackaging** — sin cambios funcionales, solo visual
+
+**AliciaConfigConnection** — sin cambios funcionales, solo visual (ya tiene warning amarillo)
+
+**AliciaConfigMenu** — sin cambios funcionales (futuro: import IA)
+
+#### 3. Nuevos componentes
+
+**AliciaConfigStarProducts** (NUEVO)
+- Titulo: "Productos estrella"
+- Pregunta: "Cuales son tus productos mas vendidos o que quieres impulsar?"
+- Lista editable con autocomplete desde productos existentes
+- Guarda en `promoted_products: string[]`
+
+**AliciaConfigUpselling** (NUEVO)
+- Titulo: "Sugerencias inteligentes"
+- Pregunta: "Quieres que Alicia sugiera algo extra en cada pedido?"
+- Switch on/off
+- Maximo sugerencias por pedido (1-2)
+- Reglas por tipo: "Si piden pizza sola, sugerir bebida"
+- Guarda en `sales_rules: { enabled, max_per_order, rules[] }`
+
+**AliciaConfigRestrictions** (NUEVO)
+- Titulo: "Restricciones del negocio"
+- Preguntas tipo checkbox:
+  - "Hay productos que NO vendes en domicilio?"
+  - "Hay horarios donde ciertos productos no estan disponibles?"
+  - "Hay tamanos o presentaciones que no manejas?"
+- Campo de texto libre para restricciones adicionales
+- Guarda en `custom_rules[]` (se agregan como reglas al array existente, marcadas con tag `[RESTRICCION]`)
+
+**AliciaConfigSpecialInfo** (NUEVO)
+- Titulo: "Informacion especial"
+- Pregunta: "Hay algo mas que Alicia deba saber de tu negocio?"
+- Ejemplos guia: "Tenemos dos sedes", "No vendemos alcohol", "Solo abrimos fines de semana"
+- Textarea con max 500 caracteres
+- Guarda como entradas adicionales en `custom_rules[]` con tag `[INFO_ESPECIAL]`
+
+---
+
+### Estructura de tabs actualizada
+
+| # | Tab | Componente | Campo BD |
+|---|---|---|---|
+| 1 | Tu Negocio | AliciaConfigBusiness | restaurant_name, etc. |
+| 2 | Menu | AliciaConfigMenu | menu_data |
+| 3 | Pagos | AliciaConfigPayments | payment_config |
+| 4 | Horarios | AliciaConfigSchedule | operating_hours, time_estimates |
+| 5 | Domicilios | AliciaConfigDelivery | delivery_config |
+| 6 | Empaques | AliciaConfigPackaging | packaging_rules |
+| 7 | Estrella | AliciaConfigStarProducts | promoted_products |
+| 8 | Sugerencias | AliciaConfigUpselling | sales_rules |
+| 9 | Restricciones | AliciaConfigRestrictions | custom_rules |
+| 10 | Info especial | AliciaConfigSpecialInfo | custom_rules |
+| 11 | Personalidad | AliciaConfigPersonality | personality_rules, etc. |
+| 12 | WhatsApp | AliciaConfigConnection | whatsapp credentials |
+
+---
+
+### Archivos a modificar
+
+| Archivo | Accion |
 |---|---|
-| `supabase/functions/whatsapp-webhook/index.ts` | Fix TDZ bug (linea 2387), reglas prompt "pedido listo" y "datafono", guardia total negativo, ampliar dedup guard |
-| `src/components/alicia-dashboard/OrdersPanel.tsx` | Agregar `payment_method` visible, mostrar proof como imagen clickeable |
-| Migracion SQL | UPDATE masivo para corregir ordenes existentes con status "received" + email_sent = true |
+| `src/pages/AliciaConfigPage.tsx` | Rediseno completo: fondo blanco, sidebar navegacion, progreso visual, degradados Conektao, boton "Generar mi Alicia" |
+| `src/components/alicia-config/AliciaConfigBusiness.tsx` | Rediseno visual (fondo blanco, header degradado) |
+| `src/components/alicia-config/AliciaConfigPayments.tsx` | Rediseno visual + pregunta "datafono en domicilio" |
+| `src/components/alicia-config/AliciaConfigDelivery.tsx` | Rediseno visual + radio de domicilio + costo |
+| `src/components/alicia-config/AliciaConfigPackaging.tsx` | Rediseno visual |
+| `src/components/alicia-config/AliciaConfigPersonality.tsx` | Rediseno visual |
+| `src/components/alicia-config/AliciaConfigSchedule.tsx` | Rediseno visual |
+| `src/components/alicia-config/AliciaConfigConnection.tsx` | Rediseno visual |
+| `src/components/alicia-config/AliciaConfigMenu.tsx` | Rediseno visual |
+| `src/components/alicia-config/AliciaConfigStarProducts.tsx` | NUEVO: productos estrella |
+| `src/components/alicia-config/AliciaConfigUpselling.tsx` | NUEVO: sugerencias inteligentes |
+| `src/components/alicia-config/AliciaConfigRestrictions.tsx` | NUEVO: restricciones |
+| `src/components/alicia-config/AliciaConfigSpecialInfo.tsx` | NUEVO: informacion especial |
 
-## Lo que NO se toca
+### Lo que NO se toca
 
-- Flujo de confirmacion determinista
-- Logica de batching/deduplicacion (solo se amplia el filtro)
-- `buildOrderEmailHtml` (ya soporta proof)
-- Logica de emails
-- Personalidad base de Alicia
+- Edge function webhook (prompt ya lee `promoted_products`, `sales_rules`, `custom_rules`)
+- Esquema de BD (todos los campos ya existen en `whatsapp_configs` como JSONB)
+- Flujo de produccion de La Barra
+- Logica de pedidos, confirmacion, dedup
 
+### Detalle tecnico — Estilo visual
+
+Paleta de colores:
+- Fondo principal: `bg-white` (modo claro forzado para este dashboard)
+- Header degradado: `bg-gradient-to-r from-teal-500 to-orange-500` (turquesa Conektao + naranja)
+- Cards: `bg-white border border-gray-100 shadow-sm rounded-xl`
+- Botones primarios: degradado turquesa-naranja
+- Checks de progreso: circulo verde con check blanco
+- Texto: `text-gray-900` principal, `text-gray-500` secundario
+
+El dashboard fuerza tema claro independientemente del tema global de la app.
