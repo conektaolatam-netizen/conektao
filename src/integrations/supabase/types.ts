@@ -550,6 +550,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          restaurant_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -557,6 +558,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          restaurant_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -564,9 +566,18 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          restaurant_id?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -1972,6 +1983,7 @@ export type Database = {
           max_stock: number | null
           min_stock: number | null
           product_id: string | null
+          restaurant_id: string | null
           unit: string | null
           user_id: string | null
         }
@@ -1982,6 +1994,7 @@ export type Database = {
           max_stock?: number | null
           min_stock?: number | null
           product_id?: string | null
+          restaurant_id?: string | null
           unit?: string | null
           user_id?: string | null
         }
@@ -1992,6 +2005,7 @@ export type Database = {
           max_stock?: number | null
           min_stock?: number | null
           product_id?: string | null
+          restaurant_id?: string | null
           unit?: string | null
           user_id?: string | null
         }
@@ -2001,6 +2015,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -2555,6 +2576,7 @@ export type Database = {
           id: string
           message: string
           read_at: string | null
+          restaurant_id: string | null
           title: string
           type: string
           user_id: string
@@ -2565,6 +2587,7 @@ export type Database = {
           id?: string
           message: string
           read_at?: string | null
+          restaurant_id?: string | null
           title: string
           type: string
           user_id: string
@@ -2575,11 +2598,20 @@ export type Database = {
           id?: string
           message?: string
           read_at?: string | null
+          restaurant_id?: string | null
           title?: string
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       owner_alerts: {
         Row: {
@@ -3040,6 +3072,7 @@ export type Database = {
           name: string
           price: number
           requires_packaging: boolean
+          restaurant_id: string | null
           sku: string | null
           updated_at: string | null
           user_id: string | null
@@ -3056,6 +3089,7 @@ export type Database = {
           name: string
           price: number
           requires_packaging?: boolean
+          restaurant_id?: string | null
           sku?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -3072,6 +3106,7 @@ export type Database = {
           name?: string
           price?: number
           requires_packaging?: boolean
+          restaurant_id?: string | null
           sku?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -3082,6 +3117,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -3525,9 +3567,13 @@ export type Database = {
           address: string | null
           allow_sales_without_stock: boolean | null
           allow_tip_edit: boolean | null
+          branch: string | null
+          branding: Json | null
+          contact_email: string | null
           created_at: string
           default_tip_percentage: number | null
           id: string
+          is_active: boolean | null
           latitude: number | null
           location_radius: number | null
           longitude: number | null
@@ -3541,14 +3587,19 @@ export type Database = {
           tip_default_distribution_type: string | null
           tip_enabled: boolean | null
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           address?: string | null
           allow_sales_without_stock?: boolean | null
           allow_tip_edit?: boolean | null
+          branch?: string | null
+          branding?: Json | null
+          contact_email?: string | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string
+          is_active?: boolean | null
           latitude?: number | null
           location_radius?: number | null
           longitude?: number | null
@@ -3562,14 +3613,19 @@ export type Database = {
           tip_default_distribution_type?: string | null
           tip_enabled?: boolean | null
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           address?: string | null
           allow_sales_without_stock?: boolean | null
           allow_tip_edit?: boolean | null
+          branch?: string | null
+          branding?: Json | null
+          contact_email?: string | null
           created_at?: string
           default_tip_percentage?: number | null
           id?: string
+          is_active?: boolean | null
           latitude?: number | null
           location_radius?: number | null
           longitude?: number | null
@@ -3583,6 +3639,7 @@ export type Database = {
           tip_default_distribution_type?: string | null
           tip_enabled?: boolean | null
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
@@ -3716,6 +3773,7 @@ export type Database = {
           id: string
           idempotency_key: string | null
           payment_method: string
+          restaurant_id: string | null
           status: string | null
           table_number: number | null
           total_amount: number
@@ -3728,6 +3786,7 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           payment_method: string
+          restaurant_id?: string | null
           status?: string | null
           table_number?: number | null
           total_amount: number
@@ -3740,13 +3799,22 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           payment_method?: string
+          restaurant_id?: string | null
           status?: string | null
           table_number?: number | null
           total_amount?: number
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settings_audit_log: {
         Row: {
