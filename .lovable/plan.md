@@ -1,159 +1,168 @@
 
 
-## Dashboard de Configuracion de Alicia — Rediseno UX Onboarding
+## Base de Datos Multi-Negocio — Migracion Estructural
 
-### Objetivo
+### Diagnostico actual
 
-Transformar el dashboard actual (8 componentes con Cards genericas) en una experiencia tipo "onboarding de empleado nuevo" con branding Conektao (degradado turquesa + naranja, fondo blanco limpio), secciones faltantes, y preguntas simples tipo formulario guiado.
+El sistema tiene dos patrones de ownership incompatibles:
 
----
+**Tablas CON `restaurant_id` (47 tablas):** whatsapp_orders, whatsapp_conversations, whatsapp_configs, ingredients, kitchen_orders, cash_registers, audit_logs, etc. — Estas ya son multi-negocio.
 
-### Que existe hoy
+**Tablas SIN `restaurant_id` (usan `user_id`):** products, categories, inventory, sales, recipes, notifications — Estas son el problema. Si dos negocios tienen el mismo owner o un empleado cambia de restaurante, los datos se mezclan.
 
-8 componentes funcionales que guardan en `whatsapp_configs`:
-- AliciaConfigBusiness, Menu, Delivery, Payments, Packaging, Personality, Schedule, Connection
-
-Problemas actuales:
-- Cards sin identidad visual (fondo oscuro generico)
-- Faltan secciones: Productos Estrella, Upselling, Restricciones, Informacion Especial
-- UX tecnica, no conversacional (labels + inputs planos)
-- No hay progreso visual ni flujo guiado
-- Pagos no pregunta "datafono en domicilio" como pregunta simple
+### Plan de implementacion
 
 ---
 
-### Cambios de diseno
+### Paso 1 — NO crear tabla `businesses` nueva
 
-#### 1. AliciaConfigPage.tsx — Rediseno completo
+La tabla `restaurants` ya cumple exactamente el rol de `businesses`:
+- `id`, `name`, `owner_id`, `address`, `created_at`
+- Ya es FK de 47 tablas
+- `whatsapp_configs` ya tiene `restaurant_id` + `whatsapp_phone_number_id`
 
-- Fondo blanco limpio (`bg-white`)
-- Header con degradado turquesa-naranja sutil (barra superior)
-- Progreso visual: indicador de secciones completadas (checks verdes)
-- Navegacion lateral en desktop (sidebar con iconos + labels), acordeon en mobile
-- Cada seccion muestra estado: completada (check verde), pendiente (circulo gris)
-- Boton "Generar mi Alicia" al final (activa `is_active + setup_completed`)
+Crear una tabla `businesses` separada duplicaria la logica y romperia todo lo existente. En su lugar, se enriquece `restaurants` con los campos faltantes.
 
-#### 2. Componentes existentes — Rediseno UX conversacional
-
-Cada componente se redisena con:
-- Fondo blanco, bordes suaves, sombra minima
-- Titulo con icono + degradado turquesa-naranja en el header
-- Preguntas simples en lenguaje humano
-- Inputs agrupados logicamente
-
-Cambios especificos por componente:
-
-**AliciaConfigBusiness** — sin cambios funcionales, solo visual
-
-**AliciaConfigPayments** — agregar pregunta:
+**Migracion SQL:**
+```sql
+ALTER TABLE restaurants
+  ADD COLUMN IF NOT EXISTS branch text,
+  ADD COLUMN IF NOT EXISTS whatsapp_number text,
+  ADD COLUMN IF NOT EXISTS contact_email text,
+  ADD COLUMN IF NOT EXISTS branding jsonb DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 ```
-"Puedes llevar datafono a domicilio?"
-[ ] Si, siempre
-[ ] A veces (Alicia confirma disponibilidad)
-[ ] No
+
+Despues, sincronizar datos existentes de La Barra desde `whatsapp_configs`:
+```sql
+UPDATE restaurants
+SET whatsapp_number = '573014017559',
+    contact_email = (SELECT order_email FROM whatsapp_configs WHERE restaurant_id = restaurants.id LIMIT 1),
+    is_active = true
+WHERE id = '899cb7a7-7de1-47c7-a684-f24658309755';
 ```
-Nuevo campo: `delivery_card_terminal` en `payment_config`
-
-**AliciaConfigDelivery** — agregar:
-- Radio de domicilio (texto libre o predefinido)
-- Costo de domicilio para zonas con cobro (numerico)
-
-**AliciaConfigSchedule** — sin cambios funcionales, solo visual
-
-**AliciaConfigPersonality** — sin cambios funcionales, solo visual
-
-**AliciaConfigPackaging** — sin cambios funcionales, solo visual
-
-**AliciaConfigConnection** — sin cambios funcionales, solo visual (ya tiene warning amarillo)
-
-**AliciaConfigMenu** — sin cambios funcionales (futuro: import IA)
-
-#### 3. Nuevos componentes
-
-**AliciaConfigStarProducts** (NUEVO)
-- Titulo: "Productos estrella"
-- Pregunta: "Cuales son tus productos mas vendidos o que quieres impulsar?"
-- Lista editable con autocomplete desde productos existentes
-- Guarda en `promoted_products: string[]`
-
-**AliciaConfigUpselling** (NUEVO)
-- Titulo: "Sugerencias inteligentes"
-- Pregunta: "Quieres que Alicia sugiera algo extra en cada pedido?"
-- Switch on/off
-- Maximo sugerencias por pedido (1-2)
-- Reglas por tipo: "Si piden pizza sola, sugerir bebida"
-- Guarda en `sales_rules: { enabled, max_per_order, rules[] }`
-
-**AliciaConfigRestrictions** (NUEVO)
-- Titulo: "Restricciones del negocio"
-- Preguntas tipo checkbox:
-  - "Hay productos que NO vendes en domicilio?"
-  - "Hay horarios donde ciertos productos no estan disponibles?"
-  - "Hay tamanos o presentaciones que no manejas?"
-- Campo de texto libre para restricciones adicionales
-- Guarda en `custom_rules[]` (se agregan como reglas al array existente, marcadas con tag `[RESTRICCION]`)
-
-**AliciaConfigSpecialInfo** (NUEVO)
-- Titulo: "Informacion especial"
-- Pregunta: "Hay algo mas que Alicia deba saber de tu negocio?"
-- Ejemplos guia: "Tenemos dos sedes", "No vendemos alcohol", "Solo abrimos fines de semana"
-- Textarea con max 500 caracteres
-- Guarda como entradas adicionales en `custom_rules[]` con tag `[INFO_ESPECIAL]`
 
 ---
 
-### Estructura de tabs actualizada
+### Paso 2 — Agregar `restaurant_id` a tablas criticas
 
-| # | Tab | Componente | Campo BD |
-|---|---|---|---|
-| 1 | Tu Negocio | AliciaConfigBusiness | restaurant_name, etc. |
-| 2 | Menu | AliciaConfigMenu | menu_data |
-| 3 | Pagos | AliciaConfigPayments | payment_config |
-| 4 | Horarios | AliciaConfigSchedule | operating_hours, time_estimates |
-| 5 | Domicilios | AliciaConfigDelivery | delivery_config |
-| 6 | Empaques | AliciaConfigPackaging | packaging_rules |
-| 7 | Estrella | AliciaConfigStarProducts | promoted_products |
-| 8 | Sugerencias | AliciaConfigUpselling | sales_rules |
-| 9 | Restricciones | AliciaConfigRestrictions | custom_rules |
-| 10 | Info especial | AliciaConfigSpecialInfo | custom_rules |
-| 11 | Personalidad | AliciaConfigPersonality | personality_rules, etc. |
-| 12 | WhatsApp | AliciaConfigConnection | whatsapp credentials |
+Las 6 tablas que usan `user_id` sin `restaurant_id` necesitan la columna:
+
+```sql
+-- products
+ALTER TABLE products ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+
+-- categories  
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+
+-- inventory
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+
+-- sales (ya tiene user_id, necesita restaurant_id)
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+
+-- recipes
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+
+-- notifications
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS restaurant_id uuid REFERENCES restaurants(id);
+```
 
 ---
 
-### Archivos a modificar
+### Paso 3 — Migrar datos historicos
 
-| Archivo | Accion |
-|---|---|
-| `src/pages/AliciaConfigPage.tsx` | Rediseno completo: fondo blanco, sidebar navegacion, progreso visual, degradados Conektao, boton "Generar mi Alicia" |
-| `src/components/alicia-config/AliciaConfigBusiness.tsx` | Rediseno visual (fondo blanco, header degradado) |
-| `src/components/alicia-config/AliciaConfigPayments.tsx` | Rediseno visual + pregunta "datafono en domicilio" |
-| `src/components/alicia-config/AliciaConfigDelivery.tsx` | Rediseno visual + radio de domicilio + costo |
-| `src/components/alicia-config/AliciaConfigPackaging.tsx` | Rediseno visual |
-| `src/components/alicia-config/AliciaConfigPersonality.tsx` | Rediseno visual |
-| `src/components/alicia-config/AliciaConfigSchedule.tsx` | Rediseno visual |
-| `src/components/alicia-config/AliciaConfigConnection.tsx` | Rediseno visual |
-| `src/components/alicia-config/AliciaConfigMenu.tsx` | Rediseno visual |
-| `src/components/alicia-config/AliciaConfigStarProducts.tsx` | NUEVO: productos estrella |
-| `src/components/alicia-config/AliciaConfigUpselling.tsx` | NUEVO: sugerencias inteligentes |
-| `src/components/alicia-config/AliciaConfigRestrictions.tsx` | NUEVO: restricciones |
-| `src/components/alicia-config/AliciaConfigSpecialInfo.tsx` | NUEVO: informacion especial |
+Poblar `restaurant_id` para todos los registros existentes usando la relacion `user_id -> profiles.restaurant_id`:
+
+```sql
+UPDATE products SET restaurant_id = (
+  SELECT restaurant_id FROM profiles WHERE profiles.id = products.user_id
+) WHERE restaurant_id IS NULL AND user_id IS NOT NULL;
+
+-- Mismo patron para categories, inventory, sales, recipes, notifications
+```
+
+---
+
+### Paso 4 — Indices para performance
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_products_restaurant ON products(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_categories_restaurant ON categories(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_restaurant ON inventory(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_restaurant ON sales(restaurant_id);
+```
+
+---
+
+### Paso 5 — Mapeo automatico WhatsApp -> business_id
+
+Ya funciona asi en el webhook:
+1. Meta envia `phone_number_id` en el payload
+2. Webhook busca `whatsapp_configs WHERE whatsapp_phone_number_id = phone_number_id`
+3. Obtiene `restaurant_id` (= business_id)
+4. Todas las operaciones usan ese `restaurant_id`
+
+Para que sea mas robusto, agregar indice unico:
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_configs_phone 
+  ON whatsapp_configs(whatsapp_phone_number_id);
+```
+
+---
+
+### Paso 6 — Actualizar codigo frontend
+
+Modificar los hooks y componentes que consultan `products`, `sales`, etc. por `user_id` para que tambien filtren por `restaurant_id`:
+
+**Archivos a modificar:**
+- `src/components/POSSystem.tsx` — `loadProducts()` filtrar por `restaurant_id` en vez de solo `user_id`
+- `src/components/POSBilling.tsx` — mismo cambio en `loadProducts()`
+- `src/context/DataContext.tsx` — `loadProducts()` y `loadSales()` usar `restaurant_id`
+- `src/hooks/useAuth.tsx` — ya provee `profile.restaurant_id`, no necesita cambio
+
+**Patron de cambio (ejemplo products):**
+```typescript
+// ANTES
+.eq('user_id', user.id)
+
+// DESPUES (retrocompatible)
+.eq('restaurant_id', profile.restaurant_id)
+```
+
+---
+
+### Paso 7 — Actualizar webhook para guardar `restaurant_id` en productos
+
+Cuando se crean productos desde el menu import o dashboard, asegurar que `restaurant_id` se incluya en el INSERT.
+
+---
+
+### Resumen de migracion SQL total
+
+| Accion | Tabla | Tipo |
+|---|---|---|
+| Agregar columnas branch, whatsapp_number, etc. | restaurants | ALTER |
+| Agregar restaurant_id | products | ALTER |
+| Agregar restaurant_id | categories | ALTER |
+| Agregar restaurant_id | inventory | ALTER |
+| Agregar restaurant_id | sales | ALTER |
+| Agregar restaurant_id | recipes | ALTER |
+| Agregar restaurant_id | notifications | ALTER |
+| Poblar restaurant_id desde profiles | 6 tablas | UPDATE |
+| Indice unico phone_number_id | whatsapp_configs | INDEX |
+| Indices de busqueda | 4 tablas | INDEX |
 
 ### Lo que NO se toca
 
-- Edge function webhook (prompt ya lee `promoted_products`, `sales_rules`, `custom_rules`)
-- Esquema de BD (todos los campos ya existen en `whatsapp_configs` como JSONB)
-- Flujo de produccion de La Barra
-- Logica de pedidos, confirmacion, dedup
+- Tabla `whatsapp_configs` (ya es multi-negocio)
+- Tabla `whatsapp_orders` (ya tiene restaurant_id)
+- Tabla `whatsapp_conversations` (ya tiene restaurant_id)
+- Tabla `ingredients` (ya tiene restaurant_id)
+- Edge function webhook (ya resuelve por phone_number_id)
+- Flujo de pedidos de La Barra en produccion
 
-### Detalle tecnico — Estilo visual
+### Riesgo y mitigacion
 
-Paleta de colores:
-- Fondo principal: `bg-white` (modo claro forzado para este dashboard)
-- Header degradado: `bg-gradient-to-r from-teal-500 to-orange-500` (turquesa Conektao + naranja)
-- Cards: `bg-white border border-gray-100 shadow-sm rounded-xl`
-- Botones primarios: degradado turquesa-naranja
-- Checks de progreso: circulo verde con check blanco
-- Texto: `text-gray-900` principal, `text-gray-500` secundario
+El unico riesgo es que los UPDATEs de migracion de datos fallen si algun `user_id` no tiene `profiles.restaurant_id`. Mitigacion: usar LEFT JOIN y dejar NULL para huerfanos, verificar despues con query de auditoria.
 
-El dashboard fuerza tema claro independientemente del tema global de la app.
