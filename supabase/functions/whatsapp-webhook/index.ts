@@ -1906,12 +1906,20 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
     case "send_message": {
       const phone = url.searchParams.get("phone") || "";
       const message = url.searchParams.get("message") || "";
+      const msgRestId = url.searchParams.get("restaurant_id") || "";
       if (!phone || !message)
         return new Response(JSON.stringify({ error: "phone and message required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, phone, message);
+      // Resolve per-business config
+      let msgPid = GLOBAL_WA_PHONE_ID, msgToken = GLOBAL_WA_TOKEN;
+      if (msgRestId) {
+        const { data: msgCfg } = await supabase.from("whatsapp_configs").select("whatsapp_phone_number_id, whatsapp_access_token").eq("restaurant_id", msgRestId).maybeSingle();
+        if (msgCfg?.whatsapp_phone_number_id) msgPid = msgCfg.whatsapp_phone_number_id;
+        if (msgCfg?.whatsapp_access_token && msgCfg.whatsapp_access_token !== "ENV_SECRET") msgToken = msgCfg.whatsapp_access_token;
+      }
+      await sendWA(msgPid, msgToken, phone, message);
       const { data: conv } = await supabase
         .from("whatsapp_conversations")
         .select("*")
@@ -1966,10 +1974,14 @@ Deno.serve(async (req) => {
 
       if (staleConvs?.length) {
         for (const stale of staleConvs) {
-          console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone}`);
+          // Resolve per-business config for follow-up
+          const { data: staleConfig } = await supabase.from("whatsapp_configs").select("whatsapp_phone_number_id, whatsapp_access_token").eq("restaurant_id", stale.restaurant_id).maybeSingle();
+          const stalePid = staleConfig?.whatsapp_phone_number_id || GLOBAL_WA_PHONE_ID;
+          const staleToken = (staleConfig?.whatsapp_access_token && staleConfig.whatsapp_access_token !== "ENV_SECRET") ? staleConfig.whatsapp_access_token : GLOBAL_WA_TOKEN;
+          console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone} (restaurant: ${stale.restaurant_id})`);
           const followUpMsg =
             "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Si quieres confirmarlo, escríbeme: confirmar pedido 😊";
-          await sendWA(GLOBAL_WA_PHONE_ID, GLOBAL_WA_TOKEN, stale.customer_phone, followUpMsg);
+          await sendWA(stalePid, staleToken, stale.customer_phone, followUpMsg);
           const { data: staleConv } = await supabase
             .from("whatsapp_conversations")
             .select("messages")
@@ -2017,26 +2029,14 @@ Deno.serve(async (req) => {
         const mediaId = msg.image?.id;
         text = msg.image?.caption || "Te envié una foto del comprobante de pago";
         if (mediaId) {
-          paymentProofUrl = await downloadAndUploadMedia(mediaId, GLOBAL_WA_TOKEN, "payment-proofs", "image/jpeg");
+          // Use per-business token resolved after config load; deferred to after config section
+          paymentProofUrl = "__DEFERRED_IMAGE__:" + mediaId;
         }
       } else if (msg.type === "audio") {
         const audioId = msg.audio?.id;
         if (audioId) {
-          try {
-            const audioUrl = await downloadAndUploadMedia(audioId, GLOBAL_WA_TOKEN, "audio-messages", "audio/ogg");
-            if (audioUrl) {
-              const transcription = await transcribeAudio(audioUrl);
-              text = transcription
-                ? `[Audio transcrito]: ${transcription}`
-                : "[El cliente envió un audio que no se pudo transcribir]";
-              if (transcription) console.log(`Audio transcribed for ${from}: "${transcription}"`);
-            } else {
-              text = "[El cliente envió un audio]";
-            }
-          } catch (e) {
-            console.error("Audio processing error:", e);
-            text = "[El cliente envió un audio]";
-          }
+          // Deferred — will be processed after config is loaded with per-business token
+          text = "__DEFERRED_AUDIO__:" + audioId;
         } else {
           text = "[El cliente envió un audio]";
         }
@@ -2056,7 +2056,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
 
-      // ===== GET CONFIG =====
+      // ===== GET CONFIG (MULTI-TENANT SAFE) =====
       let config: any = null;
       let token = GLOBAL_WA_TOKEN;
       let pid = phoneId || GLOBAL_WA_PHONE_ID;
@@ -2071,16 +2071,8 @@ Deno.serve(async (req) => {
         config = cd;
         if (cd.whatsapp_access_token && cd.whatsapp_access_token !== "ENV_SECRET") token = cd.whatsapp_access_token;
       } else {
-        const { data: fb } = await supabase
-          .from("whatsapp_configs")
-          .select("*")
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        if (fb) {
-          config = fb;
-          if (fb.whatsapp_access_token && fb.whatsapp_access_token !== "ENV_SECRET") token = fb.whatsapp_access_token;
-        }
+        // NO FALLBACK — each business must have its own config mapped by phone_number_id
+        console.warn(`⚠️ NO CONFIG for phone_number_id=${phoneId}. No fallback.`);
       }
 
       if (!config) {
@@ -2093,6 +2085,32 @@ Deno.serve(async (req) => {
 
       await markRead(pid, token, msg.id);
       const rId = config.restaurant_id;
+
+      // ===== DEFERRED MEDIA: now process with per-business token =====
+      if (typeof paymentProofUrl === "string" && paymentProofUrl.startsWith("__DEFERRED_IMAGE__:")) {
+        const mediaId = paymentProofUrl.replace("__DEFERRED_IMAGE__:", "");
+        paymentProofUrl = await downloadAndUploadMedia(mediaId, token, "payment-proofs", "image/jpeg");
+      }
+      if (text.startsWith("[Audio transcrito]:") || text === "[El cliente envió un audio]") {
+        // Already processed with placeholder — re-check
+      }
+      // Handle deferred audio
+      const deferredAudioMatch = text.match(/^__DEFERRED_AUDIO__:(.+)$/);
+      if (deferredAudioMatch) {
+        const audioId = deferredAudioMatch[1];
+        try {
+          const audioUrl = await downloadAndUploadMedia(audioId, token, "audio-messages", "audio/ogg");
+          if (audioUrl) {
+            const transcription = await transcribeAudio(audioUrl);
+            text = transcription ? `[Audio transcrito]: ${transcription}` : "[El cliente envió un audio que no se pudo transcribir]";
+          } else {
+            text = "[El cliente envió un audio]";
+          }
+        } catch (e) {
+          console.error("Audio processing error:", e);
+          text = "[El cliente envió un audio]";
+        }
+      }
 
       // ===== BLOCKED NUMBER CHECK =====
       const { data: blockedEntry } = await supabase
