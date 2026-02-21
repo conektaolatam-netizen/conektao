@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.whatsapp-templates]
 verify_jwt = false
+
+[functions.generate-alicia]
+verify_jwt = false

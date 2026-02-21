@@ -4923,6 +4923,7 @@ export type Database = {
           delivery_config: Json | null
           delivery_enabled: boolean
           escalation_config: Json | null
+          generated_system_prompt: string | null
           greeting_message: string | null
           id: string
           is_active: boolean
@@ -4936,6 +4937,7 @@ export type Database = {
           payment_config: Json | null
           personality_rules: Json | null
           promoted_products: string[] | null
+          prompt_generated_at: string | null
           restaurant_description: string | null
           restaurant_id: string
           restaurant_name: string | null
@@ -4958,6 +4960,7 @@ export type Database = {
           delivery_config?: Json | null
           delivery_enabled?: boolean
           escalation_config?: Json | null
+          generated_system_prompt?: string | null
           greeting_message?: string | null
           id?: string
           is_active?: boolean
@@ -4971,6 +4974,7 @@ export type Database = {
           payment_config?: Json | null
           personality_rules?: Json | null
           promoted_products?: string[] | null
+          prompt_generated_at?: string | null
           restaurant_description?: string | null
           restaurant_id: string
           restaurant_name?: string | null
@@ -4993,6 +4997,7 @@ export type Database = {
           delivery_config?: Json | null
           delivery_enabled?: boolean
           escalation_config?: Json | null
+          generated_system_prompt?: string | null
           greeting_message?: string | null
           id?: string
           is_active?: boolean
@@ -5006,6 +5011,7 @@ export type Database = {
           payment_config?: Json | null
           personality_rules?: Json | null
           promoted_products?: string[] | null
+          prompt_generated_at?: string | null
           restaurant_description?: string | null
           restaurant_id?: string
           restaurant_name?: string | null

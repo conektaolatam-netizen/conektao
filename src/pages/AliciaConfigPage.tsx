@@ -99,9 +99,33 @@ export default function AliciaConfigPage() {
 
   async function handleGenerateAlicia() {
     setGenerating(true);
-    await saveMultipleFields({ is_active: true, setup_completed: true });
-    setGenerating(false);
-    toast.success("¡Alicia está lista! 🎉");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Sesión expirada"); return; }
+
+      const res = await supabase.functions.invoke("generate-alicia", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (res.error) throw res.error;
+      const result = res.data;
+
+      if (!result?.success) {
+        toast.error(result?.error || "Error generando Alicia");
+        return;
+      }
+
+      // Update local state
+      setConfig((prev: any) => ({ ...prev, is_active: true, setup_completed: true, generated_system_prompt: "generated", prompt_generated_at: result.stats.generated_at }));
+      
+      const s = result.stats;
+      toast.success(`¡${s.assistant_name} está lista! 🎉 ${s.products_count} productos, ${s.prompt_length.toLocaleString()} caracteres de prompt`);
+    } catch (err: any) {
+      console.error("Generate Alicia error:", err);
+      toast.error("Error al generar Alicia");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields)).length;
