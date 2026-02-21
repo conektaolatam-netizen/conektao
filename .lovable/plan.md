@@ -1,119 +1,98 @@
 
-## Diagnóstico exacto
 
-### Bug 1: Status visual en dashboard
-**Causa raíz:** En `whatsapp_orders`, el campo `status` se inserta como `"received"` y **nunca se actualiza** en todo el flujo. Solo `whatsapp_conversations.order_status` cambia a `"confirmed"` → `"emailed"`. El `OrdersPanel` lee `whatsapp_orders.status`, por eso todos los pedidos aparecen siempre como "Nuevo" (status = `received`) aunque el email ya se haya enviado.
+## Diagnostico de las 6 fallas criticas
 
-### Bug 2: Comprobante de transferencia no llega al email
-**Causa raíz:** El `payment_proof_url` se guarda en `whatsapp_conversations` (línea 2377) y se usa al construir el HTML del email. Sin embargo, el campo **no se guarda en `whatsapp_orders`**, por lo que si se necesita reenviar el email o hacer auditoría, el comprobante no está ligado al pedido. Además, en el flujo de confirmación (línea 2097), se lee `conv.payment_proof_url` del objeto obtenido *antes* del batching de 4 segundos — puede haber casos donde la imagen llega en el mismo mensaje de confirmación y `freshConv` no se usa para leer el proof actualizado.
+### 1. "Pedido listo" — Alicia dice que pueden pasar sin confirmacion
 
----
+**Donde falla:** La regla ya existe parcialmente en el prompt de La Barra (linea 916-917), pero es generica. No hay una prohibicion explicita de frases como "ya puedes pasar", "tu pedido esta listo". Ademas, la respuesta post-confirmacion hardcodeada de follow-up (linea 2554) dice "Te avisamos cuando este listo" para pickup, lo cual es correcto, pero la IA puede generar frases como "ya esta listo" por su cuenta.
 
-## Cambios mínimos planeados
+**Que se modifica:** Agregar regla explicita al prompt de La Barra (linea ~916) y al prompt dinamico: "PROHIBIDO decir: 'ya puedes pasar', 'tu pedido esta listo', 'ya esta listo', 'puedes venir'. Si tipo = recoger, responde: 'Te avisamos cuando este listo para recoger'. NUNCA asumas que un pedido esta listo."
 
-### Cambio 1: Migración SQL — agregar `payment_proof_url` a `whatsapp_orders`
+**Riesgo:** Cero. Solo es una regla de texto en el prompt.
 
-```sql
-ALTER TABLE public.whatsapp_orders
-ADD COLUMN IF NOT EXISTS payment_proof_url text;
-```
+### 2. Datafono — se ofrece sin restriccion
 
-Esto permite:
-- Guardar el comprobante ligado al pedido (auditoría)
-- El email siempre puede recuperarlo desde el pedido, independientemente del estado de la conversación
+**Donde falla:** `payment_config.methods` incluye `["transferencia", "efectivo", "datafono"]`. El prompt dinamico (linea 657-658) los lista todos: `PAGO: transferencia, efectivo, datafono`. El prompt de La Barra (linea 938) solo menciona efectivo y transferencia, pero el LLM puede ver "datafono" en el config e inferirlo. Ademas, no existe campo `delivery_with_card_terminal` en el config.
 
-### Cambio 2: `supabase/functions/whatsapp-webhook/index.ts` — 3 cambios quirúrgicos
+**Que se modifica:**
+- Agregar regla en prompt La Barra: "Datafono NO se ofrece proactivamente. Si el cliente lo pide: 'No siempre podemos llevar datafono, te confirmo disponibilidad'. Metodos a ofrecer: efectivo o transferencia."
+- En prompt dinamico: filtrar "datafono" de la lista visible; solo mencionarlo si el cliente lo pide, con caveat.
 
-**2a. En `saveOrder()` — actualizar `whatsapp_orders.status` cuando email_sent = true:**
+**Riesgo:** Cero. Solo reglas de prompt.
 
-Actualmente:
-```typescript
-await supabase.from("whatsapp_orders").update({ email_sent: true }).eq("id", saved.id);
-await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
-```
+### 3. Comprobante de transferencia no llega al email
 
-Cambio:
-```typescript
-await supabase.from("whatsapp_orders").update({ email_sent: true, status: "confirmed" }).eq("id", saved.id);
-await supabase.from("whatsapp_conversations").update({ order_status: "emailed" }).eq("id", cid);
-```
+**Donde falla:** Bug critico en linea 2387. El codigo referencia `freshConv` que NO esta declarado en ese scope:
 
-Cuando el email falla pero la conversación queda `confirmed`, también actualizar el status del pedido a `confirmed` (sin `email_sent`):
-```typescript
-// En el path donde no se envía el email (EMAIL_SKIP):
-await supabase.from("whatsapp_orders").update({ status: "confirmed" }).eq("id", saved.id);
-```
-
-Este cambio aplica en los **3 lugares** donde `email_sent: true` se setea: `saveOrder()` (línea ~1422), el email-retry en `saveOrder()` (línea ~1345), y el second confirmation path (línea ~1682).
-
-**2b. En `saveOrder()` — guardar `payment_proof_url` en el insert y actualizarlo:**
-
-En el `INSERT` de `whatsapp_orders` (línea ~1379), agregar:
-```typescript
-payment_proof_url: paymentProofUrl || null,
-```
-
-**2c. En el flujo de confirmación (línea ~2097) — usar `freshConv.payment_proof_url` en lugar de `conv.payment_proof_url`:**
-
-Actualmente:
-```typescript
-const storedProof = conv.payment_proof_url || null;
-```
-
-Cambio:
-```typescript
+```text
 const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 ```
 
-Esta línea ya existe en línea 2409 para el path normal — aplicar la misma lógica al path de confirmación afirmativa (línea 2097).
+`freshConv` se declara en linea 2626 (despues del batching), pero la confirmacion ocurre en lineas 2293-2431 (antes del batching). Esto causa un error de Temporal Dead Zone (TDZ) cuando `paymentProofUrl` es null (la mayoria de los casos, cuando la imagen se envio en un mensaje anterior).
 
-### Cambio 3: `src/components/alicia-dashboard/OrdersPanel.tsx` — mapear status correctamente
+Resultado: el proof nunca se pasa a `saveOrder`, y TODOS los pedidos tienen `payment_proof_url: null` en la BD (confirmado por query).
 
-El `STATUS_CONFIG` ya tiene `confirmed` mapeado a "Confirmado" (✅ existe). El dashboard también ya tiene `email_sent` en el tipo `Order`. El único ajuste es agregar un indicador visual cuando `email_sent = true` para diferenciarlo visualmente y filtrar los "completados" correctamente.
+**Que se modifica:** Reemplazar linea 2387 con una consulta fresca a `whatsapp_conversations` para obtener el `payment_proof_url` actualizado, antes de llamar a `saveOrder`. Asi:
 
-Actualmente `activeOrders` incluye todo lo que no es `"completed"`. Agregar que pedidos con `email_sent = true` muestren badge especial o se ordenen al final de activos — sin cambiar el flujo de botones.
+```typescript
+// Fetch fresh proof from DB (image may have been saved in a previous message)
+const { data: proofCheck } = await supabase
+  .from("whatsapp_conversations")
+  .select("payment_proof_url")
+  .eq("id", conv.id)
+  .single();
+const storedProof = paymentProofUrl || proofCheck?.payment_proof_url || conv.payment_proof_url || null;
+```
+
+**Riesgo:** Bajo. Solo agrega una query de lectura antes de saveOrder.
+
+### 4. Estados del dashboard — todo queda como "received"
+
+**Donde falla:** La BD muestra TODOS los pedidos con `status: "received"` a pesar de que `email_sent: true`. El codigo de la ultima correccion (actualizar status a "confirmed") esta presente en el archivo, pero hay un conflicto en el dedup guard (lineas 1454-1461): busca pedidos con `.eq("status", "received")`. Si el status se actualizo a "confirmed", el dedup guard no los encuentra, y crea un DUPLICADO en vez de actualizar.
+
+Ademas, las ordenes existentes en BD (anteriores al deploy) nunca fueron migradas — siguen como "received".
+
+**Que se modifica:**
+- Cambiar el dedup guard para buscar cualquier status (no solo "received"): `.in("status", ["received", "confirmed"])`.
+- Ejecutar un UPDATE masivo para corregir ordenes existentes: `UPDATE whatsapp_orders SET status = 'confirmed' WHERE email_sent = true AND status = 'received'`.
+
+**Riesgo:** Bajo. Solo amplia el filtro de dedup y corrige datos historicos.
+
+### 5. Calculo — validacion doble
+
+**Donde falla:** Ya existe `validateOrder()` (lineas 1136-1238) que recalcula precios y totales desde la BD. Sin embargo, no hay guardia contra totales negativos ni contra omision de items.
+
+**Que se modifica:** Agregar en `validateOrder`:
+- Guardia: `if (calculatedTotal <= 0) { issues.push("Total negativo/cero corregido"); calculatedTotal = subtotal; }`
+- Guardia: items sin precio se ignoran o escalan.
+
+**Riesgo:** Cero. Proteccion adicional.
+
+### 6. Historial y pedidos duplicados ligados a numeros distintos
+
+**Diagnostico:** La BD muestra dos pares de duplicados del 18 de Feb:
+- Carolina Madrigal (573118014362): dos pedidos identicos de $119,000 separados por 7 segundos
+- Diana Galindo (573162131254): dos pedidos identicos de $38,000 separados por 6 segundos
+
+Esto es por el dedup time window de 30 segundos (linea 1496) que deberia atraparlos, pero el segundo pedido puede haber llegado por una ruta diferente (confirmacion backend vs AI parsing). NO hay pedidos ligados a numeros incorrectos — los duplicados son del MISMO numero.
+
+**Que se modifica:** Agregar `payment_method` al OrdersPanel para mejor visibilidad. El dedup guard ya funciona correctamente con 30s window; los duplicados del 18 Feb pudieron haber sido creados por rutas paralelas (webhook duplicado de Meta). Agregar log adicional para rastrear.
 
 ---
 
 ## Archivos a modificar
 
-```text
-supabase/functions/whatsapp-webhook/index.ts  ← 3 cambios quirúrgicos
-src/components/alicia-dashboard/OrdersPanel.tsx ← ajuste visual menor
-```
-
-```text
-Migración SQL:
-ALTER TABLE whatsapp_orders ADD COLUMN payment_proof_url text;
-```
-
-## Flujo resultante
-
-```text
-Cliente confirma pedido
-       │
-       ▼
-whatsapp_conversations.order_status = "confirmed"     (ya funciona)
-whatsapp_orders.status = "confirmed"                  ← NUEVO
-       │
-       ▼
-Email enviado exitosamente
-       │
-       ▼
-whatsapp_conversations.order_status = "emailed"       (ya funciona)
-whatsapp_orders.status = "confirmed"                  ← NUEVO (no cambia a "emailed")
-whatsapp_orders.email_sent = true                     (ya funciona)
-whatsapp_orders.payment_proof_url = [url]             ← NUEVO
-
-Dashboard lee whatsapp_orders.status = "confirmed"
-→ Muestra badge: "Confirmado ✅" en verde
-```
+| Archivo | Cambio |
+|---|---|
+| `supabase/functions/whatsapp-webhook/index.ts` | Fix TDZ bug (linea 2387), reglas prompt "pedido listo" y "datafono", guardia total negativo, ampliar dedup guard |
+| `src/components/alicia-dashboard/OrdersPanel.tsx` | Agregar `payment_method` visible, mostrar proof como imagen clickeable |
+| Migracion SQL | UPDATE masivo para corregir ordenes existentes con status "received" + email_sent = true |
 
 ## Lo que NO se toca
-- Flujo conversacional de Alicia
-- Lógica de confirmación afirmativa
-- Prompt central
-- Envío de emails
-- `buildOrderEmailHtml`
-- Lógica de deduplicación
-- Flujo de empaques y precios
+
+- Flujo de confirmacion determinista
+- Logica de batching/deduplicacion (solo se amplia el filtro)
+- `buildOrderEmailHtml` (ya soporta proof)
+- Logica de emails
+- Personalidad base de Alicia
+
