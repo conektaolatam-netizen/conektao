@@ -40,6 +40,7 @@ import AdminAIDashboard from "@/components/admin/AdminAIDashboard";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import AliciaHeroCard from "@/components/dashboard/AliciaHeroCard";
 import LockedModuleModal from "@/components/dashboard/LockedModuleModal";
+import POSComingSoon from "@/components/dashboard/POSComingSoon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardProps {
@@ -55,6 +56,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   const [lockedModal, setLockedModal] = useState<{ open: boolean; name: string; key: string }>({
     open: false, name: "", key: "",
   });
+  const [showPOSComingSoon, setShowPOSComingSoon] = useState(false);
 
   // Estados para datos reales de ventas
   const [realSalesData, setRealSalesData] = useState({
@@ -417,6 +419,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   const recentActivity = generateRecentActivity();
 
   // Handle navigation to different views
+  if (showPOSComingSoon) {
+    return <POSComingSoon onBack={() => setShowPOSComingSoon(false)} />;
+  }
   if (currentView === "daily-sales") {
     return <DailySalesView onClose={goBack} />;
   }
@@ -554,18 +559,25 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
 
       {/* Marketplace Section - Conditional */}
       {isAliciaOnly ? (
-        <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:gap-4 relative z-10">
-          <div className="relative p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-card/50 border border-border/20 opacity-50 cursor-default">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-muted">
-                <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+        <div className="space-y-4 relative z-10">
+          <button
+            onClick={() => setShowPOSComingSoon(true)}
+            className="group relative w-full p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-cyan-500 text-white shadow-2xl shadow-orange-500/30 hover:shadow-cyan-500/30 transition-all duration-500 lg:hover:scale-[1.02] active:scale-95 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Sparkles className="h-8 w-8 text-white" />
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground">Mercado de Proveedores</h3>
-                <p className="text-xs text-muted-foreground/60">En preparación</p>
+              <div className="text-left flex-1">
+                <h3 className="text-lg sm:text-xl font-bold">POS Impulsado por IA</h3>
+                <p className="text-white/80 text-xs sm:text-sm">
+                  Facturación • Inventario • Cocina • Personal • Reportes
+                </p>
               </div>
+              <div className="text-2xl group-hover:scale-125 transition-transform">🚀</div>
             </div>
-          </div>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 lg:gap-4 relative z-10">
@@ -617,6 +629,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         </div>
       )}
 
+      {!isAliciaOnly && (
       <TooltipProvider>
         <div className="relative z-10">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
@@ -689,8 +702,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           </div>
         </div>
       </TooltipProvider>
+      )}
 
-      {/* Módulos de IA - Diseño Futurista Apple iOS con Naranja */}
+      {!isAliciaOnly && (
       <div className="space-y-3 sm:space-y-4 lg:space-y-5 relative z-10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl">
         {/* Header futurista */}
         <div className="flex items-center justify-center gap-2 sm:gap-3">
@@ -839,8 +853,9 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           </div>
         )}
       </div>
+      )}
 
-      {/* Analytics Preview & AI Suggestions - Mobile optimized */}
+      {!isAliciaOnly && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-8 relative z-10">
         {/* Analytics Chart with Real Data Preview */}
 
@@ -944,6 +959,7 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           </div>
         </Card>
       </div>
+      )}
 
       {/* Locked Module Modal */}
       <LockedModuleModal
