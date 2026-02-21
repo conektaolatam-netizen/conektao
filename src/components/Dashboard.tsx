@@ -494,12 +494,13 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         </defs>
       </svg>
 
-      {/* Stats Grid or Alicia Hero */}
-      {isAliciaOnly ? (
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 w-full relative z-10">
-          <AliciaHeroCard />
-        </div>
-      ) : (
+      {/* Alicia Hero - Always visible, always first */}
+      <div className="w-full relative z-10">
+        <AliciaHeroCard />
+      </div>
+
+      {/* Stats Grid - Only for plans with POS */}
+      {!isAliciaOnly && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full relative z-10">
           {stats.map((stat, index) => {
             const isMainStat = stat.size === "large";
