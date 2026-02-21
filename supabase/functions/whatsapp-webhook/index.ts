@@ -653,11 +653,13 @@ function buildDynamicPrompt(
     deliveryBlock = `Solo recogida. ${delivery.pickup_only_details || ""}`;
   }
 
-  // Payment
-  const methods = (payment.methods || []).join(", ");
-  let paymentBlock = `PAGO: ${methods || "efectivo"}.`;
+  // Payment — filter "datafono" from proactive offers
+  const safeMethods = (payment.methods || []).filter((m: string) => !/dat[aá]fono|terminal/i.test(m));
+  const methods = (safeMethods.length > 0 ? safeMethods : ["efectivo"]).join(", ");
+  let paymentBlock = `PAGO: ${methods}.`;
   if (payment.bank_details) paymentBlock += ` Datos: ${payment.bank_details}.`;
   if (payment.require_proof) paymentBlock += " Pedir foto del comprobante.";
+  paymentBlock += "\nDATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → responde: 'No siempre podemos llevar datáfono, te confirmo disponibilidad'. NUNCA confirmes datáfono sin validación.";
 
   // Packaging
   const packagingBlock =
@@ -916,6 +918,8 @@ REGLA ANTI-ALUCINACIÓN DE PRODUCTOS (CRÍTICA, INQUEBRANTABLE):
 - PROHIBIDO inventar información que no tienes, por ejemplo, ubicación del domiciliario. Solo recibes pedidos, NO puedes decir si ya está listo un pedido NI confirmar si ya llegó.
 Si el cliente hace una pregunta de seguimiento, responde que tú solo puedes tomar los pedidos y redirige al cliente al número de contacto: 3014017559.
 - NUNCA digas que el pedido ya está listo o que el domiciliario ya llegó, cualquier pregunta de seguimiento del pedido rediríjela al número de contacto: 3014017559.
+- PROHIBIDO DECIR ESTAS FRASES (EN CUALQUIER VARIACIÓN): "ya puedes pasar por tu pedido", "tu pedido está listo", "ya está listo", "puedes venir a recogerlo", "ya puedes recogerlo", "está listo para recoger". Si tipo = recoger → responde SIEMPRE: "Te avisamos cuando esté listo para recoger 😊". NUNCA asumas que un pedido está listo.
+- DATÁFONO: NO lo ofrezcas como método de pago. Si el cliente pregunta → responde: "No siempre podemos llevar datáfono, te confirmo disponibilidad". Métodos a ofrecer: efectivo o transferencia.
 
 DISAMBIGUATION:
 - "Camarones" → preguntar: pizza, entrada, fettuccine o brioche?
@@ -935,7 +939,8 @@ DOMICILIO:
 - DOMICILIO GRATIS ($0): SOLO estos conjuntos → Ática, Foret, Wakari, Antigua, Salento, Fortaleza, Mallorca, Mangle
 - CUALQUIER otra dirección: el domicilio NO es gratis. Dile: "El domicilio se paga directamente al domiciliario cuando llegue"
 
-PAGO: Efectivo (contra entrega o en local). Cuenta Bancolombia Ahorros 718-000042-16, a nombre de LA BARRA CREA TU PIZZA, con NIT 901684302. Si transferencia → pedir comprobante
+PAGO: Efectivo (contra entrega o en local). Cuenta Bancolombia Ahorros 718-000042-16, a nombre de LA BARRA CREA TU PIZZA, con NIT 901684302. Si transferencia → pedir comprobante.
+DATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → "No siempre podemos llevar datáfono, te confirmo disponibilidad". Solo ofrecer efectivo o transferencia.
 
 TIEMPOS (solo si preguntan): Semana ~15-20min. Finde ~20-30min. ${peak ? "Ahora HORA PICO: ~25-35min" : ""}
 
@@ -1225,7 +1230,13 @@ function validateOrder(
     subtotal += (item.unit_price || 0) * (item.quantity || 1);
     packagingTotal += (item.packaging_cost || 0) * (item.quantity || 1);
   }
-  const calculatedTotal = subtotal + packagingTotal;
+  let calculatedTotal = subtotal + packagingTotal;
+  // Guard: never allow negative or zero totals
+  if (calculatedTotal <= 0 && subtotal > 0) {
+    issues.push(`TOTAL NEGATIVO/CERO CORREGIDO: de $${calculatedTotal.toLocaleString()} a $${subtotal.toLocaleString()}`);
+    calculatedTotal = subtotal;
+    corrected = true;
+  }
   if (order.total !== calculatedTotal) {
     issues.push(`TOTAL CORREGIDO: de $${(order.total || 0).toLocaleString()} a $${calculatedTotal.toLocaleString()}`);
     corrected = true;
@@ -1453,10 +1464,10 @@ async function saveOrder(
   // ── DEDUP GUARD 1: by conversation_id ──────────────────────────────────────
   const { data: existingOrder } = await supabase
     .from("whatsapp_orders")
-    .select("id, email_sent")
+    .select("id, email_sent, status")
     .eq("conversation_id", cid)
     .eq("restaurant_id", rid)
-    .eq("status", "received")
+    .in("status", ["received", "confirmed"])
     .limit(1)
     .maybeSingle();
 
@@ -2383,8 +2394,13 @@ Deno.serve(async (req) => {
           const validated = validateOrder(resolvedOrder, isLaBarra, confirmProds || []);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
-          // Use freshConv to capture proof uploaded in the same batch window
-          const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
+          // Fetch fresh proof from DB (image may have been saved in a previous message)
+          const { data: proofCheck } = await supabase
+            .from("whatsapp_conversations")
+            .select("payment_proof_url")
+            .eq("id", conv.id)
+            .maybeSingle();
+          const storedProof = paymentProofUrl || proofCheck?.payment_proof_url || conv.payment_proof_url || null;
           await saveOrder(rId, conv.id, from, validated.order, config, storedProof);
           console.log(`💾 ORDER_SAVED { conv=${conv.id}, phone: "${from}" }`);
 
@@ -2547,11 +2563,11 @@ Deno.serve(async (req) => {
             }
 
             if (isFollowUp) {
-              // Follow-up question about existing order — answer naturally, don't reset
+              // Follow-up question about existing order — NEVER say it's ready
               const followUpResp =
                 conv.current_order?.delivery_method === "delivery"
                   ? "Tu pedido ya está en preparación! Normalmente tarda entre 30-45 minutos en llegar 🛵"
-                  : "Tu pedido ya está en preparación! Te avisamos cuando esté listo 🍕";
+                  : "Tu pedido ya está en preparación! Te avisamos cuando esté listo para recoger 😊";
               convMsgs.push({ role: "assistant", content: followUpResp, timestamp: new Date().toISOString() });
               await supabase
                 .from("whatsapp_conversations")
