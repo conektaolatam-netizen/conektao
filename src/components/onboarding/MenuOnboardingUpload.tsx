@@ -25,10 +25,10 @@ export function MenuOnboardingUpload({ onComplete, onBack }: MenuOnboardingUploa
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(f => f.type.startsWith('image/'));
+    const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
     
     if (validFiles.length !== files.length) {
-      toast.warning('Algunos archivos no son imágenes válidas');
+      toast.warning('Algunos archivos no son válidos. Acepta imágenes y PDFs.');
     }
 
     // Create previews
@@ -146,12 +146,12 @@ export function MenuOnboardingUpload({ onComplete, onBack }: MenuOnboardingUploa
                   <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-lg font-medium">Haz clic o arrastra tus imágenes</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    JPG, PNG • Múltiples páginas permitidas
+                    JPG, PNG, PDF • Múltiples páginas permitidas
                   </p>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,application/pdf"
                     multiple
                     className="hidden"
                     onChange={handleFileSelect}

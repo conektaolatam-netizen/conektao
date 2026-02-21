@@ -119,7 +119,17 @@ export function MenuOnboardingReview({ data, onConfirm, onBack }: MenuOnboarding
           </CardContent>
         </Card>
 
-        {/* Sections */}
+        {/* AI Warning Banner */}
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-yellow-500/50 bg-yellow-500/10">
+          <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium text-yellow-700 text-sm">Información extraída por IA</p>
+            <p className="text-xs text-yellow-600/80 mt-0.5">
+              Revísala cuidadosamente antes de guardar. Verifica nombres, precios y categorías.
+            </p>
+          </div>
+        </div>
+
         <Accordion type="multiple" defaultValue={sections.map((_, i) => `section-${i}`)}>
           {sections.map((section, sectionIndex) => (
             <AccordionItem 
