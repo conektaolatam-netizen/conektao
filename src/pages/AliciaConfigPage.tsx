@@ -54,7 +54,12 @@ export default function AliciaConfigPage() {
         // Create empty config for this restaurant
         const { data: newConfig, error } = await supabase
           .from("whatsapp_configs")
-          .insert({ restaurant_id: profile.restaurant_id, is_active: false, setup_completed: false })
+          .insert({
+            restaurant_id: profile.restaurant_id,
+            whatsapp_phone_number_id: "",
+            is_active: false,
+            setup_completed: false,
+          } as any)
           .select()
           .single();
         if (newConfig) { setConfig(newConfig); setConfigId(newConfig.id); }
