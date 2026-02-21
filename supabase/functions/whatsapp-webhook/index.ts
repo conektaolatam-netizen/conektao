@@ -12,7 +12,7 @@ const GLOBAL_WA_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const GLOBAL_WA_PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "";
 const WA_API_VERSION = "v22.0";
-const LA_BARRA_RESTAURANT_ID = "899cb7a7-7de1-47c7-a684-f24658309755";
+// LA_BARRA_RESTAURANT_ID removed — all validation is now generic/multi-tenant
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
@@ -1012,13 +1012,12 @@ function getPackagingCost(itemName: string, requiresPackaging?: boolean): number
   return 2000;
 }
 
-/** Validate and correct order prices/packaging for La Barra */
+/** Validate and correct order prices/packaging for any business */
 function validateOrder(
   order: any,
-  isLaBarra: boolean,
   products?: any[],
 ): { order: any; corrected: boolean; issues: string[] } {
-  if (!isLaBarra || !order?.items) return { order, corrected: false, issues: [] };
+  if (!order?.items) return { order, corrected: false, issues: [] };
 
   const priceMap = products ? buildPriceMap(products) : {};
   const packagingMap = products ? buildPackagingMap(products) : {};
@@ -2288,7 +2287,6 @@ Deno.serve(async (req) => {
           }
 
           // ── PRICE SNAPSHOT: Re-validate prices from DB at confirmation time ──
-          const isLaBarra = config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed;
           const { data: restaurantProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
           const profileIds = (restaurantProfiles || []).map((p: any) => p.id);
           const { data: confirmProds } =
@@ -2299,7 +2297,7 @@ Deno.serve(async (req) => {
                   .in("user_id", profileIds)
                   .eq("is_active", true)
               : { data: [] };
-          const validated = validateOrder(resolvedOrder, isLaBarra, confirmProds || []);
+          const validated = validateOrder(resolvedOrder, confirmProds || []);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
@@ -2635,9 +2633,7 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
-        const isLaBarra =
-          config.restaurant_id === LA_BARRA_RESTAURANT_ID || !config.setup_completed || !config.restaurant_name;
-        const validated = validateOrder(parsed.order, isLaBarra, prodsWithCategory);
+        const validated = validateOrder(parsed.order, prodsWithCategory);
         if (validated.corrected) parsed.order = validated.order;
         resp = parsed.clean || "Pedido registrado! 🍽️";
 
