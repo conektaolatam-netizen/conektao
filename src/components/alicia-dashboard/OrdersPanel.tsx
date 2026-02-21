@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat, Mail, MailCheck } from "lucide-react";
+import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat, Mail, MailCheck, CreditCard, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +26,7 @@ interface Order {
   status: string;
   email_sent: boolean;
   payment_proof_url: string | null;
+  payment_method: string | null;
   created_at: string;
 }
 
@@ -185,10 +186,16 @@ export default function OrdersPanel() {
                       </span>
                     )}
                     {order.payment_proof_url && (
-                      <span title="Comprobante recibido" className="flex items-center gap-1 text-[10px] text-blue-400 font-medium">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Comprobante
-                      </span>
+                      <a
+                        href={order.payment_proof_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Ver comprobante"
+                        className="flex items-center gap-1 text-[10px] text-blue-400 font-medium hover:text-blue-300 transition-colors"
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                        Comprobante ✓
+                      </a>
                     )}
                     <Badge variant="outline" className={`${cfg.color} border-current text-xs`}>
                       {cfg.label}
@@ -196,8 +203,8 @@ export default function OrdersPanel() {
                   </div>
                 </div>
 
-                {/* Delivery info */}
-                <div className="px-4 pb-2">
+                {/* Delivery info + payment method */}
+                <div className="px-4 pb-2 space-y-2">
                   {isDelivery ? (
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                       <MapPin className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -210,6 +217,12 @@ export default function OrdersPanel() {
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/5 border border-orange-500/10">
                       <Store className="w-4 h-4 text-orange-400" />
                       <p className="text-xs font-medium text-orange-400">Recoger en local</p>
+                    </div>
+                  )}
+                  {order.payment_method && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-500/5 border border-violet-500/10">
+                      <CreditCard className="w-3.5 h-3.5 text-violet-400" />
+                      <p className="text-xs font-medium text-violet-400 capitalize">{order.payment_method}</p>
                     </div>
                   )}
                 </div>
