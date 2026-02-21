@@ -12,11 +12,41 @@ const GLOBAL_WA_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const GLOBAL_WA_PHONE_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "";
 const WA_API_VERSION = "v22.0";
-// LA_BARRA_RESTAURANT_ID removed — all validation is now generic/multi-tenant
+// Multi-tenant: no hardcoded restaurant IDs
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-console.log("WA Token starts with:", GLOBAL_WA_TOKEN.substring(0, 10), "length:", GLOBAL_WA_TOKEN.length);
-console.log("WA Phone ID:", GLOBAL_WA_PHONE_ID);
+
+// ── Structured tenant-aware logger ──
+function tlog(level: "info"|"warn"|"error", rid: string, msg: string, data?: any) {
+  const prefix = `[${rid?.substring(0,8) || "NO_TENANT"}]`;
+  const payload = data ? ` ${JSON.stringify(data)}` : "";
+  if (level === "error") console.error(`${prefix} ${msg}${payload}`);
+  else if (level === "warn") console.warn(`${prefix} ${msg}${payload}`);
+  else console.log(`${prefix} ${msg}${payload}`);
+}
+
+// ── In-memory rate limiter per phone+tenant (resets on cold start) ──
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 20; // max messages per minute per phone
+const RATE_WINDOW_MS = 60_000;
+
+function isRateLimited(phone: string, tenantId: string): boolean {
+  const key = `${tenantId}:${phone}`;
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  bucket.count++;
+  if (bucket.count > RATE_LIMIT) return true;
+  return false;
+}
+// Periodic cleanup to prevent memory leak (every 5 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateBuckets) { if (now > v.resetAt) rateBuckets.delete(k); }
+}, 5 * 60_000);
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -1770,7 +1800,9 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       try {
         body = await req.clone().json();
       } catch (_) {}
-      const rid = body.restaurant_id || "899cb7a7-7de1-47c7-a684-f24658309755";
+      const rid = body.restaurant_id;
+      if (!rid)
+        return new Response(JSON.stringify({ error: "restaurant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const cid = body.conversation_id;
       const phone = body.customer_phone;
       if (!cid || !phone)
@@ -1884,11 +1916,14 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
 
     case "update_email": {
       const email = url.searchParams.get("email") || "";
+      const targetRestId = url.searchParams.get("restaurant_id") || "";
+      if (!targetRestId || !email)
+        return new Response(JSON.stringify({ error: "restaurant_id and email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { error } = await supabase
         .from("whatsapp_configs")
         .update({ order_email: email })
-        .eq("id", "5ab1a230-f503-4573-8b04-79628bdc4a7c");
-      return new Response(JSON.stringify({ updated: !error, email }), {
+        .eq("restaurant_id", targetRestId);
+      return new Response(JSON.stringify({ updated: !error, email, restaurant_id: targetRestId }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2128,6 +2163,16 @@ Deno.serve(async (req) => {
       }
       // ===== END BLOCKED NUMBER CHECK =====
 
+      // ===== RATE LIMITING =====
+      if (isRateLimited(from, rId)) {
+        tlog("warn", rId, `RATE_LIMITED: ${from} exceeded ${RATE_LIMIT} msgs/min`);
+        return new Response(JSON.stringify({ status: "rate_limited" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      tlog("info", rId, `MSG from ${from}: "${text.substring(0, 80)}" (type: ${msg.type})`);
       const conv = await getConversation(rId, from);
 
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
