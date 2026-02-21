@@ -36,7 +36,7 @@ const AliciaHeroCard = () => {
   };
 
   return (
-    <div className="col-span-2 sm:col-span-3 relative group cursor-pointer" onClick={handleClick}>
+    <div className="relative group cursor-pointer w-full" onClick={handleClick}>
       {/* Outer glow */}
       <div className="absolute -inset-1 bg-gradient-to-r from-secondary via-primary to-secondary rounded-2xl opacity-40 group-hover:opacity-70 blur-lg transition-opacity duration-500 alicia-breathing" />
 
