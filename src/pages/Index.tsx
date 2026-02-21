@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useApp } from "@/context/AppContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useProductMode } from "@/hooks/useProductMode";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { generateSampleProducts, generateSampleEmployees } from "@/utils/sampleDataGenerators";
 import Layout from "@/components/Layout";
 import DashboardPage from "@/pages/Dashboard";
@@ -39,6 +40,7 @@ const Index = () => {
   const { notifications } = useNotifications();
   const { isGasMode, isLoading: productModeLoading } = useProductMode();
   const { showTour, completeTour, skipTour, restartTour, isLoading: tourLoading } = useOnboardingTour();
+  const { canAccess, isAliciaOnly } = useModuleAccess();
   const [showIncomePresentation, setShowIncomePresentation] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [hasInitError, setHasInitError] = useState(false);
@@ -186,12 +188,34 @@ const Index = () => {
     return profile?.permissions?.[permission as keyof typeof profile.permissions] || false;
   };
 
+  // Render plan-locked access message
+  const renderPlanLocked = (moduleName: string) => (
+    <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Módulo no disponible</h3>
+        <p className="text-muted-foreground mb-4">{moduleName} no está incluido en tu plan actual.</p>
+        <p className="text-sm text-muted-foreground mb-6">Contacta a ventas para activar este módulo.</p>
+        <button
+          onClick={() => handleModuleChange("dashboard")}
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Volver al Dashboard
+        </button>
+      </div>
+    </div>
+  );
+
   // Render unauthorized access message
   const renderUnauthorized = (moduleName: string) => (
     <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
       <div className="text-center">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -200,12 +224,12 @@ const Index = () => {
             />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Acceso No Autorizado</h3>
-        <p className="text-gray-600 mb-4">No tienes permisos para acceder al módulo de {moduleName}.</p>
-        <p className="text-sm text-gray-500 mb-6">Contacta al administrador o propietario para solicitar acceso.</p>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Acceso No Autorizado</h3>
+        <p className="text-muted-foreground mb-4">No tienes permisos para acceder al módulo de {moduleName}.</p>
+        <p className="text-sm text-muted-foreground mb-6">Contacta al administrador o propietario para solicitar acceso.</p>
         <button
           onClick={() => handleModuleChange("dashboard")}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
         >
           Volver al Dashboard
         </button>
@@ -213,7 +237,14 @@ const Index = () => {
     </div>
   );
   const renderModule = () => {
-    switch (state.activeModule) {
+    const module = state.activeModule;
+
+    // Plan-based access check (skip for dashboard)
+    if (module !== "dashboard" && !canAccess(module)) {
+      return renderPlanLocked(module);
+    }
+
+    switch (module) {
       case "dashboard":
         return <DashboardPage onModuleChange={handleModuleChange} />;
       case "billing":
@@ -222,7 +253,7 @@ const Index = () => {
         if (!hasPermission("access_pos")) {
           return renderUnauthorized("Facturación/POS");
         }
-        return state.activeModule === "billing" ? <Billing /> : <POSBilling />;
+        return module === "billing" ? <Billing /> : <POSBilling />;
       case "team":
         if (!hasPermission("view_employees")) {
           return renderUnauthorized("Personal");

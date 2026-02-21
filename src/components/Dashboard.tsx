@@ -25,6 +25,7 @@ import {
   Clipboard,
   CircleDollarSign,
   User,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -36,6 +37,11 @@ import DailyAIAnalysis from "@/components/ai/DailyAIAnalysis";
 import DailyRecommendations from "@/components/ai/DailyRecommendations";
 import AIUsageCounter from "@/components/ai/AIUsageCounter";
 import AdminAIDashboard from "@/components/admin/AdminAIDashboard";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
+import AliciaHeroCard from "@/components/dashboard/AliciaHeroCard";
+import LockedModuleModal from "@/components/dashboard/LockedModuleModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 interface DashboardProps {
   onModuleChange: (module: string) => void;
 }
@@ -43,6 +49,12 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
   const { user, profile, restaurant, loading } = useAuth();
   const { notifications, unreadCount } = useNotifications();
   const { currentView, navigateToView, goBack } = useDashboardNavigation();
+  const { isAliciaOnly, isLocked, planType } = useModuleAccess();
+
+  // Locked module modal state
+  const [lockedModal, setLockedModal] = useState<{ open: boolean; name: string; key: string }>({
+    open: false, name: "", key: "",
+  });
 
   // Estados para datos reales de ventas
   const [realSalesData, setRealSalesData] = useState({
@@ -477,173 +489,206 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
         </defs>
       </svg>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full relative z-10">
-        {stats.map((stat, index) => {
-          const isMainStat = stat.size === "large";
-          const isTicketPromedio = stat.title === "Ticket Promedio";
-          return (
-            <div
-              key={index}
-              className={`group relative cursor-pointer ${isMainStat ? "col-span-2 sm:col-span-1" : ""} ${isTicketPromedio ? "hidden sm:block" : ""}`}
-              onClick={() => handleStatsClick(stat.title)}
-            >
-              {/* Glow effect behind card */}
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-300"></div>
-
-              {/* Main card */}
-              <Card
-                className={`relative p-2 sm:p-3 lg:p-4 bg-card/90 backdrop-blur-xl border border-orange-500/20 shadow-lg hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl overflow-hidden ${isMainStat ? "ring-1 ring-orange-500/40" : ""}`}
-              >
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500/10 via-transparent to-cyan-400/10 pointer-events-none"></div>
-
-                {/* Top accent line */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-400 to-cyan-400 opacity-70"></div>
-
-                <div className="flex items-center justify-between relative z-10 gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                      <p className="text-[10px] sm:text-xs lg:text-sm font-medium bg-gradient-to-r from-orange-400 to-cyan-400 bg-clip-text text-transparent truncate">
-                        {stat.title}
-                      </p>
-                      {isMainStat && (
-                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-orange-500 to-cyan-400 rounded-full flex-shrink-0 shadow-lg shadow-orange-500/50"></div>
-                      )}
-                    </div>
-                    <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate text-foreground drop-shadow-[0_0_10px_rgba(251,146,60,0.3)]">
-                      {stat.value}
-                    </p>
-                    <div className="flex items-center">
-                      <Badge className="bg-gradient-to-r from-orange-500 via-amber-500 to-cyan-500 text-white px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs shadow-lg shadow-orange-500/30 border-0">
-                        {stat.change}
-                      </Badge>
-                    </div>
-                    <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">
-                      {stat.description}
-                    </p>
-                  </div>
-                  <div className="relative">
-                    {/* Subtle glow effect */}
-                    <div className="absolute -inset-1 bg-gradient-to-br from-orange-500/30 to-cyan-400/30 rounded-xl sm:rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div
-                      className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-black border border-orange-500/20 shadow-xl group-hover:scale-110 group-hover:border-cyan-400/40 transition-all flex-shrink-0 ${isMainStat ? "shadow-orange-500/20 ring-1 ring-orange-500/30" : ""}`}
-                    >
-                      <stat.icon
-                        className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8"
-                        style={{ stroke: "url(#icon-gradient)", filter: "drop-shadow(0 0 4px rgba(251,146,60,0.5))" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Marketplace Section - Mobile optimized */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 lg:gap-4 relative z-10">
-        {/* Mercado de Proveedores */}
-        <button
-          className="group relative p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-red-500 to-orange-600 text-primary-foreground shadow-xl hover:shadow-orange-500/30 transition-all duration-300 lg:hover:scale-105 active:scale-95 border-0 overflow-hidden min-h-[100px] sm:min-h-[120px]"
-          onClick={() => onModuleChange(marketplaceAction.module)}
-        >
-          {/* Efectos de fondo */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-          <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-          {/* Badge HOT */}
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-foreground/20 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-bold animate-pulse">
-            🔥 HOT
-          </div>
-
-          <div className="relative z-10">
-            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-              <div className="p-2 sm:p-2.5 lg:p-3 rounded-lg sm:rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-transform flex-shrink-0">
-                <marketplaceAction.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
-              </div>
-              <div className="text-left min-w-0">
-                <h3 className="text-xs sm:text-sm lg:text-xl font-bold truncate">{marketplaceAction.title}</h3>
-                <p className="text-[10px] sm:text-xs lg:text-sm opacity-90 truncate">{marketplaceAction.description}</p>
-              </div>
-            </div>
-          </div>
-        </button>
-
-        {/* Makro promo */}
-        <div
-          className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-xl cursor-pointer lg:hover:scale-105 active:scale-95 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 h-[120px] sm:h-[140px] lg:h-[180px] group"
-          onClick={() => {
-            onModuleChange("marketplace");
-            setTimeout(() => {
-              window.history.pushState({}, "", "/?view=marketplace&supplier=makro");
-            }, 100);
-          }}
-        >
-          {/* Imagen de fondo */}
-          <img
-            alt="Makro 60% Off Vino Argentino"
-            className="absolute inset-0 w-full h-full object-cover"
-            src="/lovable-uploads/493fd1bc-4c8c-4d52-970c-52a4230b6504.png"
-          />
-
-          {/* Overlay oscuro en hover */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-
-          {/* Texto informativo en hover */}
-          <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-white z-10">
-            <p className="text-xs sm:text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-lg">
-              Ver productos →
-            </p>
-          </div>
+      {/* Stats Grid or Alicia Hero */}
+      {isAliciaOnly ? (
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 w-full relative z-10">
+          <AliciaHeroCard />
         </div>
-      </div>
-
-      {/* Quick Actions - Mobile optimized grid */}
-      <div className="relative z-10">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
-          {regularActions.map((action, index) => (
-            <button
-              key={index}
-              className={`group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl bg-card border border-border/30 shadow-lg hover:shadow-xl transition-all duration-300 lg:hover:scale-105 active:scale-95 overflow-hidden`}
-              onClick={() => onModuleChange(action.module)}
-            >
-              {/* Fondo degradado que aparece en hover */}
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full relative z-10">
+          {stats.map((stat, index) => {
+            const isMainStat = stat.size === "large";
+            const isTicketPromedio = stat.title === "Ticket Promedio";
+            return (
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-              ></div>
-
-              {/* Indicadores */}
-              {action.urgent && (
-                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-pulse"></div>
-              )}
-              {action.alert && (
-                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-[8px] sm:text-xs font-bold text-primary-foreground">!</span>
-                </div>
-              )}
-
-              <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3">
-                <div
-                  className={`p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-br ${action.gradient} text-primary-foreground group-hover:bg-foreground/20 transition-all flex-shrink-0`}
+                key={index}
+                className={`group relative cursor-pointer ${isMainStat ? "col-span-2 sm:col-span-1" : ""} ${isTicketPromedio ? "hidden sm:block" : ""}`}
+                onClick={() => handleStatsClick(stat.title)}
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-amber-400 to-secondary rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-300"></div>
+                <Card
+                  className={`relative p-2 sm:p-3 lg:p-4 bg-card/90 backdrop-blur-xl border border-primary/20 shadow-lg hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 active:scale-95 lg:hover:-translate-y-2 rounded-xl sm:rounded-2xl overflow-hidden ${isMainStat ? "ring-1 ring-primary/40" : ""}`}
                 >
-                  <action.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 pointer-events-none"></div>
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-amber-400 to-secondary opacity-70"></div>
+                  <div className="flex items-center justify-between relative z-10 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                        <p className="text-[10px] sm:text-xs lg:text-sm font-medium bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">
+                          {stat.title}
+                        </p>
+                        {isMainStat && (
+                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-primary to-secondary rounded-full flex-shrink-0 shadow-lg shadow-primary/50"></div>
+                        )}
+                      </div>
+                      <p className="text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold mb-1 truncate text-foreground">
+                        {stat.value}
+                      </p>
+                      <div className="flex items-center">
+                        <Badge className="bg-gradient-to-r from-primary via-amber-500 to-secondary text-primary-foreground px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] lg:text-xs shadow-lg shadow-primary/30 border-0">
+                          {stat.change}
+                        </Badge>
+                      </div>
+                      <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">
+                        {stat.description}
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute -inset-1 bg-gradient-to-br from-primary/30 to-secondary/30 rounded-xl sm:rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div
+                        className={`relative p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl bg-card border border-primary/20 shadow-xl group-hover:scale-110 group-hover:border-secondary/40 transition-all flex-shrink-0 ${isMainStat ? "shadow-primary/20 ring-1 ring-primary/30" : ""}`}
+                      >
+                        <stat.icon
+                          className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8"
+                          style={{ stroke: "url(#icon-gradient)", filter: "drop-shadow(0 0 4px rgba(251,146,60,0.5))" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Marketplace Section - Conditional */}
+      {isAliciaOnly ? (
+        <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:gap-4 relative z-10">
+          <div className="relative p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-card/50 border border-border/20 opacity-50 cursor-default">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-muted">
+                <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground">Mercado de Proveedores</h3>
+                <p className="text-xs text-muted-foreground/60">En preparación</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 lg:gap-4 relative z-10">
+          {/* Mercado de Proveedores */}
+          <button
+            className="group relative p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary via-destructive to-primary text-primary-foreground shadow-xl hover:shadow-primary/30 transition-all duration-300 lg:hover:scale-105 active:scale-95 border-0 overflow-hidden min-h-[100px] sm:min-h-[120px]"
+            onClick={() => onModuleChange(marketplaceAction.module)}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            <div className="absolute inset-0 bg-foreground/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-foreground/20 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-bold animate-pulse">
+              🔥 HOT
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                <div className="p-2 sm:p-2.5 lg:p-3 rounded-lg sm:rounded-xl bg-foreground/20 backdrop-blur-sm group-hover:scale-110 transition-transform flex-shrink-0">
+                  <marketplaceAction.icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
                 </div>
-                <div className="text-left min-w-0 flex-1">
-                  <p
-                    className={`font-bold text-[10px] sm:text-xs lg:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors truncate`}
-                  >
-                    {action.title}
-                  </p>
-                  <p className="text-[9px] sm:text-[10px] lg:text-xs text-white/80 group-hover:text-white transition-colors truncate hidden sm:block">
-                    {action.description}
-                  </p>
+                <div className="text-left min-w-0">
+                  <h3 className="text-xs sm:text-sm lg:text-xl font-bold truncate">{marketplaceAction.title}</h3>
+                  <p className="text-[10px] sm:text-xs lg:text-sm opacity-90 truncate">{marketplaceAction.description}</p>
                 </div>
               </div>
-            </button>
-          ))}
+            </div>
+          </button>
+
+          {/* Makro promo */}
+          <div
+            className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-xl cursor-pointer lg:hover:scale-105 active:scale-95 hover:shadow-2xl hover:shadow-primary/30 transition-all duration-300 h-[120px] sm:h-[140px] lg:h-[180px] group"
+            onClick={() => {
+              onModuleChange("marketplace");
+              setTimeout(() => {
+                window.history.pushState({}, "", "/?view=marketplace&supplier=makro");
+              }, 100);
+            }}
+          >
+            <img
+              alt="Makro 60% Off Vino Argentino"
+              className="absolute inset-0 w-full h-full object-cover"
+              src="/lovable-uploads/493fd1bc-4c8c-4d52-970c-52a4230b6504.png"
+            />
+            <div className="absolute inset-0 bg-background/0 group-hover:bg-background/20 transition-colors duration-300" />
+            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-foreground z-10">
+              <p className="text-xs sm:text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 drop-shadow-lg">
+                Ver productos →
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      <TooltipProvider>
+        <div className="relative z-10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
+            {regularActions.map((action, index) => {
+              const locked = isLocked(action.module);
+              return (
+                <Tooltip key={index}>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={`group relative h-16 sm:h-18 lg:h-20 p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl bg-card border border-border/30 shadow-lg hover:shadow-xl transition-all duration-300 lg:hover:scale-105 active:scale-95 overflow-hidden ${locked ? "opacity-50 grayscale" : ""}`}
+                      onClick={() => {
+                        if (locked) {
+                          setLockedModal({ open: true, name: action.title, key: action.module });
+                        } else {
+                          onModuleChange(action.module);
+                        }
+                      }}
+                    >
+                      {/* Fondo degradado que aparece en hover */}
+                      {!locked && (
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+                        ></div>
+                      )}
+
+                      {/* Lock icon for locked modules */}
+                      {locked && (
+                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 z-20">
+                          <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                        </div>
+                      )}
+
+                      {/* Indicadores */}
+                      {!locked && action.urgent && (
+                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 bg-destructive rounded-full animate-pulse"></div>
+                      )}
+                      {!locked && action.alert && (
+                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-destructive rounded-full flex items-center justify-center">
+                          <span className="text-[8px] sm:text-xs font-bold text-primary-foreground">!</span>
+                        </div>
+                      )}
+
+                      <div className="relative z-10 flex items-center h-full gap-2 sm:gap-3">
+                        <div
+                          className={`p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-br ${action.gradient} text-primary-foreground group-hover:bg-foreground/20 transition-all flex-shrink-0`}
+                        >
+                          <action.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </div>
+                        <div className="text-left min-w-0 flex-1">
+                          <p
+                            className={`font-bold text-[10px] sm:text-xs lg:text-sm bg-gradient-to-r ${action.gradient} bg-clip-text text-transparent group-hover:text-foreground transition-colors truncate`}
+                          >
+                            {action.title}
+                          </p>
+                          <p className="text-[9px] sm:text-[10px] lg:text-xs text-muted-foreground group-hover:text-foreground transition-colors truncate hidden sm:block">
+                            {locked ? "🔒 Disponible en plan POS" : action.description}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  {locked && (
+                    <TooltipContent>
+                      <p>Disponible en el plan POS Inteligente</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              );
+            })}
+          </div>
+        </div>
+      </TooltipProvider>
 
       {/* Módulos de IA - Diseño Futurista Apple iOS con Naranja */}
       <div className="space-y-3 sm:space-y-4 lg:space-y-5 relative z-10 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl">
@@ -899,6 +944,14 @@ const Dashboard = ({ onModuleChange }: DashboardProps) => {
           </div>
         </Card>
       </div>
+
+      {/* Locked Module Modal */}
+      <LockedModuleModal
+        open={lockedModal.open}
+        onOpenChange={(open) => setLockedModal((prev) => ({ ...prev, open }))}
+        moduleName={lockedModal.name}
+        moduleKey={lockedModal.key}
+      />
     </div>
   );
 };
