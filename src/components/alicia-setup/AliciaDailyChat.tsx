@@ -67,9 +67,9 @@ export default function AliciaDailyChat({ restaurantId }: { restaurantId: string
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+    <div className="rounded-2xl alicia-glass p-4 space-y-4">
       <div className="flex items-center gap-2">
-        <MessageCircle className="w-5 h-5 text-primary" />
+        <MessageCircle className="w-5 h-5 text-teal-400 drop-shadow-[0_0_6px_hsl(174_100%_29%/0.5)]" />
         <h3 className="font-semibold text-foreground">Ajustes del día</h3>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -79,7 +79,7 @@ export default function AliciaDailyChat({ restaurantId }: { restaurantId: string
       {overrides.length > 0 && (
         <div className="space-y-2">
           {overrides.map((o) => (
-            <div key={o.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-muted text-sm">
+            <div key={o.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm">
               <span className="text-foreground">{o.instruction}</span>
               <button onClick={() => removeOverride(o.id)} className="text-destructive hover:text-destructive/80 p-1">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -96,12 +96,12 @@ export default function AliciaDailyChat({ restaurantId }: { restaurantId: string
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !sending && handleSend()}
           placeholder="Ej: Hoy cerramos a las 9pm"
-          className="flex-1 px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="flex-1 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
         />
         <button
           onClick={handleSend}
           disabled={sending || !message.trim()}
-          className="px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all"
+          className="px-3 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:opacity-90 disabled:opacity-50 transition-all shadow-[0_2px_10px_hsl(25_100%_50%/0.3)]"
         >
           <Send className="w-4 h-4" />
         </button>

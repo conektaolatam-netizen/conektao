@@ -126,7 +126,7 @@ export default function OrdersPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-border flex items-center justify-between">
+      <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
@@ -229,17 +229,17 @@ export default function OrdersPanel() {
 
                 {/* Items */}
                 <div className="px-4 pb-3">
-                  <div className="bg-background/50 rounded-xl border border-border/50 overflow-hidden">
+                  <div className="bg-white/[0.03] rounded-xl border border-white/[0.06] overflow-hidden">
                     {(order.items || []).map((item, idx) => (
                       <div key={idx}>
-                        <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-border/30">
+                        <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-white/[0.04]">
                           <span className="text-muted-foreground">
                             {item.quantity}x {item.name}
                           </span>
                           <span className="font-medium">${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}</span>
                         </div>
                         {item.packaging_cost > 0 && (
-                          <div className="flex items-center justify-between px-3 pl-8 py-1.5 text-xs border-b border-border/30 bg-muted/30">
+                          <div className="flex items-center justify-between px-3 pl-8 py-1.5 text-xs border-b border-white/[0.04] bg-white/[0.02]">
                             <span className="text-muted-foreground">📦 Empaque x{item.quantity}</span>
                             <span className="text-muted-foreground">${(item.packaging_cost * (item.quantity || 1)).toLocaleString("es-CO")}</span>
                           </div>
@@ -247,9 +247,9 @@ export default function OrdersPanel() {
                       </div>
                     ))}
                     {/* Total */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-primary/5">
+                    <div className="flex items-center justify-between px-3 py-2 bg-teal-500/[0.06]">
                       <span className="text-sm font-bold">Total</span>
-                      <span className="text-lg font-bold text-primary">${(order.total || 0).toLocaleString("es-CO")}</span>
+                      <span className="text-lg font-bold text-teal-400">${(order.total || 0).toLocaleString("es-CO")}</span>
                     </div>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export default function OrdersPanel() {
                 <div className="h-px flex-1 bg-border" />
               </div>
               {completedOrders.map((order) => (
-                <div key={order.id} className="rounded-xl border border-border/30 bg-muted/30 p-3 opacity-60">
+                <div key={order.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 opacity-60">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">{order.customer_name || "Cliente"}</p>
