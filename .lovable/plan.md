@@ -1,94 +1,100 @@
 
 
-# Diagnóstico y Fix: Caso Andrés López + Empaques en Comanda
+# Rediseno Premium UX - Alicia Dashboard
 
-## Diagnóstico Confirmado
+Cambio 100% visual. Cero logica modificada. Cero backend tocado.
 
-**Por qué no se envió el email ni la comanda:**
-
-La conversación de WhatsApp tiene un constraint UNIQUE en `(restaurant_id, customer_phone)`. Esto significa que Andrés López siempre usa el mismo `conversation_id` (`4116474e...`). Su pedido anterior del 15 de febrero sigue en estado `confirmed` bajo ese mismo conversation_id.
-
-Cuando Alicia intentó guardar el nuevo pedido, la funcion `saveOrder()` ejecutó el **DEDUP GUARD 1** (linea 1368):
-- Busca pedidos existentes con ese `conversation_id` en estado `received` o `confirmed`
-- Encontró el pedido viejo del 15 de febrero (status: `confirmed`)
-- Retornó inmediatamente sin crear orden nueva, sin email, sin comanda
-
-Adicionalmente, el indice unico `idx_whatsapp_orders_conv_active` en `(conversation_id, restaurant_id)` WHERE status NOT IN ('cancelled','duplicate') tambien bloquearía el INSERT.
-
-**Conclusion:** El sistema trata al cliente repetido como duplicado. Esto es incorrecto.
-
----
-
-## Plan de Cambios (3 archivos, cirugía fina)
-
-### 1. Modificar `saveOrder()` en `whatsapp-webhook/index.ts`
-
-**DEDUP GUARD 1 (lineas 1368-1406):** Antes de buscar duplicados, archivar pedidos anteriores de esa conversacion que ya fueron procesados. Cambiar pedidos con status `confirmed` que tengan mas de 2 minutos de antiguedad a status `completed`, para que no bloqueen nuevos pedidos.
-
-```
--- Pseudologica:
-UPDATE whatsapp_orders 
-SET status = 'completed' 
-WHERE conversation_id = cid 
-  AND restaurant_id = rid 
-  AND status = 'confirmed' 
-  AND created_at < (now() - interval '2 minutes')
-```
-
-Despues de eso, el DEDUP GUARD 1 solo encontrará pedidos genuinamente duplicados (mismo webhook procesado dos veces en segundos).
-
-**DEDUP GUARD 2 (linea 1409-1423):** Ya tiene ventana de 30 segundos -- esto esta bien y no se toca.
-
-### 2. Migración SQL: Eliminar indice unico restrictivo
-
-```sql
-DROP INDEX IF EXISTS idx_whatsapp_orders_conv_active;
-
--- Reemplazar con indice no-unico para performance
-CREATE INDEX idx_whatsapp_orders_conv_lookup 
-ON whatsapp_orders (conversation_id, restaurant_id, status);
-```
-
-El indice unico era la segunda barrera que impedía insertar un nuevo pedido para el mismo conversation_id. Un indice regular mantiene el rendimiento de las consultas sin bloquear pedidos legítimos.
-
-### 3. Visualización de empaques en email y dashboard
-
-**En `buildOrderEmailHtml()` (linea 1308):** Despues de renderizar los items del pedido, agregar filas adicionales para empaques cuando `packaging_cost > 0`:
-
-```
-Pizza Siciliana    1    $38,000    $38,000
-  Empaque x1                       $2,000
-```
-
-**En `OrdersPanel.tsx` (lineas 233-248):** Debajo de cada item que tenga `packaging_cost > 0`, agregar una linea visible de empaque en vez del texto pequeno actual (`+emp`):
-
-```
-1x Pizza Siciliana         $38,000
-   Empaque                  $2,000
-```
-
----
-
-## Resumen de archivos a modificar
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Archivar pedidos viejos antes de DEDUP GUARD 1 + empaques en email HTML |
-| `src/components/alicia-dashboard/OrdersPanel.tsx` | Empaques como linea visible independiente |
-| SQL Migration | Reemplazar indice unico por indice regular |
+| `src/pages/WhatsAppDashboard.tsx` | Fondo con profundidad, header premium con avatar Alicia, sidebar mejorado, chat bubbles estilizadas, barra info pedido, tabs premium |
+| `src/components/alicia-setup/AliciaDailyChat.tsx` | Card glass premium con estilos coherentes |
+| `src/components/alicia-dashboard/OrdersPanel.tsx` | Ajustes de border-radius, sombras y colores consistentes con el nuevo tema oscuro |
+| `src/index.css` | Variables CSS nuevas para el tema premium del dashboard (si necesario) |
+
+## Detalle de cambios
+
+### 1. Fondo global con profundidad
+
+Reemplazar `bg-background` en el contenedor principal por un fondo custom con base `#0B0F14` y dos radial-gradients sutiles:
+- Turquesa (`rgba(20, 184, 166, 0.06)`) posicionado arriba-izquierda
+- Naranja (`rgba(249, 115, 22, 0.04)`) posicionado abajo-derecha
+
+Aplicado via `style` inline o clase CSS custom. Sin afectar legibilidad.
+
+### 2. Tabs superiores premium
+
+Redisenar el `TabsList` con fondo glass translucido (`bg-white/5 backdrop-blur-xl`), border sutil, y border-radius mayor. Los triggers activos con glow turquesa sutil.
+
+### 3. Header de conversacion (Chat View)
+
+Cuando hay conversacion seleccionada:
+- Contenedor glass oscuro (`bg-white/5 backdrop-blur-md border border-white/10`)
+- Avatar circular de Alicia (imagen de `@/assets/alicia-avatar.png`, 48px) con borde degradado turquesa-naranja y glow pulse sutil via CSS animation
+- Nombre "ALICIA" con estado visual (punto de color segun `order_status`):
+  - Verde = conversando/confirmado
+  - Naranja = pendiente
+  - Azul = follow-up
+- Debajo: cliente, numero, boton bloquear con mejor spacing
+- Sin cambiar comportamiento del boton
+
+### 4. Chat bubbles premium
+
+Solo cambios CSS:
+- **Alicia (assistant)**: Degradado naranja suave (`from-orange-500/20 to-orange-600/10`), border sutil, sombra interna ligera, `rounded-2xl rounded-br-md`
+- **Cliente**: Fondo glass (`bg-white/8 backdrop-blur-sm border border-white/10`), `rounded-2xl rounded-bl-md`
+- Mejor spacing entre mensajes (gap-4)
+- Timestamps con opacidad ajustada
+
+### 5. Sidebar de conversaciones
+
+- Fondo ligeramente mas claro que el main (`bg-white/3`)
+- Conversacion activa con barra vertical turquesa (3px, glow) a la izquierda via `border-left` o pseudo-elemento
+- Hover sutil (`hover:bg-white/5`)
+- Mejor padding entre items
+- Scroll minimal (scrollbar custom ya existe en el proyecto)
+
+### 6. Ajustes del dia (AliciaDailyChat) - Card premium
+
+- Fondo glass (`bg-white/5 backdrop-blur-md border border-white/10`)
+- Icono con glow turquesa
+- Boton enviar con degradado naranja (`bg-gradient-to-r from-orange-500 to-orange-600`)
+- Input con border `border-white/10` y focus glow turquesa (`focus:ring-teal-500/30`)
+- Override items con fondo `bg-white/5` en lugar de `bg-muted`
+
+### 7. Barra informativa de pedido
+
+El bloque `current_order` ya existe (lineas 427-456). Solo redisenar visualmente:
+- Fondo glass oscuro en lugar de `bg-white`
+- Border degradado sutil
+- Total con color turquesa/naranja
+- Labels mas limpios
+
+### 8. Consistencia global
+
+- Border-radius: `rounded-2xl` uniforme en cards, `rounded-xl` en items
+- Sombras: `shadow-lg shadow-black/20` consistente
+- Espaciado vertical uniforme
+- Colores: palette turquesa (`teal-500`) + naranja (`orange-500`) con opacidades bajas
+
+### 9. OrdersPanel ajustes menores
+
+- Adaptar colores de fondo para que sean coherentes con el tema oscuro premium
+- Los status badges ya usan colores correctos, solo ajustar opacidades si necesario
 
 ## Lo que NO se toca
 
-- Personalidad de Alicia
-- Calculo de totales/precios
-- Flujo de confirmación
-- Logica de idempotencia del webhook (30s)
-- Ningún otro archivo
+- Ninguna llamada a Supabase
+- Ningun edge function
+- Ningun estado (useState, useEffect)
+- Ningun handler (onClick, onKeyDown)
+- Ningun calculo de totales/precios
+- Ningun flujo de confirmacion/email/comanda
+- Ningun webhook
+- Ninguna dependencia nueva
 
-## Verificacion post-fix
+## Seccion tecnica
 
-- Andrés López podrá hacer pedidos nuevos sin bloqueo
-- Cada pedido nuevo genera order_id, email y comanda
-- Empaques visibles como linea separada en email y dashboard
-- Pedidos duplicados por webhook siguen bloqueados (30s window)
+Todos los cambios son `className` de Tailwind + algun `style` inline para gradients complejos. Se reutiliza el asset `@/assets/alicia-avatar.png` que ya existe. Las animaciones son CSS puro (keyframes ya existentes o animaciones Tailwind basicas como `animate-pulse`). No se agrega Framer Motion ni ninguna libreria al dashboard.
 
