@@ -1307,10 +1307,13 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
 
 function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, paymentProofUrl?: string | null): string {
   const items = (order.items || [])
-    .map(
-      (i: any) =>
-        `<tr><td style="padding:8px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`,
-    )
+    .map((i: any) => {
+      let row = `<tr><td style="padding:8px;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.name}</td><td style="padding:8px;text-align:center;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">${i.quantity}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${(i.unit_price || 0).toLocaleString("es-CO")}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#e0e0e0;">$${((i.unit_price || 0) * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`;
+      if (i.packaging_cost && i.packaging_cost > 0) {
+        row += `<tr><td style="padding:4px 8px 8px 24px;border-bottom:1px solid #1a1a1a;color:#888;font-size:12px;">📦 Empaque x${i.quantity}</td><td style="padding:4px 8px 8px;border-bottom:1px solid #1a1a1a;"></td><td style="padding:4px 8px 8px;border-bottom:1px solid #1a1a1a;"></td><td style="padding:4px 8px 8px;text-align:right;border-bottom:1px solid #1a1a1a;color:#888;font-size:12px;">$${(i.packaging_cost * (i.quantity || 1)).toLocaleString("es-CO")}</td></tr>`;
+      }
+      return row;
+    })
     .join("");
   const rawPay = (order.payment_method || "").toLowerCase();
   const isEfectivo = /efectivo|cash|contra/.test(rawPay);
@@ -1365,7 +1368,18 @@ async function saveOrder(
   config: any,
   paymentProofUrl?: string | null,
 ) {
-  // ── DEDUP GUARD 1: by conversation_id ──────────────────────────────────────
+  // ── ARCHIVE old confirmed orders so repeat customers aren't blocked ────────
+  const { data: archived } = await supabase
+    .from("whatsapp_orders")
+    .update({ status: "completed" })
+    .eq("conversation_id", cid)
+    .eq("restaurant_id", rid)
+    .eq("status", "confirmed")
+    .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+    .select("id");
+  if (archived?.length) console.log(`♻️ ARCHIVED ${archived.length} old confirmed orders for conv ${cid}`);
+
+  // ── DEDUP GUARD 1: by conversation_id (only catches genuine duplicates now) ──
   const { data: existingOrder } = await supabase
     .from("whatsapp_orders")
     .select("id, email_sent, status")
