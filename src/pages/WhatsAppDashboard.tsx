@@ -415,7 +415,7 @@ export default function WhatsAppDashboard() {
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                       <div className="alicia-avatar-ring flex-shrink-0">
-                        <img src={aliciaAvatar} alt="ALICIA" className="w-11 h-11 rounded-full object-cover object-[center_35%]" />
+                        <img src={aliciaAvatar} alt="ALICIA" className="w-11 h-11 rounded-full object-contain" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
