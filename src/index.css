@@ -82,11 +82,12 @@ All colors MUST be HSL.
     --ai-foreground: 0 0% 95%;
     --ai-border: 0 0% 18%;
 
-    /* ALICIA Design System */
+  /* ALICIA Design System */
     --alicia-turquoise: 174 100% 29%;
     --alicia-orange: 25 100% 50%;
-    --alicia-surface: 0 0% 4%;
+    --alicia-surface: 220 30% 6%;
     --alicia-glow: 174 100% 29%;
+    --alicia-deep-bg: 220 40% 4%;
   }
 
   .dark {
@@ -232,6 +233,70 @@ All colors MUST be HSL.
     50% {
       box-shadow: 0 0 40px hsl(174 100% 29% / 0.4), 0 0 60px hsl(25 100% 50% / 0.2);
     }
+  }
+
+  /* Alicia Dashboard Premium */
+  .alicia-dash-bg {
+    background: 
+      radial-gradient(ellipse 60% 50% at 10% 10%, hsl(174 100% 29% / 0.06), transparent),
+      radial-gradient(ellipse 50% 60% at 90% 90%, hsl(25 100% 50% / 0.04), transparent),
+      hsl(220 40% 4%);
+  }
+
+  .alicia-glass {
+    background: hsl(0 0% 100% / 0.04);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+  }
+
+  .alicia-glass-light {
+    background: hsl(0 0% 100% / 0.03);
+    border: 1px solid hsl(0 0% 100% / 0.06);
+  }
+
+  .alicia-avatar-ring {
+    background: linear-gradient(135deg, hsl(174 100% 29%), hsl(25 100% 50%));
+    padding: 2px;
+    border-radius: 9999px;
+    animation: aliciaAvatarPulse 4s ease-in-out infinite;
+  }
+
+  @keyframes aliciaAvatarPulse {
+    0%, 100% {
+      box-shadow: 0 0 12px hsl(174 100% 29% / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px hsl(174 100% 29% / 0.5), 0 0 30px hsl(25 100% 50% / 0.2);
+    }
+  }
+
+  .alicia-active-bar {
+    position: relative;
+  }
+  .alicia-active-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, hsl(174 100% 29%), hsl(174 100% 40%));
+    box-shadow: 0 0 8px hsl(174 100% 29% / 0.5);
+  }
+
+  .alicia-bubble-assistant {
+    background: linear-gradient(135deg, hsl(25 100% 50% / 0.15), hsl(25 100% 55% / 0.08));
+    border: 1px solid hsl(25 100% 50% / 0.15);
+    box-shadow: inset 0 1px 2px hsl(25 100% 50% / 0.05);
+  }
+
+  .alicia-bubble-customer {
+    background: hsl(0 0% 100% / 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
   }
 
   .break-anywhere {

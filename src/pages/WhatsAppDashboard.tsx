@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
 import TemplatesPanel from "@/components/alicia-dashboard/TemplatesPanel";
+import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 interface Message {
   role: string;
@@ -116,23 +117,25 @@ function BlockedNumbersPanel({ restaurantId }: { restaurantId: string }) {
       </div>
 
       {/* Form */}
-      <div className="bg-muted/40 rounded-xl p-4 space-y-3 border border-border">
+      <div className="alicia-glass rounded-2xl p-4 space-y-3">
         <p className="text-sm font-medium">Bloquear número nuevo</p>
         <Input
           placeholder="Número completo sin + (ej: 573162131254)"
           value={newPhone}
           onChange={(e) => setNewPhone(e.target.value)}
+          className="bg-white/5 border-white/10 focus:ring-teal-500/30"
         />
         <Input
           placeholder="Motivo (opcional)"
           value={newReason}
           onChange={(e) => setNewReason(e.target.value)}
+          className="bg-white/5 border-white/10 focus:ring-teal-500/30"
         />
         <Button
           onClick={handleBlock}
           disabled={saving || !newPhone}
           variant="destructive"
-          className="w-full"
+          className="w-full rounded-xl"
         >
           {saving ? "Bloqueando..." : "🚫 Bloquear número"}
         </Button>
@@ -150,7 +153,7 @@ function BlockedNumbersPanel({ restaurantId }: { restaurantId: string }) {
           </div>
         )}
         {blocked.map((b) => (
-          <div key={b.id} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
+          <div key={b.id} className="flex items-center justify-between p-3 alicia-glass rounded-xl">
             <div>
               <p className="font-mono text-sm font-medium">{formatPhone(b.phone_number)}</p>
               {b.reason && <p className="text-xs text-muted-foreground mt-0.5">{b.reason}</p>}
@@ -172,6 +175,18 @@ function BlockedNumbersPanel({ restaurantId }: { restaurantId: string }) {
       </div>
     </div>
   );
+}
+
+// ===== STATUS DOT HELPER =====
+function StatusDot({ status }: { status: string }) {
+  const colorMap: Record<string, string> = {
+    confirmed: "bg-emerald-400 shadow-emerald-400/50",
+    none: "bg-emerald-400 shadow-emerald-400/50",
+    pending_confirmation: "bg-orange-400 shadow-orange-400/50",
+    followup_sent: "bg-blue-400 shadow-blue-400/50",
+  };
+  const c = colorMap[status] || colorMap.none;
+  return <span className={`inline-block w-2 h-2 rounded-full ${c} shadow-[0_0_6px]`} />;
 }
 
 // ===== MAIN DASHBOARD =====
@@ -231,7 +246,6 @@ export default function WhatsAppDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Proactive nudge check every 2 minutes
   useEffect(() => {
     const checkNudges = async () => {
       try {
@@ -250,7 +264,6 @@ export default function WhatsAppDashboard() {
     return () => clearInterval(nudgeInterval);
   }, []);
 
-  // Block number directly from a conversation
   const blockFromConversation = async (conv: Conversation) => {
     if (!restaurantId) return;
     const { error } = await supabase.from("whatsapp_blocked_numbers").insert({
@@ -315,23 +328,23 @@ export default function WhatsAppDashboard() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground">
+    <div className="h-screen flex flex-col alicia-dash-bg text-foreground">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="border-b border-border px-4 pt-2">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="orders" className="flex items-center gap-1.5">
+        <div className="px-4 pt-3 pb-1">
+          <TabsList className="alicia-glass rounded-2xl p-1 w-auto">
+            <TabsTrigger value="orders" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <Package className="w-4 h-4" />
               Comandas
             </TabsTrigger>
-            <TabsTrigger value="conversations" className="flex items-center gap-1.5">
+            <TabsTrigger value="conversations" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <MessageSquare className="w-4 h-4" />
               Conversaciones
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-1.5">
+            <TabsTrigger value="templates" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <FileText className="w-4 h-4" />
               Plantillas
             </TabsTrigger>
-            <TabsTrigger value="blocked" className="flex items-center gap-1.5">
+            <TabsTrigger value="blocked" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <ShieldOff className="w-4 h-4" />
               Bloqueados
             </TabsTrigger>
@@ -345,36 +358,36 @@ export default function WhatsAppDashboard() {
         <TabsContent value="conversations" className="flex-1 m-0 overflow-hidden">
           <div className="h-full flex">
             {/* Sidebar */}
-            <div className={`${selected ? "hidden md:flex" : "flex"} flex-col w-full md:w-[380px] border-r border-border`}>
-              <div className="p-4 border-b border-border space-y-3">
+            <div className={`${selected ? "hidden md:flex" : "flex"} flex-col w-full md:w-[380px] border-r border-white/[0.06]`}>
+              <div className="p-4 border-b border-white/[0.06] space-y-3">
                 <div className="flex items-center justify-between">
                   <h1 className="text-xl font-bold flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-primary" />
+                    <MessageSquare className="w-5 h-5 text-teal-400" />
                     Conversaciones
                   </h1>
-                  <button onClick={fetchConversations} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                  <button onClick={fetchConversations} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                   </button>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Buscar por nombre, teléfono..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                  <Input placeholder="Buscar por nombre, teléfono..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-white/5 border-white/10 rounded-xl focus:ring-teal-500/30" />
                 </div>
                 <div className="text-xs text-muted-foreground">{filtered.length} conversaciones</div>
                 {restaurantId && <AliciaDailyChat restaurantId={restaurantId} />}
               </div>
 
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 alicia-glass-light">
                 {filtered.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => setSelected(c)}
-                    className={`w-full text-left p-4 border-b border-border hover:bg-muted/50 transition-colors ${selected?.id === c.id ? "bg-muted" : ""}`}
+                    className={`w-full text-left p-4 border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors ${selected?.id === c.id ? "alicia-active-bar bg-white/[0.06]" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <User className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
+                          <User className="w-5 h-5 text-teal-400" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{c.customer_name || formatPhone(c.customer_phone)}</p>
@@ -396,44 +409,54 @@ export default function WhatsAppDashboard() {
             <div className={`${selected ? "flex" : "hidden md:flex"} flex-col flex-1`}>
               {selected ? (
                 <>
-                  <div className="p-4 border-b border-border flex items-center gap-3">
-                    <button onClick={() => setSelected(null)} className="md:hidden p-1">
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">{selected.customer_name || "Cliente"}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Phone className="w-3 h-3" />
-                        {formatPhone(selected.customer_phone)}
+                  <div className="m-3 mb-0 p-4 alicia-glass rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setSelected(null)} className="md:hidden p-1">
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <div className="alicia-avatar-ring flex-shrink-0">
+                        <img src={aliciaAvatar} alt="ALICIA" className="w-11 h-11 rounded-full object-cover" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm tracking-wide">ALICIA</span>
+                          <StatusDot status={selected.order_status} />
+                          <span className="text-[10px] text-muted-foreground">
+                            {selected.order_status === "confirmed" ? "Confirmado" : selected.order_status === "pending_confirmation" ? "Esperando pago" : "Activa"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <User className="w-3 h-3" />
+                          <span className="truncate">{selected.customer_name || "Cliente"}</span>
+                          <span className="text-white/20">·</span>
+                          <Phone className="w-3 h-3" />
+                          <span>{formatPhone(selected.customer_phone)}</span>
+                        </div>
+                      </div>
+                      {statusBadge(selected.order_status)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 ml-2 rounded-xl"
+                        onClick={() => blockFromConversation(selected)}
+                        title="Bloquear este número"
+                      >
+                        <ShieldOff className="w-4 h-4 mr-1" />
+                        <span className="hidden sm:inline">Bloquear</span>
+                      </Button>
                     </div>
-                    {statusBadge(selected.order_status)}
-                    {/* Block button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
-                      onClick={() => blockFromConversation(selected)}
-                      title="Bloquear este número"
-                    >
-                      <ShieldOff className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Bloquear</span>
-                    </Button>
                   </div>
 
                   {selected.current_order && (
-                    <div className="mx-4 mt-2 mb-0 p-4 rounded-2xl bg-white border border-border/60 shadow-sm">
+                    <div className="mx-3 mt-2 mb-0 p-4 rounded-2xl alicia-glass">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                            <Package className="w-4 h-4 text-primary" />
+                          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-teal-500/20 to-teal-500/5 flex items-center justify-center">
+                            <Package className="w-4 h-4 text-teal-400" />
                           </div>
-                          <span className="text-sm font-semibold text-foreground">Pedido actual</span>
+                          <span className="text-sm font-semibold">Pedido actual</span>
                         </div>
-                        <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                        <span className="text-lg font-bold bg-gradient-to-r from-orange-400 to-teal-400 bg-clip-text text-transparent">
                           ${(selected.current_order.total || 0).toLocaleString("es-CO")}
                         </span>
                       </div>
@@ -442,13 +465,13 @@ export default function WhatsAppDashboard() {
                           {selected.current_order.items.map((item: any, idx: number) => (
                             <div key={idx} className="flex justify-between items-center text-sm">
                               <span className="text-muted-foreground">{item.quantity}x {item.name}</span>
-                              <span className="text-foreground font-medium">${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}</span>
+                              <span className="font-medium">${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}</span>
                             </div>
                           ))}
                         </div>
                       )}
                       {selected.current_order.delivery_type && (
-                        <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="mt-2 pt-2 border-t border-white/[0.06] flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{selected.current_order.delivery_type === "delivery" ? "🛵 Domicilio" : "🏪 Recoger"}</span>
                           {selected.current_order.customer_name && <span>· {selected.current_order.customer_name}</span>}
                         </div>
@@ -457,14 +480,14 @@ export default function WhatsAppDashboard() {
                   )}
 
                   <ScrollArea className="flex-1 p-4">
-                    <div className="max-w-2xl mx-auto space-y-3">
+                    <div className="max-w-2xl mx-auto space-y-4">
                       {selected.messages.map((msg, i) => {
                         const isCustomer = msg.role === "customer";
                         return (
                           <div key={i} className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}>
-                            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isCustomer ? "bg-muted text-foreground rounded-bl-md" : "bg-primary text-primary-foreground rounded-br-md"}`}>
+                            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isCustomer ? "alicia-bubble-customer rounded-bl-md" : "alicia-bubble-assistant rounded-br-md"}`}>
                               <p className="whitespace-pre-wrap">{msg.content}</p>
-                              <div className={`flex items-center gap-1 mt-1 ${isCustomer ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
+                              <div className={`flex items-center gap-1 mt-1.5 ${isCustomer ? "text-white/40" : "text-white/50"}`}>
                                 <Clock className="w-3 h-3" />
                                 <span className="text-[10px]">{getTime(msg)}</span>
                                 {msg.has_image && <span className="text-[10px] ml-1">📷</span>}
@@ -478,9 +501,11 @@ export default function WhatsAppDashboard() {
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center space-y-2">
-                    <MessageSquare className="w-12 h-12 mx-auto opacity-30" />
-                    <p>Selecciona una conversación</p>
+                  <div className="text-center space-y-3">
+                    <div className="alicia-avatar-ring mx-auto w-fit">
+                      <img src={aliciaAvatar} alt="ALICIA" className="w-16 h-16 rounded-full object-cover" />
+                    </div>
+                    <p className="text-sm">Selecciona una conversación</p>
                   </div>
                 </div>
               )}
