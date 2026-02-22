@@ -1,143 +1,94 @@
 
 
-# Dashboard Modular Desbloqueable - Plan de Implementacion
+# Diagnóstico y Fix: Caso Andrés López + Empaques en Comanda
 
-## Resumen
+## Diagnóstico Confirmado
 
-Transformar el dashboard actual en un sistema modular progresivo donde usuarios nuevos ven Alicia como modulo principal y el resto como bloqueado/proximo, sin romper la experiencia de clientes activos (La Barra y otros con plan existente).
+**Por qué no se envió el email ni la comanda:**
+
+La conversación de WhatsApp tiene un constraint UNIQUE en `(restaurant_id, customer_phone)`. Esto significa que Andrés López siempre usa el mismo `conversation_id` (`4116474e...`). Su pedido anterior del 15 de febrero sigue en estado `confirmed` bajo ese mismo conversation_id.
+
+Cuando Alicia intentó guardar el nuevo pedido, la funcion `saveOrder()` ejecutó el **DEDUP GUARD 1** (linea 1368):
+- Busca pedidos existentes con ese `conversation_id` en estado `received` o `confirmed`
+- Encontró el pedido viejo del 15 de febrero (status: `confirmed`)
+- Retornó inmediatamente sin crear orden nueva, sin email, sin comanda
+
+Adicionalmente, el indice unico `idx_whatsapp_orders_conv_active` en `(conversation_id, restaurant_id)` WHERE status NOT IN ('cancelled','duplicate') tambien bloquearía el INSERT.
+
+**Conclusion:** El sistema trata al cliente repetido como duplicado. Esto es incorrecto.
 
 ---
 
-## Fase 1: Base de Datos - Tabla de planes y registro de interes
+## Plan de Cambios (3 archivos, cirugía fina)
 
-### 1.1 Modificar `subscription_settings`
+### 1. Modificar `saveOrder()` en `whatsapp-webhook/index.ts`
 
-La tabla `subscription_settings` ya existe con campo `plan_type` (default `'basic'`). Se necesita:
+**DEDUP GUARD 1 (lineas 1368-1406):** Antes de buscar duplicados, archivar pedidos anteriores de esa conversacion que ya fueron procesados. Cambiar pedidos con status `confirmed` que tengan mas de 2 minutos de antiguedad a status `completed`, para que no bloqueen nuevos pedidos.
 
-- Agregar el valor `alicia_only` como default para nuevos usuarios
-- Crear tabla `module_interest_requests` para capturar "Quiero acceso prioritario"
-
-```text
-Migracion SQL:
-- ALTER subscription_settings: cambiar default de plan_type a 'alicia_only'
-- CREATE TABLE module_interest_requests (
-    id uuid PK,
-    restaurant_id uuid FK,
-    user_id uuid FK,
-    module_key text NOT NULL,
-    created_at timestamptz
-  )
-- RLS policies para ambas tablas
+```
+-- Pseudologica:
+UPDATE whatsapp_orders 
+SET status = 'completed' 
+WHERE conversation_id = cid 
+  AND restaurant_id = rid 
+  AND status = 'confirmed' 
+  AND created_at < (now() - interval '2 minutes')
 ```
 
-### 1.2 Mapeo de planes a modulos
+Despues de eso, el DEDUP GUARD 1 solo encontrará pedidos genuinamente duplicados (mismo webhook procesado dos veces en segundos).
 
-```text
-alicia_only  -> Solo Alicia
-basic/pos_pro -> Facturacion, Inventario, Cocina, Personal, Documentos, Marketplace
-full_suite   -> Todo (IA Conektao, Contabilidad IA, Auditoria, Marketing IA)
+**DEDUP GUARD 2 (linea 1409-1423):** Ya tiene ventana de 30 segundos -- esto esta bien y no se toca.
+
+### 2. Migración SQL: Eliminar indice unico restrictivo
+
+```sql
+DROP INDEX IF EXISTS idx_whatsapp_orders_conv_active;
+
+-- Reemplazar con indice no-unico para performance
+CREATE INDEX idx_whatsapp_orders_conv_lookup 
+ON whatsapp_orders (conversation_id, restaurant_id, status);
 ```
 
----
+El indice unico era la segunda barrera que impedía insertar un nuevo pedido para el mismo conversation_id. Un indice regular mantiene el rendimiento de las consultas sin bloquear pedidos legítimos.
 
-## Fase 2: Hook `useModuleAccess`
+### 3. Visualización de empaques en email y dashboard
 
-Crear `src/hooks/useModuleAccess.ts`:
+**En `buildOrderEmailHtml()` (linea 1308):** Despues de renderizar los items del pedido, agregar filas adicionales para empaques cuando `packaging_cost > 0`:
 
-- Consulta `subscription_settings.plan_type` del restaurante actual
-- Expone: `canAccess(moduleKey)`, `planType`, `isLocked(moduleKey)`, `loading`
-- Retorna `true` para todos los modulos si `plan_type` es `full_suite` o `pos_pro` (segun modulo)
-- Clientes existentes con `plan_type = 'basic'` se tratan como `pos_pro` (no romper nada)
+```
+Pizza Siciliana    1    $38,000    $38,000
+  Empaque x1                       $2,000
+```
 
----
+**En `OrdersPanel.tsx` (lineas 233-248):** Debajo de cada item que tenga `packaging_cost > 0`, agregar una linea visible de empaque en vez del texto pequeno actual (`+emp`):
 
-## Fase 3: Dashboard Condicional (`Dashboard.tsx`)
-
-### 3.1 Hero Section - Alicia Card (plan `alicia_only`)
-
-Cuando `planType === 'alicia_only'`:
-
-- Reemplazar las 3 tarjetas de ventas por una tarjeta hero grande de Alicia
-- Avatar con glow turquesa/naranja
-- Boton "Configurar Alicia" (si no tiene `whatsapp_configs.setup_completed`) o "Entrar a Alicia" (si ya esta configurada)
-- Click redirige a `/alicia-dashboard` o `/alicia/config`
-
-Cuando `planType !== 'alicia_only'`:
-
-- Mantener las tarjetas de ventas actuales (sin cambios)
-
-### 3.2 Modulos Bloqueados
-
-Para modulos donde `isLocked(moduleKey)` es `true`:
-
-- Renderizar con opacidad reducida (gris)
-- Icono de candado superpuesto
-- Tooltip: "Disponible en el plan POS Inteligente"
-- Click abre modal elegante (no navega al modulo)
-
-### 3.3 Modal "Proximamente"
-
-Componente `LockedModuleModal.tsx`:
-
-- Diseno oscuro con gradientes Conektao
-- Texto: "Proximamente disponible. Dejanos tus datos para activarlo primero."
-- Boton: "Quiero acceso prioritario"
-- Al hacer click: `INSERT INTO module_interest_requests`
-- Feedback: "Listo, te avisaremos cuando este disponible"
-
-### 3.4 Marketplace
-
-Para `alicia_only`: mostrar tarjeta semi-transparente "En preparacion", no clickeable.
-
----
-
-## Fase 4: Proteccion en `Index.tsx`
-
-En `renderModule()`, agregar verificacion con `useModuleAccess`:
-
-- Si el modulo esta bloqueado, no renderizar el componente
-- Mostrar pantalla de "Modulo no disponible en tu plan" con CTA de upgrade
-- Esto previene acceso directo via URL o sidebar
-
----
-
-## Riesgos y Mitigaciones
-
-```text
-Riesgo                                  | Mitigacion
-----------------------------------------|------------------------------------------
-Romper clientes activos (La Barra)      | plan_type='basic' se trata como pos_pro
-Acceso directo via sidebar              | Proteccion en Index.tsx renderModule()
-Nuevos usuarios sin subscription_settings| Crear row automaticamente al crear restaurante
-Latencia en consulta de plan            | Cache con React Query (staleTime: 5min)
+```
+1x Pizza Siciliana         $38,000
+   Empaque                  $2,000
 ```
 
 ---
 
-## Orden de Implementacion
+## Resumen de archivos a modificar
 
-1. Migracion SQL (tabla + defaults)
-2. Hook `useModuleAccess`
-3. Componente `LockedModuleModal`
-4. Modificar `Dashboard.tsx` (hero Alicia + modulos bloqueados)
-5. Proteger `Index.tsx` (renderModule)
-
-## Archivos a Crear
-
-- `src/hooks/useModuleAccess.ts`
-- `src/components/dashboard/LockedModuleModal.tsx`
-- `src/components/dashboard/AliciaHeroCard.tsx`
-
-## Archivos a Modificar
-
-- `src/components/Dashboard.tsx` (logica condicional por plan)
-- `src/pages/Index.tsx` (proteccion en renderModule)
-- 1 migracion SQL
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/whatsapp-webhook/index.ts` | Archivar pedidos viejos antes de DEDUP GUARD 1 + empaques en email HTML |
+| `src/components/alicia-dashboard/OrdersPanel.tsx` | Empaques como linea visible independiente |
+| SQL Migration | Reemplazar indice unico por indice regular |
 
 ## Lo que NO se toca
 
-- Edge functions (whatsapp-webhook, etc.)
-- Logica de pedidos
-- Sistema de Alicia backend
-- Rutas existentes (/alicia-dashboard, /alicia/config)
+- Personalidad de Alicia
+- Calculo de totales/precios
+- Flujo de confirmación
+- Logica de idempotencia del webhook (30s)
+- Ningún otro archivo
+
+## Verificacion post-fix
+
+- Andrés López podrá hacer pedidos nuevos sin bloqueo
+- Cada pedido nuevo genera order_id, email y comanda
+- Empaques visibles como linea separada en email y dashboard
+- Pedidos duplicados por webhook siguen bloqueados (30s window)
 
