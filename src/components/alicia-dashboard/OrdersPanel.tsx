@@ -231,19 +231,19 @@ export default function OrdersPanel() {
                 <div className="px-4 pb-3">
                   <div className="bg-background/50 rounded-xl border border-border/50 overflow-hidden">
                     {(order.items || []).map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between px-3 py-2 text-sm border-b border-border/30 last:border-0"
-                      >
-                        <span className="text-muted-foreground">
-                          {item.quantity}x {item.name}
-                        </span>
-                        <div className="flex items-center gap-2">
+                      <div key={idx}>
+                        <div className="flex items-center justify-between px-3 py-2 text-sm border-b border-border/30">
+                          <span className="text-muted-foreground">
+                            {item.quantity}x {item.name}
+                          </span>
                           <span className="font-medium">${((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("es-CO")}</span>
-                          {item.packaging_cost ? (
-                            <span className="text-[10px] text-muted-foreground">+emp ${item.packaging_cost.toLocaleString("es-CO")}</span>
-                          ) : null}
                         </div>
+                        {item.packaging_cost > 0 && (
+                          <div className="flex items-center justify-between px-3 pl-8 py-1.5 text-xs border-b border-border/30 bg-muted/30">
+                            <span className="text-muted-foreground">📦 Empaque x{item.quantity}</span>
+                            <span className="text-muted-foreground">${(item.packaging_cost * (item.quantity || 1)).toLocaleString("es-CO")}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {/* Total */}
