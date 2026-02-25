@@ -4911,6 +4911,30 @@ export type Database = {
           },
         ]
       }
+      vendedores: {
+        Row: {
+          ciudad: string
+          fecha_registro: string
+          id: string
+          nombre: string
+          whatsapp: string
+        }
+        Insert: {
+          ciudad: string
+          fecha_registro?: string
+          id?: string
+          nombre: string
+          whatsapp: string
+        }
+        Update: {
+          ciudad?: string
+          fecha_registro?: string
+          id?: string
+          nombre?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       wa_customer_profiles: {
         Row: {
           addresses: Json
