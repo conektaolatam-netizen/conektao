@@ -39,6 +39,24 @@ const AliciaLanding = () => {
       <AliciaDemoChat />
       <AliciaPlans />
 
+      {/* Seller CTA */}
+      <section className="relative z-10 py-16 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-3 text-foreground">
+            ¿Quieres ganar dinero vendiendo Alicia?
+          </h2>
+          <p className="text-muted-foreground mb-6 text-lg">
+            En 10 minutos aprendes exactamente cómo hacerlo.
+          </p>
+          <Link
+            to="/vendedores"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover transition-all duration-300 shadow-lg shadow-primary/25 active:scale-95 touch-feedback"
+          >
+            Quiero aprender →
+          </Link>
+        </div>
+      </section>
+
       {/* Contact CTA */}
       <section
         id="contacto"
