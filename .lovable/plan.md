@@ -1,95 +1,113 @@
 
 
-# Plan: Edge Function `retry-failed-emails`
+# Plan: Fix de Idempotencia para Múltiples Pedidos en la Misma Conversación
 
 ## Problema
-Cuando `saveOrder()` falla al enviar email, el pedido queda con `email_sent = false`. El retry actual solo se activa si el cliente vuelve a escribir. Si no escribe, el restaurante nunca recibe el correo.
 
-## Archivos a crear/modificar
+Hay **dos puntos** donde la idempotencia bloquea pedidos legítimos:
 
-| Archivo | Acción |
-|---------|--------|
-| `supabase/functions/retry-failed-emails/index.ts` | **Crear** |
-| `supabase/config.toml` | Agregar `[functions.retry-failed-emails] verify_jwt = false` |
+1. **Línea 2323 (IDEMPOTENCY check en confirmación):** Cuando el usuario confirma un nuevo pedido, el sistema busca órdenes existentes con `status IN ('received', 'confirmed')` en la misma `conversation_id`. Si encuentra alguna (del pedido anterior), bloquea y responde "Ya quedó confirmado" sin crear la nueva orden ni enviar correo.
 
-**No se crea migración SQL para pg_cron.** Como indicaste, pg_cron requiere configuración manual en Supabase Dashboard con las URLs y keys reales. La migración no funcionaría automáticamente.
+2. **Línea 1382 (DEDUP GUARD 1 en `saveOrder`):** Misma lógica dentro de `saveOrder()`. Encuentra la orden anterior y retorna su ID sin insertar la nueva.
 
-## Edge Function: `retry-failed-emails/index.ts`
+El problema raíz: el archivado automático (línea 1371) solo mueve a `completed` las órdenes con `created_at` > 2 minutos. Si el cliente hace un nuevo pedido dentro de esos 2 minutos, o si la orden anterior nunca fue archivada por timing, ambos checks la encuentran y bloquean.
 
-### Flujo
+## Solución
 
-1. CORS preflight handler
-2. Conectar a Supabase con `SUPABASE_SERVICE_ROLE_KEY`
-3. Query: `whatsapp_orders` WHERE `email_sent = false`, `status = 'confirmed'`, `created_at >= now() - 4 hours`, LIMIT 20
-4. Si no hay resultados → `{ processed: 0, sent: 0, skipped: 0, failed: 0 }`
-5. Para cada pedido:
-   - Buscar `order_email` en `whatsapp_configs` (cacheado por `restaurant_id`)
-   - Si no hay email → log `RETRY_SKIP_NO_EMAIL` → skip
-   - Construir HTML idéntico al de `buildOrderEmailHtml()` del webhook + banner `[REENVÍO AUTOMÁTICO]`
-   - Subject: `🍕 [REENVÍO] Pedido - {customer_name} - ${total}`
-   - Enviar via Brevo (`BREVO_API_KEY`, from `pedidos@conektao.com`, name `Alicia - Conektao`)
-   - Si OK → update `email_sent = true` → log `RETRY_OK`
-   - Si falla → log `RETRY_FAIL` → continuar (no crashear)
-6. Responder `{ processed, sent, skipped, failed }`
+Modificar ambos checks para que solo detecten duplicados **recientes** (ventana de 30 segundos), no órdenes históricas de la misma conversación. Esto mantiene protección contra webhooks duplicados de Meta (que llegan en < 5s) pero permite nuevos pedidos legítimos.
 
-### HTML del email
+## Cambios en `supabase/functions/whatsapp-webhook/index.ts`
 
-Copia exacta de `buildOrderEmailHtml()` del webhook (items, empaques, delivery, pago, comprobante) + un banner amarillo al final:
+### Cambio 1 — Línea 2323: Check de idempotencia en confirmación
 
-```
-⚠️ [REENVÍO AUTOMÁTICO] — Este correo fue reenviado porque el envío original falló.
+**Antes:**
+```javascript
+const { data: existingEvent } = await supabase
+  .from("whatsapp_orders")
+  .select("id")
+  .eq("conversation_id", conv.id)
+  .eq("restaurant_id", rId)
+  .in("status", ["received", "confirmed"])
+  .limit(1)
+  .maybeSingle();
 ```
 
-### Manejo de errores
-
-- Error en query → return 500 con mensaje
-- Error Brevo 5xx por pedido individual → log + continuar al siguiente
-- Error fatal → return 500
-
-## config.toml
-
-Agregar al final:
-
-```toml
-[functions.retry-failed-emails]
-verify_jwt = false
+**Después:**
+```javascript
+const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
+const { data: existingEvent } = await supabase
+  .from("whatsapp_orders")
+  .select("id")
+  .eq("conversation_id", conv.id)
+  .eq("restaurant_id", rId)
+  .in("status", ["received", "confirmed"])
+  .gt("created_at", thirtySecsAgo)
+  .limit(1)
+  .maybeSingle();
 ```
 
-## Activación del cron (manual post-deploy)
+Añadir `.gt("created_at", thirtySecsAgo)` — solo considera duplicado si la orden fue creada en los últimos 30 segundos (suficiente para atrapar webhooks duplicados de Meta, pero no bloquea pedidos nuevos).
 
-Dos opciones como indicaste:
+### Cambio 2 — Línea 1382: DEDUP GUARD 1 en `saveOrder()`
 
-**Opción A — pg_cron en Supabase Dashboard:**
-1. Activar extensión `pg_cron` en Database → Extensions
-2. Ejecutar en SQL Editor:
-```sql
-SELECT cron.schedule(
-  'retry-failed-emails',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://ctsqvjcgcukosusksulx.supabase.co/functions/v1/retry-failed-emails',
-    headers := '{"Authorization": "Bearer TU-SERVICE-ROLE-KEY", "Content-Type": "application/json"}'::jsonb,
-    body := '{}'::jsonb
-  )
-  $$
-);
+**Antes:**
+```javascript
+const { data: existingOrder } = await supabase
+  .from("whatsapp_orders")
+  .select("id, email_sent, status")
+  .eq("conversation_id", cid)
+  .eq("restaurant_id", rid)
+  .in("status", ["received", "confirmed"])
+  .limit(1)
+  .maybeSingle();
 ```
 
-**Opción B — Botón manual** en el dashboard de Conektao.
+**Después:**
+```javascript
+const thirtySecsAgoDedup = new Date(Date.now() - 30 * 1000).toISOString();
+const { data: existingOrder } = await supabase
+  .from("whatsapp_orders")
+  .select("id, email_sent, status")
+  .eq("conversation_id", cid)
+  .eq("restaurant_id", rid)
+  .in("status", ["received", "confirmed"])
+  .gt("created_at", thirtySecsAgoDedup)
+  .limit(1)
+  .maybeSingle();
+```
 
-## Lo que NO se toca
+Mismo patrón: ventana de 30 segundos.
 
-- `whatsapp-webhook/index.ts` — intacto
-- Ningún otro edge function
-- Ninguna tabla existente
-- Ningún flujo de confirmación
+### Cambio 3 — Línea 1371: Ampliar ventana de archivado
+
+**Antes:**
+```javascript
+.lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+```
+
+**Después:**
+```javascript
+.lt("created_at", new Date(Date.now() - 30 * 1000).toISOString())
+```
+
+Reducir de 2 minutos a 30 segundos para que las órdenes anteriores se archiven más rápido, liberando el camino para nuevos pedidos.
+
+## Qué NO se toca
+
+- DEDUP GUARD 2 (línea 1423) — ya usa ventana de 30 segundos, está bien
+- La lógica de `retry-failed-emails` — no afectada
+- El POST-CONFIRMATION handler (línea 2480) — el reset a `none` después de 2 horas sigue igual
+- La estructura de la tabla `whatsapp_orders` — sin cambios
+- El flujo de email — intacto
+
+## Por qué 30 segundos
+
+- Meta envía webhooks duplicados típicamente en < 5 segundos
+- 30 segundos da margen amplio contra race conditions
+- Un humano no puede completar un nuevo pedido legítimo en < 30 segundos (necesita conversar, elegir productos, confirmar)
+- El DEDUP GUARD 2 (por teléfono + tiempo) ya cubre la misma ventana de 30s como fallback
 
 ## Sección técnica
 
-- La función reutiliza la estructura HTML exacta del webhook para consistencia visual
-- Config cache evita queries repetidos al mismo `restaurant_id`
-- Límite de 20 pedidos por ejecución para no saturar Brevo
-- Ventana de 4 horas evita reprocesar pedidos viejos
-- `verify_jwt = false` porque será llamado por pg_cron sin token de usuario
+Los tres cambios son quirúrgicos — solo se añade un filtro temporal `.gt("created_at", ...)` a las queries existentes y se ajusta la ventana de archivado. No cambia la firma de ninguna función, no se agregan columnas, no se modifica ningún otro archivo.
 
