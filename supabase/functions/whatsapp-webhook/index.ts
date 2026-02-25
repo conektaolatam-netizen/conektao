@@ -1375,17 +1375,19 @@ async function saveOrder(
     .eq("conversation_id", cid)
     .eq("restaurant_id", rid)
     .eq("status", "confirmed")
-    .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+    .lt("created_at", new Date(Date.now() - 30 * 1000).toISOString())
     .select("id");
   if (archived?.length) console.log(`♻️ ARCHIVED ${archived.length} old confirmed orders for conv ${cid}`);
 
-  // ── DEDUP GUARD 1: by conversation_id (only catches genuine duplicates now) ──
+  // ── DEDUP GUARD 1: by conversation_id (30s window — blocks webhook dupes, allows new orders) ──
+  const thirtySecsAgoDedup = new Date(Date.now() - 30 * 1000).toISOString();
   const { data: existingOrder } = await supabase
     .from("whatsapp_orders")
     .select("id, email_sent, status")
     .eq("conversation_id", cid)
     .eq("restaurant_id", rid)
     .in("status", ["received", "confirmed"])
+    .gt("created_at", thirtySecsAgoDedup)
     .limit(1)
     .maybeSingle();
 
@@ -2320,13 +2322,15 @@ Deno.serve(async (req) => {
             wa_message_id: msg.id,
           });
 
-          // ── IDEMPOTENCY: Check for existing confirmed order ────────────────
+          // ── IDEMPOTENCY: Check for existing confirmed order (30s window) ──
+          const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
           const { data: existingEvent } = await supabase
             .from("whatsapp_orders")
             .select("id")
             .eq("conversation_id", conv.id)
             .eq("restaurant_id", rId)
             .in("status", ["received", "confirmed"])
+            .gt("created_at", thirtySecsAgo)
             .limit(1)
             .maybeSingle();
 
