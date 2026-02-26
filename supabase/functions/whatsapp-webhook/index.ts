@@ -17,8 +17,8 @@ const WA_API_VERSION = "v22.0";
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── Structured tenant-aware logger ──
-function tlog(level: "info"|"warn"|"error", rid: string, msg: string, data?: any) {
-  const prefix = `[${rid?.substring(0,8) || "NO_TENANT"}]`;
+function tlog(level: "info" | "warn" | "error", rid: string, msg: string, data?: any) {
+  const prefix = `[${rid?.substring(0, 8) || "NO_TENANT"}]`;
   const payload = data ? ` ${JSON.stringify(data)}` : "";
   if (level === "error") console.error(`${prefix} ${msg}${payload}`);
   else if (level === "warn") console.warn(`${prefix} ${msg}${payload}`);
@@ -45,7 +45,9 @@ function isRateLimited(phone: string, tenantId: string): boolean {
 // Periodic cleanup to prevent memory leak (every 5 min)
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of rateBuckets) { if (now > v.resetAt) rateBuckets.delete(k); }
+  for (const [k, v] of rateBuckets) {
+    if (now > v.resetAt) rateBuckets.delete(k);
+  }
 }, 5 * 60_000);
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -662,7 +664,21 @@ function buildPrompt(
     const personality = config.personality_rules || {};
     const assistantName = personality.name || "Alicia";
     const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "");
-    const dynamic = buildDynamicPrompt(config, products, promoted, prom, ctx, peak, we, h, d, greeting, order, status, customerName);
+    const dynamic = buildDynamicPrompt(
+      config,
+      products,
+      promoted,
+      prom,
+      ctx,
+      peak,
+      we,
+      h,
+      d,
+      greeting,
+      order,
+      status,
+      customerName,
+    );
     return core + "\n\n" + dynamic;
   }
 
@@ -783,7 +799,8 @@ function buildDynamicPrompt(
   let paymentBlock = `PAGO: ${methods}.`;
   if (payment.bank_details) paymentBlock += ` Datos: ${payment.bank_details}.`;
   if (payment.require_proof) paymentBlock += " Pedir foto del comprobante.";
-  paymentBlock += "\nDATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → responde: 'No siempre podemos llevar datáfono, te confirmo disponibilidad'. NUNCA confirmes datáfono sin validación.";
+  paymentBlock +=
+    "\nDATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → responde: 'No siempre podemos llevar datáfono, te confirmo disponibilidad'. NUNCA confirmes datáfono sin validación.";
 
   // Packaging
   const packagingBlock =
@@ -803,7 +820,8 @@ function buildDynamicPrompt(
     : "";
 
   // Custom rules (includes disambiguation, history, anti-hallucination specifics per business)
-  const rulesBlock = customRules.length > 0 ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n") : "";
+  const rulesBlock =
+    customRules.length > 0 ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n") : "";
 
   // Tone
   let toneBlock = "";
@@ -814,8 +832,8 @@ function buildDynamicPrompt(
   const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
   // Customer context
-  const customerCtx = customerName 
-    ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo.` 
+  const customerCtx = customerName
+    ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo.`
     : "Nombre del cliente: aún no proporcionado.";
 
   // Upselling rules from config
@@ -1043,10 +1061,7 @@ function getPackagingCost(itemName: string, requiresPackaging?: boolean): number
 }
 
 /** Validate and correct order prices/packaging for any business */
-function validateOrder(
-  order: any,
-  products?: any[],
-): { order: any; corrected: boolean; issues: string[] } {
+function validateOrder(order: any, products?: any[]): { order: any; corrected: boolean; issues: string[] } {
   if (!order?.items) return { order, corrected: false, issues: [] };
 
   const priceMap = products ? buildPriceMap(products) : {};
@@ -1137,7 +1152,9 @@ function validateOrder(
   let calculatedTotal = subtotal + packagingTotal;
   // Guard: never allow negative or zero totals
   if (calculatedTotal <= 0 && subtotal > 0) {
-    issues.push(`TOTAL NEGATIVO/CERO CORREGIDO: de $${calculatedTotal.toLocaleString()} a $${subtotal.toLocaleString()}`);
+    issues.push(
+      `TOTAL NEGATIVO/CERO CORREGIDO: de $${calculatedTotal.toLocaleString()} a $${subtotal.toLocaleString()}`,
+    );
     calculatedTotal = subtotal;
     corrected = true;
   }
@@ -1156,7 +1173,7 @@ function validateOrder(
 // ==================== AI INTEGRATION ====================
 
 /** Call AI for response generation */
-async function callAI(sys: string, msgs: any[], temperature = 0.4) {
+async function callAI(sys: string, msgs: any[], temperature = 0.2) {
   const m = msgs.slice(-30).map((x: any) => ({
     role: x.role === "customer" ? "user" : "assistant",
     content: x.content,
@@ -1818,7 +1835,10 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       } catch (_) {}
       const rid = body.restaurant_id;
       if (!rid)
-        return new Response(JSON.stringify({ error: "restaurant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "restaurant_id required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       const cid = body.conversation_id;
       const phone = body.customer_phone;
       if (!cid || !phone)
@@ -1934,7 +1954,10 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
       const email = url.searchParams.get("email") || "";
       const targetRestId = url.searchParams.get("restaurant_id") || "";
       if (!targetRestId || !email)
-        return new Response(JSON.stringify({ error: "restaurant_id and email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "restaurant_id and email required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       const { error } = await supabase
         .from("whatsapp_configs")
         .update({ order_email: email })
@@ -1963,11 +1986,17 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       // Resolve per-business config
-      let msgPid = GLOBAL_WA_PHONE_ID, msgToken = GLOBAL_WA_TOKEN;
+      let msgPid = GLOBAL_WA_PHONE_ID,
+        msgToken = GLOBAL_WA_TOKEN;
       if (msgRestId) {
-        const { data: msgCfg } = await supabase.from("whatsapp_configs").select("whatsapp_phone_number_id, whatsapp_access_token").eq("restaurant_id", msgRestId).maybeSingle();
+        const { data: msgCfg } = await supabase
+          .from("whatsapp_configs")
+          .select("whatsapp_phone_number_id, whatsapp_access_token")
+          .eq("restaurant_id", msgRestId)
+          .maybeSingle();
         if (msgCfg?.whatsapp_phone_number_id) msgPid = msgCfg.whatsapp_phone_number_id;
-        if (msgCfg?.whatsapp_access_token && msgCfg.whatsapp_access_token !== "ENV_SECRET") msgToken = msgCfg.whatsapp_access_token;
+        if (msgCfg?.whatsapp_access_token && msgCfg.whatsapp_access_token !== "ENV_SECRET")
+          msgToken = msgCfg.whatsapp_access_token;
       }
       await sendWA(msgPid, msgToken, phone, message);
       const { data: conv } = await supabase
@@ -2025,9 +2054,16 @@ Deno.serve(async (req) => {
       if (staleConvs?.length) {
         for (const stale of staleConvs) {
           // Resolve per-business config for follow-up
-          const { data: staleConfig } = await supabase.from("whatsapp_configs").select("whatsapp_phone_number_id, whatsapp_access_token").eq("restaurant_id", stale.restaurant_id).maybeSingle();
+          const { data: staleConfig } = await supabase
+            .from("whatsapp_configs")
+            .select("whatsapp_phone_number_id, whatsapp_access_token")
+            .eq("restaurant_id", stale.restaurant_id)
+            .maybeSingle();
           const stalePid = staleConfig?.whatsapp_phone_number_id || GLOBAL_WA_PHONE_ID;
-          const staleToken = (staleConfig?.whatsapp_access_token && staleConfig.whatsapp_access_token !== "ENV_SECRET") ? staleConfig.whatsapp_access_token : GLOBAL_WA_TOKEN;
+          const staleToken =
+            staleConfig?.whatsapp_access_token && staleConfig.whatsapp_access_token !== "ENV_SECRET"
+              ? staleConfig.whatsapp_access_token
+              : GLOBAL_WA_TOKEN;
           console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone} (restaurant: ${stale.restaurant_id})`);
           const followUpMsg =
             "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Si quieres confirmarlo, escríbeme: confirmar pedido 😊";
@@ -2152,7 +2188,9 @@ Deno.serve(async (req) => {
           const audioUrl = await downloadAndUploadMedia(audioId, token, "audio-messages", "audio/ogg");
           if (audioUrl) {
             const transcription = await transcribeAudio(audioUrl);
-            text = transcription ? `[Audio transcrito]: ${transcription}` : "[El cliente envió un audio que no se pudo transcribir]";
+            text = transcription
+              ? `[Audio transcrito]: ${transcription}`
+              : "[El cliente envió un audio que no se pudo transcribir]";
           } else {
             text = "[El cliente envió un audio]";
           }
