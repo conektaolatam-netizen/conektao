@@ -116,3 +116,9 @@ verify_jwt = false
 
 [functions.retry-failed-emails]
 verify_jwt = false
+
+[functions.alicia-tts-intro]
+verify_jwt = false
+
+[functions.vendedor-chat]
+verify_jwt = false
