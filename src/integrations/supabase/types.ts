@@ -4911,23 +4911,58 @@ export type Database = {
           },
         ]
       }
+      vendedor_progress: {
+        Row: {
+          completed_at: string | null
+          id: string
+          nivel_completado: number
+          vendedor_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          nivel_completado: number
+          vendedor_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          nivel_completado?: number
+          vendedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendedor_progress_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendedores: {
         Row: {
+          certificado: boolean | null
           ciudad: string
+          fecha_certificacion: string | null
           fecha_registro: string
           id: string
           nombre: string
           whatsapp: string
         }
         Insert: {
+          certificado?: boolean | null
           ciudad: string
+          fecha_certificacion?: string | null
           fecha_registro?: string
           id?: string
           nombre: string
           whatsapp: string
         }
         Update: {
+          certificado?: boolean | null
           ciudad?: string
+          fecha_certificacion?: string | null
           fecha_registro?: string
           id?: string
           nombre?: string

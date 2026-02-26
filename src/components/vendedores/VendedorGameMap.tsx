@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Lock, Star, Mic, BarChart3, Calculator, DollarSign } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Check, Star, Mic, BarChart3, Calculator, DollarSign } from "lucide-react";
 import NodeOverlay from "./NodeOverlay";
 import NodeConoceAlicia from "./nodes/NodeConoceAlicia";
 import NodePitchPerfecto from "./nodes/NodePitchPerfecto";
@@ -9,6 +8,7 @@ import NodeVendeConData from "./nodes/NodeVendeConData";
 import NodeCalculadora from "./nodes/NodeCalculadora";
 import NodeComision from "./nodes/NodeComision";
 import CompletionCelebration from "./CompletionCelebration";
+import { supabase } from "@/integrations/supabase/client";
 
 type NodeId = 1 | 2 | 3 | 4 | 5;
 
@@ -27,18 +27,27 @@ const saveProgress = (completed: Set<NodeId>) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...completed]));
 };
 
-const NODE_META: { id: NodeId; label: string; icon: React.ElementType }[] = [
-  { id: 1, label: "Conoce a Alicia", icon: Star },
-  { id: 2, label: "El Pitch Perfecto", icon: Mic },
-  { id: 3, label: "Vende con Data", icon: BarChart3 },
-  { id: 4, label: "La Calculadora", icon: Calculator },
-  { id: 5, label: "Tu Comisión", icon: DollarSign },
+const NODE_META: { id: NodeId; label: string; doneLabel: string; emoji: string; icon: React.ElementType }[] = [
+  { id: 1, label: "Conoce a Alicia", doneLabel: "Ya conoces a Alicia 🤖", emoji: "🤖", icon: Star },
+  { id: 2, label: "El Pitch Perfecto", doneLabel: "Dominas el pitch 🎤", emoji: "🎤", icon: Mic },
+  { id: 3, label: "Vende con Data", doneLabel: "Vendes con data 📊", emoji: "📊", icon: BarChart3 },
+  { id: 4, label: "La Calculadora", doneLabel: "Calculas como pro 🧮", emoji: "🧮", icon: Calculator },
+  { id: 5, label: "Tu Comisión", doneLabel: "Listo para ganar 💰", emoji: "💰", icon: DollarSign },
 ];
 
 const VendedorGameMap = () => {
   const [completed, setCompleted] = useState<Set<NodeId>>(getProgress);
   const [activeNode, setActiveNode] = useState<NodeId | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [vendedorCount, setVendedorCount] = useState<number | null>(null);
+  const [xpAnimating, setXpAnimating] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("vendedores" as any)
+      .select("id", { count: "exact", head: true })
+      .then(({ count }) => setVendedorCount(count ?? 0));
+  }, []);
 
   const isUnlocked = useCallback(
     (id: NodeId) => {
@@ -51,6 +60,13 @@ const VendedorGameMap = () => {
     [completed]
   );
 
+  const getPrevNodeName = (id: NodeId): string => {
+    if (id === 2 || id === 3) return "Conoce a Alicia";
+    if (id === 4) return "El Pitch Perfecto y Vende con Data";
+    if (id === 5) return "La Calculadora";
+    return "";
+  };
+
   const progressPercent = Math.round((completed.size / 5) * 100);
 
   const completeNode = useCallback(
@@ -60,18 +76,33 @@ const VendedorGameMap = () => {
       setCompleted(next);
       saveProgress(next);
       setActiveNode(null);
+
+      // Save to Supabase
+      const vendedorId = localStorage.getItem("vendedor_id");
+      if (vendedorId) {
+        supabase
+          .from("vendedor_progress" as any)
+          .upsert({ vendedor_id: vendedorId, nivel_completado: id } as any, { onConflict: "vendedor_id,nivel_completado" })
+          .then(({ error }) => {
+            if (error) console.error("Progress save error:", error);
+          });
+      }
+
+      // XP animation
+      setXpAnimating(true);
+      setTimeout(() => setXpAnimating(false), 800);
+
       if (next.size === 5) {
-        setTimeout(() => setShowCelebration(true), 400);
+        setTimeout(() => setShowCelebration(true), 600);
       }
     },
     [completed]
   );
 
   const handleNodeClick = (id: NodeId) => {
-    if (isUnlocked(id)) setActiveNode(id);
+    if (isUnlocked(id) && !completed.has(id)) setActiveNode(id);
   };
 
-  // Layout positions for the map nodes (mobile-first vertical layout)
   const nodePositions: { id: NodeId; x: string; y: number }[] = [
     { id: 1, x: "50%", y: 0 },
     { id: 2, x: "28%", y: 1 },
@@ -81,41 +112,73 @@ const VendedorGameMap = () => {
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-20">
+    <div className="max-w-lg mx-auto px-4 pb-20 relative">
+      {/* Floating particles */}
+      {Array.from({ length: 15 }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-1 h-1 rounded-full bg-orange-400/20 animate-float-particle pointer-events-none"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 600}px`,
+            animationDelay: `${Math.random() * 6}s`,
+            animationDuration: `${4 + Math.random() * 4}s`,
+          }}
+        />
+      ))}
+
       {/* Header */}
       <div className="text-center mb-6 animate-fade-in">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">
           Método Alicia
         </h1>
-        <p className="text-sm text-muted-foreground mb-3">
-          Completa los 5 niveles para convertirte en vendedor
+        <p className="text-sm text-gray-400 mb-3">
+          Completa los 5 niveles y recibe tu certificado
         </p>
-        <div className="flex items-center gap-3">
-          <Progress value={progressPercent} className="h-3 flex-1" />
-          <span className="text-sm font-bold text-primary whitespace-nowrap">
+
+        {/* XP Progress bar */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 h-4 bg-white/10 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: xpAnimating ? 0.8 : 0.3, ease: "easeOut" }}
+            />
+          </div>
+          <motion.span
+            className="text-sm font-bold text-orange-400 whitespace-nowrap min-w-[40px] text-right"
+            animate={xpAnimating ? { scale: [1, 1.3, 1] } : {}}
+            transition={{ duration: 0.4 }}
+          >
             {progressPercent}%
-          </span>
+          </motion.span>
         </div>
+
+        {/* Social counter */}
+        {vendedorCount !== null && (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <span>🔥</span>
+            <span className="text-xs text-gray-400">
+              <span className="text-orange-400 font-bold">{vendedorCount}</span> vendedores certificados
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Game Map */}
-      <div className="relative" style={{ height: 520 }}>
-        {/* Dotted path lines */}
+      <div className="relative" style={{ height: 560 }}>
+        {/* Path lines */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
-          viewBox="0 0 400 520"
+          viewBox="0 0 400 560"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Node 1 → Node 2 */}
-          <line x1="200" y1="55" x2="112" y2="165" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 6" opacity="0.4" />
-          {/* Node 1 → Node 3 */}
-          <line x1="200" y1="55" x2="288" y2="165" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 6" opacity="0.4" />
-          {/* Node 2 → Node 4 */}
-          <line x1="112" y1="205" x2="200" y2="305" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 6" opacity="0.4" />
-          {/* Node 3 → Node 4 */}
-          <line x1="288" y1="205" x2="200" y2="305" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 6" opacity="0.4" />
-          {/* Node 4 → Node 5 */}
-          <line x1="200" y1="345" x2="200" y2="435" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 6" opacity="0.4" />
+          <line x1="200" y1="55" x2="112" y2="175" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
+          <line x1="200" y1="55" x2="288" y2="175" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
+          <line x1="112" y1="215" x2="200" y2="325" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
+          <line x1="288" y1="215" x2="200" y2="325" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
+          <line x1="200" y1="365" x2="200" y2="455" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
         </svg>
 
         {nodePositions.map(({ id, x, y: row }) => {
@@ -123,28 +186,35 @@ const VendedorGameMap = () => {
           const isDone = completed.has(id);
           const unlocked = isUnlocked(id);
           const Icon = meta.icon;
-          const yPos = 20 + row * 130;
+          const yPos = 20 + row * 140;
 
           return (
             <motion.button
               key={id}
-              className="absolute flex flex-col items-center gap-1 -translate-x-1/2"
+              className="absolute flex flex-col items-center gap-1.5 -translate-x-1/2"
               style={{ left: x, top: yPos }}
               onClick={() => handleNodeClick(id)}
-              whileTap={unlocked ? { scale: 0.95 } : undefined}
-              disabled={!unlocked}
+              whileTap={unlocked && !isDone ? { scale: 0.95 } : undefined}
+              disabled={!unlocked || isDone}
             >
               <motion.div
-                className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center border-[3px] transition-colors ${
+                className={`w-16 h-16 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
                   isDone
-                    ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30"
+                    ? "bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]"
                     : unlocked
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-muted border-muted-foreground/30 text-muted-foreground"
+                    ? "bg-orange-500/10 border-orange-500 text-orange-400"
+                    : "bg-white/5 border-white/10 text-gray-600"
                 }`}
                 animate={
                   unlocked && !isDone
-                    ? { scale: [1, 1.08, 1], boxShadow: ["0 0 0 0 hsl(var(--primary) / 0.3)", "0 0 0 12px hsl(var(--primary) / 0)", "0 0 0 0 hsl(var(--primary) / 0.3)"] }
+                    ? {
+                        scale: [1, 1.06, 1],
+                        boxShadow: [
+                          "0 0 0 0 rgba(249,115,22,0.3)",
+                          "0 0 0 12px rgba(249,115,22,0)",
+                          "0 0 0 0 rgba(249,115,22,0.3)",
+                        ],
+                      }
                     : undefined
                 }
                 transition={
@@ -156,22 +226,30 @@ const VendedorGameMap = () => {
                 {isDone ? (
                   <Check className="w-7 h-7" strokeWidth={3} />
                 ) : unlocked ? (
-                  <Icon className="w-7 h-7" />
+                  <span className="text-lg font-bold">{id}</span>
                 ) : (
-                  <Lock className="w-5 h-5" />
+                  <Icon className="w-6 h-6 opacity-30 blur-[1px]" />
                 )}
               </motion.div>
-              <span
-                className={`text-xs font-semibold text-center max-w-[100px] leading-tight ${
-                  isDone
-                    ? "text-primary"
-                    : unlocked
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {meta.label}
-              </span>
+
+              {/* Label */}
+              <div className="text-center max-w-[120px]">
+                {isDone ? (
+                  <span className="text-xs font-semibold text-orange-400 leading-tight block">
+                    {meta.label} ✓
+                    <br />
+                    <span className="text-[10px] text-orange-300/60">{meta.doneLabel}</span>
+                  </span>
+                ) : unlocked ? (
+                  <span className="text-xs font-semibold text-white leading-tight">{meta.label}</span>
+                ) : (
+                  <span className="text-[10px] text-gray-600 leading-tight block">
+                    {meta.label}
+                    <br />
+                    <span className="text-[9px]">Se desbloquea al completar {getPrevNodeName(id)}</span>
+                  </span>
+                )}
+              </div>
             </motion.button>
           );
         })}
