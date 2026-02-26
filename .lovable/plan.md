@@ -1,113 +1,95 @@
 
 
-# Plan: Fix de Idempotencia para Múltiples Pedidos en la Misma Conversación
+# Plan: Gamified Vendedores Redesign
 
-## Problema
+## Database Changes
 
-Hay **dos puntos** donde la idempotencia bloquea pedidos legítimos:
+**Migration: Add columns to `vendedores` + create `vendedor_progress` table**
 
-1. **Línea 2323 (IDEMPOTENCY check en confirmación):** Cuando el usuario confirma un nuevo pedido, el sistema busca órdenes existentes con `status IN ('received', 'confirmed')` en la misma `conversation_id`. Si encuentra alguna (del pedido anterior), bloquea y responde "Ya quedó confirmado" sin crear la nueva orden ni enviar correo.
+```sql
+ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS certificado boolean DEFAULT false;
+ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS fecha_certificacion timestamptz;
 
-2. **Línea 1382 (DEDUP GUARD 1 en `saveOrder`):** Misma lógica dentro de `saveOrder()`. Encuentra la orden anterior y retorna su ID sin insertar la nueva.
+CREATE TABLE IF NOT EXISTS vendedor_progress (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendedor_id uuid REFERENCES vendedores(id) ON DELETE CASCADE,
+  nivel_completado integer NOT NULL CHECK (nivel_completado BETWEEN 1 AND 5),
+  completed_at timestamptz DEFAULT now(),
+  UNIQUE(vendedor_id, nivel_completado)
+);
 
-El problema raíz: el archivado automático (línea 1371) solo mueve a `completed` las órdenes con `created_at` > 2 minutos. Si el cliente hace un nuevo pedido dentro de esos 2 minutos, o si la orden anterior nunca fue archivada por timing, ambos checks la encuentran y bloquean.
-
-## Solución
-
-Modificar ambos checks para que solo detecten duplicados **recientes** (ventana de 30 segundos), no órdenes históricas de la misma conversación. Esto mantiene protección contra webhooks duplicados de Meta (que llegan en < 5s) pero permite nuevos pedidos legítimos.
-
-## Cambios en `supabase/functions/whatsapp-webhook/index.ts`
-
-### Cambio 1 — Línea 2323: Check de idempotencia en confirmación
-
-**Antes:**
-```javascript
-const { data: existingEvent } = await supabase
-  .from("whatsapp_orders")
-  .select("id")
-  .eq("conversation_id", conv.id)
-  .eq("restaurant_id", rId)
-  .in("status", ["received", "confirmed"])
-  .limit(1)
-  .maybeSingle();
+ALTER TABLE vendedor_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public insert vendedor_progress" ON vendedor_progress FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public select vendedor_progress" ON vendedor_progress FOR SELECT USING (true);
 ```
 
-**Después:**
-```javascript
-const thirtySecsAgo = new Date(Date.now() - 30 * 1000).toISOString();
-const { data: existingEvent } = await supabase
-  .from("whatsapp_orders")
-  .select("id")
-  .eq("conversation_id", conv.id)
-  .eq("restaurant_id", rId)
-  .in("status", ["received", "confirmed"])
-  .gt("created_at", thirtySecsAgo)
-  .limit(1)
-  .maybeSingle();
+## New Dependency
+
+- `html2canvas` — for certificate PNG download
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/pages/VendedoresTraining.tsx` | Rewrite — add 3 phases: welcome → registration → game map |
+| `src/components/vendedores/WelcomeScreen.tsx` | **Create** — Pantalla 0 with badge, social counter from Supabase |
+| `src/components/vendedores/VendedorRegistration.tsx` | Modify — dark theme, save vendedor_id to localStorage |
+| `src/components/vendedores/VendedorGameMap.tsx` | Rewrite — dark bg with particles, social counter, anticipation nodes, completion labels |
+| `src/components/vendedores/NodeOverlay.tsx` | Modify — dark background theme |
+| `src/components/vendedores/nodes/NodeConoceAlicia.tsx` | Rewrite — 3 micro-steps with flip cards and checkmarks |
+| `src/components/vendedores/nodes/NodePitchPerfecto.tsx` | Rewrite — 3 micro-steps with script unlock |
+| `src/components/vendedores/nodes/NodeVendeConData.tsx` | Rewrite — 3 micro-steps with flip-in stats |
+| `src/components/vendedores/nodes/NodeCalculadora.tsx` | Modify — add confetti on positive ROI, micro-step confirmation |
+| `src/components/vendedores/nodes/NodeComision.tsx` | Modify — add urgency element, micro-step |
+| `src/components/vendedores/CompletionCelebration.tsx` | Rewrite — certificate card with user name, WhatsApp share, PNG download via html2canvas, update Supabase `certificado=true` |
+
+## Architecture
+
+### State Flow
+
+```text
+VendedoresTraining
+├── phase: "welcome" | "register" | "game"
+├── vendedorId: string (from Supabase insert, saved to localStorage)
+├── vendedorName: string (saved to localStorage for certificate)
+│
+├── WelcomeScreen → counts vendedores from Supabase → CTA reveals registration
+├── VendedorRegistration → saves to Supabase → returns vendedor_id + name
+└── VendedorGameMap
+    ├── fetches vendedor count for social counter
+    ├── each node completion → INSERT vendedor_progress
+    ├── progress keyed by vendedorId in localStorage
+    └── on 100% → CompletionCelebration
+        ├── certificate with dynamic name
+        ├── html2canvas → download PNG
+        ├── WhatsApp share link
+        └── UPDATE vendedores SET certificado=true
 ```
 
-Añadir `.gt("created_at", thirtySecsAgo)` — solo considera duplicado si la orden fue creada en los últimos 30 segundos (suficiente para atrapar webhooks duplicados de Meta, pero no bloquea pedidos nuevos).
+### Micro-Victory Pattern (all nodes)
 
-### Cambio 2 — Línea 1382: DEDUP GUARD 1 en `saveOrder()`
+Each node will have internal `step` state (1 → 2 → 3). Each step shows a checkmark animation with CSS scale+color transition when completed. Final step triggers `onComplete` which fires XP bar animation on the map.
 
-**Antes:**
-```javascript
-const { data: existingOrder } = await supabase
-  .from("whatsapp_orders")
-  .select("id, email_sent, status")
-  .eq("conversation_id", cid)
-  .eq("restaurant_id", rid)
-  .in("status", ["received", "confirmed"])
-  .limit(1)
-  .maybeSingle();
-```
+### Visual Design
 
-**Después:**
-```javascript
-const thirtySecsAgoDedup = new Date(Date.now() - 30 * 1000).toISOString();
-const { data: existingOrder } = await supabase
-  .from("whatsapp_orders")
-  .select("id, email_sent, status")
-  .eq("conversation_id", cid)
-  .eq("restaurant_id", rid)
-  .in("status", ["received", "confirmed"])
-  .gt("created_at", thirtySecsAgoDedup)
-  .limit(1)
-  .maybeSingle();
-```
+- Dark backgrounds throughout (`bg-gray-950` / `bg-[#0a0a0a]`)
+- Orange glow effects via CSS `box-shadow` and radial gradients
+- Floating particles: CSS-only animation with `@keyframes float` on small orange dots
+- No heavy animation libraries — all CSS transitions + framer-motion (already installed)
+- Certificate: white card on dark bg, serif font for name, gold/orange border, Conektao branding
 
-Mismo patrón: ventana de 30 segundos.
+### Certificate Download
 
-### Cambio 3 — Línea 1371: Ampliar ventana de archivado
+Using `html2canvas` to capture the certificate `div` as PNG. The certificate card will be a ref'd div with fixed dimensions for consistent output.
 
-**Antes:**
-```javascript
-.lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
-```
+### Social Counter
 
-**Después:**
-```javascript
-.lt("created_at", new Date(Date.now() - 30 * 1000).toISOString())
-```
+Simple `supabase.from("vendedores").select("id", { count: "exact", head: true })` — returns count without loading all rows.
 
-Reducir de 2 minutos a 30 segundos para que las órdenes anteriores se archiven más rápido, liberando el camino para nuevos pedidos.
+### localStorage Keys
 
-## Qué NO se toca
-
-- DEDUP GUARD 2 (línea 1423) — ya usa ventana de 30 segundos, está bien
-- La lógica de `retry-failed-emails` — no afectada
-- El POST-CONFIRMATION handler (línea 2480) — el reset a `none` después de 2 horas sigue igual
-- La estructura de la tabla `whatsapp_orders` — sin cambios
-- El flujo de email — intacto
-
-## Por qué 30 segundos
-
-- Meta envía webhooks duplicados típicamente en < 5 segundos
-- 30 segundos da margen amplio contra race conditions
-- Un humano no puede completar un nuevo pedido legítimo en < 30 segundos (necesita conversar, elegir productos, confirmar)
-- El DEDUP GUARD 2 (por teléfono + tiempo) ya cubre la misma ventana de 30s como fallback
-
-## Sección técnica
-
-Los tres cambios son quirúrgicos — solo se añade un filtro temporal `.gt("created_at", ...)` a las queries existentes y se ajusta la ventana de archivado. No cambia la firma de ninguna función, no se agregan columnas, no se modifica ningún otro archivo.
+- `vendedor_registered` → `"true"` (existing)
+- `vendedor_id` → UUID from Supabase insert
+- `vendedor_name` → name for certificate
+- `vendedor_progress` → `[1,2,3...]` completed node IDs (existing, kept)
 
