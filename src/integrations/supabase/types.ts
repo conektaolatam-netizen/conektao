@@ -4947,6 +4947,7 @@ export type Database = {
           fecha_certificacion: string | null
           fecha_registro: string
           id: string
+          nivel_actual: number | null
           nombre: string
           whatsapp: string
         }
@@ -4956,6 +4957,7 @@ export type Database = {
           fecha_certificacion?: string | null
           fecha_registro?: string
           id?: string
+          nivel_actual?: number | null
           nombre: string
           whatsapp: string
         }
@@ -4965,6 +4967,7 @@ export type Database = {
           fecha_certificacion?: string | null
           fecha_registro?: string
           id?: string
+          nivel_actual?: number | null
           nombre?: string
           whatsapp?: string
         }
