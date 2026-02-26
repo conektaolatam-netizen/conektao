@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Rocket } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface Props {
   onComplete: () => void;
@@ -56,18 +56,11 @@ const VendedorRegistration = ({ onComplete }: Props) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 mb-4">
-            <Rocket className="w-8 h-8 text-orange-400" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Método Alicia
-          </h1>
-          <p className="text-gray-400">
-            En 10 minutos aprenderás todo para vender Alicia
-          </p>
+    <div className="w-full max-w-md mx-auto">
+      <div className="w-full animate-fade-in">
+        <div className="text-center mb-6">
+          <h2 className="text-lg font-bold text-white mb-1">Regístrate para empezar</h2>
+          <p className="text-sm text-gray-400">Solo necesitamos estos datos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
