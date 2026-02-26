@@ -5,7 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SCRIPT = `Hola. Soy Alicia. Trabajo para restaurantes en Colombia las 24 horas del día, los 7 días de la semana. Me conecto directamente al WhatsApp del restaurante. Ahí recibo pedidos, respondo preguntas y atiendo clientes, sin que el dueño tenga que hacer nada. Cada conversación que atiendo puede aumentar el valor de cada pedido hasta un quince por ciento. Eso significa más dinero para el restaurante, sin contratar a nadie. Y cuando el restaurante recibe un pedido, yo lo organizo y lo envío automáticamente al correo del dueño. Todo queda registrado, sin errores, sin papeles. Eso soy yo. Una sola herramienta que conecta WhatsApp con el correo del restaurante, aumenta las ventas y trabaja mientras el dueño duerme. Ahora ya me conoces. En el siguiente nivel vas a aprender exactamente cómo presentarme a un restaurante en menos de un minuto.`;
+// Modified script: includes the "ticket promedio" question for branching
+const SCRIPT = `Hola. Soy Alicia. Trabajo para restaurantes en Colombia las 24 horas del día, los 7 días de la semana. Me conecto directamente al WhatsApp del restaurante. Ahí recibo pedidos, respondo preguntas y atiendo clientes, sin que el dueño tenga que hacer nada. Cada conversación que atiendo puede aumentar el valor de cada pedido hasta un quince por ciento. ¿Sabes qué es el ticket promedio? ... Eso significa más dinero para el restaurante, sin contratar a nadie. Y cuando el restaurante recibe un pedido, yo lo organizo y lo envío automáticamente al correo del dueño. Todo queda registrado, sin errores, sin papeles. Eso soy yo. Una sola herramienta que conecta WhatsApp con el correo del restaurante, aumenta las ventas y trabaja mientras el dueño duerme. Ahora ya me conoces. En el siguiente nivel vas a aprender exactamente cómo presentarme a un restaurante en menos de un minuto.`;
 
 const VOICE_ID = "FGY2WhTYpPnrIDTdsKH5"; // Laura
 
@@ -24,7 +25,13 @@ serve(async (req) => {
         body: JSON.stringify({
           text: SCRIPT,
           model_id: "eleven_multilingual_v2",
-          voice_settings: { stability: 0.55, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true, speed: 1.0 },
+          voice_settings: {
+            stability: 0.35,
+            similarity_boost: 0.75,
+            style: 0.25,
+            use_speaker_boost: true,
+            speed: 1.0,
+          },
         }),
       }
     );
