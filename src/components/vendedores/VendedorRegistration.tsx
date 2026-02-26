@@ -31,13 +31,20 @@ const VendedorRegistration = ({ onComplete }: Props) => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("vendedores" as any).insert({
+      const { data, error } = await supabase.from("vendedores" as any).insert({
         nombre: nombre.trim(),
         whatsapp: whatsapp.trim(),
         ciudad,
-      } as any);
+      } as any).select("id").single();
 
       if (error) throw error;
+      
+      // Save vendedor info for certificate and progress tracking
+      if (data) {
+        localStorage.setItem("vendedor_id", (data as any).id);
+      }
+      localStorage.setItem("vendedor_name", nombre.trim());
+      
       toast.success("¡Bienvenido al equipo!");
       onComplete();
     } catch (err) {
@@ -52,20 +59,20 @@ const VendedorRegistration = ({ onComplete }: Props) => {
     <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Rocket className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 mb-4">
+            <Rocket className="w-8 h-8 text-orange-400" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             Método Alicia
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-400">
             En 10 minutos aprenderás todo para vender Alicia
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">
+            <label className="text-sm font-medium text-gray-300 mb-1 block">
               Nombre completo
             </label>
             <Input
@@ -73,12 +80,12 @@ const VendedorRegistration = ({ onComplete }: Props) => {
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Tu nombre"
               maxLength={100}
-              className="h-12"
+              className="h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">
+            <label className="text-sm font-medium text-gray-300 mb-1 block">
               Número de WhatsApp
             </label>
             <Input
@@ -86,17 +93,17 @@ const VendedorRegistration = ({ onComplete }: Props) => {
               onChange={(e) => setWhatsapp(e.target.value.replace(/[^0-9+]/g, ""))}
               placeholder="3001234567"
               maxLength={15}
-              className="h-12"
+              className="h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500"
               type="tel"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">
+            <label className="text-sm font-medium text-gray-300 mb-1 block">
               Ciudad
             </label>
             <Select value={ciudad} onValueChange={setCiudad}>
-              <SelectTrigger className="h-12">
+              <SelectTrigger className="h-12 bg-white/5 border-white/10 text-white">
                 <SelectValue placeholder="Selecciona tu ciudad" />
               </SelectTrigger>
               <SelectContent>
@@ -110,7 +117,7 @@ const VendedorRegistration = ({ onComplete }: Props) => {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary-hover hover:to-secondary-hover shadow-lg shadow-primary/25"
+            className="w-full h-14 text-base font-semibold bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/25"
           >
             {loading ? (
               <Sparkles className="w-5 h-5 animate-spin" />
