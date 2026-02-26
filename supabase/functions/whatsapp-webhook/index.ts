@@ -1174,7 +1174,7 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
 
 /** Call AI for response generation */
 async function callAI(sys: string, msgs: any[], temperature = 0.2) {
-  const m = msgs.slice(-30).map((x: any) => ({
+  const m = msgs.slice(-120).map((x: any) => ({
     role: x.role === "customer" ? "user" : "assistant",
     content: x.content,
   }));
