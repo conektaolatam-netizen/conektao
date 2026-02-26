@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import WelcomeScreen from "@/components/vendedores/WelcomeScreen";
-import VendedorRegistration from "@/components/vendedores/VendedorRegistration";
 import VendedorGameMap from "@/components/vendedores/VendedorGameMap";
 
-type Phase = "welcome" | "register" | "game";
+type Phase = "welcome" | "game";
 
 const VendedoresTraining = () => {
   const [phase, setPhase] = useState<Phase>("welcome");
@@ -21,7 +20,7 @@ const VendedoresTraining = () => {
   }, []);
 
   if (phase === "welcome") {
-    return <WelcomeScreen onStart={() => setPhase("register")} />;
+    return <WelcomeScreen onRegistered={handleRegistered} />;
   }
 
   return (
@@ -43,11 +42,7 @@ const VendedoresTraining = () => {
         </div>
       </nav>
 
-      {phase === "register" ? (
-        <VendedorRegistration onComplete={handleRegistered} />
-      ) : (
-        <VendedorGameMap />
-      )}
+      <VendedorGameMap />
     </div>
   );
 };

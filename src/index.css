@@ -916,3 +916,13 @@ All colors MUST be HSL.
   0%, 100% { transform: translateX(-150%) skewX(-20deg); }
   50% { transform: translateX(250%) skewX(-20deg); }
 }
+
+@keyframes badgePulseRing {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.06); }
+}
+
+@keyframes greenBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

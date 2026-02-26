@@ -1,134 +1,330 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-
+import { Link } from "react-router-dom";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import VendedorRegistration from "./VendedorRegistration";
 
 interface Props {
-  onStart: () => void;
+  onRegistered: () => void;
 }
 
-const WelcomeScreen = ({ onStart }: Props) => {
-  const [count, setCount] = useState<number | null>(null);
+const SEED = 902;
 
+const WelcomeScreen = ({ onRegistered }: Props) => {
+  const [count, setCount] = useState<number | null>(null);
+  const [showRegister, setShowRegister] = useState(false);
+
+  // Fetch real count
   useEffect(() => {
     supabase
       .from("vendedores" as any)
       .select("id", { count: "exact", head: true })
-      .then(({ count: c }) => setCount(902 + (c ?? 0)));
+      .eq("certificado", true)
+      .then(({ count: c }) => setCount(SEED + (c ?? 0)));
   }, []);
 
+  // Slow random increment for social proof
+  useEffect(() => {
+    if (count === null) return;
+    const interval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        setCount((prev) => (prev ?? SEED) + 1);
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [count]);
+
+  // Memoize particles so they don't re-render
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 20 }).map((_, i) => ({
+        left: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 10}s`,
+        duration: `${8 + Math.random() * 12}s`,
+        size: Math.random() > 0.5 ? 2 : 1,
+      })),
+    []
+  );
+
+  const fadeUp = (delay: number) => ({
+    initial: { opacity: 0, y: 30 } as const,
+    animate: { opacity: 1, y: 0 } as const,
+    transition: { duration: 0.8, ease: "easeOut" as const, delay },
+  });
+
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4">
-      {/* Background glow */}
-      <div className="absolute inset-0 bg-[#0a0a0a]" />
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-orange-500/10 blur-[120px]" />
-      <div className="absolute bottom-0 left-1/4 w-[300px] h-[300px] rounded-full bg-orange-600/8 blur-[100px]" />
+    <div className="min-h-screen relative overflow-hidden" style={{ background: "#0A0A0A" }}>
+      {/* Background gradients */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: "0",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "800px",
+          height: "600px",
+          background: "radial-gradient(ellipse at center, rgba(249,115,22,0.12), transparent 70%)",
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          bottom: "0",
+          right: "10%",
+          width: "500px",
+          height: "400px",
+          background: "radial-gradient(ellipse at center, rgba(212,168,83,0.06), transparent 70%)",
+        }}
+      />
 
       {/* Floating particles */}
-      {Array.from({ length: 20 }).map((_, i) => (
+      {particles.map((p, i) => (
         <div
           key={i}
-          className="absolute w-1 h-1 rounded-full bg-orange-400/40 animate-float-particle"
+          className="absolute rounded-full animate-float-particle"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 6}s`,
-            animationDuration: `${4 + Math.random() * 4}s`,
+            left: p.left,
+            bottom: "-10px",
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            background: "rgba(249,115,22,0.4)",
+            animationDelay: p.delay,
+            animationDuration: p.duration,
           }}
         />
       ))}
 
-      <motion.div
-        className="relative z-10 text-center max-w-md"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        {/* Championship Badge */}
-        <motion.div
-          className="relative mx-auto mb-8 w-52 h-52"
-          animate={{ scale: [1, 1.03, 1] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      {/* Fixed Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 sm:px-6">
+        <Link
+          to="/alicia"
+          className="inline-flex items-center gap-1.5 text-xs text-[#888] hover:text-white transition-colors"
         >
-          {/* Outer decorative ring */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 p-[4px] shadow-[0_0_60px_rgba(245,158,11,0.4),0_0_120px_rgba(249,115,22,0.2)]">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center relative overflow-hidden">
-              {/* Radial glow */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.15),transparent_70%)]" />
-              
-              {/* Shine sweep animation */}
-              <div className="absolute inset-0 overflow-hidden rounded-full">
-                <div className="absolute -inset-full animate-[badge-shine_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg]" />
-              </div>
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Volver a Alicia
+        </Link>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-500/40">
+          <span className="text-[10px] font-bold tracking-[0.1em] text-orange-400 uppercase">
+            CONEKTAO
+          </span>
+        </div>
+      </nav>
 
-              {/* Star */}
-              <span className="text-3xl mb-1 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] relative z-10">⭐</span>
-              
-              {/* Text */}
-              <span className="text-[10px] font-black tracking-[0.15em] text-amber-300 uppercase relative z-10">
-                Vendedor
-              </span>
-              <span className="text-[11px] font-black tracking-[0.12em] text-amber-200 uppercase relative z-10">
-                Certificado
-              </span>
-              <span className="text-sm font-black text-orange-400 mt-0.5 relative z-10">
-                ALICIA
-              </span>
-              <span className="text-[8px] text-amber-400/50 mt-1 font-bold tracking-[0.2em] uppercase relative z-10">
-                Conektao
-              </span>
+      {/* Main content */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-14 pb-8">
+        <div className="w-full max-w-[480px] flex flex-col items-center gap-8">
+          {/* 1. BADGE — SVG */}
+          <motion.div className="relative" {...fadeUp(0.1)}>
+            {/* Pulse rings */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div
+                className="absolute rounded-full border border-[rgba(212,168,83,0.2)]"
+                style={{
+                  width: "190px",
+                  height: "190px",
+                  animation: "badgePulseRing 3s ease-in-out infinite",
+                }}
+              />
+              <div
+                className="absolute rounded-full border border-[rgba(212,168,83,0.1)]"
+                style={{
+                  width: "210px",
+                  height: "210px",
+                  animation: "badgePulseRing 3s ease-in-out infinite 0.5s",
+                }}
+              />
             </div>
-          </div>
 
-          {/* Decorative dots around perimeter */}
-          {Array.from({ length: 12 }).map((_, i) => {
-            const angle = (i * 30) * (Math.PI / 180);
-            const x = 50 + 48 * Math.cos(angle);
-            const y = 50 + 48 * Math.sin(angle);
-            return (
+            <svg width="160" height="160" viewBox="0 0 160 160" className="relative z-10">
+              <defs>
+                <linearGradient id="goldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#F0C97A" />
+                  <stop offset="100%" stopColor="#A0742A" />
+                </linearGradient>
+                <linearGradient id="innerFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#1C1409" />
+                  <stop offset="100%" stopColor="#0A0A0A" />
+                </linearGradient>
+                <clipPath id="badgeClip">
+                  <circle cx="80" cy="80" r="74" />
+                </clipPath>
+              </defs>
+              {/* Outer circle */}
+              <circle cx="80" cy="80" r="78" fill="none" stroke="url(#goldStroke)" strokeWidth="2" />
+              {/* Inner filled circle */}
+              <circle cx="80" cy="80" r="74" fill="url(#innerFill)" />
+              {/* Dashed inner ring */}
+              <circle
+                cx="80"
+                cy="80"
+                r="68"
+                fill="none"
+                stroke="rgba(212,168,83,0.3)"
+                strokeWidth="1"
+                strokeDasharray="4 6"
+              />
+              {/* Shine sweep — animated rect clipped to circle */}
+              <g clipPath="url(#badgeClip)">
+                <rect x="-160" y="0" width="80" height="160" fill="rgba(255,255,255,0.12)" transform="skewX(-20)">
+                  <animateTransform
+                    attributeName="transform"
+                    type="translate"
+                    values="-80 0; 320 0; -80 0"
+                    dur="4s"
+                    repeatCount="indefinite"
+                    additive="sum"
+                  />
+                </rect>
+              </g>
+              {/* Text content */}
+              <text x="80" y="62" textAnchor="middle" fontSize="32">🏅</text>
+              <text
+                x="80"
+                y="88"
+                textAnchor="middle"
+                fill="#F0C97A"
+                fontSize="10"
+                fontWeight="800"
+                letterSpacing="0.18em"
+                fontFamily="inherit"
+              >
+                VENDEDOR
+              </text>
+              <text
+                x="80"
+                y="102"
+                textAnchor="middle"
+                fill="#F0C97A"
+                fontSize="10"
+                fontWeight="800"
+                letterSpacing="0.18em"
+                fontFamily="inherit"
+              >
+                CERTIFICADO
+              </text>
+              <text
+                x="80"
+                y="124"
+                textAnchor="middle"
+                fill="rgba(212,168,83,0.6)"
+                fontSize="8"
+                fontWeight="700"
+                letterSpacing="0.25em"
+                fontFamily="inherit"
+              >
+                Conektao
+              </text>
+            </svg>
+          </motion.div>
+
+          {/* 2. HEADLINE */}
+          <motion.div className="text-center" {...fadeUp(0.2)}>
+            <h1 className="text-2xl sm:text-[28px] font-bold text-white leading-[1.2] mb-3">
+              Este certificado es tuyo — si lo completas
+            </h1>
+            <p className="text-[15px] leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
+              En 10 minutos aprendes todo lo que necesitas para ganar
+              <br />
+              <span className="font-bold" style={{ color: "#FB923C" }}>
+                $350.000 COP por cada cliente que cierres
+              </span>
+            </p>
+          </motion.div>
+
+          {/* 3. SOCIAL COUNTER */}
+          {count !== null && (
+            <motion.div
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-full"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+              {...fadeUp(0.3)}
+            >
+              {/* Green dot with blink */}
+              <span
+                className="inline-block w-[7px] h-[7px] rounded-full flex-shrink-0"
+                style={{
+                  background: "#22C55E",
+                  boxShadow: "0 0 6px rgba(34,197,94,0.6)",
+                  animation: "greenBlink 2s ease-in-out infinite",
+                }}
+              />
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                <span className="font-bold text-white">{count}</span> vendedores certificados en Colombia
+              </span>
+            </motion.div>
+          )}
+
+          {/* 4. CTA BUTTON or REGISTRATION */}
+          {!showRegister ? (
+            <motion.div className="w-full flex flex-col items-center" {...fadeUp(0.4)}>
+              <button
+                onClick={() => setShowRegister(true)}
+                className="w-full max-w-[360px] py-4 px-8 rounded-xl text-white font-semibold text-base transition-all hover:-translate-y-0.5"
+                style={{
+                  background: "linear-gradient(to bottom, rgba(255,255,255,0.1), transparent), #F97316",
+                  boxShadow: "0 8px 32px rgba(249,115,22,0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = "0 12px 40px rgba(249,115,22,0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(249,115,22,0.3)";
+                }}
+              >
+                Quiero mi certificado →
+              </button>
+              <span className="text-xs mt-3" style={{ color: "#888" }}>
+                Gratis · 10 minutos · Sin tarjeta de crédito
+              </span>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="w-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <VendedorRegistration onComplete={onRegistered} />
+            </motion.div>
+          )}
+
+          {/* 5. THREE METRICS */}
+          <motion.div
+            className="w-full grid grid-cols-3 text-center"
+            {...fadeUp(0.5)}
+          >
+            {[
+              { value: "$350K", label: "por cliente\ncerrado" },
+              { value: "10 min", label: "para\ncertificarte" },
+              { value: "24/7", label: "Alicia trabaja\npor ti" },
+            ].map((m, i) => (
               <div
                 key={i}
-                className="absolute w-1.5 h-1.5 rounded-full bg-amber-400/60"
-                style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%,-50%)" }}
-              />
-            );
-          })}
-        </motion.div>
-
-        {/* Headline */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3 leading-tight">
-          Este certificado es tuyo — si lo completas
-        </h1>
-
-        <p className="text-sm sm:text-base text-gray-400 mb-6 leading-relaxed">
-          En 10 minutos aprendes todo lo que necesitas para ganar{" "}
-          <span className="text-orange-400 font-bold">$350.000 COP</span> por cada cliente que cierres
-        </p>
-
-        {/* Social counter */}
-        {count !== null && (
-          <motion.div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <span className="text-lg">🔥</span>
-            <span className="text-sm text-gray-300">
-              Únete a los <span className="text-orange-400 font-bold">{count}</span> vendedores certificados en Colombia
-            </span>
+                className="py-2"
+                style={{
+                  borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                }}
+              >
+                <div
+                  className="text-xl sm:text-2xl font-bold mb-1"
+                  style={{ color: "#FB923C" }}
+                >
+                  {m.value}
+                </div>
+                <div
+                  className="text-[11px] sm:text-xs leading-tight whitespace-pre-line"
+                  style={{ color: "#888" }}
+                >
+                  {m.label}
+                </div>
+              </div>
+            ))}
           </motion.div>
-        )}
-
-        {/* CTA */}
-        <motion.button
-          onClick={onStart}
-          className="w-full max-w-xs mx-auto h-14 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-base shadow-lg shadow-orange-500/30 transition-all"
-          whileTap={{ scale: 0.97 }}
-        >
-          Quiero mi certificado →
-        </motion.button>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
