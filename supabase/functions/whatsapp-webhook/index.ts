@@ -2077,7 +2077,7 @@ Deno.serve(async (req) => {
           staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
           await supabase
             .from("whatsapp_conversations")
-            .update({ messages: staleMsgs.slice(-120), order_status: "followup_sent", pending_since: null })
+            .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null })
             .eq("id", stale.id);
         }
       }
