@@ -176,10 +176,9 @@ const WelcomeScreen = ({ onRegistered }: Props) => {
                 </rect>
               </g>
               {/* Text content */}
-              <text x="68" y="52" textAnchor="middle" fontSize="28">🏅</text>
               <text
                 x="68"
-                y="76"
+                y="62"
                 textAnchor="middle"
                 fill="#F0C97A"
                 fontSize="9"
@@ -191,7 +190,7 @@ const WelcomeScreen = ({ onRegistered }: Props) => {
               </text>
               <text
                 x="68"
-                y="89"
+                y="75"
                 textAnchor="middle"
                 fill="#F0C97A"
                 fontSize="9"
