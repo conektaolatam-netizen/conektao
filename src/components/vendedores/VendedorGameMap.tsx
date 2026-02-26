@@ -258,8 +258,8 @@ const VendedorGameMap = () => {
       {/* Node Overlays */}
       <AnimatePresence>
         {activeNode === 1 && (
-          <NodeOverlay onClose={() => setActiveNode(null)}>
-            <NodeConoceAlicia onComplete={() => completeNode(1)} />
+          <NodeOverlay onClose={() => setActiveNode(null)} fullScreen>
+            <NodeConoceAlicia onComplete={() => completeNode(1)} onClose={() => setActiveNode(null)} />
           </NodeOverlay>
         )}
         {activeNode === 2 && (
