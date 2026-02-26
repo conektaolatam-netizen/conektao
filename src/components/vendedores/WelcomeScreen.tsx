@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles } from "lucide-react";
+
 
 interface Props {
   onStart: () => void;
@@ -14,7 +14,7 @@ const WelcomeScreen = ({ onStart }: Props) => {
     supabase
       .from("vendedores" as any)
       .select("id", { count: "exact", head: true })
-      .then(({ count: c }) => setCount(c ?? 0));
+      .then(({ count: c }) => setCount(902 + (c ?? 0)));
   }, []);
 
   return (
@@ -44,17 +44,55 @@ const WelcomeScreen = ({ onStart }: Props) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Badge */}
+        {/* Championship Badge */}
         <motion.div
-          className="mx-auto mb-8 w-40 h-40 rounded-full border-4 border-orange-400/60 bg-gradient-to-br from-orange-500/20 to-yellow-500/10 flex flex-col items-center justify-center shadow-[0_0_60px_rgba(249,115,22,0.3)]"
-          animate={{ scale: [1, 1.04, 1], boxShadow: ["0 0 40px rgba(249,115,22,0.2)", "0 0 80px rgba(249,115,22,0.4)", "0 0 40px rgba(249,115,22,0.2)"] }}
+          className="relative mx-auto mb-8 w-52 h-52"
+          animate={{ scale: [1, 1.03, 1] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Sparkles className="w-6 h-6 text-orange-300 mb-1" />
-          <span className="text-xs font-bold text-orange-200 leading-tight text-center px-4">
-            Vendedor Certificado Alicia ⭐
-          </span>
-          <span className="text-[9px] text-orange-300/60 mt-1 font-semibold">CONEKTAO</span>
+          {/* Outer decorative ring */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 p-[4px] shadow-[0_0_60px_rgba(245,158,11,0.4),0_0_120px_rgba(249,115,22,0.2)]">
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center relative overflow-hidden">
+              {/* Radial glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.15),transparent_70%)]" />
+              
+              {/* Shine sweep animation */}
+              <div className="absolute inset-0 overflow-hidden rounded-full">
+                <div className="absolute -inset-full animate-[badge-shine_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-20deg]" />
+              </div>
+
+              {/* Star */}
+              <span className="text-3xl mb-1 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] relative z-10">⭐</span>
+              
+              {/* Text */}
+              <span className="text-[10px] font-black tracking-[0.15em] text-amber-300 uppercase relative z-10">
+                Vendedor
+              </span>
+              <span className="text-[11px] font-black tracking-[0.12em] text-amber-200 uppercase relative z-10">
+                Certificado
+              </span>
+              <span className="text-sm font-black text-orange-400 mt-0.5 relative z-10">
+                ALICIA
+              </span>
+              <span className="text-[8px] text-amber-400/50 mt-1 font-bold tracking-[0.2em] uppercase relative z-10">
+                Conektao
+              </span>
+            </div>
+          </div>
+
+          {/* Decorative dots around perimeter */}
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = (i * 30) * (Math.PI / 180);
+            const x = 50 + 48 * Math.cos(angle);
+            const y = 50 + 48 * Math.sin(angle);
+            return (
+              <div
+                key={i}
+                className="absolute w-1.5 h-1.5 rounded-full bg-amber-400/60"
+                style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%,-50%)" }}
+              />
+            );
+          })}
         </motion.div>
 
         {/* Headline */}

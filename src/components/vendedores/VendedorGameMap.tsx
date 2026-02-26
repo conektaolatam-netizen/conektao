@@ -46,7 +46,7 @@ const VendedorGameMap = () => {
     supabase
       .from("vendedores" as any)
       .select("id", { count: "exact", head: true })
-      .then(({ count }) => setVendedorCount(count ?? 0));
+      .then(({ count }) => setVendedorCount(902 + (count ?? 0)));
   }, []);
 
   const isUnlocked = useCallback(
