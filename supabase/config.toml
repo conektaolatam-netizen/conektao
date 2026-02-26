@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.vendedor-chat]
 verify_jwt = false
+
+[functions.alicia-tts-ticket]
+verify_jwt = false

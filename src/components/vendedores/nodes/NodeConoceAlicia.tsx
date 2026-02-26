@@ -23,10 +23,14 @@ const SLIDES = [
 
 const QUICK_CHIPS = ["¿Cómo gano dinero?", "¿Qué hace exactamente?", "¿Cuánto cuesta?"];
 
+const GRADIENT_ORANGE = "linear-gradient(135deg, #FF9A3C 0%, #F97316 50%, #E8C878 100%)";
+const GRADIENT_SUBTITLE = "linear-gradient(90deg, #FFFFFF 0%, #FFD580 100%)";
+const GRADIENT_FIFTEEN = "linear-gradient(135deg, #FFD580 0%, #F97316 60%, #FF6B00 100%)";
+
 const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ticketAudioRef = useRef<HTMLAudioElement | null>(null);
   const animFrameRef = useRef<number>(0);
-  const audioBlobUrl = useRef<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -42,53 +46,43 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   const [showChips, setShowChips] = useState(true);
   const [countUpValue, setCountUpValue] = useState(0);
   const [subtitleVisible, setSubtitleVisible] = useState(true);
+  const [showTicketExplainer, setShowTicketExplainer] = useState(false);
+  const [ticketPlaying, setTicketPlaying] = useState(false);
+  const [ticketCountValue, setTicketCountValue] = useState(50000);
+  const [showTicketContinue, setShowTicketContinue] = useState(false);
   const wasPlayingBeforeChat = useRef(false);
 
-  // Fetch audio on mount
+  // Load static audio on mount
   useEffect(() => {
-    const fetchAudio = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/alicia-tts-intro`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({}),
-          }
-        );
-        if (!res.ok) throw new Error("TTS failed");
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        audioBlobUrl.current = url;
-        const audio = new Audio(url);
-        audio.preload = "auto";
-        audioRef.current = audio;
+    const audio = new Audio("/assets/alicia-intro.mp3");
+    audio.preload = "auto";
+    audioRef.current = audio;
 
-        audio.addEventListener("ended", () => {
-          setAudioEnded(true);
-          setIsPlaying(false);
-          setSubtitleVisible(false);
-        });
+    const ticketAudio = new Audio("/assets/alicia-ticket-promedio.mp3");
+    ticketAudio.preload = "auto";
+    ticketAudioRef.current = ticketAudio;
 
-        audio.addEventListener("canplaythrough", () => {
-          setIsLoading(false);
-          // Auto-play after 1.5s
-          setTimeout(() => {
-            audio.play().then(() => setIsPlaying(true)).catch(console.error);
-          }, 1500);
-        }, { once: true });
-      } catch (e) {
-        console.error("Audio fetch error:", e);
-        setIsLoading(false);
-      }
-    };
-    fetchAudio();
+    audio.addEventListener("ended", () => {
+      setAudioEnded(true);
+      setIsPlaying(false);
+      setSubtitleVisible(false);
+    });
+
+    audio.addEventListener("canplaythrough", () => {
+      setIsLoading(false);
+      setTimeout(() => {
+        audio.play().then(() => setIsPlaying(true)).catch(console.error);
+      }, 1500);
+    }, { once: true });
+
+    ticketAudio.addEventListener("ended", () => {
+      setTicketPlaying(false);
+      setShowTicketContinue(true);
+    });
+
     return () => {
-      if (audioBlobUrl.current) URL.revokeObjectURL(audioBlobUrl.current);
+      audio.pause();
+      ticketAudio.pause();
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, []);
@@ -102,12 +96,10 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
         const d = audio.duration || 60;
         setProgress(t / d);
 
-        // Determine slide
         for (let i = SLIDES.length - 1; i >= 0; i--) {
           if (t >= SLIDES[i].start) { setCurrentSlide(i); break; }
         }
 
-        // Interactive pause at 26s
         if (t >= 26 && !hasPausedAt26) {
           audio.pause();
           setIsPlaying(false);
@@ -137,6 +129,21 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     }
   }, [currentSlide]);
 
+  // Ticket promedio count-up animation
+  useEffect(() => {
+    if (showTicketExplainer && ticketPlaying) {
+      const start = Date.now();
+      const dur = 3000;
+      const anim = () => {
+        const elapsed = Date.now() - start;
+        const p = Math.min(elapsed / dur, 1);
+        setTicketCountValue(Math.round(50000 + p * 7500));
+        if (p < 1) requestAnimationFrame(anim);
+      };
+      setTimeout(() => requestAnimationFrame(anim), 2000);
+    }
+  }, [showTicketExplainer, ticketPlaying]);
+
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -150,7 +157,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
 
   const handleScreenTap = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("button, a, [data-interactive]")) return;
-    if (showPauseCard || showChat || isLoading || audioEnded) return;
+    if (showPauseCard || showChat || isLoading || audioEnded || showTicketExplainer) return;
     togglePlay();
   };
 
@@ -159,13 +166,22 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     audioRef.current?.play().then(() => setIsPlaying(true));
   };
 
-  const openChatWithQuestion = (q: string) => {
+  const handleExplainTicket = () => {
     setShowPauseCard(false);
-    setChatMessages([{ role: "user", content: q }]);
-    setShowChat(true);
-    setShowChips(false);
-    wasPlayingBeforeChat.current = false;
-    sendChat(q, []);
+    setShowTicketExplainer(true);
+    setTicketPlaying(true);
+    setTicketCountValue(50000);
+    setShowTicketContinue(false);
+    ticketAudioRef.current?.play().catch(console.error);
+  };
+
+  const handleTicketContinue = () => {
+    setShowTicketExplainer(false);
+    setShowTicketContinue(false);
+    setTicketPlaying(false);
+    ticketAudioRef.current?.pause();
+    if (ticketAudioRef.current) ticketAudioRef.current.currentTime = 0;
+    audioRef.current?.play().then(() => setIsPlaying(true));
   };
 
   const openChat = () => {
@@ -231,6 +247,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     setHasPausedAt26(false);
     setShowPauseCard(false);
     setSubtitleVisible(true);
+    setShowTicketExplainer(false);
     audio.play().then(() => setIsPlaying(true));
   };
 
@@ -238,32 +255,47 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
 
   return (
     <div
-      className="relative w-full h-full bg-[#0C0C0C] overflow-hidden select-none"
+      className="relative w-full h-full overflow-hidden select-none"
       onClick={handleScreenTap}
-      style={{ touchAction: "manipulation" }}
+      style={{ touchAction: "manipulation", background: "#000000" }}
     >
-      {/* Layer 1: Background particles + grid */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 rounded-full animate-float-particle"
-            style={{
-              background: i % 3 === 0 ? "hsl(25, 100%, 50%)" : "hsl(43, 60%, 55%)",
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${4 + Math.random() * 4}s`,
-              opacity: 0.3,
-            }}
-          />
-        ))}
+      {/* FIX 1: Atmospheric light orbs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 500, height: 500,
+            background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)",
+            filter: "blur(80px)",
+            top: "20%", left: "10%",
+            animation: "orb1 18s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 350, height: 350,
+            background: "radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%)",
+            filter: "blur(80px)",
+            top: "50%", right: "5%",
+            animation: "orb2 24s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 280, height: 280,
+            background: "radial-gradient(circle, rgba(255,160,60,0.06) 0%, transparent 70%)",
+            filter: "blur(80px)",
+            bottom: "10%", left: "30%",
+            animation: "orb3 20s ease-in-out infinite",
+          }}
+        />
       </div>
 
-      {/* Layer 3: Progress bar (top) */}
-      <div className="fixed top-0 left-0 right-0 z-50 h-[2px] bg-white/[0.08]">
-        <motion.div className="h-full bg-primary" style={{ width: `${progress * 100}%` }} />
+      {/* Progress bar (top) */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-[2px]" style={{ background: "rgba(255,255,255,0.08)" }}>
+        <motion.div className="h-full" style={{ width: `${progress * 100}%`, background: GRADIENT_ORANGE }} />
       </div>
 
       {/* Close / Replay buttons */}
@@ -278,28 +310,108 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
         </button>
       </div>
 
-      {/* Layer 2: Slide content */}
+      {/* Slide content */}
       <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-6">
         {/* Small persistent Alicia after slide 0 */}
-        {currentSlide > 0 && !audioEnded && (
+        {currentSlide > 0 && !audioEnded && !showTicketExplainer && (
           <motion.div className="fixed top-4 left-4 z-40" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}>
-            <img src={aliciaAvatar} alt="Alicia" className="w-12 h-12 rounded-full border-2 border-primary/50 object-cover" />
+            <img src={aliciaAvatar} alt="Alicia" className="w-12 h-12 rounded-full border-2 border-primary/50 object-contain" />
           </motion.div>
         )}
 
         <AnimatePresence mode="wait">
-          {/* SLIDE 0 — Alicia intro */}
-          {currentSlide === 0 && (
-            <motion.div key="s0" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-              <div className="relative mb-6">
-                <img src={aliciaAvatar} alt="Alicia" className="w-[140px] h-[140px] rounded-full object-cover border-2 border-primary/40" />
-              </div>
+          {/* Ticket Promedio Explainer (Path B) */}
+          {showTicketExplainer && (
+            <motion.div key="ticket" className="flex flex-col items-center text-center gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {/* Equalizer bars */}
+              <div className="flex items-end gap-1 h-8">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-[6px] rounded-full"
+                    style={{ background: GRADIENT_ORANGE }}
+                    animate={ticketPlaying ? { height: [8, 24 + Math.random() * 8, 12, 28, 8] } : { height: 8 }}
+                    transition={ticketPlaying ? { duration: 0.6 + Math.random() * 0.3, repeat: Infinity, delay: i * 0.1 } : { duration: 0.3 }}
+                  />
+                ))}
+              </div>
+
+              {/* Animated ticket value */}
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-lg font-medium text-white/60">Ticket promedio</p>
+                <p
+                  className="text-5xl font-black tabular-nums"
+                  style={{
+                    background: GRADIENT_FIFTEEN,
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    letterSpacing: "-0.04em",
+                  }}
+                >
+                  ${ticketCountValue.toLocaleString("es-CO")}
+                </p>
+                {ticketCountValue > 50000 && (
+                  <motion.div
+                    className="flex items-center gap-2"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span className="text-xl">↑</span>
+                    <span
+                      className="text-xl font-bold"
+                      style={{
+                        background: GRADIENT_ORANGE,
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
+                      +15%
+                    </span>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Continue button */}
+              {showTicketContinue && (
+                <motion.button
+                  data-interactive
+                  onClick={handleTicketContinue}
+                  className="mt-4 px-8 h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ type: "spring" }}
+                >
+                  Entendido, continuar →
+                </motion.button>
+              )}
+            </motion.div>
+          )}
+
+          {/* SLIDE 0 — Alicia intro */}
+          {currentSlide === 0 && !showTicketExplainer && (
+            <motion.div key="s0" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+              <div className="relative mb-4">
+                {/* FIX 2: Full face with object-contain */}
+                <img
+                  src={aliciaAvatar}
+                  alt="Alicia"
+                  className="rounded-full border-2 border-primary/40"
+                  style={{
+                    width: 140, height: 140,
+                    objectFit: "contain",
+                    objectPosition: "center",
+                  }}
+                />
+              </div>
+              {/* Equalizer bars BELOW image */}
               <div className="flex items-end gap-1 h-8 mb-4">
                 {[0, 1, 2, 3, 4].map((i) => (
                   <motion.div
                     key={i}
-                    className="w-[6px] rounded-full bg-primary"
+                    className="w-[6px] rounded-full"
+                    style={{ background: GRADIENT_ORANGE }}
                     animate={isLoading ? { height: [8, 14, 8] } : isPlaying ? { height: [8, 24 + Math.random() * 8, 12, 28, 8] } : { height: 8 }}
                     transition={isLoading ? { duration: 1.2, repeat: Infinity, delay: i * 0.15 } : isPlaying ? { duration: 0.6 + Math.random() * 0.3, repeat: Infinity, delay: i * 0.1 } : { duration: 0.3 }}
                   />
@@ -309,14 +421,24 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
               {!isLoading && (
                 <motion.div className="text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                   <h2 className="text-2xl font-bold text-foreground tracking-wide">Alicia</h2>
-                  <p className="text-[11px] mt-1" style={{ color: "rgba(201,168,76,0.7)" }}>Asistente IA · Conektao</p>
+                  <p
+                    className="text-[11px] mt-1"
+                    style={{
+                      background: GRADIENT_ORANGE,
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    Asistente IA · Conektao
+                  </p>
                 </motion.div>
               )}
             </motion.div>
           )}
 
           {/* SLIDE 1 — WhatsApp */}
-          {currentSlide === 1 && (
+          {currentSlide === 1 && !showTicketExplainer && (
             <motion.div key="s1" className="flex items-center justify-center gap-6 w-full max-w-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <motion.img src={whatsappLogo} alt="WhatsApp" className="w-20 h-20 object-contain" initial={{ x: 80, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", damping: 15, delay: 0.2 }} />
               <svg width="80" height="4" className="overflow-visible">
@@ -329,19 +451,48 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           )}
 
           {/* SLIDE 2 — +15% */}
-          {currentSlide === 2 && !showPauseCard && (
+          {currentSlide === 2 && !showPauseCard && !showTicketExplainer && (
             <motion.div key="s2" className="text-center" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-              <p className="text-7xl font-extrabold text-foreground mb-3">+{countUpValue}%</p>
-              <p className="text-sm" style={{ color: "#E8C878" }}>más ingresos por pedido</p>
+              <p
+                className="font-extrabold mb-3"
+                style={{
+                  fontSize: 72,
+                  fontWeight: 900,
+                  letterSpacing: "-0.04em",
+                  background: GRADIENT_FIFTEEN,
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                +{countUpValue}%
+              </p>
+              <p
+                className="text-sm"
+                style={{
+                  background: GRADIENT_ORANGE,
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                más ingresos por pedido
+              </p>
             </motion.div>
           )}
 
           {/* SLIDE 3 — WhatsApp to Gmail */}
-          {currentSlide === 3 && (
+          {currentSlide === 3 && !showTicketExplainer && (
             <motion.div key="s3" className="flex items-center justify-center gap-4 w-full max-w-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.img src={whatsappLogo} alt="WhatsApp" className="w-16 h-16 object-contain" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0 }} />
+              <motion.img src={whatsappLogo} alt="WhatsApp" className="w-16 h-16 object-contain" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} />
               <svg width="100" height="20" className="overflow-visible">
-                <motion.line x1="0" y1="10" x2="100" y2="10" stroke="hsl(25, 100%, 50%)" strokeWidth="2" strokeDasharray="6 4" initial={{ strokeDashoffset: 100 }} animate={{ strokeDashoffset: 0 }} transition={{ duration: 0.8, delay: 0.4 }} />
+                <motion.line x1="0" y1="10" x2="100" y2="10" stroke="url(#arrowGrad)" strokeWidth="2" strokeDasharray="6 4" initial={{ strokeDashoffset: 100 }} animate={{ strokeDashoffset: 0 }} transition={{ duration: 0.8, delay: 0.4 }} />
+                <defs>
+                  <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#FF9A3C" />
+                    <stop offset="100%" stopColor="#F97316" />
+                  </linearGradient>
+                </defs>
                 <motion.text x="50" y="10" textAnchor="middle" dominantBaseline="middle" fontSize="14" initial={{ opacity: 0 }} animate={{ opacity: 1, x: [0, 50, 100] }} transition={{ duration: 1.5, delay: 0.8 }}>✉️</motion.text>
               </svg>
               <motion.img src={gmailLogo} alt="Gmail" className="w-16 h-16 object-contain" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 }} />
@@ -349,7 +500,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           )}
 
           {/* SLIDE 4 — Stat cards */}
-          {currentSlide === 4 && (
+          {currentSlide === 4 && !showTicketExplainer && (
             <motion.div key="s4" className="flex gap-3 w-full max-w-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {[
                 { big: "24/7", small: "Siempre disponible" },
@@ -363,7 +514,17 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: "spring", delay: i * 0.25 }}
                 >
-                  <p className="text-2xl font-bold text-primary">{card.big}</p>
+                  <p
+                    className="text-2xl font-bold"
+                    style={{
+                      background: GRADIENT_ORANGE,
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    {card.big}
+                  </p>
                   <p className="text-[10px] text-muted-foreground mt-1">{card.small}</p>
                 </motion.div>
               ))}
@@ -371,10 +532,19 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           )}
 
           {/* SLIDE 5 — Final */}
-          {currentSlide === 5 && (
+          {currentSlide === 5 && !showTicketExplainer && (
             <motion.div key="s5" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="relative mb-6">
-                <img src={aliciaAvatar} alt="Alicia" className="w-[140px] h-[140px] rounded-full object-cover" style={{ boxShadow: "0 0 40px rgba(232,200,120,0.3), 0 0 80px rgba(232,200,120,0.1)" }} />
+                <img
+                  src={aliciaAvatar}
+                  alt="Alicia"
+                  className="rounded-full"
+                  style={{
+                    width: 140, height: 140,
+                    objectFit: "contain",
+                    boxShadow: "0 0 40px rgba(232,200,120,0.3), 0 0 80px rgba(232,200,120,0.1)",
+                  }}
+                />
               </div>
               <p className="text-xl font-bold text-foreground mb-8">Ya conoces a Alicia</p>
               {audioEnded && (
@@ -394,29 +564,56 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
         </AnimatePresence>
       </div>
 
-      {/* Interactive pause card */}
+      {/* Interactive pause card — FIX 4 branching */}
       <AnimatePresence>
         {showPauseCard && (
           <motion.div
-            className="fixed bottom-20 left-4 right-4 z-50 mx-auto max-w-sm p-5 rounded-2xl bg-[#1A1A1A] border border-white/10"
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: "spring", damping: 20 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             data-interactive
           >
-            <p className="text-foreground font-semibold mb-1">¿Sabes qué es el</p>
-            <p className="text-foreground font-semibold mb-4">ticket promedio?</p>
-            <div className="flex gap-3">
-              <button onClick={resumeAudio} className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground font-medium text-sm">Sí, continúa →</button>
-              <button onClick={() => openChatWithQuestion("¿Qué es el ticket promedio?")} className="flex-1 h-11 rounded-xl border border-white/20 text-foreground font-medium text-sm">Explícame 💬</button>
-            </div>
+            <motion.div
+              className="w-full max-w-sm p-6 rounded-2xl bg-[#1A1A1A]/90 backdrop-blur-xl border border-white/10"
+              initial={{ scale: 0.8, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 40 }}
+              transition={{ type: "spring", damping: 18 }}
+            >
+              <p className="text-foreground font-semibold text-lg mb-1">¿Sabes qué es el</p>
+              <p
+                className="font-bold text-lg mb-6"
+                style={{
+                  background: GRADIENT_ORANGE,
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                ticket promedio?
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={resumeAudio}
+                  className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-medium text-sm"
+                >
+                  Sí, continúa →
+                </button>
+                <button
+                  onClick={handleExplainTicket}
+                  className="w-full h-12 rounded-xl border border-white/20 text-foreground font-medium text-sm hover:bg-white/5 transition-colors"
+                >
+                  No, explícame
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Subtitle bar */}
-      {subtitleVisible && currentSubtitle && !showChat && (
+      {/* Subtitle bar — FIX 5: gradient text */}
+      {subtitleVisible && currentSubtitle && !showChat && !showTicketExplainer && !showPauseCard && (
         <div className="fixed bottom-24 left-0 right-0 z-40 flex justify-center pointer-events-none">
           <motion.div
             key={currentSubtitle}
@@ -426,7 +623,17 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <p className="text-[13px] font-medium text-foreground text-center">{currentSubtitle}</p>
+            <p
+              className="text-[13px] font-medium text-center"
+              style={{
+                background: GRADIENT_SUBTITLE,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              {currentSubtitle}
+            </p>
           </motion.div>
         </div>
       )}
@@ -457,10 +664,9 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
             transition={{ type: "spring", damping: 25 }}
             data-interactive
           >
-            {/* Chat header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <img src={aliciaAvatar} alt="Alicia" className="w-8 h-8 rounded-full object-cover" />
+                <img src={aliciaAvatar} alt="Alicia" className="w-8 h-8 rounded-full object-contain" />
                 <div>
                   <p className="text-sm font-semibold text-foreground">Alicia</p>
                   <div className="flex items-center gap-1">
@@ -474,7 +680,6 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
               </button>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ height: "calc(65vh - 120px)" }}>
               {chatMessages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -490,7 +695,6 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
               )}
             </div>
 
-            {/* Quick chips */}
             {showChips && chatMessages.length === 0 && (
               <div className="flex gap-2 px-4 pb-2 overflow-x-auto">
                 {QUICK_CHIPS.map((c) => (
@@ -506,7 +710,6 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
               </div>
             )}
 
-            {/* Input */}
             <div className="flex gap-2 px-4 py-3 border-t border-white/10">
               <input
                 value={chatInput}
@@ -526,6 +729,27 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* CSS keyframes for orbs */}
+      <style>{`
+        @keyframes orb1 {
+          0%   { transform: translate(0px, 0px); }
+          33%  { transform: translate(60px, -40px); }
+          66%  { transform: translate(-40px, 30px); }
+          100% { transform: translate(0px, 0px); }
+        }
+        @keyframes orb2 {
+          0%   { transform: translate(0px, 0px); }
+          33%  { transform: translate(-50px, 30px); }
+          66%  { transform: translate(30px, -50px); }
+          100% { transform: translate(0px, 0px); }
+        }
+        @keyframes orb3 {
+          0%   { transform: translate(0px, 0px); }
+          50%  { transform: translate(0px, -60px); }
+          100% { transform: translate(0px, 0px); }
+        }
+      `}</style>
     </div>
   );
 };
