@@ -102,6 +102,7 @@ serve(async (req) => {
         name, 
         price,
         cost_price,
+        portions,
         inventory(current_stock, min_stock, unit)
       `,
       )
