@@ -945,12 +945,15 @@ function buildPriceMap(products: any[]): Record<string, number> {
   return map;
 }
 
-/** Build packaging policy map: name_lower -> requires_packaging (from DB) */
-function buildPackagingMap(products: any[]): Record<string, boolean> {
-  const map: Record<string, boolean> = {};
+/** Build packaging policy map: name_lower -> { requires: boolean, price: number } (from DB) */
+function buildPackagingMap(products: any[]): Record<string, { requires: boolean; price: number }> {
+  const map: Record<string, { requires: boolean; price: number }> = {};
   for (const p of products) {
     if (p.name !== undefined) {
-      map[p.name.toLowerCase()] = p.requires_packaging === true;
+      map[p.name.toLowerCase()] = {
+        requires: p.requires_packaging === true,
+        price: (p.packaging_price != null ? Number(p.packaging_price) : 0),
+      };
     }
   }
   return map;
@@ -958,110 +961,18 @@ function buildPackagingMap(products: any[]): Record<string, boolean> {
 
 /**
  * Returns packaging cost for an item.
- * RULE: Only "prepared" beverages (limonadas, sodificadas, cócteles, etc.) get packaging.
- * Bottled/canned drinks (gaseosas, aguas, cervezas, wines) = 0 packaging.
- * Logic is DB-driven (requires_packaging field), but this function is a fallback for
- * items not found in the DB map. The primary source of truth is the product's requires_packaging.
+ * Now fully DB-driven via products.packaging_price.
+ * If requires_packaging = false → 0.
+ * If requires_packaging = true → use packaging_price from DB.
+ * Defaults to 0 if packaging_price is missing/null/undefined.
  */
-function getPackagingCost(itemName: string, requiresPackaging?: boolean): number {
-  // If we have DB data, trust it completely
-  if (requiresPackaging === true) {
-    const n = itemName.toLowerCase();
-    const pasta = [
-      "spaghetti",
-      "fettuccine",
-      "ravioles",
-      "lasagna",
-      "pasta",
-      "carbonara",
-      "bolognese",
-      "teléfono",
-      "quesos",
-      "hamburguesa",
-      "brioche",
-      "brocheta",
-      "bondiola",
-      "langostinos",
-      "sandwich",
-      "nuditos",
-      "champiñones",
-      "brie",
-      "burrata",
-      "tapas",
-    ];
-    if (pasta.some((k) => n.includes(k))) return 3000;
-    // prepared beverages: $1000
-    const prepBeverage = [
-      "limonada",
-      "sodificada",
-      "aperol",
-      "mojito",
-      "sangria",
-      "sangría",
-      "cóctel",
-      "coctel",
-      "tinto de verano",
-    ];
-    if (prepBeverage.some((k) => n.includes(k))) return 1000;
-    return 2000; // default for prepared items (pizza, postre, etc.)
-  }
+function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packagingPrice?: number): number {
   if (requiresPackaging === false) return 0;
-
-  // Fallback (no DB data): infer from name — bottled/canned = 0
-  const n = itemName.toLowerCase();
-  const noPackagingKeywords = [
-    "gaseosa",
-    "agua",
-    "corona",
-    "stella",
-    "artesanal",
-    "cerveza",
-    "vino",
-    "pellegrino",
-    "mineral",
-    "con gas",
-    "coca-cola",
-    "coca cola",
-  ];
-  if (noPackagingKeywords.some((k) => n.includes(k))) return 0;
-  // Prepared beverages
-  const prepBeverage = [
-    "limonada",
-    "sodificada",
-    "aperol",
-    "mojito",
-    "sangria",
-    "sangría",
-    "cóctel",
-    "coctel",
-    "tinto de verano",
-  ];
-  if (prepBeverage.some((k) => n.includes(k))) return 1000;
-  // Food
-  const pasta = [
-    "spaghetti",
-    "fettuccine",
-    "ravioles",
-    "lasagna",
-    "pasta",
-    "carbonara",
-    "bolognese",
-    "teléfono",
-    "quesos",
-    "hamburguesa",
-    "brioche",
-    "brocheta",
-    "bondiola",
-    "langostinos",
-    "sandwich",
-    "nuditos",
-    "champiñones",
-    "brie",
-    "burrata",
-    "tapas",
-  ];
-  if (pasta.some((k) => n.includes(k))) return 3000;
-  return 2000;
+  if (requiresPackaging === true) {
+    return (packagingPrice != null && packagingPrice > 0) ? packagingPrice : 0;
+  }
+  // No DB data available → default 0 (safe fallback)
+  return 0;
 }
 
 /** Validate and correct order prices/packaging for any business */
@@ -1111,21 +1022,24 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
       }
     }
 
-    // ── PACKAGING: driven exclusively by DB field requires_packaging ──
+    // ── PACKAGING: driven exclusively by DB fields requires_packaging + packaging_price ──
     if (isDelivery) {
-      // Look up requires_packaging from the packaging map (DB source of truth)
-      let dbRequiresPackaging: boolean | undefined = undefined;
+      // Look up packaging info from the packaging map (DB source of truth)
+      let dbPkgInfo: { requires: boolean; price: number } | undefined = undefined;
       if (bestMatch && packagingMap[bestMatch] !== undefined) {
-        dbRequiresPackaging = packagingMap[bestMatch];
+        dbPkgInfo = packagingMap[bestMatch];
       } else {
         // Try direct lookup
-        for (const [prodName, reqPkg] of Object.entries(packagingMap)) {
+        for (const [prodName, pkgInfo] of Object.entries(packagingMap)) {
           if (itemLower.includes(prodName) || prodName.includes(itemLower)) {
-            dbRequiresPackaging = reqPkg;
+            dbPkgInfo = pkgInfo;
             break;
           }
         }
       }
+
+      const dbRequiresPackaging = dbPkgInfo?.requires;
+      const dbPackagingPrice = dbPkgInfo?.price ?? 0;
 
       // If product does not require packaging → force 0
       if (dbRequiresPackaging === false) {
@@ -1135,8 +1049,8 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
           corrected = true;
         }
       } else if (!item.packaging_cost || item.packaging_cost <= 0) {
-        // Requires packaging but missing → add it
-        const pkg = getPackagingCost(itemName, dbRequiresPackaging);
+        // Requires packaging but missing → add it using DB packaging_price
+        const pkg = getPackagingCost(itemName, dbRequiresPackaging, dbPackagingPrice);
         if (pkg > 0) {
           item.packaging_cost = pkg;
           issues.push(`Empaque faltante para ${itemName}: +$${pkg}`);
