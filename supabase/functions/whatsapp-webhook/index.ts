@@ -1023,7 +1023,7 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     }
 
     // ── PACKAGING: driven exclusively by DB fields requires_packaging + packaging_price ──
-    if (isDelivery) {
+    {  // PACKAGING: always apply based on product config
       // Look up packaging info from the packaging map (DB source of truth)
       let dbPkgInfo: { requires: boolean; price: number } | undefined = undefined;
       if (bestMatch && packagingMap[bestMatch] !== undefined) {
