@@ -3146,6 +3146,7 @@ export type Database = {
           is_active: boolean | null
           is_recommended: boolean
           name: string
+          packaging_price: number
           portions: number
           price: number
           requires_packaging: boolean
@@ -3164,6 +3165,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name: string
+          packaging_price?: number
           portions?: number
           price: number
           requires_packaging?: boolean
@@ -3182,6 +3184,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name?: string
+          packaging_price?: number
           portions?: number
           price?: number
           requires_packaging?: boolean
@@ -3218,6 +3221,7 @@ export type Database = {
           is_active: boolean | null
           is_recommended: boolean
           name: string
+          packaging_price: number
           portions: number
           price: number
           requires_packaging: boolean
@@ -3236,6 +3240,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name: string
+          packaging_price?: number
           portions?: number
           price: number
           requires_packaging?: boolean
@@ -3254,6 +3259,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name?: string
+          packaging_price?: number
           portions?: number
           price?: number
           requires_packaging?: boolean
