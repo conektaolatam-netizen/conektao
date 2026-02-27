@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS packaging_price numeric NOT NULL DEFAULT 0;
