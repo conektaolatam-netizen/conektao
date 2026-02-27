@@ -3146,6 +3146,7 @@ export type Database = {
           is_active: boolean | null
           is_recommended: boolean
           name: string
+          portions: number
           price: number
           requires_packaging: boolean
           restaurant_id: string | null
@@ -3163,6 +3164,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name: string
+          portions?: number
           price: number
           requires_packaging?: boolean
           restaurant_id?: string | null
@@ -3180,6 +3182,7 @@ export type Database = {
           is_active?: boolean | null
           is_recommended?: boolean
           name?: string
+          portions?: number
           price?: number
           requires_packaging?: boolean
           restaurant_id?: string | null
@@ -3197,6 +3200,78 @@ export type Database = {
           },
           {
             foreignKeyName: "products_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products_duplicate: {
+        Row: {
+          category_id: string | null
+          cost_price: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          is_recommended: boolean
+          name: string
+          portions: number
+          price: number
+          requires_packaging: boolean
+          restaurant_id: string | null
+          sku: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean
+          name: string
+          portions?: number
+          price: number
+          requires_packaging?: boolean
+          restaurant_id?: string | null
+          sku?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean
+          name?: string
+          portions?: number
+          price?: number
+          requires_packaging?: boolean
+          restaurant_id?: string | null
+          sku?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_duplicate_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_duplicate_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"

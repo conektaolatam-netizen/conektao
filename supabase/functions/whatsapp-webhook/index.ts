@@ -572,6 +572,7 @@ ANTI-ALUCINACIÓN (INQUEBRANTABLE):
 - No prometas tiempos si no están confirmados
 - Siempre recalculas antes de confirmar
 - NUNCA mientes
+- Si el cliente pregunta cuántas porciones tiene un producto, responde SOLO con el dato del menú. NO inventes porciones
 
 PROHIBIDO DECIR (EN CUALQUIER VARIACIÓN):
 - "ya puedes pasar por tu pedido", "tu pedido está listo", "ya está listo", "puedes venir a recogerlo", "ya puedes recogerlo", "está listo para recoger"
@@ -772,7 +773,8 @@ function buildDynamicPrompt(
             .join(" / ");
           menuBlock += `- ${rec}${item.name}: ${sizeStr}\n`;
         } else {
-          menuBlock += `- ${rec}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}\n`;
+          const portionsInfo = item.portions > 1 ? ` | ${item.portions} porciones` : "";
+          menuBlock += `- ${rec}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}${portionsInfo}\n`;
         }
       }
       menuBlock += "\n";
@@ -890,7 +892,7 @@ function buildMenuFromProducts(products: any[]): string {
       const b = mm[1].trim();
       if (!pizzaSizes[b]) pizzaSizes[b] = { desc, cat };
       pizzaSizes[b].mediana = price;
-    } else otherProducts.push({ name, desc, price, cat });
+    } else otherProducts.push({ name, desc, price, cat, portions: p.portions || 1 });
   }
   let menu = "=== MENÚ OFICIAL (COP) ===\nINSTRUCCIÓN: COPIA la descripción EXACTA del menú. NO inventes.\n\n";
   const salPizzas = Object.entries(pizzaSizes)
@@ -918,8 +920,10 @@ function buildMenuFromProducts(products: any[]): string {
   }
   for (const [cat, items] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
     menu += `📋 ${cat.toUpperCase()}:\n`;
-    for (const item of items.sort((a, b) => a.name.localeCompare(b.name)))
-      menu += `${item.name} | ${item.desc || "—"} | $${item.price.toLocaleString("es-CO")}\n`;
+    for (const item of items.sort((a, b) => a.name.localeCompare(b.name))) {
+      const portionsText = item.portions > 1 ? ` | ${item.portions} porciones` : "";
+      menu += `${item.name} | ${item.desc || "—"} | $${item.price.toLocaleString("es-CO")}${portionsText}\n`;
+    }
     menu += "\n";
   }
   return menu + "=== FIN MENÚ ===";
@@ -2394,7 +2398,7 @@ Deno.serve(async (req) => {
             profileIds.length > 0
               ? await supabase
                   .from("products")
-                  .select("id, name, price, requires_packaging, categories(name)")
+                  .select("id, name, price, requires_packaging, portions, categories(name)")
                   .in("user_id", profileIds)
                   .eq("is_active", true)
               : { data: [] };
@@ -2612,7 +2616,7 @@ Deno.serve(async (req) => {
         restProfileIds.length > 0
           ? await supabase
               .from("products")
-              .select("id, name, price, description, category_id, requires_packaging, categories(name)")
+              .select("id, name, price, description, category_id, requires_packaging, portions, categories(name)")
               .in("user_id", restProfileIds)
               .eq("is_active", true)
               .order("name")

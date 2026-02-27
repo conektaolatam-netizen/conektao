@@ -35,6 +35,7 @@ ANTI-ALUCINACIÓN (INQUEBRANTABLE):
 - No prometas tiempos si no están confirmados
 - Siempre recalculas antes de confirmar
 - NUNCA mientes
+- Si el cliente pregunta cuántas porciones tiene un producto, responde SOLO con el dato del menú. NO inventes porciones
 
 PROHIBIDO DECIR (EN CUALQUIER VARIACIÓN):
 - "ya puedes pasar por tu pedido", "tu pedido está listo", "ya está listo", "puedes venir a recogerlo", "ya puedes recogerlo", "está listo para recoger"
@@ -164,7 +165,8 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
     for (const [cat, items] of Object.entries(byCategory)) {
       menuBlock += `\n${cat.toUpperCase()}:\n`;
       for (const p of items) {
-        menuBlock += `- ${p.name}: $${Number(p.price || 0).toLocaleString("es-CO")}${p.description ? ` (${p.description})` : ""}\n`;
+        const portionsInfo = (p.portions || 1) > 1 ? ` | ${p.portions} porciones` : "";
+        menuBlock += `- ${p.name}: $${Number(p.price || 0).toLocaleString("es-CO")}${p.description ? ` (${p.description})` : ""}${portionsInfo}\n`;
       }
     }
     menuBlock += "\n=== FIN MENÚ ===\n";
