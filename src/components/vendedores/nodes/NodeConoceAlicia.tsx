@@ -4,6 +4,10 @@ import { X, MessageCircle, RotateCcw, Send } from "lucide-react";
 import aliciaAvatar from "@/assets/alicia-avatar.png";
 import whatsappLogo from "@/assets/whatsapp-logo.png";
 import gmailLogo from "@/assets/gmail-logo.png";
+import burgerImg from "@/assets/vendedores/burger.jpeg";
+import friesImg from "@/assets/vendedores/fries.jpeg";
+import cocacolaImg from "@/assets/vendedores/cocacola.jpeg";
+import tiramisuImg from "@/assets/vendedores/tiramisu.jpeg";
 
 interface Props {
   onComplete: () => void;
@@ -126,8 +130,8 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     if (currentTime >= TICKET_PHASE_RESULT && !orderAnimStarted.current) {
       orderAnimStarted.current = true;
       let val = 42000;
-      const target = 49000;
-      const steps = 30;
+      const target = 50000;
+      const steps = 35;
       const inc = (target - val) / steps;
       let step = 0;
       const interval = setInterval(() => {
@@ -138,7 +142,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           setOrderTotal(target);
           clearInterval(interval);
         }
-      }, 60);
+      }, 55);
     }
   }, [currentTime]);
 
@@ -433,21 +437,59 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
                 >
                   <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
                     {/* Food items row */}
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                      <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1, type: "spring" }}>
-                        <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=150&h=150&fit=crop" alt="Hamburguesa" className="food-img" />
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <motion.div
+                        className="flex flex-col items-center gap-1"
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: currentTime >= TICKET_PHASE_RESULT ? 0.8 : 1 }}
+                        transition={{ delay: 0.1, type: "spring" }}
+                      >
+                        <img src={burgerImg} alt="Hamburguesa" className="food-img" />
                         <span className="text-[10px] text-white/50">$28.000</span>
                       </motion.div>
                       <span className="plus-sign">+</span>
-                      <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3, type: "spring" }}>
-                        <img src="https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=150&h=150&fit=crop" alt="Papas" className="food-img" />
+                      <motion.div
+                        className="flex flex-col items-center gap-1"
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: currentTime >= TICKET_PHASE_RESULT ? 0.8 : 1 }}
+                        transition={{ delay: 0.3, type: "spring" }}
+                      >
+                        <img src={friesImg} alt="Papas" className="food-img" />
                         <span className="text-[10px] text-white/50">$7.000</span>
                       </motion.div>
                       <span className="plus-sign">+</span>
-                      <motion.div className="flex flex-col items-center gap-1" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5, type: "spring" }}>
-                        <img src="https://images.unsplash.com/photo-1527960471264-932f39eb5846?w=150&h=150&fit=crop" alt="Bebida" className="food-img" />
+                      <motion.div
+                        className="flex flex-col items-center gap-1"
+                        initial={{ opacity: 0, scale: 0.6 }}
+                        animate={{ opacity: 1, scale: currentTime >= TICKET_PHASE_RESULT ? 0.8 : 1 }}
+                        transition={{ delay: 0.5, type: "spring" }}
+                      >
+                        <img src={cocacolaImg} alt="Bebida" className="food-img" />
                         <span className="text-[10px] text-white/50">$7.000</span>
                       </motion.div>
+
+                      {/* Postre — slides in after TICKET_PHASE_RESULT */}
+                      <AnimatePresence>
+                        {currentTime >= TICKET_PHASE_RESULT && (
+                          <>
+                            <motion.span
+                              className="plus-sign"
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ type: "spring", damping: 14, delay: 0.2 }}
+                            >+</motion.span>
+                            <motion.div
+                              className="flex flex-col items-center gap-1"
+                              initial={{ opacity: 0, x: 40, scale: 0.5 }}
+                              animate={{ opacity: 1, x: 0, scale: 0.8 }}
+                              transition={{ type: "spring", damping: 12, stiffness: 100, delay: 0.3 }}
+                            >
+                              <img src={tiramisuImg} alt="Postre" className="food-img" />
+                              <span className="text-[10px]" style={{ color: "#E8C878" }}>+$8.000</span>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {/* Before / After totals */}
@@ -459,6 +501,18 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
                         </div>
                       ) : (
                         <div className="space-y-2">
+                          {/* Chat bubble suggestion — appears first */}
+                          <motion.div
+                            className="flex items-center justify-center gap-2 mb-2"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: "spring", damping: 14 }}
+                          >
+                            <span className="text-xs text-white/50 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                              💬 "¿Le agrego un postre para terminar bien? 😊"
+                            </span>
+                          </motion.div>
+
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-white/30 line-through">Sin Alicia</span>
                             <span className="text-sm text-white/30 line-through">$42.000</span>
@@ -467,20 +521,12 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
                             className="flex items-center justify-between"
                             initial={{ opacity: 0, x: 10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ type: "spring" }}
+                            transition={{ type: "spring", delay: 0.4 }}
                           >
                             <span className="text-xs font-semibold" style={{ color: "#E8C878" }}>Con Alicia ✨</span>
                             <span className="text-xl font-bold" style={{ color: "#E8C878" }}>
                               ${orderTotal.toLocaleString("es-CO")}
                             </span>
-                          </motion.div>
-                          <motion.div
-                            className="flex items-center justify-center gap-2 mt-1"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.3 }}
-                          >
-                            <span className="text-xs text-white/40">💬 "¿Le agrego unas papas?"</span>
                           </motion.div>
                         </div>
                       )}
@@ -696,7 +742,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
 
         /* ── Food row ── */
         .food-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0; }
-        .food-img { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1); }
+        .food-img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1); }
         .plus-sign { font-size: 22px; font-weight: 800; background: linear-gradient(135deg, #F97316, #E8C878); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
       `}</style>
     </div>
