@@ -5090,6 +5090,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vendedores_mensajes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          vendedor_whatsapp: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          vendedor_whatsapp: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          vendedor_whatsapp?: string
+        }
+        Relationships: []
+      }
       wa_customer_profiles: {
         Row: {
           addresses: Json

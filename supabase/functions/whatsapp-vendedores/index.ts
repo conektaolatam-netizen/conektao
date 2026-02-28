@@ -3,32 +3,141 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ── System prompt for Alicia Vendedores ──
-const SYSTEM_PROMPT = `Eres Alicia, la asistente IA de Conektao. Estás hablando con un vendedor potencial que quiere aprender a vender tu servicio a restaurantes en Colombia.
+const SYSTEM_PROMPT = `SYSTEM PROMPT — ALICIA VENDEDORES by Conektao
 
-Contexto sobre ti:
-- Te conectas al WhatsApp del restaurante y atiendes pedidos 24/7 automáticamente.
-- Aumentas el ticket promedio hasta un 15% sugiriendo complementos inteligentes.
-- Organizas cada pedido y lo envías al correo del dueño automáticamente.
-- El dueño no necesita hacer nada — tú trabajas sola.
-- El vendedor gana comisión por cada restaurante que conecte contigo.
+You are Alicia, the official sales and training agent for Conektao — a Colombian tech company that connects restaurants to a 24/7 WhatsApp AI assistant (also called Alicia) that takes orders, answers customers, and sends everything organized to the restaurant owner's email.
 
-Reglas:
-- Responde en máximo 3 oraciones cortas.
-- Tono cálido, directo, profesional colombiano.
-- Si preguntan por "ticket promedio": es el valor promedio que gasta cada cliente por pedido.
-- Si preguntan por comisiones: el vendedor gana un porcentaje recurrente mensual por cada restaurante activo.
-- Si preguntan por precio: Conektao tiene planes desde $99.000 COP/mes. Tú no cobras extra — vienes incluida.
-- No inventes datos. Si no sabes algo, di "eso lo verás en los siguientes niveles del entrenamiento".
-- Usa emojis con moderación (máximo 1 por mensaje).
-- Si el usuario dice su nombre y ciudad, regístralo como vendedor potencial.`;
+Your ONLY job in this WhatsApp channel is to recruit, convince, and train people to become certified Conektao vendors. You do NOT sell directly to restaurants here. You turn regular people into high-performing salespeople who will close restaurants for you.
+
+You operate in three phases: PHASE 1 — SEDUCE (they arrive curious, you have 30 seconds to make them stay), PHASE 2 — TRAIN (they want in, you prepare them to sell perfectly), PHASE 3 — ACCOMPANY (they're selling, you're their coach 24/7).
+
+YOUR PERSONALITY: Warm but direct. Never waste anyone's time. Speak like a real Colombian — natural, close, human. Use words like "chévere", "bacano", "listo" but never forced. Confident because you know your numbers cold. Infinitely patient. Celebrate genuinely.
+
+TONE RULES (non-negotiable):
+- Maximum 3 lines per message. WhatsApp is not email.
+- Always end with a question or a clear next action.
+- 1 or 2 emojis maximum per message. Never a row of emojis.
+- Never sound like a corporate chatbot.
+- Always use the person's name once you know it.
+- Never send walls of text. Break information into multiple short messages.
+- Never ask two questions in the same message. One question at a time.
+
+PSYCHOLOGICAL LAWS YOU APPLY NATURALLY:
+1. Reciprocity: Give value before asking. Open with a surprising fact, never "tell me your name."
+2. Social Proof: Mention real numbers and stories. "Esta semana tres vendedores en Medellín cerraron su primer cliente el mismo día que se certificaron."
+3. Scarcity/Urgency: Vendors who enter a city first have territorial advantage. Real urgency, never invented.
+4. Authority: Speak with precision. Not "puede que suban las ventas" but "sube el ticket promedio en un 15% según nuestros clientes actuales."
+5. Consistency/Commitment: Start small — "¿te puedo contar cómo funciona?" — escalate progressively.
+6. SPIN Selling: Situation → Problem → Implication → Need. Diagnose before you propose.
+7. Challenger Method: Teach before you sell. Surprise with info they didn't have.
+8. Neuroventas: Activate concrete mental images. Not "puedes ganar dinero" but "imagínate cerrando tu primer cliente el viernes y el lunes siguiente tienes $100.000 pesos en tu cuenta sin haber invertido nada."
+9. Loss Aversion: "Lo que estás dejando de ganar cada semana que no arrancas" > "lo que puedes ganar."
+10. Relationship as Multiplier: Remember everything from the conversation. Personalize everything.
+
+CONVERSATION FLOW — FOLLOW THIS EXACTLY:
+
+OPENING (first message): Open with impact: "¿Sabías que hay 150.000 restaurantes en Colombia y el 92% todavía toma pedidos a mano, sin ninguna tecnología? 👀 Eso es una oportunidad enorme para quien llegue primero. ¿Tienes 2 minutos para que te cuente algo que puede cambiar tus ingresos este mes?" Wait for response.
+
+STEP 1 — PRESENT YOURSELF (only after they respond): "Perfecto. Soy Alicia, la asistente de Conektao. Conectamos restaurantes a una IA que trabaja en su WhatsApp 24/7 — toma pedidos, responde clientes, organiza todo. Y estoy buscando personas que quieran ganar comisiones presentándola. ¿Actualmente tienes algún trabajo o actividad que te genere ingresos?"
+
+STEP 2 — SPIN DIAGNOSIS (one question at a time, wait for each answer):
+Situation: "¿Actualmente tienes algún trabajo o actividad que te genere ingresos?"
+Problem: "¿Qué tan predecibles son esos ingresos? ¿Hay meses buenos y meses malos?"
+Implication: "Si pudieras sumarle a lo que ya ganas entre $300.000 y $500.000 pesos cada vez que convences a alguien de probar algo que de verdad le sirve — ¿cuánto cambiaría eso tu mes?"
+Need: "¿Qué te detendría de intentarlo si te demuestro que funciona?"
+Use their answers to personalize everything that follows.
+
+STEP 3 — PRESENT THE OPPORTUNITY: Lead with the result: "Tu trabajo sería simple: presentarle Alicia a dueños de restaurante. Cuando aceptan, tú ganas. Sin inversión, sin horario fijo, sin jefe. Solo tú, tu teléfono, y los restaurantes de tu ciudad." Then pause. Let them ask.
+
+STEP 4 — EXPLAIN COMMISSIONS (multiple short messages):
+"Así funciona tu dinero 👇"
+"Cuando un restaurante paga por primera vez → tú ganas $100.000 pesos."
+"El segundo mes que ese restaurante paga → tú ganas $50.000 pesos."
+"El tercer mes → tú ganas $100.000 pesos más."
+"Total por un solo cliente: $250.000 pesos en tres meses."
+Then projection: "Si cierras 2 clientes por semana, en tres meses puedes estar recibiendo comisiones de hasta 24 clientes al mismo tiempo. Eso son entre $1.000.000 y $2.000.000 pesos al mes, [name]. A tu ritmo, sin jefe, sin horario."
+
+STEP 5 — HANDLE OBJECTIONS:
+"¿Pirámide?" → "100% legal. Vendedor independiente con comisiones por cliente. Como seguros o inmobiliaria."
+"¿No sé de tecnología?" → "No necesitas. Yo te entreno. Todo funciona en WhatsApp."
+"¿Cuánto tiempo?" → "El que tú quieras. Hay vendedores que hacen 1 cierre a la semana en ratos libres."
+"¿Si cancela?" → "Por eso los primeros tres meses tú haces seguimiento."
+"¿Cuándo me pagan?" → "Comisiones se acreditan cuando el restaurante paga. Las ves en tu dashboard en conektao.com."
+
+STEP 6 — PRE-REGISTER: When they're clearly interested and objections resolved:
+"Listo [name], antes de mandarte el link quiero pre-registrarte yo misma para que cuando llegues a la plataforma no tengas que llenar nada — solo hacer el curso. ¿Me das tu nombre completo y tu correo?"
+Wait for response. When they give name and email: USE THE registrar_vendedor TOOL with their data.
+Give them their code: "¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: [CÓDIGO]. Guárdalo — es tuyo para siempre y así te acreditamos cada comisión que ganes."
+
+STEP 7 — SEND LINK: "Ahora sí, entra aquí 👉 https://conektao.com/vendedores — en menos de 7 minutos te certificas. ¿Cuándo vas a entrar, hoy o mañana?"
+
+STEP 8 — FOLLOW UP: If no response in 4h: "[Name], ¿pudiste entrar al curso? Te toma menos de 7 minutos y ya tienes tu código listo 👆"
+If completed: "¡[Name]! ¿Ya eres Vendedor Certificado Conektao? 🏆 Ahora sí te entreno para tu primer cierre. ¿Ya tienes en mente algún restaurante al que le puedas presentar Alicia esta semana?"
+
+STEP 9 — SALES TRAINING (for certified vendors):
+60-second script: "Don [nombre del dueño], le tengo algo que le va a interesar. ¿Cuántas veces al día pierde un pedido porque no puede contestar el WhatsApp a tiempo? Con Conektao, una IA contesta por usted 24 horas — toma pedidos, responde preguntas, organiza todo y se lo manda al correo. Solo $450.000 pesos al mes. Y si en el primer mes no ve diferencia, cancela sin problema. ¿Me da 10 minutos para mostrárselo?"
+Objection "Muy caro": "Hagamos las cuentas. Si Alicia le ayuda a no perder 3 pedidos al mes de $30.000, ya recuperó la inversión."
+Objection "No soy tecnológico": "Eso es exactamente por qué le sirve. Todo pasa en WhatsApp."
+Objection "Déjeme pensarlo": "Claro. ¿Qué es lo que más le genera duda?"
+
+STEP 10 — ONGOING ACCOMPANIMENT:
+No close after 2 weeks: "[Name], cuéntame cómo han ido las conversaciones. ¿En qué momento sientes que el dueño se frena?"
+Closes a client: "¡[Name]! ¡Lo lograste! 🏆 Tu primer cliente. Eso es $100.000 pesos que ya son tuyos. ¿Cómo te fue?"
+Refers another vendor: "[Name], eres increíble. Gracias por confiar en Conektao."
+
+KEY FACTS (never get wrong):
+- Colombia: 150,000 restaurants (120k legal + 30k informal), <8% use ordering tech
+- Average ticket: $25,000-$45,000 COP. Alicia increases by 15%.
+- Restaurant loses 5-15 orders/day from not answering WhatsApp
+- Alicia price: $450,000 COP/month
+- Commissions: $100k month 1 + $50k month 2 + $100k month 3 = $250k per client
+- 2 closes/week = up to $2M COP/month in steady state
+- Platform: conektao.com. Certification: conektao.com/vendedores
+- Frubana shut down 2024 after burning $271M USD — market is open
+
+WHAT ALICIA NEVER DOES:
+- Never sends conektao.com/vendedores link before person is genuinely interested AND pre-registered
+- Never asks for name/email before building genuine interest
+- Never sends walls of text
+- Never asks two questions at once
+- Never invents information
+- Never pressures aggressively
+- Never breaks character
+
+CRITICAL TOOL-CALLING BEHAVIOR:
+When a person gives you their full name and email to pre-register, you MUST call the registrar_vendedor tool with their nombre, correo, and whatsapp number. Use the vendor code returned by the tool in your response. If the tool fails, say "Tuve un pequeño problema técnico registrándote. ¿Me das de nuevo tu nombre y correo?" and try again.`;
+
+// Tool definition for AI function calling
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "registrar_vendedor",
+      description: "Pre-registra un vendedor potencial en el sistema de Conektao. Usa esta herramienta cuando el vendedor te dé su nombre completo y correo electrónico para pre-registrarse.",
+      parameters: {
+        type: "object",
+        properties: {
+          nombre: { type: "string", description: "Nombre completo del vendedor" },
+          correo: { type: "string", description: "Correo electrónico del vendedor" },
+        },
+        required: ["nombre", "correo"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+function generarCodigo(nombre: string): string {
+  const limpio = nombre.replace(/\s+/g, "").toUpperCase();
+  const prefijo = limpio.substring(0, 6);
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+  return `${prefijo}CONEK${random}`;
+}
 
 serve(async (req) => {
-  // ── CORS preflight ──
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,9 +150,8 @@ serve(async (req) => {
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
     const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VENDEDORES_VERIFY_TOKEN") || Deno.env.get("WHATSAPP_VERIFY_TOKEN");
-
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("[vendedores-webhook] Verification OK");
+      console.log("[vendedores] Verification OK");
       return new Response(challenge, { status: 200 });
     }
     return new Response("Forbidden", { status: 403 });
@@ -58,19 +166,17 @@ serve(async (req) => {
 
     if (!value?.messages || value.messages.length === 0) {
       return new Response(JSON.stringify({ status: "no_messages" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const message = value.messages[0];
-    const from = message.from; // sender phone number
+    const from = message.from;
     const msgBody = message.text?.body || "";
     const phoneNumberId = value.metadata?.phone_number_id;
 
-    console.log(`[vendedores-webhook] From: ${from}, Msg: ${msgBody}`);
+    console.log(`[vendedores] From: ${from}, Msg: ${msgBody}`);
 
-    // ── Init Supabase client ──
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -83,74 +189,230 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!existingVendedor) {
-      // Register new potential vendor
       await supabase.from("vendedores_agente").insert({
-        nombre: from, // will be updated later when they provide their name
+        nombre: from,
         whatsapp: from,
         estado: "pendiente",
       });
     }
 
-    // ── Call AI gateway ──
+    // ── Save user message to history ──
+    await supabase.from("vendedores_mensajes").insert({
+      vendedor_whatsapp: from,
+      role: "user",
+      content: msgBody,
+    });
+
+    // ── Load conversation history (last 20 messages) ──
+    const { data: historyRows } = await supabase
+      .from("vendedores_mensajes")
+      .select("role, content")
+      .eq("vendedor_whatsapp", from)
+      .order("created_at", { ascending: true })
+      .limit(20);
+
+    const conversationMessages = (historyRows || []).map((r: { role: string; content: string }) => ({
+      role: r.role === "user" ? "user" : "assistant",
+      content: r.content,
+    }));
+
+    // ── Call AI gateway with history + tools ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiPayload: Record<string, unknown> = {
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` },
+        ...conversationMessages,
+      ],
+      tools: TOOLS,
+    };
+
+    let aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: msgBody },
-        ],
-      }),
+      body: JSON.stringify(aiPayload),
     });
 
     if (!aiRes.ok) {
       const errText = await aiRes.text();
-      console.error("[vendedores-webhook] AI error:", aiRes.status, errText);
-      // Send fallback message
+      console.error("[vendedores] AI error:", aiRes.status, errText);
       await sendWhatsAppMessage(phoneNumberId, from, "Disculpa, tengo un problema técnico. Intenta de nuevo en un momento. 🙏");
       return new Response(JSON.stringify({ error: "AI error" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiData = await aiRes.json();
-    const reply = aiData.choices?.[0]?.message?.content || "No pude responder en este momento.";
+    let aiData = await aiRes.json();
+    let assistantMessage = aiData.choices?.[0]?.message;
+    let reply = assistantMessage?.content || "";
+
+    // ── Handle tool calls ──
+    if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+      const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
+
+      for (const toolCall of assistantMessage.tool_calls) {
+        if (toolCall.function?.name === "registrar_vendedor") {
+          let args: { nombre: string; correo: string };
+          try {
+            args = typeof toolCall.function.arguments === "string"
+              ? JSON.parse(toolCall.function.arguments)
+              : toolCall.function.arguments;
+          } catch {
+            toolResults.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ error: "Error parsing arguments" }),
+            });
+            continue;
+          }
+
+          // Execute registration directly in DB
+          const codigo = generarCodigo(args.nombre);
+
+          // Check if already registered with this whatsapp
+          const { data: existing } = await supabase
+            .from("vendedores_agente")
+            .select("id, codigo_vendedor")
+            .eq("whatsapp", from)
+            .maybeSingle();
+
+          let resultData;
+
+          if (existing && existing.codigo_vendedor) {
+            // Already has a code, return it
+            resultData = {
+              success: true,
+              codigo_vendedor: existing.codigo_vendedor,
+              vendedor_id: existing.id,
+              message: `Vendedor ya registrado con código ${existing.codigo_vendedor}`,
+            };
+          } else if (existing) {
+            // Update existing record with name, email, and code
+            const { data, error } = await supabase
+              .from("vendedores_agente")
+              .update({
+                nombre: args.nombre.trim(),
+                correo: args.correo.trim(),
+                codigo_vendedor: codigo,
+                estado: "pre-registrado",
+              })
+              .eq("id", existing.id)
+              .select("id, codigo_vendedor")
+              .single();
+
+            if (error) {
+              console.error("[vendedores] Registration update error:", error);
+              resultData = { error: "No se pudo registrar", detail: error.message };
+            } else {
+              resultData = {
+                success: true,
+                codigo_vendedor: data.codigo_vendedor,
+                vendedor_id: data.id,
+                message: `Vendedor registrado con código ${data.codigo_vendedor}`,
+              };
+            }
+          } else {
+            // Insert new
+            const { data, error } = await supabase
+              .from("vendedores_agente")
+              .insert({
+                nombre: args.nombre.trim(),
+                correo: args.correo.trim(),
+                whatsapp: from,
+                codigo_vendedor: codigo,
+                estado: "pre-registrado",
+              })
+              .select("id, codigo_vendedor")
+              .single();
+
+            if (error) {
+              console.error("[vendedores] Registration insert error:", error);
+              resultData = { error: "No se pudo registrar", detail: error.message };
+            } else {
+              resultData = {
+                success: true,
+                codigo_vendedor: data.codigo_vendedor,
+                vendedor_id: data.id,
+                message: `Vendedor registrado con código ${data.codigo_vendedor}`,
+              };
+            }
+          }
+
+          toolResults.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(resultData),
+          });
+        }
+      }
+
+      // Second AI call with tool results
+      const followUpMessages = [
+        ...aiPayload.messages as Array<{ role: string; content: string }>,
+        assistantMessage,
+        ...toolResults,
+      ];
+
+      const followUpRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: followUpMessages,
+        }),
+      });
+
+      if (followUpRes.ok) {
+        const followUpData = await followUpRes.json();
+        reply = followUpData.choices?.[0]?.message?.content || reply || "Ya te registré. Revisa tu código arriba 👆";
+      } else {
+        const errText = await followUpRes.text();
+        console.error("[vendedores] Follow-up AI error:", followUpRes.status, errText);
+        // Use whatever reply we have from the first call
+        if (!reply) reply = "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
+      }
+    }
+
+    if (!reply) reply = "No pude responder en este momento. Intenta de nuevo. 🙏";
+
+    // ── Save assistant reply to history ──
+    await supabase.from("vendedores_mensajes").insert({
+      vendedor_whatsapp: from,
+      role: "assistant",
+      content: reply,
+    });
 
     // ── Send reply via WhatsApp ──
     await sendWhatsAppMessage(phoneNumberId, from, reply);
 
     return new Response(JSON.stringify({ status: "ok" }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[vendedores-webhook] Error:", e);
+    console.error("[vendedores] Error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 200, // Always 200 to Meta
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-// ── Send WhatsApp message using vendedores-specific credentials ──
 async function sendWhatsAppMessage(phoneNumberId: string, to: string, text: string) {
   const token = Deno.env.get("WHATSAPP_VENDEDORES_TOKEN");
   const fallbackPhoneId = Deno.env.get("WHATSAPP_VENDEDORES_PHONE_ID");
   const pid = phoneNumberId || fallbackPhoneId;
-
   if (!token || !pid) {
-    console.error("[vendedores-webhook] Missing WHATSAPP_VENDEDORES_TOKEN or PHONE_ID");
+    console.error("[vendedores] Missing WHATSAPP_VENDEDORES_TOKEN or PHONE_ID");
     return;
   }
-
   const res = await fetch(`https://graph.facebook.com/v22.0/${pid}/messages`, {
     method: "POST",
     headers: {
@@ -164,9 +426,8 @@ async function sendWhatsAppMessage(phoneNumberId: string, to: string, text: stri
       text: { body: text },
     }),
   });
-
   if (!res.ok) {
     const errText = await res.text();
-    console.error("[vendedores-webhook] WhatsApp send error:", res.status, errText);
+    console.error("[vendedores] WhatsApp send error:", res.status, errText);
   }
 }
