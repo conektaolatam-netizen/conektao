@@ -1,39 +1,50 @@
 
 
-## Plan: Actualizar System Prompt y Tool-Calling de Alicia Vendedores
+## Plan: Map Visual Enhancements + Node 2 Redesign
 
-### What needs to change
+### Files to modify
+1. **`src/components/vendedores/VendedorGameMap.tsx`** — background orbs, green completed nodes, rename Node 2, update `getPrevNodeName`
+2. **`src/components/vendedores/nodes/NodePitchPerfecto.tsx`** — complete rewrite as "Convence en Poco Tiempo" with two-video sequential experience
 
-The `whatsapp-vendedores` Edge Function needs three upgrades:
+### Change 1 — Background orbs (VendedorGameMap)
+- Replace the 3 existing CSS orbs with 7 orbs: 4 orange `rgba(249,115,22,0.07)` + 3 turquoise `rgba(20,184,166,0.05)`
+- Sizes range from 80px to 200px, `filter: blur(60px)`
+- Each has a unique floating keyframe animation (20–30s loops, different directions)
+- Positioned across the viewport so they feel scattered and alive
 
-1. **Replace the system prompt** with the full Alicia Vendedores prompt you provided (personality, SPIN selling flow, commissions, objection handling, all 10 steps).
+### Change 2 — Green completed nodes (VendedorGameMap)
+- Completed node circle: `radial-gradient(circle at 40% 35%, #22C55E, #15803D)` with `boxShadow: "0 0 0 4px rgba(34,197,94,0.3), 0 0 20px rgba(34,197,94,0.35)"`
+- Completed node label color: `#22C55E` instead of `#F97316`
 
-2. **Add conversation history** — currently Alicia only sees the latest message (no memory). We need to load previous messages from `vendedores_agente` or a new messages table so the AI receives full context per vendor.
+### Change 3 — Rename Node 2 (VendedorGameMap)
+- `NODE_META[1].label` → `"Convence en Poco Tiempo"`, subtitle → `"Dos técnicas para cerrar la venta"`
+- Update `getPrevNodeName` references from `"El Pitch Perfecto"` to `"Convence en Poco Tiempo"`
 
-3. **Enable tool-calling for vendor registration** — when Alicia decides a vendor is ready, the AI should call `registrar-vendedor` automatically via function/tool-calling, get the code back, and include it in the reply. This replaces the current behavior where registration only happens on first contact.
+### Change 4 — Node 2 content redesign (NodePitchPerfecto.tsx)
+Complete rewrite with this structure:
 
-### Technical steps
+**States:** `phase: "watching" | "complete"`, `video1Ended: boolean`, `video2Ended: boolean`, `scrolledToVideo2: boolean`
 
-**Step 1 — Create conversation history table**
-- New table `vendedores_mensajes` with columns: `id`, `vendedor_whatsapp` (text), `role` (text: user/assistant/system), `content` (text), `created_at`.
-- No RLS needed (only accessed from edge functions via service role).
+**Layout:**
+- Title: "Convence en Poco Tiempo" + description text
+- **Video 1 block**: orange small-caps label "PASO 1 — DESPIERTA SU INTERÉS", gray subtitle, 16:9 placeholder div with "Video próximamente" text, click-to-mark-complete behavior
+- Divider: thin orange line with "Ahora el paso 2 👇" centered
+- **Video 2 block** (ref for scroll target): orange small-caps label "PASO 2 — CIÉRRALO CON EL COMPUTADOR", gray subtitle, same 16:9 placeholder
+- When Video 1 ends → smooth scroll to Video 2 ref, auto-start Video 2
+- When Video 2 ends → show completion screen
 
-**Step 2 — Update `whatsapp-vendedores/index.ts`**
-- Replace `SYSTEM_PROMPT` with the complete prompt.
-- On each incoming message: load last ~20 messages from `vendedores_mensajes` for that WhatsApp number.
-- Send full history to the AI gateway.
-- Save both the user message and assistant reply to `vendedores_mensajes`.
-- Add a tool definition for `registrar_vendedor` in the AI call, so when Alicia decides to pre-register, the AI returns a tool call.
-- When a tool call is detected: invoke the `registrar-vendedor` edge function internally (direct Supabase insert or HTTP call), get the code, send a follow-up AI call with the tool result, then reply.
-- Update vendedor name/correo in `vendedores_agente` when provided during conversation.
+**Completion screen:**
+- Green checkmark animation (scale bounce)
+- "¡Nivel completado!" heading
+- XP progress bar animation (0→100%)
+- CTA button: "¡Listo! Continuar →" with gradient `#F59E0B → #F97316`, padding `px-6`
+- WhatsApp hint below in gray 13px
 
-**Step 3 — Deploy and test**
-- Deploy `whatsapp-vendedores`.
-- Test end-to-end with a WhatsApp message.
+**Placeholder behavior:** Each video placeholder is a clickable div that marks itself as "ended" on tap, simulating video completion until real videos are added.
 
-### Important details
-- The system prompt is ~4,000+ words. It will be embedded as a constant string in the edge function.
-- Tool-calling format follows OpenAI-compatible schema (supported by the Lovable AI gateway).
-- Messages older than ~20 will be trimmed to stay within token limits.
-- The `registrar-vendedor` endpoint already exists and works — we just call it from within the same function using a direct Supabase insert (no HTTP hop needed).
+### Technical notes
+- The orb CSS animations use `position: fixed` with `pointer-events: none` and `z-index: 0`
+- Video placeholders maintain 16:9 aspect ratio via `aspect-video` Tailwind class
+- `scrollIntoView({ behavior: 'smooth' })` for auto-scroll between videos
+- No other files or components are touched
 
