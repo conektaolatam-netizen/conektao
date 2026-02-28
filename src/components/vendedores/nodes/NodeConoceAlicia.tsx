@@ -599,13 +599,17 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
               <motion.button
                 data-interactive
                 onClick={onComplete}
-                className="w-full max-w-xs h-14 rounded-xl bg-primary text-primary-foreground font-semibold text-base shadow-lg shadow-primary/25"
+                className="w-full max-w-xs h-14 rounded-xl text-white font-semibold text-base shadow-lg px-6"
+                style={{ background: "linear-gradient(to right, #F59E0B, #F97316)", boxShadow: "0 10px 25px -5px rgba(249,115,22,0.3)" }}
                 initial={{ y: 30, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, type: "spring" }}
               >
-                ¡Entendido! Continuar al Pitch →
+                ¡Entendido! Continuar a la Estrategia<span style={{ marginLeft: 8 }}>→</span>
               </motion.button>
+              <p style={{ fontSize: 13, color: "#888888", marginTop: 16 }}>
+                ¿Tienes alguna duda? Escríbele a Alicia por WhatsApp 💬
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -614,18 +618,6 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
       {/* ═══════════════════════════════════════════
           CHAT BUTTON
           ═══════════════════════════════════════════ */}
-      {!showChat && (
-        <button
-          data-interactive
-          onClick={openChat}
-          className="fixed bottom-6 right-6 z-50 w-[52px] h-[52px] rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30"
-          style={{ touchAction: "manipulation" }}
-        >
-          <MessageCircle className="w-6 h-6 text-primary-foreground" />
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary animate-ping" />
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary" />
-        </button>
-      )}
 
       {/* ═══════════════════════════════════════════
           CHAT PANEL
