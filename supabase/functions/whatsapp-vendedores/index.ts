@@ -167,6 +167,13 @@ serve(async (req) => {
 
   const url = new URL(req.url);
 
+  // ── Health check endpoint ──
+  if (req.method === "GET" && url.pathname.endsWith("/health")) {
+    return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // ── Webhook verification (GET) ──
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
@@ -461,7 +468,21 @@ serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[vendedores] Error:", e);
+    console.error("[vendedores] CRITICAL Error:", e);
+    // Global crash protection: always try to respond to the user
+    try {
+      const body = await req.clone().json().catch(() => null);
+      const entry = body?.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
+      const crashFrom = value?.messages?.[0]?.from;
+      const crashPhoneId = value?.metadata?.phone_number_id;
+      if (crashFrom && crashPhoneId) {
+        await sendWhatsAppMessage(crashPhoneId, crashFrom, "Hola, tuve un pequeño problema técnico. ¿Me repites tu mensaje? 🙏");
+      }
+    } catch (fallbackErr) {
+      console.error("[vendedores] Fallback message also failed:", fallbackErr);
+    }
     return new Response(JSON.stringify({ error: "handled" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
