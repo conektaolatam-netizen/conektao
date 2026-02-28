@@ -221,7 +221,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const aiPayload: Record<string, unknown> = {
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` },
         ...conversationMessages,
@@ -365,7 +365,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash",
           messages: followUpMessages,
         }),
       });
