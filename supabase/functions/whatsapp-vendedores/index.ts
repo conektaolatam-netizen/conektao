@@ -108,7 +108,25 @@ WHAT ALICIA NEVER DOES:
 - Never breaks character
 
 CRITICAL TOOL-CALLING BEHAVIOR:
-When a person gives you their full name and email to pre-register, you MUST call the registrar_vendedor tool with their nombre, correo, and whatsapp number. Use the vendor code returned by the tool in your response. If the tool fails, say "Tuve un pequeño problema técnico registrándote. ¿Me das de nuevo tu nombre y correo?" and try again.`;
+When a person gives you their full name and email to pre-register, you MUST call the registrar_vendedor tool with their nombre, correo, and whatsapp number. Use the vendor code returned by the tool in your response. If the tool fails, say "Tuve un pequeño problema técnico registrándote. ¿Me das de nuevo tu nombre y correo?" and try again.
+
+AFTER DELIVERING THE VENDOR CODE — THIS IS CRITICAL:
+
+After you give the vendor their code, the conversation does NOT end. You continue actively. This is what you do next:
+
+Immediately after the code, send the certification link and force a time commitment: "Ahora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores ¿Vas a entrar hoy o mañana?"
+
+Wait for their answer. Then:
+
+If they say today or now: "Perfecto [name]. Cuando termines el curso vuelve aquí y me cuentas. Te tengo preparado el entrenamiento para que cierres tu primer restaurante esta semana 💪"
+
+If they say tomorrow or later: "Listo [name]. Te escribo mañana para que no se te olvide. Una cosa antes — ¿ya tienes en mente algún restaurante al que le podrías presentar Alicia cuando estés certificado?"
+
+If they come back after completing the course: Celebrate genuinely, then immediately start sales training — give them the 60-second script and prepare them for their first close.
+
+If they ask any question after receiving the code — about how Alicia works, where messages go, how commissions are paid, anything — answer it fully and warmly. Never stop the conversation. Never return an error. The conversation only ends when the vendor stops responding.
+
+IMPORTANT: After registration, you are the same Alicia. Keep the same warm tone. Answer any question. Never say "no puedo responder" or anything similar. You always have something valuable to say.`;
 
 // Tool definition for AI function calling
 const TOOLS = [
@@ -351,38 +369,71 @@ serve(async (req) => {
         }
       }
 
-      // Second AI call with tool results
+      // Build follow-up messages — ensure assistantMessage.content is not null
+      const cleanAssistantMsg = {
+        role: "assistant",
+        content: assistantMessage.content || "",
+        tool_calls: assistantMessage.tool_calls,
+      };
+      
       const followUpMessages = [
         ...aiPayload.messages as Array<{ role: string; content: string }>,
-        assistantMessage,
+        cleanAssistantMsg,
         ...toolResults,
       ];
 
-      const followUpRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: followUpMessages,
-        }),
-      });
+      // Extract vendor code from tool results for fallback
+      let vendorCode = "";
+      try {
+        for (const tr of toolResults) {
+          const parsed = JSON.parse(tr.content);
+          if (parsed.codigo_vendedor) vendorCode = parsed.codigo_vendedor;
+        }
+      } catch { /* ignore */ }
 
-      if (followUpRes.ok) {
-        const followUpData = await followUpRes.json();
-        reply = followUpData.choices?.[0]?.message?.content || reply || "Ya te registré. Revisa tu código arriba 👆";
-      } else {
-        const errText = await followUpRes.text();
-        console.error("[vendedores] Follow-up AI error:", followUpRes.status, errText);
-        // Use whatever reply we have from the first call
-        if (!reply) reply = "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
+      try {
+        const followUpRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: followUpMessages,
+          }),
+        });
+
+        if (followUpRes.ok) {
+          const followUpData = await followUpRes.json();
+          const followUpContent = followUpData.choices?.[0]?.message?.content;
+          if (followUpContent && followUpContent.trim().length > 0) {
+            reply = followUpContent;
+          } else {
+            console.warn("[vendedores] Follow-up returned empty content, using fallback");
+            reply = vendorCode
+              ? `¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: ${vendorCode}. Guárdalo — es tuyo para siempre.\n\nAhora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores\n\n¿Vas a entrar hoy o mañana?`
+              : "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
+          }
+        } else {
+          const errText = await followUpRes.text();
+          console.error("[vendedores] Follow-up AI error:", followUpRes.status, errText);
+          reply = vendorCode
+            ? `¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: ${vendorCode}. Guárdalo — es tuyo para siempre.\n\nAhora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores\n\n¿Vas a entrar hoy o mañana?`
+            : "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
+        }
+      } catch (followUpErr) {
+        console.error("[vendedores] Follow-up call crashed:", followUpErr);
+        reply = vendorCode
+          ? `¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: ${vendorCode}. Guárdalo — es tuyo para siempre.\n\nAhora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores\n\n¿Vas a entrar hoy o mañana?`
+          : "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
       }
     }
 
-    if (!reply) reply = "No pude responder en este momento. Intenta de nuevo. 🙏";
-
+    // Final safeguard — never show a generic error
+    if (!reply || reply.trim().length === 0) {
+      reply = "Tuve un pequeño problema técnico. ¿Me repites lo que me dijiste? 🙏";
+    }
     // ── Save assistant reply to history ──
     await supabase.from("vendedores_mensajes").insert({
       vendedor_whatsapp: from,
@@ -398,7 +449,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("[vendedores] Error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "handled" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
