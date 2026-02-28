@@ -1,43 +1,39 @@
 
 
-# Fix: Packaging Not Charged for Pickup Orders
+## Plan: Actualizar System Prompt y Tool-Calling de Alicia Vendedores
 
-## Problem
-Line 1026 in `whatsapp-webhook/index.ts` wraps all packaging logic inside `if (isDelivery)`, causing pickup orders to skip packaging entirely -- even when products have `requires_packaging = true` and `packaging_price > 0`.
+### What needs to change
 
-## Fix (Single Line Change)
-Remove the `if (isDelivery)` guard on line 1026 so the packaging block runs for **all** order types.
+The `whatsapp-vendedores` Edge Function needs three upgrades:
 
-```text
-Before (line 1026):
-    if (isDelivery) {
+1. **Replace the system prompt** with the full Alicia Vendedores prompt you provided (personality, SPIN selling flow, commissions, objection handling, all 10 steps).
 
-After:
-    {  // PACKAGING: always apply based on product config
-```
+2. **Add conversation history** — currently Alicia only sees the latest message (no memory). We need to load previous messages from `vendedores_agente` or a new messages table so the AI receives full context per vendor.
 
-The closing `}` on line 1060 also becomes just the block's closing brace (no behavioral change needed since the indented code stays the same).
+3. **Enable tool-calling for vendor registration** — when Alicia decides a vendor is ready, the AI should call `registrar-vendedor` automatically via function/tool-calling, get the code back, and include it in the reply. This replaces the current behavior where registration only happens on first contact.
 
-Concretely: remove `if (isDelivery)` and replace it with a simple block or just unindent the code. Everything inside (lines 1027-1059) remains untouched.
+### Technical steps
 
-## What Changes
-| Aspect | Before | After |
-|--------|--------|-------|
-| Pickup + requires_packaging=true | Packaging = 0 (bug) | Packaging = packaging_price (correct) |
-| Delivery + requires_packaging=true | Packaging applied | Unchanged |
-| requires_packaging=false | Packaging = 0 | Unchanged |
-| packaging_price=0 | Packaging = 0 | Unchanged |
+**Step 1 — Create conversation history table**
+- New table `vendedores_mensajes` with columns: `id`, `vendedor_whatsapp` (text), `role` (text: user/assistant/system), `content` (text), `created_at`.
+- No RLS needed (only accessed from edge functions via service role).
 
-## Files Modified
-- `supabase/functions/whatsapp-webhook/index.ts` -- remove `if (isDelivery)` wrapper at line 1026
+**Step 2 — Update `whatsapp-vendedores/index.ts`**
+- Replace `SYSTEM_PROMPT` with the complete prompt.
+- On each incoming message: load last ~20 messages from `vendedores_mensajes` for that WhatsApp number.
+- Send full history to the AI gateway.
+- Save both the user message and assistant reply to `vendedores_mensajes`.
+- Add a tool definition for `registrar_vendedor` in the AI call, so when Alicia decides to pre-register, the AI returns a tool call.
+- When a tool call is detected: invoke the `registrar-vendedor` edge function internally (direct Supabase insert or HTTP call), get the code, send a follow-up AI call with the tool result, then reply.
+- Update vendedor name/correo in `vendedores_agente` when provided during conversation.
 
-## What Is NOT Changed
-- `getPackagingCost()` function
-- `buildPackagingMap()` function
-- `validateOrder()` return format
-- Subtotal/total calculation logic (lines 1063-1085)
-- Order saving flow
-- Webhook processing
-- AI prompt logic
-- Database schema
+**Step 3 — Deploy and test**
+- Deploy `whatsapp-vendedores`.
+- Test end-to-end with a WhatsApp message.
+
+### Important details
+- The system prompt is ~4,000+ words. It will be embedded as a constant string in the edge function.
+- Tool-calling format follows OpenAI-compatible schema (supported by the Lovable AI gateway).
+- Messages older than ~20 will be trimmed to stay within token limits.
+- The `registrar-vendedor` endpoint already exists and works — we just call it from within the same function using a direct Supabase insert (no HTTP hop needed).
 
