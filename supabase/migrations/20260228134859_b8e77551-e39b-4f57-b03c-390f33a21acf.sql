@@ -1,0 +1,1 @@
+ALTER TABLE public.vendedores_mensajes ENABLE ROW LEVEL SECURITY;
