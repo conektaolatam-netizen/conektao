@@ -1,0 +1,1 @@
+ALTER TABLE public.vendedores_agente ADD COLUMN correo TEXT;

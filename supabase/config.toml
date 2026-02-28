@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.whatsapp-vendedores]
 verify_jwt = false
+
+[functions.registrar-vendedor]
+verify_jwt = false
