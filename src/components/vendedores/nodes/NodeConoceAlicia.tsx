@@ -14,41 +14,42 @@ type ChatMsg = { role: "user" | "assistant"; content: string };
 
 /* ══════════════════════════════════════════════
    SUBTITLES — synced to /assets/alicia-intro.mp3
+   Timestamps re-calibrated to actual audio speech
    ══════════════════════════════════════════════ */
 const INTRO_SUBS = [
-  { start: 0, end: 1.5, text: "Hola." },
-  { start: 1.5, end: 3, text: "Soy Alicia." },
-  { start: 3, end: 6, text: "Trabajo para restaurantes" },
-  { start: 6, end: 8, text: "en Colombia." },
-  { start: 8, end: 10.5, text: "Las 24 horas del día," },
-  { start: 10.5, end: 13, text: "los 7 días de la semana." },
-  { start: 13, end: 16, text: "Me conecto directamente" },
-  { start: 16, end: 18, text: "al WhatsApp del restaurante." },
-  { start: 18, end: 20, text: "Ahí recibo pedidos," },
-  { start: 20, end: 22, text: "respondo preguntas" },
-  { start: 22, end: 24.5, text: "y atiendo clientes," },
-  { start: 24.5, end: 27, text: "sin que el dueño haga nada." },
-  { start: 27, end: 30, text: "Cada conversación que atiendo" },
-  { start: 30, end: 33, text: "puede aumentar el valor del pedido" },
-  { start: 33, end: 36, text: "hasta un quince por ciento." },
-  { start: 36, end: 39, text: "¿Sabes qué es el ticket promedio?" },
-  // After user answers and audio resumes from ~39s
-  { start: 39, end: 42, text: "Eso significa más dinero" },
-  { start: 42, end: 44, text: "para el restaurante," },
-  { start: 44, end: 46, text: "sin contratar a nadie." },
-  { start: 46, end: 49, text: "Cuando el restaurante recibe un pedido," },
-  { start: 49, end: 52, text: "yo lo organizo y lo envío" },
-  { start: 52, end: 54, text: "automáticamente al correo del dueño." },
-  { start: 54, end: 57, text: "Todo queda registrado," },
-  { start: 57, end: 59, text: "sin errores, sin papeles." },
-  { start: 59, end: 61, text: "Eso soy yo." },
-  { start: 61, end: 64, text: "Una sola herramienta" },
-  { start: 64, end: 67, text: "que conecta WhatsApp con el correo," },
-  { start: 67, end: 69, text: "aumenta las ventas" },
-  { start: 69, end: 72, text: "y trabaja mientras el dueño duerme." },
-  { start: 72, end: 74, text: "Ahora ya me conoces." },
-  { start: 74, end: 78, text: "En el siguiente nivel vas a aprender" },
-  { start: 78, end: 82, text: "cómo presentarme a un restaurante." },
+  { start: 0.3, end: 1.2, text: "Hola." },
+  { start: 1.3, end: 2.8, text: "Soy Alicia." },
+  { start: 3.0, end: 5.5, text: "Trabajo para restaurantes" },
+  { start: 5.6, end: 8.0, text: "en Colombia." },
+  { start: 8.2, end: 11.0, text: "Las 24 horas del día," },
+  { start: 11.1, end: 13.5, text: "los 7 días de la semana." },
+  { start: 14.0, end: 16.5, text: "Me conecto directamente" },
+  { start: 16.6, end: 19.0, text: "al WhatsApp del restaurante." },
+  { start: 19.2, end: 21.5, text: "Ahí recibo pedidos," },
+  { start: 21.6, end: 23.5, text: "respondo preguntas" },
+  { start: 23.6, end: 26.0, text: "y atiendo clientes," },
+  { start: 26.1, end: 29.0, text: "sin que el dueño haga nada." },
+  { start: 29.5, end: 32.5, text: "Cada conversación que atiendo" },
+  { start: 32.6, end: 35.5, text: "puede aumentar el valor del pedido" },
+  { start: 35.6, end: 38.5, text: "hasta un quince por ciento." },
+  { start: 39.0, end: 42.5, text: "¿Sabes qué es el ticket promedio?" },
+  // After user answers and audio resumes
+  { start: 43.0, end: 46.0, text: "Eso significa más dinero" },
+  { start: 46.1, end: 48.5, text: "para el restaurante," },
+  { start: 48.6, end: 51.0, text: "sin contratar a nadie." },
+  { start: 51.5, end: 54.5, text: "Cuando el restaurante recibe un pedido," },
+  { start: 54.6, end: 57.5, text: "yo lo organizo y lo envío" },
+  { start: 57.6, end: 60.0, text: "automáticamente al correo del dueño." },
+  { start: 60.5, end: 63.0, text: "Todo queda registrado," },
+  { start: 63.1, end: 65.5, text: "sin errores, sin papeles." },
+  { start: 66.0, end: 68.0, text: "Eso soy yo." },
+  { start: 68.5, end: 71.0, text: "Una sola herramienta" },
+  { start: 71.1, end: 74.0, text: "que conecta WhatsApp con el correo," },
+  { start: 74.1, end: 76.0, text: "aumenta las ventas" },
+  { start: 76.1, end: 79.0, text: "y trabaja mientras el dueño duerme." },
+  { start: 79.5, end: 81.5, text: "Ahora ya me conoces." },
+  { start: 82.0, end: 86.0, text: "En el siguiente nivel vas a aprender" },
+  { start: 86.1, end: 90.0, text: "cómo presentarme a un restaurante." },
 ];
 
 /* ── SUBTITLES — ticket promedio audio ── */
@@ -73,25 +74,27 @@ const FOOD_EVENTS = [
   { timestamp: 23, word: "bebida", src: "https://images.unsplash.com/photo-1527960471264-932f39eb5846?w=150&h=150&fit=crop", label: "Bebida" },
 ];
 
-const PAUSE_TIMESTAMP = 39;
-const QUESTION_START = 36;
+// Pause AFTER Alicia finishes saying "¿Sabes qué es el ticket promedio?"
+const PAUSE_TIMESTAMP = 42.5;
+const QUESTION_START = 39.0;
 const QUICK_CHIPS = ["¿Cómo gano dinero?", "¿Qué hace exactamente?", "¿Cuánto cuesta?"];
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 /* ══════════════════════════════════════════════
-   SLIDE DEFINITIONS
+   SLIDE DEFINITIONS — time-based, always used
    ══════════════════════════════════════════════ */
-type SlideId = "intro" | "whatsapp" | "ticket" | "question" | "gmail" | "summary";
+type SlideId = "intro" | "whatsapp" | "ticket" | "question" | "transition" | "gmail" | "summary";
 
-const SLIDE_RANGES: { id: SlideId; start: number; end: number | null }[] = [
-  { id: "intro", start: 0, end: 7 },
-  { id: "whatsapp", start: 7, end: 16 },
-  { id: "ticket", start: 16, end: 36 },
-  { id: "question", start: 36, end: null }, // stays until user responds
-  { id: "gmail", start: 46, end: 59 },
-  { id: "summary", start: 59, end: null },
+const SLIDE_RANGES: { id: SlideId; start: number; end: number }[] = [
+  { id: "intro", start: 0, end: 8 },
+  { id: "whatsapp", start: 8, end: 19 },
+  { id: "ticket", start: 19, end: 39 },
+  // question is handled by showPauseCard state, not time-based
+  { id: "transition", start: 43, end: 54 },
+  { id: "gmail", start: 54, end: 68 },
+  { id: "summary", start: 68, end: 999 },
 ];
 
 /* ══════════════════════════════════════════════
@@ -100,6 +103,8 @@ const SLIDE_RANGES: { id: SlideId; start: number; end: number | null }[] = [
 const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const ticketAudioRef = useRef<HTMLAudioElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const ticketRafRef = useRef<number | null>(null);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -134,17 +139,50 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   const [fifteenCount, setFifteenCount] = useState(0);
   const fifteenStarted = useRef(false);
 
-  /* ── AUDIO SETUP (static files) ── */
+  /* ── HIGH-PRECISION TIME SYNC via requestAnimationFrame ── */
+  const startRaf = useCallback(() => {
+    const tick = () => {
+      if (audioRef.current && !audioRef.current.paused) {
+        setCurrentTime(audioRef.current.currentTime);
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const stopRaf = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  const startTicketRaf = useCallback(() => {
+    const tick = () => {
+      if (ticketAudioRef.current && !ticketAudioRef.current.paused) {
+        setTicketTime(ticketAudioRef.current.currentTime);
+      }
+      ticketRafRef.current = requestAnimationFrame(tick);
+    };
+    ticketRafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const stopTicketRaf = useCallback(() => {
+    if (ticketRafRef.current) {
+      cancelAnimationFrame(ticketRafRef.current);
+      ticketRafRef.current = null;
+    }
+  }, []);
+
+  /* ── AUDIO SETUP ── */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onEnded = () => { setAudioEnded(true); setIsPlaying(false); };
+    const onPlay = () => { setIsPlaying(true); startRaf(); };
+    const onPause = () => { setIsPlaying(false); stopRaf(); setCurrentTime(audio.currentTime); };
+    const onEnded = () => { setAudioEnded(true); setIsPlaying(false); stopRaf(); };
 
-    audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
@@ -153,39 +191,38 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     const t = setTimeout(() => audio.play().catch(() => {}), 1000);
 
     return () => {
-      audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
       clearTimeout(t);
+      stopRaf();
     };
-  }, []);
+  }, [startRaf, stopRaf]);
 
   /* ── TICKET AUDIO SETUP ── */
   useEffect(() => {
     const ta = ticketAudioRef.current;
     if (!ta) return;
 
-    const onTimeUpdate = () => setTicketTime(ta.currentTime);
-    const onPlay = () => setTicketPlaying(true);
-    const onPause = () => setTicketPlaying(false);
+    const onPlay = () => { setTicketPlaying(true); startTicketRaf(); };
+    const onPause = () => { setTicketPlaying(false); stopTicketRaf(); };
     const onEnded = () => {
       setTicketPlaying(false);
+      stopTicketRaf();
       setShowTicketContinue(true);
     };
 
-    ta.addEventListener("timeupdate", onTimeUpdate);
     ta.addEventListener("play", onPlay);
     ta.addEventListener("pause", onPause);
     ta.addEventListener("ended", onEnded);
 
     return () => {
-      ta.removeEventListener("timeupdate", onTimeUpdate);
       ta.removeEventListener("play", onPlay);
       ta.removeEventListener("pause", onPause);
       ta.removeEventListener("ended", onEnded);
+      stopTicketRaf();
     };
-  }, []);
+  }, [startTicketRaf, stopTicketRaf]);
 
   /* ── PAUSE at question timestamp ── */
   useEffect(() => {
@@ -200,7 +237,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
         setNudgeVisible(true);
       }, 15000);
 
-      // 30s replay question
+      // 30s replay question audio
       replayTimerRef.current = setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.currentTime = QUESTION_START;
@@ -215,7 +252,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
 
   /* ── +15% count-up on ticket slide ── */
   useEffect(() => {
-    if (currentTime >= 16 && currentTime < 36 && !fifteenStarted.current) {
+    if (currentTime >= 19 && currentTime < 39 && !fifteenStarted.current) {
       fifteenStarted.current = true;
       let n = 0;
       const interval = setInterval(() => {
@@ -251,24 +288,16 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   const ticketSub = getSub(TICKET_SUBS, ticketTime);
   const activeSub = showTicketExplainer ? ticketSub : introSub;
 
-  /* ── Determine current slide ── */
+  /* ── Determine current slide — ALWAYS time-based ── */
   const getSlideId = (): SlideId => {
     if (showTicketExplainer) return "question"; // Path B overlay
     if (audioEnded) return "summary";
     if (showPauseCard) return "question";
-    if (afterQuestion) {
-      if (currentTime >= 59) return "summary";
-      if (currentTime >= 46) return "gmail";
-      return "gmail"; // transitioning
-    }
+    // Use time-based slide routing for ALL states (including afterQuestion)
     for (const s of SLIDE_RANGES) {
-      if (s.end === null) {
-        if (currentTime >= s.start) return s.id;
-      } else {
-        if (currentTime >= s.start && currentTime < s.end) return s.id;
-      }
+      if (currentTime >= s.start && currentTime < s.end) return s.id;
     }
-    return "intro";
+    return "summary";
   };
 
   const slideId = getSlideId();
@@ -285,7 +314,10 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     clearPauseTimers();
     setShowPauseCard(false);
     setAfterQuestion(true);
-    audioRef.current?.play().catch(() => {});
+    // Resume from exactly where we paused — no jumping
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    }
   };
 
   const handleNo = () => {
@@ -302,10 +334,16 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
     setShowTicketExplainer(false);
     setShowTicketContinue(false);
     setVisibleFoods([]);
-    ticketAudioRef.current?.pause();
-    if (ticketAudioRef.current) ticketAudioRef.current.currentTime = 0;
+    // Stop ticket audio cleanly
+    if (ticketAudioRef.current) {
+      ticketAudioRef.current.pause();
+      ticketAudioRef.current.currentTime = 0;
+    }
     setAfterQuestion(true);
-    audioRef.current?.play().catch(() => {});
+    // Resume main audio from where it paused
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    }
   };
 
   const handleScreenTap = (e: React.MouseEvent) => {
@@ -383,7 +421,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
   };
 
   /* ── Progress ── */
-  const duration = audioRef.current?.duration || 82;
+  const duration = audioRef.current?.duration || 90;
   const progress = duration > 0 ? currentTime / duration : 0;
 
   /* ══════════════════════════════════════════════
@@ -449,14 +487,14 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
           ═══════════════════════════════════════════ */}
       <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-6 pt-44">
         <AnimatePresence mode="wait">
-          {/* ── SLIDE: INTRO (0-7s) ── */}
+          {/* ── SLIDE: INTRO ── */}
           {slideId === "intro" && !showTicketExplainer && (
             <motion.div key="intro" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {/* Just photo + waveform above, no extra content */}
             </motion.div>
           )}
 
-          {/* ── SLIDE: WHATSAPP (7-16s) ── */}
+          {/* ── SLIDE: WHATSAPP ── */}
           {slideId === "whatsapp" && !showTicketExplainer && (
             <motion.div key="whatsapp" className="flex flex-col items-center gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <img src={whatsappLogo} alt="WhatsApp" className="w-16 h-16 logo-animate" />
@@ -465,11 +503,19 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
             </motion.div>
           )}
 
-          {/* ── SLIDE: TICKET +15% (16-36s) ── */}
+          {/* ── SLIDE: TICKET +15% ── */}
           {slideId === "ticket" && !showTicketExplainer && !showPauseCard && (
             <motion.div key="ticket" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <p className="big-number">+{fifteenCount}%</p>
               <p className="text-sm text-white/50 mt-1 font-medium">más ingresos por pedido</p>
+            </motion.div>
+          )}
+
+          {/* ── SLIDE: TRANSITION (after question, before gmail) ── */}
+          {slideId === "transition" && !showTicketExplainer && !showPauseCard && (
+            <motion.div key="transition" className="flex flex-col items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <p className="big-number text-5xl">+15%</p>
+              <p className="text-sm text-white/50 mt-1 font-medium">más dinero para el restaurante</p>
             </motion.div>
           )}
 
@@ -522,7 +568,7 @@ const NodeConoceAlicia = ({ onComplete, onClose }: Props) => {
             </motion.div>
           )}
 
-          {/* ── SLIDE: GMAIL (46-59s) ── */}
+          {/* ── SLIDE: GMAIL ── */}
           {slideId === "gmail" && !showTicketExplainer && !showPauseCard && (
             <motion.div key="gmail" className="flex flex-col items-center gap-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="relative flex items-center gap-4">
