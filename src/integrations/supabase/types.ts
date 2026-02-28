@@ -5058,6 +5058,7 @@ export type Database = {
         Row: {
           ciudad: string | null
           codigo_vendedor: string | null
+          correo: string | null
           estado: string
           fecha_certificacion: string | null
           fecha_registro: string
@@ -5068,6 +5069,7 @@ export type Database = {
         Insert: {
           ciudad?: string | null
           codigo_vendedor?: string | null
+          correo?: string | null
           estado?: string
           fecha_certificacion?: string | null
           fecha_registro?: string
@@ -5078,6 +5080,7 @@ export type Database = {
         Update: {
           ciudad?: string | null
           codigo_vendedor?: string | null
+          correo?: string | null
           estado?: string
           fecha_certificacion?: string | null
           fecha_registro?: string
