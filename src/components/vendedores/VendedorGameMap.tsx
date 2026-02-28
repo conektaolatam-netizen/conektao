@@ -29,7 +29,7 @@ const saveProgress = (completed: Set<NodeId>) => {
 
 const NODE_META: { id: NodeId; label: string; subtitle: string }[] = [
   { id: 1, label: "Conoce a Alicia", subtitle: "Tu asistente de ventas con IA" },
-  { id: 2, label: "El Pitch Perfecto", subtitle: "Aprende a presentar Alicia" },
+  { id: 2, label: "Convence en Poco Tiempo", subtitle: "Dos técnicas para cerrar la venta" },
   { id: 3, label: "Vende con Data", subtitle: "Usa datos reales para convencer" },
   { id: 4, label: "La Calculadora", subtitle: "Calcula el ROI del restaurante" },
   { id: 5, label: "Tu Comisión", subtitle: "Cómo ganar dinero vendiendo" },
@@ -37,7 +37,7 @@ const NODE_META: { id: NodeId; label: string; subtitle: string }[] = [
 
 const getPrevNodeName = (id: NodeId): string => {
   if (id === 2 || id === 3) return "Conoce a Alicia";
-  if (id === 4) return "El Pitch Perfecto y Vende con Data";
+  if (id === 4) return "Convence en Poco Tiempo y Vende con Data";
   if (id === 5) return "La Calculadora";
   return "";
 };
@@ -102,10 +102,14 @@ const VendedorGameMap = () => {
       className="fixed inset-0 overflow-y-auto overflow-x-hidden"
       style={{ background: "#000000" }}
     >
-      {/* Background orbs */}
-      <div className="gm-orb gm-orb-1" />
-      <div className="gm-orb gm-orb-2" />
-      <div className="gm-orb gm-orb-3" />
+      {/* Background orbs — mixed orange + turquoise */}
+      <div className="gm-orb gm-orb-a1" />
+      <div className="gm-orb gm-orb-a2" />
+      <div className="gm-orb gm-orb-a3" />
+      <div className="gm-orb gm-orb-a4" />
+      <div className="gm-orb gm-orb-b1" />
+      <div className="gm-orb gm-orb-b2" />
+      <div className="gm-orb gm-orb-b3" />
 
       <div className="relative z-10 max-w-md mx-auto px-5 pt-6 pb-24">
         {/* Header */}
@@ -160,7 +164,7 @@ const VendedorGameMap = () => {
 
             return (
               <React.Fragment key={meta.id}>
-                {/* Dashed connector line (before each node except first) */}
+                {/* Dashed connector line */}
                 {index > 0 && (
                   <div
                     className="w-[2px] h-10"
@@ -185,8 +189,8 @@ const VendedorGameMap = () => {
                     <div
                       className="w-[72px] h-[72px] rounded-full flex items-center justify-center"
                       style={{
-                        background: "radial-gradient(circle at 40% 35%, #F97316, #C2410C)",
-                        boxShadow: "0 0 0 4px rgba(249,115,22,0.3), 0 0 20px rgba(249,115,22,0.4)",
+                        background: "radial-gradient(circle at 40% 35%, #22C55E, #15803D)",
+                        boxShadow: "0 0 0 4px rgba(34,197,94,0.3), 0 0 20px rgba(34,197,94,0.35)",
                       }}
                     >
                       <Check className="w-8 h-8 text-white" strokeWidth={3} />
@@ -198,9 +202,7 @@ const VendedorGameMap = () => {
                         background: "rgba(249,115,22,0.12)",
                         border: "2px solid #F97316",
                       }}
-                      animate={{
-                        scale: [1, 1.04, 1],
-                      }}
+                      animate={{ scale: [1, 1.04, 1] }}
                       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                     >
                       <span className="text-xl font-bold" style={{ color: "#F97316" }}>
@@ -223,7 +225,7 @@ const VendedorGameMap = () => {
                   <div className="text-center max-w-[200px]">
                     {isDone ? (
                       <>
-                        <p className="text-[15px] font-bold" style={{ color: "#F97316" }}>
+                        <p className="text-[15px] font-bold" style={{ color: "#22C55E" }}>
                           {meta.label} ✓
                         </p>
                         <p className="text-xs text-gray-500">{meta.subtitle}</p>
@@ -293,32 +295,62 @@ const VendedorGameMap = () => {
         .gm-orb {
           position: fixed;
           border-radius: 50%;
-          filter: blur(100px);
+          filter: blur(60px);
           pointer-events: none;
           z-index: 0;
         }
-        .gm-orb-1 {
-          width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(249,115,22,0.08), transparent 70%);
-          top: -100px; left: -120px;
-          animation: gmOrb1 20s ease-in-out infinite;
+        /* Orange orbs */
+        .gm-orb-a1 {
+          width: 200px; height: 200px;
+          background: radial-gradient(circle, rgba(249,115,22,0.07), transparent 70%);
+          top: 5%; left: 10%;
+          animation: gmOrbA1 24s ease-in-out infinite;
         }
-        .gm-orb-2 {
-          width: 450px; height: 450px;
-          background: radial-gradient(circle, rgba(249,115,22,0.06), transparent 70%);
-          bottom: -80px; right: -100px;
-          animation: gmOrb2 24s ease-in-out infinite;
+        .gm-orb-a2 {
+          width: 160px; height: 160px;
+          background: radial-gradient(circle, rgba(249,115,22,0.07), transparent 70%);
+          top: 35%; right: 5%;
+          animation: gmOrbA2 20s ease-in-out infinite;
         }
-        .gm-orb-3 {
-          width: 350px; height: 350px;
-          background: radial-gradient(circle, rgba(255,160,60,0.05), transparent 70%);
-          top: 40%; left: 50%;
-          transform: translate(-50%, -50%);
-          animation: gmOrb3 22s ease-in-out infinite;
+        .gm-orb-a3 {
+          width: 120px; height: 120px;
+          background: radial-gradient(circle, rgba(249,115,22,0.07), transparent 70%);
+          bottom: 20%; left: 15%;
+          animation: gmOrbA3 28s ease-in-out infinite;
         }
-        @keyframes gmOrb1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,-25px)} }
-        @keyframes gmOrb2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,20px)} }
-        @keyframes gmOrb3 { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-45%,-55%)} }
+        .gm-orb-a4 {
+          width: 80px; height: 80px;
+          background: radial-gradient(circle, rgba(249,115,22,0.07), transparent 70%);
+          top: 65%; right: 20%;
+          animation: gmOrbA4 22s ease-in-out infinite;
+        }
+        /* Turquoise orbs */
+        .gm-orb-b1 {
+          width: 180px; height: 180px;
+          background: radial-gradient(circle, rgba(20,184,166,0.05), transparent 70%);
+          top: 15%; right: 15%;
+          animation: gmOrbB1 26s ease-in-out infinite;
+        }
+        .gm-orb-b2 {
+          width: 140px; height: 140px;
+          background: radial-gradient(circle, rgba(20,184,166,0.05), transparent 70%);
+          bottom: 35%; left: 5%;
+          animation: gmOrbB2 30s ease-in-out infinite;
+        }
+        .gm-orb-b3 {
+          width: 100px; height: 100px;
+          background: radial-gradient(circle, rgba(20,184,166,0.05), transparent 70%);
+          bottom: 10%; right: 10%;
+          animation: gmOrbB3 23s ease-in-out infinite;
+        }
+
+        @keyframes gmOrbA1 { 0%,100%{transform:translate(0,0)} 33%{transform:translate(30px,20px)} 66%{transform:translate(-15px,10px)} }
+        @keyframes gmOrbA2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-25px,-30px)} }
+        @keyframes gmOrbA3 { 0%,100%{transform:translate(0,0)} 40%{transform:translate(20px,-15px)} 80%{transform:translate(-10px,25px)} }
+        @keyframes gmOrbA4 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-20px,15px)} }
+        @keyframes gmOrbB1 { 0%,100%{transform:translate(0,0)} 35%{transform:translate(-20px,25px)} 70%{transform:translate(15px,-10px)} }
+        @keyframes gmOrbB2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(25px,-20px)} }
+        @keyframes gmOrbB3 { 0%,100%{transform:translate(0,0)} 45%{transform:translate(-15px,-20px)} 85%{transform:translate(10px,15px)} }
 
         .gm-flame-pulse {
           display: inline-block;
