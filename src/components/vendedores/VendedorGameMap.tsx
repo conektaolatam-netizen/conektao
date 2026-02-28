@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Star, Mic, BarChart3, Calculator, DollarSign } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import NodeOverlay from "./NodeOverlay";
 import NodeConoceAlicia from "./nodes/NodeConoceAlicia";
 import NodePitchPerfecto from "./nodes/NodePitchPerfecto";
@@ -27,20 +27,26 @@ const saveProgress = (completed: Set<NodeId>) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...completed]));
 };
 
-const NODE_META: { id: NodeId; label: string; doneLabel: string; emoji: string; icon: React.ElementType }[] = [
-  { id: 1, label: "Conoce a Alicia", doneLabel: "Ya conoces a Alicia 🤖", emoji: "🤖", icon: Star },
-  { id: 2, label: "El Pitch Perfecto", doneLabel: "Dominas el pitch 🎤", emoji: "🎤", icon: Mic },
-  { id: 3, label: "Vende con Data", doneLabel: "Vendes con data 📊", emoji: "📊", icon: BarChart3 },
-  { id: 4, label: "La Calculadora", doneLabel: "Calculas como pro 🧮", emoji: "🧮", icon: Calculator },
-  { id: 5, label: "Tu Comisión", doneLabel: "Listo para ganar 💰", emoji: "💰", icon: DollarSign },
+const NODE_META: { id: NodeId; label: string; subtitle: string }[] = [
+  { id: 1, label: "Conoce a Alicia", subtitle: "Tu asistente de ventas con IA" },
+  { id: 2, label: "El Pitch Perfecto", subtitle: "Aprende a presentar Alicia" },
+  { id: 3, label: "Vende con Data", subtitle: "Usa datos reales para convencer" },
+  { id: 4, label: "La Calculadora", subtitle: "Calcula el ROI del restaurante" },
+  { id: 5, label: "Tu Comisión", subtitle: "Cómo ganar dinero vendiendo" },
 ];
+
+const getPrevNodeName = (id: NodeId): string => {
+  if (id === 2 || id === 3) return "Conoce a Alicia";
+  if (id === 4) return "El Pitch Perfecto y Vende con Data";
+  if (id === 5) return "La Calculadora";
+  return "";
+};
 
 const VendedorGameMap = () => {
   const [completed, setCompleted] = useState<Set<NodeId>>(getProgress);
   const [activeNode, setActiveNode] = useState<NodeId | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [vendedorCount, setVendedorCount] = useState<number | null>(null);
-  const [xpAnimating, setXpAnimating] = useState(false);
 
   useEffect(() => {
     supabase
@@ -60,13 +66,6 @@ const VendedorGameMap = () => {
     [completed]
   );
 
-  const getPrevNodeName = (id: NodeId): string => {
-    if (id === 2 || id === 3) return "Conoce a Alicia";
-    if (id === 4) return "El Pitch Perfecto y Vende con Data";
-    if (id === 5) return "La Calculadora";
-    return "";
-  };
-
   const progressPercent = Math.round((completed.size / 5) * 100);
 
   const completeNode = useCallback(
@@ -77,7 +76,6 @@ const VendedorGameMap = () => {
       saveProgress(next);
       setActiveNode(null);
 
-      // Save to Supabase
       const vendedorId = localStorage.getItem("vendedor_id");
       if (vendedorId) {
         supabase
@@ -87,10 +85,6 @@ const VendedorGameMap = () => {
             if (error) console.error("Progress save error:", error);
           });
       }
-
-      // XP animation
-      setXpAnimating(true);
-      setTimeout(() => setXpAnimating(false), 800);
 
       if (next.size === 5) {
         setTimeout(() => setShowCelebration(true), 600);
@@ -103,156 +97,161 @@ const VendedorGameMap = () => {
     if (isUnlocked(id) && !completed.has(id)) setActiveNode(id);
   };
 
-  const nodePositions: { id: NodeId; x: string; y: number }[] = [
-    { id: 1, x: "50%", y: 0 },
-    { id: 2, x: "28%", y: 1 },
-    { id: 3, x: "72%", y: 1 },
-    { id: 4, x: "50%", y: 2 },
-    { id: 5, x: "50%", y: 3 },
-  ];
-
   return (
-    <div className="max-w-lg mx-auto px-4 pb-20 relative">
-      {/* Floating particles */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 rounded-full bg-orange-400/20 animate-float-particle pointer-events-none"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 600}px`,
-            animationDelay: `${Math.random() * 6}s`,
-            animationDuration: `${4 + Math.random() * 4}s`,
-          }}
-        />
-      ))}
+    <div
+      className="fixed inset-0 overflow-y-auto overflow-x-hidden"
+      style={{ background: "#000000" }}
+    >
+      {/* Background orbs */}
+      <div className="gm-orb gm-orb-1" />
+      <div className="gm-orb gm-orb-2" />
+      <div className="gm-orb gm-orb-3" />
 
-      {/* Header */}
-      <div className="text-center mb-6 animate-fade-in">
-        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">
-          Método Alicia
-        </h1>
-        <p className="text-sm text-gray-400 mb-3">
-          Completa los 5 niveles y recibe tu certificado
-        </p>
+      <div className="relative z-10 max-w-md mx-auto px-5 pt-6 pb-24">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-bold text-white mb-1">Método Alicia</h1>
+          <p className="text-sm text-gray-500 mb-4">
+            Completa los 5 niveles y recibe tu certificado
+          </p>
 
-        {/* XP Progress bar */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex-1 h-4 bg-white/10 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-orange-500 to-yellow-400 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: xpAnimating ? 0.8 : 0.3, ease: "easeOut" }}
-            />
-          </div>
-          <motion.span
-            className="text-sm font-bold text-orange-400 whitespace-nowrap min-w-[40px] text-right"
-            animate={xpAnimating ? { scale: [1, 1.3, 1] } : {}}
-            transition={{ duration: 0.4 }}
-          >
-            {progressPercent}%
-          </motion.span>
-        </div>
-
-        {/* Social counter */}
-        {vendedorCount !== null && (
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <span>🔥</span>
-            <span className="text-xs text-gray-400">
-              <span className="text-orange-400 font-bold">{vendedorCount}</span> vendedores certificados
+          {/* Progress bar */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <motion.div
+                className="h-full rounded-full"
+                style={{
+                  background: "linear-gradient(to right, #F59E0B, #F97316)",
+                  boxShadow: "0 0 12px rgba(249,115,22,0.5)",
+                }}
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              />
+            </div>
+            <span className="text-sm font-bold" style={{ color: "#F97316" }}>
+              {progressPercent}%
             </span>
           </div>
-        )}
-      </div>
 
-      {/* Game Map */}
-      <div className="relative" style={{ height: 560 }}>
-        {/* Path lines */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          viewBox="0 0 400 560"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <line x1="200" y1="55" x2="112" y2="175" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
-          <line x1="200" y1="55" x2="288" y2="175" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
-          <line x1="112" y1="215" x2="200" y2="325" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
-          <line x1="288" y1="215" x2="200" y2="325" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
-          <line x1="200" y1="365" x2="200" y2="455" stroke="#f97316" strokeWidth="2" strokeDasharray="8 6" opacity="0.3" />
-        </svg>
-
-        {nodePositions.map(({ id, x, y: row }) => {
-          const meta = NODE_META.find((n) => n.id === id)!;
-          const isDone = completed.has(id);
-          const unlocked = isUnlocked(id);
-          const Icon = meta.icon;
-          const yPos = 20 + row * 140;
-
-          return (
-            <motion.button
-              key={id}
-              className="absolute flex flex-col items-center gap-1.5 -translate-x-1/2"
-              style={{ left: x, top: yPos }}
-              onClick={() => handleNodeClick(id)}
-              whileTap={unlocked && !isDone ? { scale: 0.95 } : undefined}
-              disabled={!unlocked || isDone}
+          {/* Social counter */}
+          {vendedorCount !== null && (
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
+              style={{
+                background: "rgba(249,115,22,0.06)",
+                border: "1px solid rgba(249,115,22,0.3)",
+              }}
             >
-              <motion.div
-                className={`w-16 h-16 rounded-full flex items-center justify-center border-[3px] transition-all duration-300 ${
-                  isDone
-                    ? "bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]"
-                    : unlocked
-                    ? "bg-orange-500/10 border-orange-500 text-orange-400"
-                    : "bg-white/5 border-white/10 text-gray-600"
-                }`}
-                animate={
-                  unlocked && !isDone
-                    ? {
-                        scale: [1, 1.06, 1],
-                        boxShadow: [
-                          "0 0 0 0 rgba(249,115,22,0.3)",
-                          "0 0 0 12px rgba(249,115,22,0)",
-                          "0 0 0 0 rgba(249,115,22,0.3)",
-                        ],
-                      }
-                    : undefined
-                }
-                transition={
-                  unlocked && !isDone
-                    ? { duration: 2, repeat: Infinity, ease: "easeInOut" }
-                    : undefined
-                }
-              >
-                {isDone ? (
-                  <Check className="w-7 h-7" strokeWidth={3} />
-                ) : unlocked ? (
-                  <span className="text-lg font-bold">{id}</span>
-                ) : (
-                  <Icon className="w-6 h-6 opacity-30 blur-[1px]" />
-                )}
-              </motion.div>
+              <span className="gm-flame-pulse">🔥</span>
+              <span className="text-xs text-white">
+                <span className="font-bold" style={{ color: "#F97316" }}>{vendedorCount}</span>{" "}
+                vendedores certificados
+              </span>
+            </div>
+          )}
+        </div>
 
-              {/* Label */}
-              <div className="text-center max-w-[120px]">
-                {isDone ? (
-                  <span className="text-xs font-semibold text-orange-400 leading-tight block">
-                    {meta.label} ✓
-                    <br />
-                    <span className="text-[10px] text-orange-300/60">{meta.doneLabel}</span>
-                  </span>
-                ) : unlocked ? (
-                  <span className="text-xs font-semibold text-white leading-tight">{meta.label}</span>
-                ) : (
-                  <span className="text-[10px] text-gray-600 leading-tight block">
-                    {meta.label}
-                    <br />
-                    <span className="text-[9px]">Se desbloquea al completar {getPrevNodeName(id)}</span>
-                  </span>
+        {/* Vertical node path */}
+        <div className="flex flex-col items-center gap-0">
+          {NODE_META.map((meta, index) => {
+            const isDone = completed.has(meta.id);
+            const unlocked = isUnlocked(meta.id);
+
+            return (
+              <React.Fragment key={meta.id}>
+                {/* Dashed connector line (before each node except first) */}
+                {index > 0 && (
+                  <div
+                    className="w-[2px] h-10"
+                    style={{
+                      backgroundImage: "linear-gradient(to bottom, rgba(249,115,22,0.4) 50%, transparent 50%)",
+                      backgroundSize: "2px 8px",
+                    }}
+                  />
                 )}
-              </div>
-            </motion.button>
-          );
-        })}
+
+                {/* Node */}
+                <motion.button
+                  className="flex flex-col items-center gap-2 py-2"
+                  onClick={() => handleNodeClick(meta.id)}
+                  whileTap={unlocked && !isDone ? { scale: 1.08 } : undefined}
+                  transition={{ type: "spring", damping: 12, stiffness: 300, duration: 0.2 }}
+                  disabled={!unlocked || isDone}
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  {/* Circle */}
+                  {isDone ? (
+                    <div
+                      className="w-[72px] h-[72px] rounded-full flex items-center justify-center"
+                      style={{
+                        background: "radial-gradient(circle at 40% 35%, #F97316, #C2410C)",
+                        boxShadow: "0 0 0 4px rgba(249,115,22,0.3), 0 0 20px rgba(249,115,22,0.4)",
+                      }}
+                    >
+                      <Check className="w-8 h-8 text-white" strokeWidth={3} />
+                    </div>
+                  ) : unlocked ? (
+                    <motion.div
+                      className="w-[72px] h-[72px] rounded-full flex items-center justify-center"
+                      style={{
+                        background: "rgba(249,115,22,0.12)",
+                        border: "2px solid #F97316",
+                      }}
+                      animate={{
+                        scale: [1, 1.04, 1],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <span className="text-xl font-bold" style={{ color: "#F97316" }}>
+                        {meta.id}
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      <Lock className="w-5 h-5 text-gray-600" />
+                    </div>
+                  )}
+
+                  {/* Label */}
+                  <div className="text-center max-w-[200px]">
+                    {isDone ? (
+                      <>
+                        <p className="text-[15px] font-bold" style={{ color: "#F97316" }}>
+                          {meta.label} ✓
+                        </p>
+                        <p className="text-xs text-gray-500">{meta.subtitle}</p>
+                      </>
+                    ) : unlocked ? (
+                      <>
+                        <p className="text-[15px] font-bold text-white">{meta.label}</p>
+                        <p className="text-xs text-gray-500">{meta.subtitle}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[13px] text-gray-600">{meta.label}</p>
+                        <p className="text-[11px] text-gray-700 italic">
+                          Se desbloquea al completar {getPrevNodeName(meta.id)}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </motion.button>
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        {/* Bottom hint */}
+        <p className="text-center mt-10" style={{ fontSize: 13, color: "#888888" }}>
+          ¿Tienes alguna duda? Escríbele a Alicia por WhatsApp 💬
+        </p>
       </div>
 
       {/* Node Overlays */}
@@ -284,12 +283,52 @@ const VendedorGameMap = () => {
         )}
       </AnimatePresence>
 
-      {/* Completion Celebration */}
       <AnimatePresence>
         {showCelebration && (
           <CompletionCelebration onClose={() => setShowCelebration(false)} />
         )}
       </AnimatePresence>
+
+      <style>{`
+        .gm-orb {
+          position: fixed;
+          border-radius: 50%;
+          filter: blur(100px);
+          pointer-events: none;
+          z-index: 0;
+        }
+        .gm-orb-1 {
+          width: 500px; height: 500px;
+          background: radial-gradient(circle, rgba(249,115,22,0.08), transparent 70%);
+          top: -100px; left: -120px;
+          animation: gmOrb1 20s ease-in-out infinite;
+        }
+        .gm-orb-2 {
+          width: 450px; height: 450px;
+          background: radial-gradient(circle, rgba(249,115,22,0.06), transparent 70%);
+          bottom: -80px; right: -100px;
+          animation: gmOrb2 24s ease-in-out infinite;
+        }
+        .gm-orb-3 {
+          width: 350px; height: 350px;
+          background: radial-gradient(circle, rgba(255,160,60,0.05), transparent 70%);
+          top: 40%; left: 50%;
+          transform: translate(-50%, -50%);
+          animation: gmOrb3 22s ease-in-out infinite;
+        }
+        @keyframes gmOrb1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,-25px)} }
+        @keyframes gmOrb2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,20px)} }
+        @keyframes gmOrb3 { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-45%,-55%)} }
+
+        .gm-flame-pulse {
+          display: inline-block;
+          animation: flamePulse 2s ease-in-out infinite;
+        }
+        @keyframes flamePulse {
+          0%,100% { transform: scale(1); }
+          50% { transform: scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 };
