@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.alicia-tts-ticket]
 verify_jwt = false
+
+[functions.whatsapp-vendedores]
+verify_jwt = false
