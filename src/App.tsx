@@ -34,6 +34,7 @@ const AliciaRegisterPage = lazy(() => import("./pages/AliciaRegisterPage"));
 const AliciaSetupPage = lazy(() => import("./pages/AliciaSetupPage"));
 const AliciaConfigPage = lazy(() => import("./pages/AliciaConfigPage"));
 const VendedoresTraining = lazy(() => import("./pages/VendedoresTraining"));
+const AgenteVendedores = lazy(() => import("./pages/AgenteVendedores"));
 
 const queryClient = getQueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
                     <Route path="/alicia/setup" element={<AliciaSetupPage />} />
                     <Route path="/alicia/config" element={<AliciaConfigPage />} />
                     <Route path="/vendedores" element={<VendedoresTraining />} />
+                    <Route path="/agente-vendedores" element={<AgenteVendedores />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

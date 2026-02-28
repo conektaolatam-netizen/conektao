@@ -5054,6 +5054,39 @@ export type Database = {
         }
         Relationships: []
       }
+      vendedores_agente: {
+        Row: {
+          ciudad: string | null
+          codigo_vendedor: string | null
+          estado: string
+          fecha_certificacion: string | null
+          fecha_registro: string
+          id: string
+          nombre: string
+          whatsapp: string
+        }
+        Insert: {
+          ciudad?: string | null
+          codigo_vendedor?: string | null
+          estado?: string
+          fecha_certificacion?: string | null
+          fecha_registro?: string
+          id?: string
+          nombre: string
+          whatsapp: string
+        }
+        Update: {
+          ciudad?: string | null
+          codigo_vendedor?: string | null
+          estado?: string
+          fecha_certificacion?: string | null
+          fecha_registro?: string
+          id?: string
+          nombre?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       wa_customer_profiles: {
         Row: {
           addresses: Json
