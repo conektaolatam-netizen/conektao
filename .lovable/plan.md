@@ -1,62 +1,66 @@
 
-## Plan: Fix Schedule Validation — Timezone and Decimal Math
+## Plan: Pre-Order Behavior When Restaurant is Closed
 
-### Problem
-Two bugs in `supabase/functions/whatsapp-webhook/index.ts` (lines 720-738):
+### Summary
+When a customer confirms an order outside service hours, the bot will accept and save the order as a **pre-order** but will NOT say it's being prepared or sent to the kitchen. Instead, it will show the restaurant's `pre_order_message` or a dynamic fallback.
 
-1. **Wrong decimal conversion**: `parseFloat("15:40".replace(":", "."))` produces `15.40`, which is NOT 15 hours 40 minutes (should be `15.667`). This means a restaurant set to open at 15:40 actually gets treated as opening at 15:24 (0.40 * 60 = 24 minutes).
+When open, everything stays exactly as it is now.
 
-2. **Timezone leak**: `new Date().getMinutes()` uses server time instead of Colombia time, even though `getColombiaTime()` already provides the correct `minute` value.
+### What Changes (single file)
+**File:** `supabase/functions/whatsapp-webhook/index.ts`
 
-### Scope
-Only lines 720-738 in `supabase/functions/whatsapp-webhook/index.ts`. Nothing else changes.
+### Change 1 — Add `isRestaurantOpen()` helper (near `timeToMinutes`, ~line 80)
 
-### Solution
-
-**Add a helper function** near the top of the file (after `getColombiaTime()`):
+A small reusable function that reads `config.operating_hours` and returns `{ isOpen, preOrderMessage }`:
 
 ```typescript
-function timeToMinutes(timeStr: string): number {
-  const [h, m] = timeStr.split(":").map(Number);
-  return h * 60 + m;
-}
-```
+function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
+  const hours = config?.operating_hours || {};
+  if (!hours.open_time || !hours.close_time) return { isOpen: true, preOrderMessage: "" };
 
-**Replace lines 720-738** with minute-based comparison using only `getColombiaTime()`:
-
-```typescript
-// Schedule
-let scheduleBlock = "";
-if (hours.open_time && hours.close_time) {
   const { hour, minute } = getColombiaTime();
   const currentMinutes = hour * 60 + minute;
   const openMinutes = timeToMinutes(hours.open_time);
   const closeMinutes = timeToMinutes(hours.close_time);
-  const prepStart = hours.preparation_start || hours.open_time;
 
-  if (currentMinutes < openMinutes) {
-    scheduleBlock = `ESTADO: Cerrado. Abrimos a las ${hours.open_time}.`;
-    if (hours.accept_pre_orders) {
-      scheduleBlock += ` Puedes tomar el pedido: "${hours.pre_order_message || `Empezamos a preparar a las ${prepStart}`}"`;
-    }
-  } else if (currentMinutes >= closeMinutes) {
-    scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
-  } else {
-    scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}.`;
-  }
+  const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  const prepStart = hours.preparation_start || hours.open_time;
+  const preOrderMessage = hours.pre_order_message
+    || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
+
+  return { isOpen, preOrderMessage };
 }
 ```
 
-### What is NOT touched
-- Messages, tone, wording (identical output strings)
-- Pre-order logic (`accept_pre_orders`, `pre_order_message`)
-- `may_extend` behavior
-- `peak_hours` logic
-- Packaging, order validation, confirmation flow
-- All other business logic
-- No other files
+### Change 2 — Modify confirmation response (line ~2335-2374)
 
-### Technical details
-- `getColombiaTime()` already exists at line 68 and returns `{ hour, minute, ... }`
-- The `h` variable from the destructured `getColombiaTime()` call at line 660 is still available in scope, but we call `getColombiaTime()` again locally for clarity and to avoid any stale-value risk
-- Minute-based math: `15:40` becomes `940` minutes, compared against current time also in minutes -- no floating point ambiguity
+After `saveOrder()` is called (line 2335), add the `isOpen` check to branch the confirmation message:
+
+- **If open:** Keep the current message exactly as-is:
+  `"Listo, [Name] Pedido confirmado! Ya lo estamos preparando. Pedido enviado a cocina"`
+
+- **If closed:** Replace with a pre-order message:
+  `"Listo, [Name] Pedido recibido! El restaurante abre a las [open_time]. [pre_order_message]. Te avisamos cuando empecemos a prepararlo"`
+
+  Also set `order_status` to `"pre_order"` instead of `"confirmed"` so kitchen doesn't dispatch it.
+
+### Change 3 — Modify idempotent confirmation (line ~2299-2311)
+
+The idempotent duplicate check currently says `"Ya quedo confirmado. Tu pedido esta en preparacion"`. When closed, this should say `"Ya quedo registrado. Te avisamos cuando empecemos a preparar"` instead.
+
+### What is NOT touched
+- `saveOrder()` function (order is still saved to DB in all cases)
+- Packaging logic, price validation, totals
+- Payment logic and proof handling
+- Email dispatch (still sends notification email)
+- System prompt / schedule block (already correct)
+- Menu, AI conversation flow
+- Database schema (no new columns needed -- `order_status` already supports arbitrary strings)
+- Multi-restaurant behavior
+
+### Technical Details
+- `config` object (from `whatsapp_configs`) is already in scope at the confirmation block (line 2070-2081)
+- `config.operating_hours` contains `open_time`, `close_time`, `preparation_start`, `pre_order_message`
+- The helper uses the same minute-based math already established in `timeToMinutes()` and `getColombiaTime()`
+- The `order_status` field will be set to `"pre_order"` for closed-hours orders, which is a new status value but requires no schema change (it's a text field)
+- The `saveOrder` function always runs regardless of open/closed (order is always persisted)
