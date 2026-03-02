@@ -76,6 +76,12 @@ function getColombiaTime() {
   return { hour: h, minute: m, day: d, peak, weekend, decimal: h + m / 60 };
 }
 
+/** Convert "HH:MM" to total minutes for precise schedule comparison */
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+}
+
 // ==================== MEDIA HANDLING ====================
 
 /** Download media from WhatsApp, upload to Supabase Storage, return public URL */
@@ -719,19 +725,19 @@ function buildDynamicPrompt(
 
   // Schedule
   let scheduleBlock = "";
-  const openTime = hours.open_time ? parseFloat(hours.open_time.replace(":", ".")) : null;
-  const closeTime = hours.close_time ? parseFloat(hours.close_time.replace(":", ".")) : null;
-
-  if (openTime !== null && closeTime !== null) {
-    const currentDecimal = h + new Date().getMinutes() / 60;
+  if (hours.open_time && hours.close_time) {
+    const { hour, minute } = getColombiaTime();
+    const currentMinutes = hour * 60 + minute;
+    const openMinutes = timeToMinutes(hours.open_time);
+    const closeMinutes = timeToMinutes(hours.close_time);
     const prepStart = hours.preparation_start || hours.open_time;
 
-    if (currentDecimal < openTime) {
+    if (currentMinutes < openMinutes) {
       scheduleBlock = `ESTADO: Cerrado. Abrimos a las ${hours.open_time}.`;
       if (hours.accept_pre_orders) {
         scheduleBlock += ` Puedes tomar el pedido: "${hours.pre_order_message || `Empezamos a preparar a las ${prepStart}`}"`;
       }
-    } else if (currentDecimal >= closeTime) {
+    } else if (currentMinutes >= closeMinutes) {
       scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
     } else {
       scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}.`;
