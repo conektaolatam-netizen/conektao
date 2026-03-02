@@ -1,53 +1,107 @@
 
 
-## Plan: Fix Packaging Charge Inconsistency
+## Plan: Automated Onboarding Flow for New Conektao Restaurant Clients
 
-### Root Cause
+### Overview
+Create a new `/alicia/onboarding` route with a 7-step wizard that takes a restaurant from zero to a fully configured, active Alicia — no manual Conektao team intervention. The existing `/alicia/registro`, `/alicia/setup`, and `/alicia/config` pages remain untouched.
 
-The packaging validation code (`validateOrder`, lines 1048-1084) is already correct -- it applies packaging based purely on `requires_packaging` from the DB regardless of delivery type.
+Since Meta Tech Provider approval is pending, Steps 3-4 (phone registration) will build the full UI + edge function infrastructure but use a "manual entry" bridge until the Embedded Signup API is connected.
 
-The problem is in the **AI system prompt** that instructs the bot to only include packaging for delivery/takeaway orders. This causes the AI to generate order JSON without `packaging_cost` for non-delivery orders, creating the inconsistency.
+---
 
-Two lines in the system prompt are responsible:
+### Database Changes
 
-1. **Line 654**: `"EMPAQUES: Obligatorios en domicilio/llevar"` -- tells AI packaging is only for delivery/takeaway
-2. **Line 833**: `"EMPAQUES (domicilio/llevar):\n"` -- labels the packaging section as delivery-only
-
-### Changes (single file)
-
-**File:** `supabase/functions/whatsapp-webhook/index.ts`
-
-**Change 1 -- Line 654**: Update the AI instruction from:
+**New table: `onboarding_sessions`** — tracks each restaurant's onboarding progress:
+```sql
+CREATE TABLE public.onboarding_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+  current_step INT DEFAULT 1,
+  business_data JSONB DEFAULT '{}',
+  whatsapp_number TEXT,
+  meta_phone_id TEXT,
+  meta_verified BOOLEAN DEFAULT false,
+  config_data JSONB DEFAULT '{}',
+  menu_data JSONB DEFAULT '[]',
+  status TEXT DEFAULT 'in_progress',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.onboarding_sessions ENABLE ROW LEVEL SECURITY;
+-- Users can only access their own sessions
+CREATE POLICY "Users manage own onboarding" ON public.onboarding_sessions
+  FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 ```
-4. EMPAQUES: Obligatorios en domicilio/llevar
-```
-To:
-```
-4. EMPAQUES: Obligatorios SIEMPRE que el producto lo requiera (según el menú). Aplica para TODOS los tipos de pedido
+
+Add `nit` column to `restaurants` if not present:
+```sql
+ALTER TABLE public.restaurants ADD COLUMN IF NOT EXISTS nit TEXT;
 ```
 
-**Change 2 -- Line 833**: Update the packaging block label from:
+---
+
+### New Files
+
+#### 1. Page: `src/pages/AliciaOnboardingPage.tsx`
+Master orchestrator with 7 steps, progress bar, and session persistence to `onboarding_sessions`. Each step save writes to Supabase before allowing progression.
+
+**Steps:**
+1. **Business Registration** — name, NIT, owner name, WhatsApp number
+2. **WhatsApp Instructions** — explains they must use a clean number, confirmation checkbox
+3. **Meta Phone Registration** — shows instructions to enter Phone Number ID and Access Token manually (infrastructure for future Embedded Signup). Input for 6-digit code (UI ready, currently manual bridge)
+4. **Auto-Configuration** — loading screen that stores credentials in `whatsapp_configs`, generates verify_token, shows success
+5. **Alicia Configuration** — restaurant type, city, hours, delivery zones/costs, payment methods, min order, delivery time, special rules
+6. **Menu Upload + AI Extraction** — multi-image upload → calls existing `menu-onboarding-parse` edge function → review/edit screen → saves to `products` table
+7. **Generate Alicia** — calls existing `generate-alicia` edge function → success screen "Tu Alicia ya está lista"
+
+#### 2. Step Components: `src/components/alicia-onboarding/`
+- `OnboardingStep1Business.tsx` — form: business_name, nit, owner_name, whatsapp_number
+- `OnboardingStep2WhatsAppInstructions.tsx` — instruction screen + checkbox confirmation
+- `OnboardingStep3MetaRegistration.tsx` — manual entry of Phone Number ID + Access Token (future: Embedded Signup popup). OTP input for Meta verification code (UI only for now)
+- `OnboardingStep4AutoConfig.tsx` — animated loading → stores config → success confirmation
+- `OnboardingStep5AliciaConfig.tsx` — questionnaire: food type, city, hours (open/close/prep start), delivery zones, payment methods, min order, delivery time, special rules
+- `OnboardingStep6MenuUpload.tsx` — reuses existing `MenuOnboardingUpload` + `MenuOnboardingReview` components for image upload and AI extraction
+- `OnboardingStep7Generate.tsx` — calls `generate-alicia`, shows animated success
+
+#### 3. Edge Function: `supabase/functions/meta-phone-register/index.ts`
+Stub edge function that will eventually handle Meta Embedded Signup flow. For now:
+- Accepts phone_number_id, access_token from manual input
+- Validates the credentials by calling Meta Graph API `GET /{phone_number_id}` with the token
+- Returns success/failure
+- Future: will handle `requestCode` → `verifyCode` flow
+
+#### 4. Route: Add `/alicia/onboarding` to `App.tsx`
+
+---
+
+### Data Flow
+
+```text
+Step 1 → restaurants (name, nit, owner_id) + profiles (restaurant_id)
+Step 2 → onboarding_sessions.current_step = 3
+Step 3 → onboarding_sessions (meta_phone_id, whatsapp_number)
+Step 4 → whatsapp_configs (phone_number_id, access_token, verify_token, webhook_url, order_email)
+Step 5 → whatsapp_configs (operating_hours, delivery_config, payment_config, etc.)
+Step 6 → categories + products tables (via existing MenuOnboardingFlow logic)
+Step 7 → whatsapp_configs.generated_system_prompt (via generate-alicia function)
 ```
-"EMPAQUES (domicilio/llevar):\n"
-```
-To:
-```
-"EMPAQUES (aplica siempre que el producto lo requiera):\n"
-```
+
+---
 
 ### What is NOT touched
+- Existing Alicia conversation logic in `whatsapp-webhook`
+- AI temperature settings
+- Webhook handling code
+- Existing `/alicia/registro`, `/alicia/setup`, `/alicia/config` pages
+- `generate-alicia` edge function (called as-is)
+- `menu-onboarding-parse` edge function (called as-is)
 
-- `validateOrder()` logic (already correct)
-- `buildPackagingMap()` function
-- `getPackagingCost()` function
-- Delivery type detection (`isDelivery` variable and its usage)
-- Price validation, totals, confirmation flow
-- Kitchen dispatch, pre-order logic
-- Order structure, JSON format
-- Multi-restaurant behavior
-- Database schema
-
-### Why this fixes it
-
-The AI generates the order JSON (including `packaging_cost` per item) based on the system prompt instructions. When the prompt says "packaging only for delivery", the AI omits packaging costs for pickup orders. Even though `validateOrder` catches and corrects this, the AI's summary message to the customer already showed the wrong total without packaging. By updating the prompt, the AI will correctly include packaging for all order types from the start, and `validateOrder` serves as a safety net rather than the primary fix.
+### Technical Notes
+- The Meta Embedded Signup infrastructure is built but uses manual credential entry as a bridge
+- All 7 steps validate inputs before proceeding
+- Session is persisted at every step so users can resume if they leave
+- Progress indicator shows step X of 7 with labels
+- The flow creates the restaurant, profile link, and whatsapp_config records automatically
+- Step 7 calls the existing `generate-alicia` function which builds the full system prompt and activates Alicia
 
