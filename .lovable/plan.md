@@ -1,25 +1,62 @@
 
+## Plan: Fix Schedule Validation — Timezone and Decimal Math
 
-## Plan: Expand Post-Registration Prompt + Send Recovery Message
+### Problem
+Two bugs in `supabase/functions/whatsapp-webhook/index.ts` (lines 720-738):
 
-### File to modify
-`supabase/functions/whatsapp-vendedores/index.ts`
+1. **Wrong decimal conversion**: `parseFloat("15:40".replace(":", "."))` produces `15.40`, which is NOT 15 hours 40 minutes (should be `15.667`). This means a restaurant set to open at 15:40 actually gets treated as opening at 15:24 (0.40 * 60 = 24 minutes).
 
-### Change 1 — Expand system prompt (line 134)
-Replace the closing line `IMPORTANT: After registration...` with the full POST-REGISTRATION PHASE section from the user's request. This adds:
-- **Role 1**: Answer any platform/process question. Never say "no entendí."
-- **Role 2**: Personalized sales coaching for specific restaurant meetings (adapt pitch by restaurant type, owner personality)
-- **Role 3**: Celebrate closes, diagnose rejections with counter-arguments
-- **Explicit prohibitions**: Never "Lo siento, no entendí tu mensaje", never stop conversation, never forget vendor name
-- **Fallback rule**: If unclear message → "Cuéntame más, ¿qué está pasando exactamente?"
-- **Tone shift**: Coach and biggest fan, warmer, more personal, more celebratory
+2. **Timezone leak**: `new Date().getMinutes()` uses server time instead of Colombia time, even though `getColombiaTime()` already provides the correct `minute` value.
 
-### Change 2 — Send recovery message to +573176436656
-After deploying the updated function, use `sendWhatsAppMessage` via the edge function's admin action or direct API call to send:
-"¡Hola de nuevo! Perdona el silencio técnico de hace un momento — ya estoy aquí al 100%. Cuéntame, ¿ya entraste a conektao.com/vendedores para certificarte? ¿O tienes alguna pregunta sobre cómo arrancar? 💪"
+### Scope
+Only lines 720-738 in `supabase/functions/whatsapp-webhook/index.ts`. Nothing else changes.
+
+### Solution
+
+**Add a helper function** near the top of the file (after `getColombiaTime()`):
+
+```typescript
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+}
+```
+
+**Replace lines 720-738** with minute-based comparison using only `getColombiaTime()`:
+
+```typescript
+// Schedule
+let scheduleBlock = "";
+if (hours.open_time && hours.close_time) {
+  const { hour, minute } = getColombiaTime();
+  const currentMinutes = hour * 60 + minute;
+  const openMinutes = timeToMinutes(hours.open_time);
+  const closeMinutes = timeToMinutes(hours.close_time);
+  const prepStart = hours.preparation_start || hours.open_time;
+
+  if (currentMinutes < openMinutes) {
+    scheduleBlock = `ESTADO: Cerrado. Abrimos a las ${hours.open_time}.`;
+    if (hours.accept_pre_orders) {
+      scheduleBlock += ` Puedes tomar el pedido: "${hours.pre_order_message || `Empezamos a preparar a las ${prepStart}`}"`;
+    }
+  } else if (currentMinutes >= closeMinutes) {
+    scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
+  } else {
+    scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}.`;
+  }
+}
+```
 
 ### What is NOT touched
+- Messages, tone, wording (identical output strings)
+- Pre-order logic (`accept_pre_orders`, `pre_order_message`)
+- `may_extend` behavior
+- `peak_hours` logic
+- Packaging, order validation, confirmation flow
+- All other business logic
 - No other files
-- No database changes
-- No other edge functions
 
+### Technical details
+- `getColombiaTime()` already exists at line 68 and returns `{ hour, minute, ... }`
+- The `h` variable from the destructured `getColombiaTime()` call at line 660 is still available in scope, but we call `getColombiaTime()` again locally for clarity and to avoid any stale-value risk
+- Minute-based math: `15:40` becomes `940` minutes, compared against current time also in minutes -- no floating point ambiguity
