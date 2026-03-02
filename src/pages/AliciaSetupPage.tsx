@@ -92,6 +92,8 @@ const AliciaSetupPage = () => {
           setMetaAccessToken(existing.whatsapp_access_token);
         }
       } else {
+        // Generate unique placeholder to avoid unique constraint violation
+        const uniqueId = crypto.randomUUID().slice(0, 8);
         const { data: newConfig, error: cfgErr } = await supabase
           .from("whatsapp_configs")
           .insert([{
@@ -99,9 +101,9 @@ const AliciaSetupPage = () => {
             is_active: false,
             setup_completed: false,
             setup_step: 0,
-            whatsapp_phone_number_id: "pending",
-            whatsapp_access_token: "pending",
-            verify_token: "pending",
+            whatsapp_phone_number_id: `pending_${uniqueId}`,
+            whatsapp_access_token: `pending_${uniqueId}`,
+            verify_token: `pending_${uniqueId}`,
             order_email: user!.email || "",
           }])
           .select()
