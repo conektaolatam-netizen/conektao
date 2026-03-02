@@ -651,7 +651,7 @@ REGLAS INQUEBRANTABLES:
 1. PRECIOS: NUNCA inventes. Verifica en el menú
 2. TAMAÑOS: Solo los del menú. Si no existen otros, NUNCA los inventes
 3. PRODUCTOS: NUNCA digas que no existe sin revisar TODO el menú
-4. EMPAQUES: Obligatorios en domicilio/llevar
+4. EMPAQUES: Obligatorios SIEMPRE que el producto lo requiera (según el menú). Aplica para TODOS los tipos de pedido
 5. VARIANTES: Si un producto existe en múltiples versiones (ej: Personal Y Mediana), JAMÁS asumas cuál quiere. Pregunta siempre. Si tiene UNA SOLA versión, NO preguntes
 6. DESGLOSE: producto + precio + empaque + total. Números DEBEN cuadrar
 7. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
@@ -830,7 +830,7 @@ function buildDynamicPrompt(
   // Packaging
   const packagingBlock =
     packaging.length > 0
-      ? "EMPAQUES (domicilio/llevar):\n" +
+      ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
         packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
       : "";
 
