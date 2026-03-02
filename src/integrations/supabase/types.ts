@@ -2645,6 +2645,62 @@ export type Database = {
           },
         ]
       }
+      onboarding_sessions: {
+        Row: {
+          business_data: Json | null
+          config_data: Json | null
+          created_at: string | null
+          current_step: number | null
+          id: string
+          meta_access_token: string | null
+          meta_phone_id: string | null
+          meta_verified: boolean | null
+          restaurant_id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          business_data?: Json | null
+          config_data?: Json | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          meta_access_token?: string | null
+          meta_phone_id?: string | null
+          meta_verified?: boolean | null
+          restaurant_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          business_data?: Json | null
+          config_data?: Json | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          meta_access_token?: string | null
+          meta_phone_id?: string | null
+          meta_verified?: boolean | null
+          restaurant_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_alerts: {
         Row: {
           alert_type: string

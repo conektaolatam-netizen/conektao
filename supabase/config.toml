@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.registrar-vendedor]
 verify_jwt = false
+
+[functions.meta-phone-register]
+verify_jwt = false
