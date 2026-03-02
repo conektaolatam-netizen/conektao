@@ -11,6 +11,8 @@ const AliciaRegisterPage = () => {
 
   const [form, setForm] = useState({
     name: "",
+    businessName: "",
+    nit: "",
     email: "",
     password: "",
     whatsapp: "",
@@ -35,34 +37,81 @@ const AliciaRegisterPage = () => {
         if (error) throw error;
         navigate("/alicia/setup");
       } else {
-        if (!form.name || !form.email || !form.password || !form.whatsapp) {
-          toast.error("Completa todos los campos");
+        if (!form.name || !form.email || !form.password || !form.whatsapp || !form.businessName) {
+          toast.error("Completa todos los campos obligatorios");
           setLoading(false);
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        // Use register-user edge function (skips email verification)
+        const { data: regData, error: regError } = await supabase.functions.invoke(
+          "register-user",
+          {
+            body: {
+              email: form.email,
+              password: form.password,
+              full_name: form.name,
+              phone: form.whatsapp,
+              account_type: "alicia_saas",
+            },
+          }
+        );
+
+        if (regError) throw new Error(regError.message || "Error al registrar");
+        if (regData?.error) throw new Error(regData.error);
+
+        // Auto-login immediately (no email verification needed)
+        const { error: loginError } = await supabase.auth.signInWithPassword({
           email: form.email,
           password: form.password,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: {
-              full_name: form.name,
-              account_type: "alicia_saas",
-              whatsapp_phone: form.whatsapp,
-              selected_plan: plan,
-            },
-          },
         });
-        if (error) throw error;
+        if (loginError) throw loginError;
 
-        if (data.session) {
-          // Auto-logged in
-          toast.success("¡Cuenta creada! Vamos a configurar tu ALICIA");
-          navigate("/alicia/setup");
-        } else {
-          toast.success("Revisa tu correo para confirmar tu cuenta");
+        // Get user session
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Create restaurant with business name and NIT
+          const { data: newRest, error: restErr } = await supabase
+            .from("restaurants")
+            .insert({
+              owner_id: user.id,
+              name: form.businessName,
+              nit: form.nit || null,
+              whatsapp_number: form.whatsapp,
+            })
+            .select()
+            .single();
+
+          if (restErr) throw restErr;
+
+          // Link profile to restaurant
+          await supabase
+            .from("profiles")
+            .update({
+              restaurant_id: newRest.id,
+              role: "owner" as any,
+            })
+            .eq("id", user.id);
+
+          // Create onboarding session
+          await supabase.from("onboarding_sessions" as any).insert({
+            user_id: user.id,
+            restaurant_id: newRest.id,
+            current_step: 1,
+            business_data: {
+              business_name: form.businessName,
+              nit: form.nit,
+              owner_name: form.name,
+              whatsapp: form.whatsapp,
+            },
+            whatsapp_number: form.whatsapp,
+            status: "in_progress",
+          });
         }
+
+        toast.success("¡Cuenta creada! Vamos a configurar tu ALICIA");
+        navigate("/alicia/setup");
       }
     } catch (err: any) {
       toast.error(err.message || "Error al registrar");
@@ -70,6 +119,9 @@ const AliciaRegisterPage = () => {
       setLoading(false);
     }
   };
+
+  const inputClass =
+    "w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50";
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -98,24 +150,54 @@ const AliciaRegisterPage = () => {
           className="space-y-4 bg-card/50 border border-border/50 backdrop-blur-xl rounded-2xl p-6"
         >
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-foreground/80 mb-1.5">
-                Tu nombre
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Juan Pérez"
-                className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  Nombre del negocio *
+                </label>
+                <input
+                  type="text"
+                  name="businessName"
+                  value={form.businessName}
+                  onChange={handleChange}
+                  placeholder="Pizza Express"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  NIT
+                </label>
+                <input
+                  type="text"
+                  name="nit"
+                  value={form.nit}
+                  onChange={handleChange}
+                  placeholder="900.123.456-7 (opcional)"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  Tu nombre *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Juan Pérez"
+                  className={inputClass}
+                />
+              </div>
+            </>
           )}
 
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1.5">
-              Email
+              Email *
             </label>
             <input
               type="email"
@@ -123,13 +205,13 @@ const AliciaRegisterPage = () => {
               value={form.email}
               onChange={handleChange}
               placeholder="tu@restaurante.com"
-              className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={inputClass}
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1.5">
-              Contraseña
+              Contraseña *
             </label>
             <input
               type="password"
@@ -137,14 +219,14 @@ const AliciaRegisterPage = () => {
               value={form.password}
               onChange={handleChange}
               placeholder="Mínimo 6 caracteres"
-              className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={inputClass}
             />
           </div>
 
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-foreground/80 mb-1.5">
-                WhatsApp del negocio
+                WhatsApp del negocio *
               </label>
               <input
                 type="tel"
@@ -152,7 +234,7 @@ const AliciaRegisterPage = () => {
                 value={form.whatsapp}
                 onChange={handleChange}
                 placeholder="573001234567"
-                className="w-full px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className={inputClass}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Incluye código de país (57 para Colombia)
