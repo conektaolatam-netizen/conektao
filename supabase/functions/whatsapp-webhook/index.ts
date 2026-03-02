@@ -94,8 +94,7 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   const prepStart = hours.preparation_start || hours.open_time;
-  const preOrderMessage = hours.pre_order_message
-    || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
+  const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
 
   return { isOpen, preOrderMessage };
 }
@@ -976,7 +975,7 @@ function buildPackagingMap(products: any[]): Record<string, { requires: boolean;
     if (p.name !== undefined) {
       map[p.name.toLowerCase()] = {
         requires: p.requires_packaging === true,
-        price: (p.packaging_price != null ? Number(p.packaging_price) : 0),
+        price: p.packaging_price != null ? Number(p.packaging_price) : 0,
       };
     }
   }
@@ -993,7 +992,7 @@ function buildPackagingMap(products: any[]): Record<string, { requires: boolean;
 function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packagingPrice?: number): number {
   if (requiresPackaging === false) return 0;
   if (requiresPackaging === true) {
-    return (packagingPrice != null && packagingPrice > 0) ? packagingPrice : 0;
+    return packagingPrice != null && packagingPrice > 0 ? packagingPrice : 0;
   }
   // No DB data available → default 0 (safe fallback)
   return 0;
@@ -1047,7 +1046,8 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     }
 
     // ── PACKAGING: driven exclusively by DB fields requires_packaging + packaging_price ──
-    {  // PACKAGING: always apply based on product config
+    {
+      // PACKAGING: always apply based on product config
       // Look up packaging info from the packaging map (DB source of truth)
       let dbPkgInfo: { requires: boolean; price: number } | undefined = undefined;
       if (bestMatch && packagingMap[bestMatch] !== undefined) {
@@ -2386,7 +2386,7 @@ Deno.serve(async (req) => {
             finalStatus = "confirmed";
           } else {
             const openTime = hours.open_time || "";
-            resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}\n\nTe avisamos cuando empecemos a prepararlo 🙌${paymentInstruction}`;
+            resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}${paymentInstruction}`;
             finalStatus = "pre_order";
           }
 
