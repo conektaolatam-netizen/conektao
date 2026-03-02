@@ -837,7 +837,7 @@ function buildDynamicPrompt(
   // Packaging
   const packagingBlock =
     packaging.length > 0
-      ? "EMPAQUES (domicilio/llevar):\n" +
+      ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
         packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
       : "";
 
