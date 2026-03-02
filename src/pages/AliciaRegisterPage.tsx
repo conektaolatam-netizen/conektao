@@ -114,7 +114,13 @@ const AliciaRegisterPage = () => {
         navigate("/alicia/setup");
       }
     } catch (err: any) {
-      toast.error(err.message || "Error al registrar");
+      const msg = err.message || "Error al registrar";
+      if (msg.toLowerCase().includes("already been registered") || msg.toLowerCase().includes("already registered")) {
+        toast.error("Este email ya está registrado. Intenta iniciar sesión.");
+        setIsLogin(true);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
