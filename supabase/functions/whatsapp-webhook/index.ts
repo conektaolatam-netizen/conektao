@@ -647,16 +647,23 @@ MODIFICACIONES (solo pedidos ya confirmados):
 - CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
 - ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
 
+EMPAQUES:
+- NO decides cuándo aplicar empaques
+- El sistema define qué productos requieren empaque
+- Si el producto incluye packaging_cost en el cálculo, debes incluirlo en el JSON
+- NUNCA elimines packaging_cost si el sistema lo ha incluido
+- NO condiciones el empaque al tipo de pedido
+- Siempre incluye packaging_cost exactamente como corresponde según los datos del producto
+
 REGLAS INQUEBRANTABLES:
 1. PRECIOS: NUNCA inventes. Verifica en el menú
 2. TAMAÑOS: Solo los del menú. Si no existen otros, NUNCA los inventes
 3. PRODUCTOS: NUNCA digas que no existe sin revisar TODO el menú
-4. EMPAQUES: Obligatorios SIEMPRE que el producto lo requiera (según el menú). Aplica para TODOS los tipos de pedido
-5. VARIANTES: Si un producto existe en múltiples versiones (ej: Personal Y Mediana), JAMÁS asumas cuál quiere. Pregunta siempre. Si tiene UNA SOLA versión, NO preguntes
-6. DESGLOSE: producto + precio + empaque + total. Números DEBEN cuadrar
-7. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
-8. FRUSTRACIÓN → pasa al humano
-9. NUNCA muestres JSON al cliente
+4. VARIANTES: Si un producto existe en múltiples versiones (ej: Personal Y Mediana), JAMÁS asumas cuál quiere. Pregunta siempre. Si tiene UNA SOLA versión, NO preguntes
+5. DESGLOSE: producto + precio + empaque + total. Números DEBEN cuadrar
+6. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
+7. FRUSTRACIÓN → pasa al humano
+8. NUNCA muestres JSON al cliente
 RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.
 
 === FIN CORE ===`;
@@ -830,7 +837,7 @@ function buildDynamicPrompt(
   // Packaging
   const packagingBlock =
     packaging.length > 0
-      ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
+      ? "EMPAQUES (domicilio/llevar):\n" +
         packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
       : "";
 
