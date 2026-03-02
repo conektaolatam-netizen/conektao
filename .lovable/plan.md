@@ -1,66 +1,53 @@
 
-## Plan: Pre-Order Behavior When Restaurant is Closed
 
-### Summary
-When a customer confirms an order outside service hours, the bot will accept and save the order as a **pre-order** but will NOT say it's being prepared or sent to the kitchen. Instead, it will show the restaurant's `pre_order_message` or a dynamic fallback.
+## Plan: Fix Packaging Charge Inconsistency
 
-When open, everything stays exactly as it is now.
+### Root Cause
 
-### What Changes (single file)
+The packaging validation code (`validateOrder`, lines 1048-1084) is already correct -- it applies packaging based purely on `requires_packaging` from the DB regardless of delivery type.
+
+The problem is in the **AI system prompt** that instructs the bot to only include packaging for delivery/takeaway orders. This causes the AI to generate order JSON without `packaging_cost` for non-delivery orders, creating the inconsistency.
+
+Two lines in the system prompt are responsible:
+
+1. **Line 654**: `"EMPAQUES: Obligatorios en domicilio/llevar"` -- tells AI packaging is only for delivery/takeaway
+2. **Line 833**: `"EMPAQUES (domicilio/llevar):\n"` -- labels the packaging section as delivery-only
+
+### Changes (single file)
+
 **File:** `supabase/functions/whatsapp-webhook/index.ts`
 
-### Change 1 — Add `isRestaurantOpen()` helper (near `timeToMinutes`, ~line 80)
-
-A small reusable function that reads `config.operating_hours` and returns `{ isOpen, preOrderMessage }`:
-
-```typescript
-function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
-  const hours = config?.operating_hours || {};
-  if (!hours.open_time || !hours.close_time) return { isOpen: true, preOrderMessage: "" };
-
-  const { hour, minute } = getColombiaTime();
-  const currentMinutes = hour * 60 + minute;
-  const openMinutes = timeToMinutes(hours.open_time);
-  const closeMinutes = timeToMinutes(hours.close_time);
-
-  const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  const prepStart = hours.preparation_start || hours.open_time;
-  const preOrderMessage = hours.pre_order_message
-    || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
-
-  return { isOpen, preOrderMessage };
-}
+**Change 1 -- Line 654**: Update the AI instruction from:
+```
+4. EMPAQUES: Obligatorios en domicilio/llevar
+```
+To:
+```
+4. EMPAQUES: Obligatorios SIEMPRE que el producto lo requiera (según el menú). Aplica para TODOS los tipos de pedido
 ```
 
-### Change 2 — Modify confirmation response (line ~2335-2374)
-
-After `saveOrder()` is called (line 2335), add the `isOpen` check to branch the confirmation message:
-
-- **If open:** Keep the current message exactly as-is:
-  `"Listo, [Name] Pedido confirmado! Ya lo estamos preparando. Pedido enviado a cocina"`
-
-- **If closed:** Replace with a pre-order message:
-  `"Listo, [Name] Pedido recibido! El restaurante abre a las [open_time]. [pre_order_message]. Te avisamos cuando empecemos a prepararlo"`
-
-  Also set `order_status` to `"pre_order"` instead of `"confirmed"` so kitchen doesn't dispatch it.
-
-### Change 3 — Modify idempotent confirmation (line ~2299-2311)
-
-The idempotent duplicate check currently says `"Ya quedo confirmado. Tu pedido esta en preparacion"`. When closed, this should say `"Ya quedo registrado. Te avisamos cuando empecemos a preparar"` instead.
+**Change 2 -- Line 833**: Update the packaging block label from:
+```
+"EMPAQUES (domicilio/llevar):\n"
+```
+To:
+```
+"EMPAQUES (aplica siempre que el producto lo requiera):\n"
+```
 
 ### What is NOT touched
-- `saveOrder()` function (order is still saved to DB in all cases)
-- Packaging logic, price validation, totals
-- Payment logic and proof handling
-- Email dispatch (still sends notification email)
-- System prompt / schedule block (already correct)
-- Menu, AI conversation flow
-- Database schema (no new columns needed -- `order_status` already supports arbitrary strings)
-- Multi-restaurant behavior
 
-### Technical Details
-- `config` object (from `whatsapp_configs`) is already in scope at the confirmation block (line 2070-2081)
-- `config.operating_hours` contains `open_time`, `close_time`, `preparation_start`, `pre_order_message`
-- The helper uses the same minute-based math already established in `timeToMinutes()` and `getColombiaTime()`
-- The `order_status` field will be set to `"pre_order"` for closed-hours orders, which is a new status value but requires no schema change (it's a text field)
-- The `saveOrder` function always runs regardless of open/closed (order is always persisted)
+- `validateOrder()` logic (already correct)
+- `buildPackagingMap()` function
+- `getPackagingCost()` function
+- Delivery type detection (`isDelivery` variable and its usage)
+- Price validation, totals, confirmation flow
+- Kitchen dispatch, pre-order logic
+- Order structure, JSON format
+- Multi-restaurant behavior
+- Database schema
+
+### Why this fixes it
+
+The AI generates the order JSON (including `packaging_cost` per item) based on the system prompt instructions. When the prompt says "packaging only for delivery", the AI omits packaging costs for pickup orders. Even though `validateOrder` catches and corrects this, the AI's summary message to the customer already showed the wrong total without packaging. By updating the prompt, the AI will correctly include packaging for all order types from the start, and `validateOrder` serves as a safety net rather than the primary fix.
+
