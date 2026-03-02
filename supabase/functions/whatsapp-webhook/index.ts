@@ -82,6 +82,24 @@ function timeToMinutes(timeStr: string): number {
   return h * 60 + m;
 }
 
+/** Check if the restaurant is currently within service hours */
+function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
+  const hours = config?.operating_hours || {};
+  if (!hours.open_time || !hours.close_time) return { isOpen: true, preOrderMessage: "" };
+
+  const { hour, minute } = getColombiaTime();
+  const currentMinutes = hour * 60 + minute;
+  const openMinutes = timeToMinutes(hours.open_time);
+  const closeMinutes = timeToMinutes(hours.close_time);
+
+  const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  const prepStart = hours.preparation_start || hours.open_time;
+  const preOrderMessage = hours.pre_order_message
+    || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
+
+  return { isOpen, preOrderMessage };
+}
+
 // ==================== MEDIA HANDLING ====================
 
 /** Download media from WhatsApp, upload to Supabase Storage, return public URL */
@@ -2298,11 +2316,15 @@ Deno.serve(async (req) => {
 
           if (existingEvent) {
             console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
-            const resp = "Ya quedó confirmado ✅ Tu pedido está en preparación";
+            const { isOpen: idempOpen } = isRestaurantOpen(config);
+            const resp = idempOpen
+              ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
+              : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
+            const idempStatus = idempOpen ? "confirmed" : "pre_order";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
             await supabase
               .from("whatsapp_conversations")
-              .update({ messages: convMsgs.slice(-30), order_status: "confirmed", pending_since: null })
+              .update({ messages: convMsgs.slice(-30), order_status: idempStatus, pending_since: null })
               .eq("id", conv.id);
             await sendWA(pid, token, from, resp, true);
             return new Response(JSON.stringify({ status: "confirmed_idempotent" }), {
@@ -2351,7 +2373,22 @@ Deno.serve(async (req) => {
             }
           }
           const nameGreeting = customerName ? `, ${customerName}` : "";
-          const resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
+
+          // Check if restaurant is currently open
+          const { isOpen, preOrderMessage } = isRestaurantOpen(config);
+          const hours = config?.operating_hours || {};
+
+          let resp: string;
+          let finalStatus: string;
+
+          if (isOpen) {
+            resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
+            finalStatus = "confirmed";
+          } else {
+            const openTime = hours.open_time || "";
+            resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}\n\nTe avisamos cuando empecemos a prepararlo 🙌${paymentInstruction}`;
+            finalStatus = "pre_order";
+          }
 
           // Save assistant message + final redundant state update
           convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
@@ -2360,13 +2397,13 @@ Deno.serve(async (req) => {
             .from("whatsapp_conversations")
             .update({
               messages: convMsgs.slice(-30),
-              order_status: "confirmed",
+              order_status: finalStatus,
               current_order: validated.order,
               pending_since: null,
             })
             .eq("id", conv.id);
 
-          console.log(`FINAL_STATE { conv_id: "${conv.id}", status: "confirmed", phone: "${from}" }`);
+          console.log(`FINAL_STATE { conv_id: "${conv.id}", status: "${finalStatus}", phone: "${from}" }`);
 
           await sendWA(pid, token, from, resp, true);
           return new Response(JSON.stringify({ status: "confirmed_via_backend" }), {
