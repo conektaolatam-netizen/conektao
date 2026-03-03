@@ -1,80 +1,74 @@
 
 
-## Plan: Complete Automated Onboarding Flow
+## Plan: Safe Refactor — Operating Hours JSON Structure
 
-### Summary
-Overhaul `/alicia/registro` to add NIT + business name fields and use the `register-user` edge function (which already skips email verification). Then restructure `/alicia/setup` into a new 7-step flow that includes WhatsApp instructions, Meta phone setup (manual bridge), Alicia configuration, AI menu upload, and prompt generation. No new routes needed — we enhance the existing two pages.
+### Changes (5 surgical edits, no other logic touched)
 
-### Database Changes
-
-**New table: `onboarding_sessions`**
-```sql
-CREATE TABLE public.onboarding_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
-  current_step INT DEFAULT 1,
-  business_data JSONB DEFAULT '{}',
-  whatsapp_number TEXT,
-  meta_phone_id TEXT,
-  meta_access_token TEXT,
-  meta_verified BOOLEAN DEFAULT false,
-  config_data JSONB DEFAULT '{}',
-  status TEXT DEFAULT 'in_progress',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.onboarding_sessions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own onboarding" ON public.onboarding_sessions
-  FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+#### 1. Top-level constant (line ~55 area)
+Add `FINAL_ORDER_STATUSES` constant at the top of the file:
+```ts
+const FINAL_ORDER_STATUSES = ["confirmed", "emailed", "sent"];
 ```
 
-### File Changes
+#### 2. `getColombiaTime()` (lines 64-77) — Structured peak hours
+Remove the hardcoded `(d === 5 || d === 6) && h >= 18 && h <= 22` peak logic. Instead, return only `hour, minute, day, weekend, decimal` — no more `peak` in the return value. Add a new helper function `isPeakNow(hours: any)` that reads `peak_days`, `peak_hour_start`, `peak_hour_end` from the operating_hours object:
+- Maps day names ("Lunes"→1, "Martes"→2, … "Domingo"→0) to JS day numbers
+- Parses `peak_hour_start`/`peak_hour_end` (e.g. "6PM" → 18, "10PM" → 22)
+- Falls back to `peak = false` with a warning log if fields are missing/invalid
 
-#### 1. `src/pages/AliciaRegisterPage.tsx` — Enhanced registration
-- Add `business_name` and `nit` fields to the form
-- Use `register-user` edge function (already creates confirmed accounts, no email verification)
-- After successful registration + auto-login, navigate to `/alicia/setup`
-- Pass `business_name`, `nit`, `whatsapp` as user metadata
+#### 3. `isRestaurantOpen()` (lines 86-100) — Safety fallback
+Change the missing-config fallback from `{ isOpen: true }` to `{ isOpen: false }` with a console error log. No other logic changes — open/close comparison stays identical.
 
-#### 2. `src/pages/AliciaSetupPage.tsx` — Restructured 7-step wizard
-Replace the current 7 setup steps with the new flow:
+#### 4. `buildDynamicPrompt()` schedule block (lines 749-767)
+Replace references to `hours.schedule` (if any exist — currently it uses `open_time`/`close_time` directly, so this is already correct). The `scheduleBlock` construction remains unchanged since it already reads `open_time` and `close_time`. The `peak` boolean passed into this function will now come from `isPeakNow()` instead of `getColombiaTime()`.
 
-| Step | Label | Component | Persists to |
-|------|-------|-----------|-------------|
-| 1 | WhatsApp | `OnboardingStepWhatsApp` — Instructions screen + checkbox | `onboarding_sessions` |
-| 2 | Meta | `OnboardingStepMeta` — Manual Phone Number ID + Access Token entry | `onboarding_sessions` + `whatsapp_configs` |
-| 3 | Auto-Config | `OnboardingStepAutoConfig` — Loading animation → stores config → success | `whatsapp_configs` (verify_token, webhook_url) |
-| 4 | Restaurante | `OnboardingStepConfig` — Type of food, city, hours, delivery, payments, min order, delivery time, special rules (combined questionnaire) | `whatsapp_configs` JSONB fields |
-| 5 | Menú | `OnboardingStepMenu` — Reuses existing `MenuOnboardingUpload` + `MenuOnboardingReview` for AI extraction | `categories` + `products` |
-| 6 | Personalidad | Existing `Step6Personality` (tone, escalation, custom rules) | `whatsapp_configs` |
-| 7 | Crear Alicia | `OnboardingStepGenerate` — Calls `generate-alicia` → success screen | `whatsapp_configs.generated_system_prompt` |
+#### 5. `getConversation()` (line 355) — Use constant
+Replace `const closedStatuses = ["confirmed", "emailed", "sent"]` with `FINAL_ORDER_STATUSES`.
 
-#### 3. New step components in `src/components/alicia-onboarding/`
+#### 6. All call sites of `getColombiaTime()` that destructure `peak`
+Update to call `isPeakNow(config?.operating_hours)` separately. The main call site is around line 689 where `peak` is destructured — it will instead call `const peak = isPeakNow(config?.operating_hours || {})`.
 
-- **`OnboardingStepWhatsApp.tsx`** — Clear instructions (delete WhatsApp or use new SIM), confirmation checkbox required before "Continuar"
-- **`OnboardingStepMeta.tsx`** — Input fields for Phone Number ID and Permanent Access Token (manual bridge until Embedded Signup is approved). Validates by calling Meta Graph API
-- **`OnboardingStepAutoConfig.tsx`** — Animated loading screen that writes phone_number_id, access_token, generates verify_token, sets webhook_url to Supabase function URL. Shows success confirmation
-- **`OnboardingStepConfig.tsx`** — Combined questionnaire: food type, city/neighborhood, delivery hours (open/close/prep), delivery zones + costs, payment methods, minimum order, estimated delivery time, special rules. All saved to `whatsapp_configs` JSONB fields
-- **`OnboardingStepMenu.tsx`** — Wraps existing `MenuOnboardingUpload` + `MenuOnboardingReview` components. Multi-image upload → Gemini extraction → review/edit → save to DB
-- **`OnboardingStepGenerate.tsx`** — "Crear mi Alicia" button → calls `generate-alicia` edge function → animated success: "Tu Alicia ya está lista y funcionando"
+### What is NOT modified
+- Financial/totals logic
+- Packaging logic
+- Order flow / saveOrder / validateOrder
+- AI prompt structure (only the schedule status text, unchanged)
+- Database schema
+- Multi-tenant behavior
+- Conversation handling
+- Pre-order logic (unchanged, still uses `open_time`/`close_time`)
 
-#### 4. Edge function: `supabase/functions/meta-phone-register/index.ts`
-- Accepts `phone_number_id` and `access_token`
-- Validates credentials by calling `GET https://graph.facebook.com/v22.0/{phone_number_id}` with the token
-- Returns success/failure + phone display name
-- Future: will handle Embedded Signup flow
+### New helper: `isPeakNow(hours)`
+```ts
+function isPeakNow(hours: any): boolean {
+  try {
+    const { peak_days, peak_hour_start, peak_hour_end } = hours || {};
+    if (!peak_days?.length || !peak_hour_start || !peak_hour_end) return false;
+    const dayMap: Record<string, number> = {
+      domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
+      jueves: 4, viernes: 5, sabado: 6, sábado: 6,
+    };
+    const { day, hour } = getColombiaTime();
+    const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
+    if (!isDay) return false;
+    const parseH = (s: string) => {
+      const m = s.match(/(\d+)\s*(AM|PM)?/i);
+      if (!m) return -1;
+      let h = parseInt(m[1]);
+      if (m[2]?.toUpperCase() === "PM" && h < 12) h += 12;
+      if (m[2]?.toUpperCase() === "AM" && h === 12) h = 0;
+      return h;
+    };
+    const start = parseH(peak_hour_start);
+    const end = parseH(peak_hour_end);
+    if (start < 0 || end < 0) return false;
+    return hour >= start && hour <= end;
+  } catch (e) {
+    console.warn("⚠️ isPeakNow failed, defaulting to false:", e);
+    return false;
+  }
+}
+```
 
-#### 5. `supabase/config.toml` — Add meta-phone-register function entry
-
-### What is NOT touched
-- `whatsapp-webhook` (conversation logic, AI temperature)
-- `generate-alicia` edge function (called as-is)
-- `menu-onboarding-parse` edge function (called as-is)
-- `/alicia/config` page
-- `/alicia-dashboard` page
-- Any existing webhook handling
-
-### Registration flow detail
-The `register-user` edge function already uses `email_confirm: true` in `createUser()`, meaning accounts are created pre-confirmed with no email verification. The registration page will call this function directly, then auto-login with `signInWithPassword`, and redirect to `/alicia/setup`. The restaurant + profile records are created by the edge function + the setup page's `loadOrCreateConfig`.
+This produces identical behavior for `peak_days: ["Viernes","Sabado"], peak_hour_start: "6PM", peak_hour_end: "10PM"` as the old `(d===5||d===6) && h>=18 && h<=22`.
 
