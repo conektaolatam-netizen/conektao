@@ -109,7 +109,7 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   const personality = config.personality_rules || {};
   const delivery = config.delivery_config || {};
   const payment = config.payment_config || {};
-  const packaging = config.packaging_rules || [];
+  // packaging_rules removed — packaging context now built dynamically from products
   const hours = config.operating_hours || {};
   const times = config.time_estimates || {};
   const escalation = config.escalation_config || {};
@@ -194,9 +194,11 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   if (payment.require_proof) paymentBlock += " Pedir foto del comprobante.";
   paymentBlock += "\nDATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → responde: 'No siempre podemos llevar datáfono, te confirmo disponibilidad'.";
 
-  // Packaging
-  const packagingBlock = packaging.length > 0
-    ? "EMPAQUES (domicilio/llevar):\n" + packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
+  // Packaging — built dynamically from products table (single source of truth)
+  const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
+  const packagingBlock = packagingProducts.length > 0
+    ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
+      packagingProducts.map((p: any) => `- ${p.name}: +$${Number(p.packaging_price).toLocaleString("es-CO")}`).join("\n")
     : "";
 
   // Times
@@ -332,7 +334,7 @@ Deno.serve(async (req) => {
       categories_count: config.menu_data?.length || 0,
       has_delivery: !!(config.delivery_config?.enabled),
       has_payments: !!(config.payment_config?.methods?.length),
-      has_packaging: !!(config.packaging_rules?.length),
+      has_packaging: !!(products?.some((p: any) => p.requires_packaging)),
       has_schedule: !!(config.operating_hours?.open_time),
       has_custom_rules: !!(config.custom_rules?.length),
       generated_at: new Date().toISOString(),

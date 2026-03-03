@@ -5193,7 +5193,6 @@ export type Database = {
           menu_link: string | null
           operating_hours: Json | null
           order_email: string
-          packaging_rules: Json | null
           payment_config: Json | null
           personality_rules: Json | null
           promoted_products: string[] | null
@@ -5230,7 +5229,6 @@ export type Database = {
           menu_link?: string | null
           operating_hours?: Json | null
           order_email: string
-          packaging_rules?: Json | null
           payment_config?: Json | null
           personality_rules?: Json | null
           promoted_products?: string[] | null
@@ -5267,7 +5265,6 @@ export type Database = {
           menu_link?: string | null
           operating_hours?: Json | null
           order_email?: string
-          packaging_rules?: Json | null
           payment_config?: Json | null
           personality_rules?: Json | null
           promoted_products?: string[] | null
