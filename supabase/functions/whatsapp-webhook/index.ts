@@ -50,6 +50,9 @@ setInterval(() => {
   }
 }, 5 * 60_000);
 
+// ==================== CONSTANTS ====================
+const FINAL_ORDER_STATUSES = ["confirmed", "emailed", "sent"];
+
 // ==================== UTILITY FUNCTIONS ====================
 
 function sleep(ms: number): Promise<void> {
@@ -71,9 +74,38 @@ function getColombiaTime() {
   const h = co.getHours();
   const m = co.getMinutes();
   const d = co.getDay();
-  const peak = (d === 5 || d === 6) && h >= 18 && h <= 22;
   const weekend = d === 5 || d === 6;
-  return { hour: h, minute: m, day: d, peak, weekend, decimal: h + m / 60 };
+  return { hour: h, minute: m, day: d, weekend, decimal: h + m / 60 };
+}
+
+/** Check if current time is within peak hours using structured config */
+function isPeakNow(hours: any): boolean {
+  try {
+    const { peak_days, peak_hour_start, peak_hour_end } = hours || {};
+    if (!peak_days?.length || !peak_hour_start || !peak_hour_end) return false;
+    const dayMap: Record<string, number> = {
+      domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
+      jueves: 4, viernes: 5, sabado: 6, sábado: 6,
+    };
+    const { day, hour } = getColombiaTime();
+    const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
+    if (!isDay) return false;
+    const parseH = (s: string) => {
+      const m = s.match(/(\d+)\s*(AM|PM)?/i);
+      if (!m) return -1;
+      let h = parseInt(m[1]);
+      if (m[2]?.toUpperCase() === "PM" && h < 12) h += 12;
+      if (m[2]?.toUpperCase() === "AM" && h === 12) h = 0;
+      return h;
+    };
+    const start = parseH(peak_hour_start);
+    const end = parseH(peak_hour_end);
+    if (start < 0 || end < 0) return false;
+    return hour >= start && hour <= end;
+  } catch (e) {
+    console.warn("⚠️ isPeakNow failed, defaulting to false:", e);
+    return false;
+  }
 }
 
 /** Convert "HH:MM" to total minutes for precise schedule comparison */
@@ -85,7 +117,10 @@ function timeToMinutes(timeStr: string): number {
 /** Check if the restaurant is currently within service hours */
 function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
   const hours = config?.operating_hours || {};
-  if (!hours.open_time || !hours.close_time) return { isOpen: true, preOrderMessage: "" };
+  if (!hours.open_time || !hours.close_time) {
+    console.error("⚠️ isRestaurantOpen: missing open_time or close_time, defaulting to CLOSED");
+    return { isOpen: false, preOrderMessage: "" };
+  }
 
   const { hour, minute } = getColombiaTime();
   const currentMinutes = hour * 60 + minute;
@@ -352,8 +387,7 @@ async function getConversation(rid: string, phone: string) {
 
   if (ex) {
     // Pedido anterior ya cerrado → resetear para permitir nuevo pedido independiente
-    const closedStatuses = ["confirmed", "emailed", "sent"];
-    if (closedStatuses.includes(ex.order_status)) {
+    if (FINAL_ORDER_STATUSES.includes(ex.order_status)) {
       const { data: reset } = await supabase
         .from("whatsapp_conversations")
         .update({
@@ -686,7 +720,8 @@ function buildPrompt(
     ctx += `\nTiempo desde confirmación: ${minutesSince} minutos`;
   }
 
-  const { hour: h, day: d, peak, weekend: we } = getColombiaTime();
+  const { hour: h, day: d, weekend: we } = getColombiaTime();
+  const peak = isPeakNow(config?.operating_hours || {});
 
   // All businesses use Core + Dynamic — no more hardcoded La Barra special case
   if (config?.setup_completed && config?.restaurant_name) {
