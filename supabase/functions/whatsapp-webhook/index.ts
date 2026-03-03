@@ -771,7 +771,7 @@ function buildDynamicPrompt(
   const personality = config.personality_rules || {};
   const delivery = config.delivery_config || {};
   const payment = config.payment_config || {};
-  const packaging = config.packaging_rules || [];
+  // packaging_rules removed — packaging context now built dynamically from products
   const hours = config.operating_hours || {};
   const times = config.time_estimates || {};
   const escalation = config.escalation_config || {};
@@ -868,12 +868,12 @@ function buildDynamicPrompt(
   paymentBlock +=
     "\nDATÁFONO: NO lo ofrezcas proactivamente. Si el cliente lo pide → responde: 'No siempre podemos llevar datáfono, te confirmo disponibilidad'. NUNCA confirmes datáfono sin validación.";
 
-  // Packaging
-  const packagingBlock =
-    packaging.length > 0
-      ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
-        packaging.map((p: any) => `- ${p.type}: +$${(p.cost || 0).toLocaleString("es-CO")}`).join("\n")
-      : "";
+  // Packaging — built dynamically from products table (single source of truth)
+  const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
+  const packagingBlock = packagingProducts.length > 0
+    ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
+      packagingProducts.map((p: any) => `- ${p.name}: +$${Number(p.packaging_price).toLocaleString("es-CO")}`).join("\n")
+    : "";
 
   // Time estimates
   const timeBlock = times.weekday
@@ -2614,7 +2614,7 @@ Deno.serve(async (req) => {
         restProfileIds.length > 0
           ? await supabase
               .from("products")
-              .select("id, name, price, description, category_id, requires_packaging, portions, categories(name)")
+              .select("id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)")
               .in("user_id", restProfileIds)
               .eq("is_active", true)
               .order("name")
