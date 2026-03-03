@@ -87,21 +87,21 @@ function isPeakNow(hours: any): boolean {
       domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
       jueves: 4, viernes: 5, sabado: 6, sábado: 6,
     };
-    const { day, hour } = getColombiaTime();
+    const { day, hour, minute } = getColombiaTime();
     const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
     if (!isDay) return false;
-    const parseH = (s: string) => {
-      const m = s.match(/(\d+)\s*(AM|PM)?/i);
-      if (!m) return -1;
-      let h = parseInt(m[1]);
-      if (m[2]?.toUpperCase() === "PM" && h < 12) h += 12;
-      if (m[2]?.toUpperCase() === "AM" && h === 12) h = 0;
-      return h;
+    const parse24 = (s: string): number => {
+      const parts = s.split(":");
+      const h = parseInt(parts[0]);
+      const m = parts.length > 1 ? parseInt(parts[1]) : 0;
+      if (isNaN(h) || isNaN(m)) return -1;
+      return h * 60 + m;
     };
-    const start = parseH(peak_hour_start);
-    const end = parseH(peak_hour_end);
+    const start = parse24(peak_hour_start);
+    const end = parse24(peak_hour_end);
     if (start < 0 || end < 0) return false;
-    return hour >= start && hour <= end;
+    const now = hour * 60 + minute;
+    return now >= start && now <= end;
   } catch (e) {
     console.warn("⚠️ isPeakNow failed, defaulting to false:", e);
     return false;
