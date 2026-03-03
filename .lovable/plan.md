@@ -1,44 +1,18 @@
 
 
-## Plan: Safe Refactor — Operating Hours JSON Structure
+## Plan: Update isPeakNow to 24-Hour Format + Optional Peak Logic
 
-### Changes (5 surgical edits, no other logic touched)
+### Single surgical edit — `isPeakNow()` function (lines 82-109)
 
-#### 1. Top-level constant (line ~55 area)
-Add `FINAL_ORDER_STATUSES` constant at the top of the file:
-```ts
-const FINAL_ORDER_STATUSES = ["confirmed", "emailed", "sent"];
-```
+Replace the AM/PM parsing logic with simple 24-hour `"HH:mm"` parsing. The function already handles missing fields correctly (line 85 returns `false`), which satisfies the "optional peak" requirement.
 
-#### 2. `getColombiaTime()` (lines 64-77) — Structured peak hours
-Remove the hardcoded `(d === 5 || d === 6) && h >= 18 && h <= 22` peak logic. Instead, return only `hour, minute, day, weekend, decimal` — no more `peak` in the return value. Add a new helper function `isPeakNow(hours: any)` that reads `peak_days`, `peak_hour_start`, `peak_hour_end` from the operating_hours object:
-- Maps day names ("Lunes"→1, "Martes"→2, … "Domingo"→0) to JS day numbers
-- Parses `peak_hour_start`/`peak_hour_end` (e.g. "6PM" → 18, "10PM" → 22)
-- Falls back to `peak = false` with a warning log if fields are missing/invalid
+**What changes:**
+- Remove `parseH()` inner function that handles AM/PM conversion
+- Replace with a `parse24` helper that splits on `:` and returns the hour (and optionally minute for minute-level precision)
+- Use minute-based comparison (`h*60+m`) for accuracy with times like `18:30`
+- Empty strings for `peak_hour_start`/`peak_hour_end` already trigger the early `return false` on line 85 (falsy check)
 
-#### 3. `isRestaurantOpen()` (lines 86-100) — Safety fallback
-Change the missing-config fallback from `{ isOpen: true }` to `{ isOpen: false }` with a console error log. No other logic changes — open/close comparison stays identical.
-
-#### 4. `buildDynamicPrompt()` schedule block (lines 749-767)
-Replace references to `hours.schedule` (if any exist — currently it uses `open_time`/`close_time` directly, so this is already correct). The `scheduleBlock` construction remains unchanged since it already reads `open_time` and `close_time`. The `peak` boolean passed into this function will now come from `isPeakNow()` instead of `getColombiaTime()`.
-
-#### 5. `getConversation()` (line 355) — Use constant
-Replace `const closedStatuses = ["confirmed", "emailed", "sent"]` with `FINAL_ORDER_STATUSES`.
-
-#### 6. All call sites of `getColombiaTime()` that destructure `peak`
-Update to call `isPeakNow(config?.operating_hours)` separately. The main call site is around line 689 where `peak` is destructured — it will instead call `const peak = isPeakNow(config?.operating_hours || {})`.
-
-### What is NOT modified
-- Financial/totals logic
-- Packaging logic
-- Order flow / saveOrder / validateOrder
-- AI prompt structure (only the schedule status text, unchanged)
-- Database schema
-- Multi-tenant behavior
-- Conversation handling
-- Pre-order logic (unchanged, still uses `open_time`/`close_time`)
-
-### New helper: `isPeakNow(hours)`
+**New `isPeakNow`:**
 ```ts
 function isPeakNow(hours: any): boolean {
   try {
@@ -48,21 +22,21 @@ function isPeakNow(hours: any): boolean {
       domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
       jueves: 4, viernes: 5, sabado: 6, sábado: 6,
     };
-    const { day, hour } = getColombiaTime();
+    const { day, hour, minute } = getColombiaTime();
     const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
     if (!isDay) return false;
-    const parseH = (s: string) => {
-      const m = s.match(/(\d+)\s*(AM|PM)?/i);
-      if (!m) return -1;
-      let h = parseInt(m[1]);
-      if (m[2]?.toUpperCase() === "PM" && h < 12) h += 12;
-      if (m[2]?.toUpperCase() === "AM" && h === 12) h = 0;
-      return h;
+    const parse24 = (s: string): number => {
+      const parts = s.split(":");
+      const h = parseInt(parts[0]);
+      const m = parts.length > 1 ? parseInt(parts[1]) : 0;
+      if (isNaN(h) || isNaN(m)) return -1;
+      return h * 60 + m;
     };
-    const start = parseH(peak_hour_start);
-    const end = parseH(peak_hour_end);
+    const start = parse24(peak_hour_start);
+    const end = parse24(peak_hour_end);
     if (start < 0 || end < 0) return false;
-    return hour >= start && hour <= end;
+    const now = hour * 60 + minute;
+    return now >= start && now <= end;
   } catch (e) {
     console.warn("⚠️ isPeakNow failed, defaulting to false:", e);
     return false;
@@ -70,5 +44,17 @@ function isPeakNow(hours: any): boolean {
 }
 ```
 
-This produces identical behavior for `peak_days: ["Viernes","Sabado"], peak_hour_start: "6PM", peak_hour_end: "10PM"` as the old `(d===5||d===6) && h>=18 && h<=22`.
+### What is NOT modified
+- `getColombiaTime()` — unchanged
+- `isRestaurantOpen()` — unchanged
+- `FINAL_ORDER_STATUSES` — unchanged
+- `buildDynamicPrompt()` — unchanged
+- Financial/packaging/order/conversation logic — unchanged
+- Call site at line 724 — unchanged (`isPeakNow(config?.operating_hours || {})`)
+
+### Behavior verification
+- `peak_hour_start: "18:00", peak_hour_end: "22:00"` → identical to old `"6PM"/"10PM"` (18*60=1080, 22*60=1320)
+- Empty strings or missing `peak_days` → `peak = false`, no errors, no logs
+- Malformed value like `"abc"` → `parse24` returns -1 → `peak = false`
+- Adds minute-level precision (e.g. `"18:30"` now works correctly)
 
