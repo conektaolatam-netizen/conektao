@@ -773,7 +773,7 @@ function buildDynamicPrompt(
   const payment = config.payment_config || {};
   // packaging_rules removed — packaging context now built dynamically from products
   const hours = config.operating_hours || {};
-  const times = config.time_estimates || {};
+  const times = { weekday: hours.weekday_waiting_time, weekend: hours.weekend_waiting_time, peak: hours.peak_waiting_time };
   const escalation = config.escalation_config || {};
   const customRules = config.custom_rules || [];
   const salesRules = config.sales_rules || {};
