@@ -257,14 +257,28 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
 // ==================== WHATSAPP API ====================
 
 /** Split long text into human-like message chunks */
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+
 function splitIntoHumanChunks(text: string): string[] {
   if (text.length <= 200) return [text];
   const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) return parts.map((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
   const lines = text.split(/\n/).filter((p) => p.trim());
   if (lines.length >= 2) {
     const mid = Math.ceil(lines.length / 2);
-    return [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
   }
   return [text];
 }
@@ -295,6 +309,12 @@ async function sendWA(phoneId: string, token: string, to: string, text: string, 
         if (s < 2000) s = 4000;
         segment = rem.substring(0, s);
         rem = rem.substring(s).trim();
+        // Fix orphaned punctuation at segment boundary
+        const orphanMatch = rem.match(/^([?!¡¿]+\s*)/);
+        if (orphanMatch) {
+          segment = segment.trimEnd() + orphanMatch[1].trim();
+          rem = rem.substring(orphanMatch[0].length).trim();
+        }
       }
 
       const r = await fetch(`https://graph.facebook.com/${WA_API_VERSION}/${phoneId}/messages`, {
@@ -644,7 +664,7 @@ TRATO AL CLIENTE:
 - Si el cliente dice algo ambiguo → pregunta con amabilidad, no asumas
 
 FORMATO:
-- Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
+- Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
 - NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"
 - PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
 
