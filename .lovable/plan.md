@@ -1,109 +1,82 @@
 
 
-## Plan: Mejorar matching de productos usando `description`, `category_name` e `is_active`
+## Plan: Evitar que el fallback "Lo siento, no pude procesar tu mensaje" se envíe como nudge o sin contexto
 
-### Problema actual
+### Problema
 
-1. **`buildPriceMap`** usa solo `p.name.toLowerCase()` como clave. Cuando hay dos productos con el mismo nombre (ej: "Pepperoni" a $32K y $45K), el último sobreescribe al primero.
-2. **La query de confirmación** (línea 2404) no trae `description`, `category_id` ni `packaging_price` — campos que sí trae la query principal (línea 2637).
-3. **No hay lógica** para usar `description` o `categories.name` como criterio de desambiguación cuando el nombre del producto es idéntico.
+La frase `"Lo siento, no pude procesar tu mensaje. ¿Podrías repetirlo?"` es el fallback de `callAI()` (línea 1169). Se envía en dos situaciones incorrectas:
 
-### Solución (3 cambios quirúrgicos)
+1. **Como nudge**: `runSalesNudgeCheck()` llama `callAI()` → si el AI gateway devuelve vacío, el fallback se envía al cliente sin que haya escrito nada.
+2. **En cada webhook**: `runSalesNudgeCheck()` se ejecuta en línea 2061 **antes** de verificar si hay mensajes reales (línea 2066), así que status updates de Meta (delivered/read) también lo disparan.
 
----
+### Cambios (3 puntos, mismo archivo)
 
-#### Cambio 1: Completar la query de confirmación (línea 2404)
-
-La query que carga productos al momento de confirmar un pedido está incompleta. Falta `description`, `category_id` y `packaging_price`.
-
-```text
-// ANTES (línea 2404):
-.select("id, name, price, requires_packaging, portions, categories(name)")
-
-// DESPUÉS:
-.select("id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)")
-```
-
-También agregar el flatten de `category_name` después de esta query (como se hace en línea 2645-2648), para que `validateOrder` reciba los mismos campos en ambos flujos.
+**Archivo**: `supabase/functions/whatsapp-webhook/index.ts`
 
 ---
 
-#### Cambio 2: Reescribir `buildPriceMap` para manejar duplicados con contexto
+#### 1. Filtrar el fallback en nudges (línea ~1657-1665)
 
-En vez de `Record<string, number>`, usar un array de entradas que preserven `description` y `category_name`:
+Después de `callAI` en el nudge, verificar que `cleanNudge` no contenga la frase de fallback. Si la contiene, no enviar el mensaje:
 
 ```typescript
-type ProductEntry = { name: string; price: number; description: string; categoryName: string };
+const cleanNudge = nudgeMsg.replace(...).trim();
 
-function buildPriceMap(products: any[]): ProductEntry[] {
-  return products
-    .filter((p: any) => p.name && p.price)
-    .map((p: any) => ({
-      name: (p.name || "").toLowerCase().trim(),
-      price: Number(p.price),
-      description: (p.description || "").toLowerCase().trim(),
-      categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
-    }));
+// NO enviar si es el fallback genérico
+const FALLBACK_MSG = "Lo siento, no pude procesar tu mensaje";
+if (!cleanNudge || cleanNudge.includes(FALLBACK_MSG)) continue;
+```
+
+Esto garantiza que si el AI falla durante un nudge, simplemente se salta esa conversación en vez de enviar el error al cliente.
+
+---
+
+#### 2. Mover `runSalesNudgeCheck()` después del filtro de mensajes (línea 2061 → después de 2066)
+
+Actualmente se ejecuta antes de verificar si el webhook trae mensajes reales. Moverlo después del early return para que solo se ejecute cuando hay un mensaje real del usuario:
+
+```text
+// ANTES (línea 2061): runSalesNudgeCheck() antes del filtro
+// DESPUÉS: moverlo después de la línea 2070 (después del return de "no messages")
+```
+
+Esto reduce dramáticamente la frecuencia de ejecución (solo con mensajes reales, no con status updates).
+
+---
+
+#### 3. Cambiar el fallback de `callAI` por `null` y manejar en cada caller (línea 1169)
+
+En vez de retornar una frase confusa cuando el AI no responde, retornar `null`:
+
+```typescript
+return d.choices?.[0]?.message?.content || null;
+```
+
+Luego en el flujo principal (línea ~2720), si `callAI` retorna `null`, usar un mensaje genérico contextual:
+
+```typescript
+const ai = await callAI(sys, mergedMsgs);
+if (!ai) {
+  // No enviar nada si el AI falló — el usuario no recibe mensaje basura
+  // Solo loguear el error
+  console.error("AI returned empty response for", from);
+  return new Response(JSON.stringify({ status: "ai_empty" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 ```
 
-Esto elimina el problema de sobreescritura: cada producto es una entrada separada.
+Esto asegura que:
+- Si el AI falla, el usuario **no recibe ningún mensaje** en vez de recibir "Lo siento, no pude procesar..."
+- El fallback solo se envía si el usuario realmente escribió algo Y el AI no pudo generar respuesta — y en ese caso, se puede usar un mensaje más apropiado como "Dame un momento, estoy procesando tu solicitud 😊"
 
----
+### Resumen de comportamiento después del fix
 
-#### Cambio 3: Reescribir el bloque de matching en `validateOrder` (líneas 1061-1096)
-
-El nuevo algoritmo de scoring incorpora `description` y `category_name`:
-
-1. **Exact match por nombre** → break inmediato (si nombre es único)
-2. **Si hay duplicados por nombre**, desambiguar con:
-   - Tokens del item que aparezcan en `description` (+5 por token, ya que "Personal"/"Mediana" está ahí)
-   - Tokens del item que aparezcan en `categoryName` (+4 por token, ej: "Pizzas - Personal")
-3. **Token overlap por nombre** (+3 por token, como antes)
-4. **Penalización** por tokens extra (-1)
-5. **Limpieza de puntuación** (guiones, comas) antes de tokenizar
-
-```text
-Ejemplo con "Pizza Pepperoni - Personal":
-  itemTokens: ["pizza", "pepperoni", "personal"]
-
-  Producto A: name="pepperoni", desc="mozzarella, pepperoni y parmesano - personal", cat="pizzas - personal"
-    → name tokens: +3 (pepperoni)
-    → desc tokens: +5 (pepperoni) +5 (personal) = +10
-    → cat tokens:  +4 (personal) = +4
-    → Total: 17
-
-  Producto B: name="pepperoni", desc="mozzarella, pepperoni y parmesano - mediana", cat="pizzas - mediana"
-    → name tokens: +3 (pepperoni)
-    → desc tokens: +5 (pepperoni) = +5
-    → cat tokens:  0
-    → Total: 8
-
-  ✅ Producto A gana con score 17 vs 8
-```
-
-#### Cambio en `buildPackagingMap`
-
-Aplicar la misma lógica de clave compuesta para que el packaging también se resuelva correctamente cuando hay nombres duplicados. El packaging map pasará a ser un array similar al price map.
-
----
-
-### Qué NO se modifica
-
-- Lógica de recálculo financiero (líneas 1148-1170) — intacta
-- `getPackagingCost()` — intacta
-- `saveOrder()`, `buildPrompt()`, `buildMenuFromProducts()` — intactos
-- No hay cambios en BD, no hay migraciones
-- Solo se modifica `supabase/functions/whatsapp-webhook/index.ts`
+| Escenario | Antes | Después |
+|-----------|-------|---------|
+| AI vacío en nudge | Envía "Lo siento..." al cliente | No envía nada |
+| Status update de Meta | Ejecuta nudge check | No ejecuta nudge check |
+| AI vacío en mensaje real | Envía "Lo siento..." | No envía nada, solo loguea |
+| AI falla con error HTTP | Throw (no envía) | Sin cambio |
 
 ### Archivos afectados
-
-- `supabase/functions/whatsapp-webhook/index.ts`:
-  - Línea 2404: completar SELECT de productos en confirmación
-  - Líneas 2408: agregar flatten de category_name
-  - Líneas 1002-1010: reescribir `buildPriceMap` → array con contexto
-  - Líneas 1013-1024: reescribir `buildPackagingMap` → array con contexto
-  - Líneas 1046-1047: adaptar llamadas a nuevos mapas
-  - Líneas 1061-1096: nuevo scoring con description + category
-  - Líneas 1110-1124: adaptar lookup de packaging al nuevo formato
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales)
 
