@@ -1166,7 +1166,7 @@ async function callAI(sys: string, msgs: any[], temperature = 0.2) {
     throw new Error(e);
   }
   const d = await r.json();
-  return d.choices?.[0]?.message?.content || "Lo siento, no pude procesar tu mensaje. ¿Podrías repetirlo?";
+  return d.choices?.[0]?.message?.content || null;
 }
 
 // ==================== ORDER PARSING ====================
@@ -1654,10 +1654,13 @@ async function runSalesNudgeCheck() {
         ? `Eres Alicia. El cliente envió mensajes sin respuesta. Discúlpate BREVEMENTE y responde. NO markdown. Max 1 emoji. Corto.\nPEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "N/A"}\nCliente: ${conv.customer_name || "?"}`
         : `Eres Alicia. Cliente dejó de responder. Seguimiento MUY corto. NO markdown. Max 1 emoji.\nPEDIDO: ${conv.current_order ? JSON.stringify(conv.current_order) : "N/A"}`;
       const nudgeMsg = await callAI(closerPrompt, msgs.slice(-10), 0.6);
+      if (!nudgeMsg) continue; // AI returned empty — skip this nudge silently
       const cleanNudge = nudgeMsg
         .replace(/---[A-Z_]+---[\s\S]*?---[A-Z_]+---/g, "")
         .replace(/\*+/g, "")
         .trim();
+      const FALLBACK_MSG = "Lo siento, no pude procesar tu mensaje";
+      if (!cleanNudge || cleanNudge.includes(FALLBACK_MSG)) continue; // Never send fallback as nudge
       await supabase
         .from("whatsapp_conversations")
         .update({ last_nudge_at: new Date().toISOString(), order_status: "nudge_sent" })
@@ -2057,9 +2060,6 @@ Deno.serve(async (req) => {
       console.error("Follow-up check error:", e);
     }
 
-    // Run sales nudge check
-    await runSalesNudgeCheck();
-
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
@@ -2068,6 +2068,9 @@ Deno.serve(async (req) => {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+
+      // Run sales nudge check ONLY when there's a real message (not status updates)
+      await runSalesNudgeCheck();
 
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
@@ -2718,6 +2721,11 @@ Deno.serve(async (req) => {
           freshCustomerName || waCustomer?.name || "",
         ) + customerMemoryCtx;
       const ai = await callAI(sys, mergedMsgs);
+
+      if (!ai) {
+        console.error("AI returned empty response for", from);
+        return new Response(JSON.stringify({ status: "ai_empty" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const parsed = parseOrder(ai);
       const modification = !parsed ? parseOrderModification(ai) : null;
