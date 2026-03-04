@@ -1,60 +1,39 @@
 
 
-## Plan: Remove packaging_rules Redundancy — Products as Single Source of Truth
+## Plan: Remap waiting times from `operating_hours` instead of `time_estimates`
 
-### Summary
-Replace all `config.packaging_rules` usage in the two edge functions with a dynamically built packaging block from the `products` table. Remove the packaging section from the Alicia config UI. Drop the `packaging_rules` column.
+Two surgical one-line edits — change how `times` is constructed so it reads from the new keys inside `operating_hours`.
 
----
+### Change 1: `supabase/functions/whatsapp-webhook/index.ts` (line 776)
 
-### Changes
-
-#### 1. `supabase/functions/whatsapp-webhook/index.ts` (3 edits)
-
-**a) Add `packaging_price` to products select (line 2617)**
-Current: `"id, name, price, description, category_id, requires_packaging, portions, categories(name)"`
-Add: `packaging_price` to the select string.
-
-**b) Remove `packaging_rules` reference (line 774)**
-Delete: `const packaging = config.packaging_rules || [];`
-
-**c) Replace packaging block builder (lines 871-876)**
-Instead of reading from `packaging` array, build from `products` parameter:
+**Before:**
 ```ts
-const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
-const packagingBlock = packagingProducts.length > 0
-  ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
-    packagingProducts.map((p: any) => `- ${p.name}: +$${Number(p.packaging_price).toLocaleString("es-CO")}`).join("\n")
-  : "";
+const times = config.time_estimates || {};
 ```
 
-#### 2. `supabase/functions/generate-alicia/index.ts` (3 edits)
+**After:**
+```ts
+const times = { weekday: hours.weekday_waiting_time, weekend: hours.weekend_waiting_time, peak: hours.peak_waiting_time };
+```
 
-**a) Remove `packaging_rules` reference (line 112)**
-Delete: `const packaging = config.packaging_rules || [];`
+### Change 2: `supabase/functions/generate-alicia/index.ts` (line 114)
 
-**b) Replace packaging block (lines 197-200)**
-Same dynamic approach from `products` parameter (already passed to `buildBusinessConfigPrompt`).
+**Before:**
+```ts
+const times = config.time_estimates || {};
+```
 
-**c) Update stats `has_packaging` (line 335)**
-Change from `!!(config.packaging_rules?.length)` to `!!(products?.some((p: any) => p.requires_packaging))`.
+**After:**
+```ts
+const times = { weekday: hours.weekday_waiting_time, weekend: hours.weekend_waiting_time, peak: hours.peak_waiting_time };
+```
 
-#### 3. Remove UI components
+### What stays the same
+- The `timeBlock` string template in both files — unchanged
+- All fallbacks (`|| times.weekday`, `|| "~30min"`, `|| "~20min"`) — unchanged
+- Peak detection, weekend detection, open/close logic — unchanged
+- No DB changes, no order flow changes
 
-**a) Delete `src/components/alicia-config/AliciaConfigPackaging.tsx`**
-
-**b) Delete `src/components/alicia-setup/Step5Packaging.tsx`**
-
-**c) Update `src/pages/AliciaConfigPage.tsx`:**
-- Remove import of `AliciaConfigPackaging`
-- Remove the `packaging` entry from `SECTIONS` array (line 29)
-- Remove the `case "packaging"` from `renderContent()` (line 157)
-
-#### 4. Drop `packaging_rules` column
-Migration: `ALTER TABLE whatsapp_configs DROP COLUMN IF EXISTS packaging_rules;`
-
-### What is NOT modified
-- `buildPackagingMap()`, `getPackagingCost()`, `validateOrder()` — untouched
-- Financial calculations, delivery logic, peak logic, order flow — untouched
-- `requires_packaging` and `packaging_price` DB fields — untouched (they are the source of truth)
+### Result
+`times.weekday`, `times.weekend`, `times.peak` now resolve from `operating_hours.weekday_waiting_time`, `weekend_waiting_time`, `peak_waiting_time` respectively. Same variable names, same downstream usage, different source.
 
