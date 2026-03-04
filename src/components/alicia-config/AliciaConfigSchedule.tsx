@@ -8,22 +8,20 @@ interface Props { config: any; onSave: (fields: Record<string, any>) => Promise<
 
 export default function AliciaConfigSchedule({ config, onSave }: Props) {
   const h = config.operating_hours || {};
-  const t = config.time_estimates || {};
   const [openTime, setOpenTime] = useState(h.open_time || "");
   const [closeTime, setCloseTime] = useState(h.close_time || "");
   const [preOrders, setPreOrders] = useState(h.accept_pre_orders ?? false);
   const [mayExtend, setMayExtend] = useState(h.may_extend ?? false);
   const [preMsg, setPreMsg] = useState(h.pre_order_message || "");
-  const [weekday, setWeekday] = useState(t.weekday || "");
-  const [weekend, setWeekend] = useState(t.weekend || "");
-  const [peakTime, setPeakTime] = useState(t.peak || "");
+  const [weekday, setWeekday] = useState(h.weekday_waiting_time || "");
+  const [weekend, setWeekend] = useState(h.weekend_waiting_time || "");
+  const [peakTime, setPeakTime] = useState(h.peak_waiting_time || "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     await onSave({
-      operating_hours: { ...h, open_time: openTime, close_time: closeTime, accept_pre_orders: preOrders, may_extend: mayExtend, pre_order_message: preMsg },
-      time_estimates: { weekday, weekend, peak: peakTime },
+      operating_hours: { ...h, open_time: openTime, close_time: closeTime, accept_pre_orders: preOrders, may_extend: mayExtend, pre_order_message: preMsg, weekday_waiting_time: weekday, weekend_waiting_time: weekend, peak_waiting_time: peakTime },
     });
     setSaving(false);
   };
