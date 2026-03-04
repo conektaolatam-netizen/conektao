@@ -1059,19 +1059,39 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     let bestMatch: string | null = null;
     let bestPrice = 0;
     if (Object.keys(priceMap).length > 0) {
-      // Find best matching product by fuzzy name match
+      let bestScore = 0;
+      const itemTokens = itemLower.split(/\s+/).filter(Boolean);
+
       for (const [prodName, price] of Object.entries(priceMap)) {
-        if (
-          itemLower.includes(prodName) ||
-          prodName.includes(itemLower) ||
-          // Normalize: remove "personal", "mediana", etc. for comparison
-          itemLower.replace(/\s*(personal|mediana|dulce)\s*/gi, "").trim() ===
-            prodName.replace(/\s*(personal|mediana|dulce)\s*/gi, "").trim()
-        ) {
+        // 1) Exact match → immediate winner
+        if (prodName === itemLower) {
           bestMatch = prodName;
           bestPrice = price;
-          // Prefer exact or longer match
-          if (prodName === itemLower) break;
+          break;
+        }
+
+        // 2) Score by token overlap
+        const prodTokens = prodName.split(/\s+/).filter(Boolean);
+        let score = 0;
+
+        // +3 per item token found in product name
+        for (const t of itemTokens) {
+          if (prodTokens.includes(t)) score += 3;
+        }
+
+        // +2 if full string containment either direction
+        if (itemLower.includes(prodName) || prodName.includes(itemLower)) score += 2;
+
+        // -1 penalty per extra token in product not in item
+        for (const t of prodTokens) {
+          if (!itemTokens.includes(t)) score -= 1;
+        }
+
+        // Best score wins; ties broken by shortest name
+        if (score > bestScore || (score === bestScore && bestMatch && prodName.length < bestMatch.length)) {
+          bestScore = score;
+          bestMatch = prodName;
+          bestPrice = price;
         }
       }
       if (bestMatch && bestPrice > 0) {
