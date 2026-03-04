@@ -999,29 +999,19 @@ function buildMenuFromProducts(products: any[]): string {
 // ==================== PRICE VALIDATION (DYNAMIC) ====================
 
 /** Build price map dynamically from products loaded from DB */
-function buildPriceMap(products: any[]): Record<string, number> {
-  const map: Record<string, number> = {};
-  for (const p of products) {
-    if (p.name && p.price) {
-      map[p.name.toLowerCase()] = Number(p.price);
-    }
-  }
-  return map;
+type ProductEntry = { name: string; price: number; description: string; categoryName: string; requiresPackaging: boolean; packagingPrice: number };
+function buildProductEntries(products: any[]): ProductEntry[] {
+  return products.filter((p: any) => p.name && p.price).map((p: any) => ({
+    name: (p.name || "").toLowerCase().trim(),
+    price: Number(p.price),
+    description: (p.description || "").toLowerCase().trim(),
+    categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
+    requiresPackaging: p.requires_packaging === true,
+    packagingPrice: p.packaging_price != null ? Number(p.packaging_price) : 0,
+  }));
 }
 
-/** Build packaging policy map: name_lower -> { requires: boolean, price: number } (from DB) */
-function buildPackagingMap(products: any[]): Record<string, { requires: boolean; price: number }> {
-  const map: Record<string, { requires: boolean; price: number }> = {};
-  for (const p of products) {
-    if (p.name !== undefined) {
-      map[p.name.toLowerCase()] = {
-        requires: p.requires_packaging === true,
-        price: p.packaging_price != null ? Number(p.packaging_price) : 0,
-      };
-    }
-  }
-  return map;
-}
+// buildPackagingMap removed — packaging now resolved from ProductEntry[] via buildProductEntries
 
 /**
  * Returns packaging cost for an item.
@@ -1043,8 +1033,7 @@ function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packag
 function validateOrder(order: any, products?: any[]): { order: any; corrected: boolean; issues: string[] } {
   if (!order?.items) return { order, corrected: false, issues: [] };
 
-  const priceMap = products ? buildPriceMap(products) : {};
-  const packagingMap = products ? buildPackagingMap(products) : {};
+  const productEntries: ProductEntry[] = products ? buildProductEntries(products) : [];
   const issues: string[] = [];
   let corrected = false;
   const isDelivery =
@@ -1055,72 +1044,52 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     const itemName = item.name || "";
     const itemLower = itemName.toLowerCase();
 
-    // Price validation using dynamic price map from DB
-    let bestMatch: string | null = null;
+    // Price validation using ProductEntry[] with description + category scoring
+    let bestEntry: ProductEntry | null = null;
     let bestPrice = 0;
-    if (Object.keys(priceMap).length > 0) {
+    if (productEntries.length > 0) {
       let bestScore = 0;
-      const itemTokens = itemLower.split(/\s+/).filter(Boolean);
+      const cleanItem = itemLower.replace(/[^a-záéíóúñü0-9\s]/gi, "");
+      const itemTokens = cleanItem.split(/\s+/).filter(Boolean);
 
-      for (const [prodName, price] of Object.entries(priceMap)) {
-        // 1) Exact match → immediate winner
-        if (prodName === itemLower) {
-          bestMatch = prodName;
-          bestPrice = price;
-          break;
-        }
-
-        // 2) Score by token overlap
-        const prodTokens = prodName.split(/\s+/).filter(Boolean);
+      for (const entry of productEntries) {
+        const cleanName = entry.name.replace(/[^a-záéíóúñü0-9\s]/gi, "");
+        const prodTokens = cleanName.split(/\s+/).filter(Boolean);
+        const descTokens = entry.description.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
+        const catTokens = entry.categoryName.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
         let score = 0;
 
-        // +3 per item token found in product name
         for (const t of itemTokens) {
           if (prodTokens.includes(t)) score += 3;
+          if (descTokens.includes(t)) score += 5;
+          if (catTokens.includes(t)) score += 4;
         }
 
-        // +2 if full string containment either direction
-        if (itemLower.includes(prodName) || prodName.includes(itemLower)) score += 2;
+        if (cleanItem.includes(cleanName) || cleanName.includes(cleanItem)) score += 2;
 
-        // -1 penalty per extra token in product not in item
-        for (const t of prodTokens) {
-          if (!itemTokens.includes(t)) score -= 1;
-        }
+        for (const t of prodTokens) { if (!itemTokens.includes(t)) score -= 1; }
 
-        // Best score wins; ties broken by shortest name
-        if (score > bestScore || (score === bestScore && bestMatch && prodName.length < bestMatch.length)) {
+        if (score > bestScore || (score === bestScore && bestEntry && entry.name.length < bestEntry.name.length)) {
           bestScore = score;
-          bestMatch = prodName;
-          bestPrice = price;
+          bestEntry = entry;
+          bestPrice = entry.price;
         }
       }
-      if (bestMatch && bestPrice > 0) {
+      if (bestEntry && bestPrice > 0) {
         const declaredPrice = item.unit_price || 0;
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
-          issues.push(
-            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`,
-          );
+          issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`);
           item.unit_price = bestPrice;
           corrected = true;
         }
       }
     }
 
-    // ── PACKAGING: driven exclusively by DB fields requires_packaging + packaging_price ──
+    // ── PACKAGING: driven exclusively by DB fields via matched ProductEntry ──
     {
-      // PACKAGING: always apply based on product config
-      // Look up packaging info from the packaging map (DB source of truth)
       let dbPkgInfo: { requires: boolean; price: number } | undefined = undefined;
-      if (bestMatch && packagingMap[bestMatch] !== undefined) {
-        dbPkgInfo = packagingMap[bestMatch];
-      } else {
-        // Try direct lookup
-        for (const [prodName, pkgInfo] of Object.entries(packagingMap)) {
-          if (itemLower.includes(prodName) || prodName.includes(itemLower)) {
-            dbPkgInfo = pkgInfo;
-            break;
-          }
-        }
+      if (bestEntry) {
+        dbPkgInfo = { requires: bestEntry.requiresPackaging, price: bestEntry.packagingPrice };
       }
 
       const dbRequiresPackaging = dbPkgInfo?.requires;
@@ -2401,11 +2370,12 @@ Deno.serve(async (req) => {
             profileIds.length > 0
               ? await supabase
                   .from("products")
-                  .select("id, name, price, requires_packaging, portions, categories(name)")
+                  .select("id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)")
                   .in("user_id", profileIds)
                   .eq("is_active", true)
               : { data: [] };
-          const validated = validateOrder(resolvedOrder, confirmProds || []);
+          const confirmProdsWithCategory = (confirmProds || []).map((p: any) => ({ ...p, category_name: p.categories?.name || "Otros" }));
+          const validated = validateOrder(resolvedOrder, confirmProdsWithCategory);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
