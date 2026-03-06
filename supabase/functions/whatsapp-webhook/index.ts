@@ -134,6 +134,77 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
   return { isOpen, preOrderMessage };
 }
 
+// ==================== SYSTEM OVERRIDES ====================
+
+async function getActiveOverrides(restaurantId: string): Promise<any[]> {
+  try {
+    const { data } = await supabase
+      .from("system_overrides")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .lte("start_time", new Date().toISOString())
+      .gte("end_time", new Date().toISOString());
+    return data || [];
+  } catch (e) {
+    console.warn("⚠️ getActiveOverrides failed, defaulting to []:", e);
+    return [];
+  }
+}
+
+function getDisabledProductIds(overrides: any[]): Set<string> {
+  return new Set(
+    overrides
+      .filter(o => o.type === "disable" && o.target_type === "product" && o.target_id)
+      .map(o => o.target_id)
+  );
+}
+
+function getPriceOverrides(overrides: any[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const o of overrides) {
+    if (o.type === "price_override" && o.target_type === "product" && o.target_id) {
+      const price = parseFloat(o.value);
+      if (!isNaN(price) && price > 0) map.set(o.target_id, price);
+    }
+  }
+  return map;
+}
+
+function isRestaurantClosedOverride(overrides: any[]): boolean {
+  return overrides.some(o => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed");
+}
+
+function isDeliveryDisabledOverride(overrides: any[]): boolean {
+  return overrides.some(o => o.type === "disable" && o.target_type === "delivery" && o.value === "no_delivery");
+}
+
+function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
+  const disabledIds = getDisabledProductIds(overrides);
+  const priceMap = getPriceOverrides(overrides);
+  return products
+    .filter((p: any) => !disabledIds.has(p.id))
+    .map((p: any) => priceMap.has(p.id) ? { ...p, price: priceMap.get(p.id) } : p);
+}
+
+function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string {
+  const disabledIds = getDisabledProductIds(overrides);
+  const priceMap = getPriceOverrides(overrides);
+  let block = "";
+  const disabledNames = allProducts.filter(p => disabledIds.has(p.id)).map(p => p.name);
+  if (disabledNames.length > 0) {
+    block += `\nPRODUCTOS NO DISPONIBLES HOY (SISTEMA): ${disabledNames.join(", ")}. NO los ofrezcas bajo ninguna circunstancia.\n`;
+  }
+  const priceChanges: string[] = [];
+  for (const [id, price] of priceMap) {
+    const prod = allProducts.find(p => p.id === id);
+    if (prod) priceChanges.push(`${prod.name}: $${price}`);
+  }
+  if (priceChanges.length > 0) {
+    block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
+  }
+  return block;
+}
+
 // ==================== MEDIA HANDLING ====================
 
 /** Download media from WhatsApp, upload to Supabase Storage, return public URL */
@@ -2398,7 +2469,53 @@ Deno.serve(async (req) => {
                   .eq("is_active", true)
               : { data: [] };
           const confirmProdsWithCategory = (confirmProds || []).map((p: any) => ({ ...p, category_name: p.categories?.name || "Otros" }));
-          const validated = validateOrder(resolvedOrder, confirmProdsWithCategory);
+
+          // ── SYSTEM OVERRIDES: Apply overrides at confirmation time ──
+          const confirmOverrides = await getActiveOverrides(rId);
+          const effectiveConfirmProds = applyOverridesToProducts(confirmProdsWithCategory, confirmOverrides);
+
+          // ── Check if restaurant is closed by override ──
+          if (isRestaurantClosedOverride(confirmOverrides)) {
+            const closedResp = "Lo siento, hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏";
+            convMsgs.push({ role: "assistant", content: closedResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null }).eq("id", conv.id);
+            await sendWA(pid, token, from, closedResp, true);
+            return new Response(JSON.stringify({ status: "restaurant_closed_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          // ── Check if delivery is disabled by override ──
+          const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
+          if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
+            const noDeliveryResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 ¿Te gustaría recogerlo en el local?";
+            convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await sendWA(pid, token, from, noDeliveryResp, true);
+            return new Response(JSON.stringify({ status: "delivery_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          // ── Check if any ordered items are disabled by override ──
+          const confirmDisabledIds = getDisabledProductIds(confirmOverrides);
+          if (confirmDisabledIds.size > 0 && resolvedOrder?.items?.length > 0) {
+            const blockedItems: string[] = [];
+            for (const item of resolvedOrder.items) {
+              const itemName = (item.name || item.product || "").toLowerCase().trim();
+              for (const dId of confirmDisabledIds) {
+                const disabledProd = confirmProdsWithCategory.find((p: any) => p.id === dId);
+                if (disabledProd && disabledProd.name.toLowerCase().includes(itemName.split(" ")[0])) {
+                  blockedItems.push(disabledProd.name);
+                }
+              }
+            }
+            if (blockedItems.length > 0) {
+              const blockedResp = `Lo siento, hoy no tenemos disponible: ${blockedItems.join(", ")} 😔 ¿Te gustaría pedir otra cosa?`;
+              convMsgs.push({ role: "assistant", content: blockedResp, timestamp: new Date().toISOString() });
+              await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "active", current_order: null, pending_since: null }).eq("id", conv.id);
+              await sendWA(pid, token, from, blockedResp, true);
+              return new Response(JSON.stringify({ status: "items_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
+          }
+
+          const validated = validateOrder(resolvedOrder, effectiveConfirmProds);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
@@ -2639,6 +2756,27 @@ Deno.serve(async (req) => {
         ...p,
         category_name: p.categories?.name || "Otros",
       }));
+
+      // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
+      const activeOverrides = await getActiveOverrides(rId);
+      const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
+      const overridePromptBlock = buildOverridePromptBlock(prodsWithCategory, activeOverrides);
+      tlog("info", rId, `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`);
+
+      // ── RESTAURANT CLOSED OVERRIDE: Block all orders if restaurant is closed by override ──
+      if (isRestaurantClosedOverride(activeOverrides)) {
+        const closedResp = "Lo siento, hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏";
+        const closedMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+        closedMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString(), wa_message_id: msg.id });
+        closedMsgs.push({ role: "assistant", content: closedResp, timestamp: new Date().toISOString() });
+        await supabase.from("whatsapp_conversations").update({ messages: closedMsgs.slice(-30) }).eq("id", conv.id);
+        await sendWA(pid, token, from, closedResp, true);
+        return new Response(JSON.stringify({ status: "restaurant_closed_override" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: rest } = await supabase.from("restaurants").select("id, name").eq("id", rId).single();
       const rName = rest?.name || "Restaurante";
 
@@ -2731,7 +2869,7 @@ Deno.serve(async (req) => {
 
       const sys =
         buildPrompt(
-          prodsWithCategory || [],
+          effectiveProducts || [],
           config.promoted_products || [],
           config.greeting_message || "Hola! Bienvenido 👋",
           rName,
@@ -2739,7 +2877,7 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
-        ) + customerMemoryCtx;
+        ) + customerMemoryCtx + overridePromptBlock;
       const ai = await callAI(sys, mergedMsgs);
 
       if (!ai) {
@@ -2754,7 +2892,7 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
-        const validated = validateOrder(parsed.order, prodsWithCategory);
+        const validated = validateOrder(parsed.order, effectiveProducts);
         if (validated.corrected) parsed.order = validated.order;
         resp = parsed.clean || "Pedido registrado! 🍽️";
 
