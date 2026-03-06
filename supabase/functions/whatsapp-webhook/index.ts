@@ -2869,7 +2869,7 @@ Deno.serve(async (req) => {
 
       const sys =
         buildPrompt(
-          prodsWithCategory || [],
+          effectiveProducts || [],
           config.promoted_products || [],
           config.greeting_message || "Hola! Bienvenido 👋",
           rName,
@@ -2877,7 +2877,7 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
-        ) + customerMemoryCtx;
+        ) + customerMemoryCtx + overridePromptBlock;
       const ai = await callAI(sys, mergedMsgs);
 
       if (!ai) {
