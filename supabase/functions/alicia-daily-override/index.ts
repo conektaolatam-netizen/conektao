@@ -5,6 +5,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Token-based product scoring (same algorithm as validateOrder)
+function scoreProduct(query: string, product: { name: string; description?: string; category_name?: string }): number {
+  const clean = (s: string) => (s || "").toLowerCase().replace(/[^a-záéíóúñü0-9\s]/g, "");
+  const qTokens = clean(query).split(/\s+/).filter(Boolean);
+  const nameTokens = clean(product.name).split(/\s+/).filter(Boolean);
+  const descTokens = clean(product.description || "").split(/\s+/).filter(Boolean);
+  const catTokens = clean(product.category_name || "").split(/\s+/).filter(Boolean);
+  let score = 0;
+  for (const t of qTokens) {
+    if (nameTokens.some((n) => n.includes(t) || t.includes(n))) score += 3;
+    if (descTokens.some((d) => d.includes(t) || t.includes(d))) score += 5;
+    if (catTokens.some((c) => c.includes(t) || t.includes(c))) score += 4;
+  }
+  if (clean(product.name).includes(clean(query))) score += 2;
+  const extra = nameTokens.filter((n) => !qTokens.some((q) => n.includes(q) || q.includes(n))).length;
+  score -= extra;
+  return score;
+}
+
+function resolveProduct(productName: string, products: any[]): { id: string; name: string } | null {
+  if (!productName || products.length === 0) return null;
+  let best: any = null;
+  let bestScore = 0;
+  for (const p of products) {
+    const s = scoreProduct(productName, p);
+    if (s > bestScore || (s === bestScore && best && p.name.length < best.name.length)) {
+      bestScore = s;
+      best = p;
+    }
+  }
+  return bestScore >= 3 ? { id: best.id, name: best.name } : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -22,7 +55,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Use AI to parse the instruction
+    // Use AI to parse the instruction — expanded to include structured override fields
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -36,16 +69,25 @@ Deno.serve(async (req) => {
             role: "system",
             content: `Eres un parser de instrucciones para un restaurante. El dueño te dice un cambio temporal para hoy. Extrae la instrucción en formato JSON.
 Responde SOLO con JSON válido, sin markdown ni explicaciones.
-Formato: {"type": "schedule_change|menu_change|delivery_change|general", "instruction": "texto claro de la instrucción para que la IA del restaurante lo entienda"}
+Formato:
+{
+  "type": "schedule_change|menu_change|delivery_change|general",
+  "instruction": "texto claro de la instrucción para que la IA del restaurante lo entienda",
+  "override_type": "disable|price_override|enable",
+  "target_type": "product|restaurant|delivery",
+  "product_name": "nombre del producto si aplica, null si no",
+  "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio"
+}
 Ejemplos:
-- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal"}
-- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local"}
-- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada"}`,
+- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed_early_9pm"}
+- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery"}
+- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable"}
+- "hoy la pizza hawaiana vale 20000" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000"}`,
           },
           { role: "user", content: message },
         ],
         temperature: 0.3,
-        max_tokens: 200,
+        max_tokens: 300,
       }),
     });
 
@@ -69,7 +111,6 @@ Ejemplos:
 
     const current = Array.isArray(config?.daily_overrides) ? config.daily_overrides : [];
     
-    // Add new override
     const newOverride = {
       id: crypto.randomUUID(),
       type: parsed.type || "general",
@@ -85,7 +126,73 @@ Ejemplos:
       .update({ daily_overrides: updated })
       .eq("restaurant_id", restaurant_id);
 
-    return new Response(JSON.stringify({ success: true, override: newOverride }), {
+    // ── NEW: Structured system_overrides storage ──
+    let systemOverrideId: string | null = null;
+    try {
+      const overrideType = parsed.override_type || "disable";
+      const targetType = parsed.target_type || "general";
+      const overrideValue = parsed.value || "unavailable";
+
+      // Resolve product ID if target is a product
+      let targetId: string | null = null;
+      if (targetType === "product" && parsed.product_name) {
+        const { data: products } = await supabase
+          .from("products")
+          .select("id, name, description, category_name:categories(name)")
+          .eq("restaurant_id", restaurant_id)
+          .eq("is_active", true);
+
+        if (products && products.length > 0) {
+          const flat = products.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description || "",
+            category_name: Array.isArray(p.category_name) ? p.category_name[0]?.name || "" : p.category_name?.name || "",
+          }));
+          const match = resolveProduct(parsed.product_name, flat);
+          if (match) {
+            targetId = match.id;
+            console.log(`Product resolved: "${parsed.product_name}" → ${match.name} (${match.id})`);
+          } else {
+            console.log(`Product NOT resolved: "${parsed.product_name}"`);
+          }
+        }
+      }
+
+      // End of today UTC
+      const endOfDay = new Date();
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      const { data: soData, error: soError } = await supabase
+        .from("system_overrides")
+        .insert({
+          restaurant_id,
+          type: overrideType,
+          target_type: targetType,
+          target_id: targetId,
+          value: String(overrideValue),
+          start_time: new Date().toISOString(),
+          end_time: endOfDay.toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (soError) {
+        console.error("system_overrides insert error:", soError.message);
+      } else {
+        systemOverrideId = soData?.id || null;
+        console.log(`system_override created: ${systemOverrideId}`);
+      }
+    } catch (soErr: any) {
+      // Non-blocking: log but don't fail the request
+      console.error("system_overrides error:", soErr.message);
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      override: newOverride,
+      system_override_id: systemOverrideId,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
