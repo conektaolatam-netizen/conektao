@@ -4552,6 +4552,50 @@ export type Database = {
           },
         ]
       }
+      system_overrides: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          restaurant_id: string
+          start_time: string
+          target_id: string | null
+          target_type: string
+          type: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          restaurant_id: string
+          start_time?: string
+          target_id?: string | null
+          target_type: string
+          type: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          restaurant_id?: string
+          start_time?: string
+          target_id?: string | null
+          target_type?: string
+          type?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_overrides_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       table_states: {
         Row: {
           created_at: string
