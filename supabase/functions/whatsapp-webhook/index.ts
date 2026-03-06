@@ -2892,7 +2892,7 @@ Deno.serve(async (req) => {
 
       if (parsed) {
         // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
-        const validated = validateOrder(parsed.order, prodsWithCategory);
+        const validated = validateOrder(parsed.order, effectiveProducts);
         if (validated.corrected) parsed.order = validated.order;
         resp = parsed.clean || "Pedido registrado! 🍽️";
 
