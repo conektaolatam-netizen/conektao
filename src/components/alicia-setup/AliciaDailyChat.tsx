@@ -9,6 +9,7 @@ interface Override {
   type: string;
   created_at: string;
   expires: string;
+  system_override_id?: string;
 }
 
 export default function AliciaDailyChat({ restaurantId }: { restaurantId: string }) {
@@ -57,7 +58,17 @@ export default function AliciaDailyChat({ restaurantId }: { restaurantId: string
   };
 
   const removeOverride = async (id: string) => {
+    const toRemove = overrides.find((o) => o.id === id);
     const updated = overrides.filter((o) => o.id !== id);
+
+    // Expire the matching system_override so the backend stops enforcing it
+    if (toRemove?.system_override_id) {
+      await supabase
+        .from("system_overrides")
+        .update({ end_time: new Date().toISOString() } as any)
+        .eq("id", toRemove.system_override_id);
+    }
+
     await supabase
       .from("whatsapp_configs")
       .update({ daily_overrides: updated } as any)

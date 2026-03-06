@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Use AI to parse the instruction — expanded to include structured override fields
+    // Use AI to parse the instruction
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -95,45 +95,19 @@ Ejemplos:
     const aiData = await aiRes.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "";
     
-    // Extract JSON from response (handle markdown wrapping)
     const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Could not parse AI response");
     
     const parsed = JSON.parse(jsonMatch[0]);
     const today = new Date().toISOString().split("T")[0];
 
-    // Get current overrides
-    const { data: config } = await supabase
-      .from("whatsapp_configs")
-      .select("daily_overrides")
-      .eq("restaurant_id", restaurant_id)
-      .maybeSingle();
-
-    const current = Array.isArray(config?.daily_overrides) ? config.daily_overrides : [];
-    
-    const newOverride = {
-      id: crypto.randomUUID(),
-      type: parsed.type || "general",
-      instruction: parsed.instruction || message,
-      created_at: new Date().toISOString(),
-      expires: today,
-    };
-
-    const updated = [...current, newOverride];
-
-    await supabase
-      .from("whatsapp_configs")
-      .update({ daily_overrides: updated })
-      .eq("restaurant_id", restaurant_id);
-
-    // ── NEW: Structured system_overrides storage ──
+    // ── Step 1: Insert system_override FIRST to get its ID ──
     let systemOverrideId: string | null = null;
     try {
       const overrideType = parsed.override_type || "disable";
       const targetType = parsed.target_type || "general";
       const overrideValue = parsed.value || "unavailable";
 
-      // Resolve product ID if target is a product
       let targetId: string | null = null;
       if (targetType === "product" && parsed.product_name) {
         const { data: products } = await supabase
@@ -159,7 +133,6 @@ Ejemplos:
         }
       }
 
-      // End of today UTC
       const endOfDay = new Date();
       endOfDay.setUTCHours(23, 59, 59, 999);
 
@@ -184,9 +157,37 @@ Ejemplos:
         console.log(`system_override created: ${systemOverrideId}`);
       }
     } catch (soErr: any) {
-      // Non-blocking: log but don't fail the request
       console.error("system_overrides error:", soErr.message);
     }
+
+    // ── Step 2: Build daily override object WITH system_override_id ──
+    const { data: config } = await supabase
+      .from("whatsapp_configs")
+      .select("daily_overrides")
+      .eq("restaurant_id", restaurant_id)
+      .maybeSingle();
+
+    const current = Array.isArray(config?.daily_overrides) ? config.daily_overrides : [];
+    
+    const newOverride: Record<string, any> = {
+      id: crypto.randomUUID(),
+      type: parsed.type || "general",
+      instruction: parsed.instruction || message,
+      created_at: new Date().toISOString(),
+      expires: today,
+    };
+
+    // Embed the system_override_id so the frontend can expire it on removal
+    if (systemOverrideId) {
+      newOverride.system_override_id = systemOverrideId;
+    }
+
+    const updated = [...current, newOverride];
+
+    await supabase
+      .from("whatsapp_configs")
+      .update({ daily_overrides: updated })
+      .eq("restaurant_id", restaurant_id);
 
     return new Response(JSON.stringify({ 
       success: true, 
