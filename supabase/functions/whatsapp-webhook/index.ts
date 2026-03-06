@@ -2469,7 +2469,53 @@ Deno.serve(async (req) => {
                   .eq("is_active", true)
               : { data: [] };
           const confirmProdsWithCategory = (confirmProds || []).map((p: any) => ({ ...p, category_name: p.categories?.name || "Otros" }));
-          const validated = validateOrder(resolvedOrder, confirmProdsWithCategory);
+
+          // ── SYSTEM OVERRIDES: Apply overrides at confirmation time ──
+          const confirmOverrides = await getActiveOverrides(rId);
+          const effectiveConfirmProds = applyOverridesToProducts(confirmProdsWithCategory, confirmOverrides);
+
+          // ── Check if restaurant is closed by override ──
+          if (isRestaurantClosedOverride(confirmOverrides)) {
+            const closedResp = "Lo siento, hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏";
+            convMsgs.push({ role: "assistant", content: closedResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null }).eq("id", conv.id);
+            await sendWA(pid, token, from, closedResp, true);
+            return new Response(JSON.stringify({ status: "restaurant_closed_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          // ── Check if delivery is disabled by override ──
+          const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
+          if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
+            const noDeliveryResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 ¿Te gustaría recogerlo en el local?";
+            convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await sendWA(pid, token, from, noDeliveryResp, true);
+            return new Response(JSON.stringify({ status: "delivery_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          // ── Check if any ordered items are disabled by override ──
+          const confirmDisabledIds = getDisabledProductIds(confirmOverrides);
+          if (confirmDisabledIds.size > 0 && resolvedOrder?.items?.length > 0) {
+            const blockedItems: string[] = [];
+            for (const item of resolvedOrder.items) {
+              const itemName = (item.name || item.product || "").toLowerCase().trim();
+              for (const dId of confirmDisabledIds) {
+                const disabledProd = confirmProdsWithCategory.find((p: any) => p.id === dId);
+                if (disabledProd && disabledProd.name.toLowerCase().includes(itemName.split(" ")[0])) {
+                  blockedItems.push(disabledProd.name);
+                }
+              }
+            }
+            if (blockedItems.length > 0) {
+              const blockedResp = `Lo siento, hoy no tenemos disponible: ${blockedItems.join(", ")} 😔 ¿Te gustaría pedir otra cosa?`;
+              convMsgs.push({ role: "assistant", content: blockedResp, timestamp: new Date().toISOString() });
+              await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "active", current_order: null, pending_since: null }).eq("id", conv.id);
+              await sendWA(pid, token, from, blockedResp, true);
+              return new Response(JSON.stringify({ status: "items_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            }
+          }
+
+          const validated = validateOrder(resolvedOrder, effectiveConfirmProds);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
