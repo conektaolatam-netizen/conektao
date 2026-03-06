@@ -134,6 +134,77 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
   return { isOpen, preOrderMessage };
 }
 
+// ==================== SYSTEM OVERRIDES ====================
+
+async function getActiveOverrides(restaurantId: string): Promise<any[]> {
+  try {
+    const { data } = await supabase
+      .from("system_overrides")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .lte("start_time", new Date().toISOString())
+      .gte("end_time", new Date().toISOString());
+    return data || [];
+  } catch (e) {
+    console.warn("⚠️ getActiveOverrides failed, defaulting to []:", e);
+    return [];
+  }
+}
+
+function getDisabledProductIds(overrides: any[]): Set<string> {
+  return new Set(
+    overrides
+      .filter(o => o.type === "disable" && o.target_type === "product" && o.target_id)
+      .map(o => o.target_id)
+  );
+}
+
+function getPriceOverrides(overrides: any[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const o of overrides) {
+    if (o.type === "price_override" && o.target_type === "product" && o.target_id) {
+      const price = parseFloat(o.value);
+      if (!isNaN(price) && price > 0) map.set(o.target_id, price);
+    }
+  }
+  return map;
+}
+
+function isRestaurantClosedOverride(overrides: any[]): boolean {
+  return overrides.some(o => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed");
+}
+
+function isDeliveryDisabledOverride(overrides: any[]): boolean {
+  return overrides.some(o => o.type === "disable" && o.target_type === "delivery" && o.value === "no_delivery");
+}
+
+function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
+  const disabledIds = getDisabledProductIds(overrides);
+  const priceMap = getPriceOverrides(overrides);
+  return products
+    .filter((p: any) => !disabledIds.has(p.id))
+    .map((p: any) => priceMap.has(p.id) ? { ...p, price: priceMap.get(p.id) } : p);
+}
+
+function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string {
+  const disabledIds = getDisabledProductIds(overrides);
+  const priceMap = getPriceOverrides(overrides);
+  let block = "";
+  const disabledNames = allProducts.filter(p => disabledIds.has(p.id)).map(p => p.name);
+  if (disabledNames.length > 0) {
+    block += `\nPRODUCTOS NO DISPONIBLES HOY (SISTEMA): ${disabledNames.join(", ")}. NO los ofrezcas bajo ninguna circunstancia.\n`;
+  }
+  const priceChanges: string[] = [];
+  for (const [id, price] of priceMap) {
+    const prod = allProducts.find(p => p.id === id);
+    if (prod) priceChanges.push(`${prod.name}: $${price}`);
+  }
+  if (priceChanges.length > 0) {
+    block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
+  }
+  return block;
+}
+
 // ==================== MEDIA HANDLING ====================
 
 /** Download media from WhatsApp, upload to Supabase Storage, return public URL */
