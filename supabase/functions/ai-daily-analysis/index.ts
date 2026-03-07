@@ -122,8 +122,16 @@ serve(async (req) => {
       });
     }
 
-    // Get today's sales data
-    const today = new Date().toISOString().split('T')[0];
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabaseClient
+      .from('whatsapp_configs')
+      .select('operating_hours')
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+
+    // Get today's sales data using restaurant timezone
+    const today = getRestaurantDate(tzOffset);
     
     const { data: salesData, error: salesError } = await supabaseClient
       .from('sales')

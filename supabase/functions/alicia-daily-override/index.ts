@@ -170,7 +170,7 @@ Ejemplos:
           target_id: targetId,
           value: String(overrideValue),
           start_time: new Date().toISOString(),
-          end_time: endOfDay.toISOString(),
+          end_time: endOfDayUTC,
         })
         .select("id")
         .single();
