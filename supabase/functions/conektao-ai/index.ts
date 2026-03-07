@@ -7,6 +7,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+
 // Helper function for retry with exponential backoff
 async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries: number = 3, baseDelay: number = 1000): Promise<T> {
   let lastError: Error;
@@ -110,7 +124,14 @@ serve(async (req) => {
       .in("user_id", teamUserIds);
 
     // Get today's cash register data
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabase
+      .from("whatsapp_configs")
+      .select("operating_hours")
+      .eq("restaurant_id", restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+    const today = getRestaurantDate(tzOffset);
     const { data: cashRegister } = restaurantId
       ? await supabase
           .from("cash_registers")

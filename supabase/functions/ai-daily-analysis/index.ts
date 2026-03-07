@@ -7,6 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
@@ -108,8 +122,16 @@ serve(async (req) => {
       });
     }
 
-    // Get today's sales data
-    const today = new Date().toISOString().split('T')[0];
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabaseClient
+      .from('whatsapp_configs')
+      .select('operating_hours')
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+
+    // Get today's sales data using restaurant timezone
+    const today = getRestaurantDate(tzOffset);
     
     const { data: salesData, error: salesError } = await supabaseClient
       .from('sales')
@@ -124,7 +146,7 @@ serve(async (req) => {
         )
       `)
       .gte('created_at', today)
-      .lt('created_at', new Date(Date.now() + 86400000).toISOString())
+      .lt('created_at', new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0])
       .order('created_at', { ascending: false });
 
     if (salesError) {
@@ -271,7 +293,7 @@ Sé directo, útil y enfócate en acciones concretas.`;
       .upsert({
         restaurant_id: restaurantId,
         current_usage: currentLimits.current_usage + 1,
-        reset_date: new Date().toISOString().split('T')[0]
+        reset_date: today
       }, {
         onConflict: 'restaurant_id'
       });

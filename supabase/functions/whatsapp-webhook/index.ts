@@ -67,15 +67,34 @@ function humanDelay(text: string): number {
   return 4000 + Math.random() * 2000;
 }
 
-/** Get current Colombia time info */
-function getColombiaTime() {
+/** Parse "UTC-5", "UTC+1" etc. into offset hours */
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+
+/** Get current Date shifted to a given UTC offset */
+function getRestaurantTime(offsetHours: number): Date {
   const now = new Date();
-  const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
-  const h = co.getHours();
-  const m = co.getMinutes();
-  const d = co.getDay();
-  const weekend = d === 5 || d === 6;
-  return { hour: h, minute: m, day: d, weekend, decimal: h + m / 60 };
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+
+/** Get "YYYY-MM-DD" in restaurant's timezone */
+function getRestaurantDate(offsetHours: number): string {
+  const local = getRestaurantTime(offsetHours);
+  return local.toISOString().split("T")[0];
+}
+
+/** Get time info using restaurant's configured timezone */
+function getRestaurantTimeInfo(config: any) {
+  const tz = config?.operating_hours?.timezone || "UTC-5";
+  const offset = parseTimezoneOffset(tz);
+  const local = getRestaurantTime(offset);
+  const h = local.getHours();
+  const m = local.getMinutes();
+  const d = local.getDay();
+  return { hour: h, minute: m, day: d, weekend: d === 5 || d === 6, decimal: h + m / 60 };
 }
 
 /** Check if current time is within peak hours using structured config */
@@ -87,7 +106,7 @@ function isPeakNow(hours: any): boolean {
       domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
       jueves: 4, viernes: 5, sabado: 6, sábado: 6,
     };
-    const { day, hour, minute } = getColombiaTime();
+    const { day, hour, minute } = getRestaurantTimeInfo(hours ? { operating_hours: hours } : {});
     const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
     if (!isDay) return false;
     const parse24 = (s: string): number => {
@@ -122,7 +141,7 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
     return { isOpen: false, preOrderMessage: "" };
   }
 
-  const { hour, minute } = getColombiaTime();
+  const { hour, minute } = getRestaurantTimeInfo(config);
   const currentMinutes = hour * 60 + minute;
   const openMinutes = timeToMinutes(hours.open_time);
   const closeMinutes = timeToMinutes(hours.close_time);
@@ -811,7 +830,7 @@ function buildPrompt(
     ctx += `\nTiempo desde confirmación: ${minutesSince} minutos`;
   }
 
-  const { hour: h, day: d, weekend: we } = getColombiaTime();
+  const { hour: h, day: d, weekend: we } = getRestaurantTimeInfo(config || {});
   const peak = isPeakNow(config?.operating_hours || {});
 
   // All businesses use Core + Dynamic — no more hardcoded La Barra special case
@@ -875,7 +894,7 @@ function buildDynamicPrompt(
   // Schedule
   let scheduleBlock = "";
   if (hours.open_time && hours.close_time) {
-    const { hour, minute } = getColombiaTime();
+    const { hour, minute } = getRestaurantTimeInfo(config);
     const currentMinutes = hour * 60 + minute;
     const openMinutes = timeToMinutes(hours.open_time);
     const closeMinutes = timeToMinutes(hours.close_time);
@@ -896,7 +915,8 @@ function buildDynamicPrompt(
   // Daily overrides
   let overridesBlock = "";
   if (dailyOverrides.length > 0) {
-    const today = new Date().toISOString().split("T")[0];
+    const tzOffset = parseTimezoneOffset(hours?.timezone || "UTC-5");
+    const today = getRestaurantDate(tzOffset);
     const active = dailyOverrides.filter((o: any) => !o.expires || o.expires >= today);
     if (active.length > 0) {
       overridesBlock = "\nCAMBIOS DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");

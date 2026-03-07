@@ -5,7 +5,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Token-based product scoring (same algorithm as validateOrder)
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+function getRestaurantEndOfDayUTC(offsetHours: number): string {
+  const local = getRestaurantTime(offsetHours);
+  local.setHours(23, 59, 59, 999);
+  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
+  return utc.toISOString();
+}
+
 function scoreProduct(query: string, product: { name: string; description?: string; category_name?: string }): number {
   const clean = (s: string) => (s || "").toLowerCase().replace(/[^a-záéíóúñü0-9\s]/g, "");
   const qTokens = clean(query).split(/\s+/).filter(Boolean);
@@ -99,7 +118,14 @@ Ejemplos:
     if (!jsonMatch) throw new Error("Could not parse AI response");
     
     const parsed = JSON.parse(jsonMatch[0]);
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch timezone from whatsapp_configs
+    const { data: tzConfig } = await supabase
+      .from("whatsapp_configs")
+      .select("operating_hours")
+      .eq("restaurant_id", restaurant_id)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+    const today = getRestaurantDate(tzOffset);
 
     // ── Step 1: Insert system_override FIRST to get its ID ──
     let systemOverrideId: string | null = null;
@@ -133,8 +159,7 @@ Ejemplos:
         }
       }
 
-      const endOfDay = new Date();
-      endOfDay.setUTCHours(23, 59, 59, 999);
+      const endOfDayUTC = getRestaurantEndOfDayUTC(tzOffset);
 
       const { data: soData, error: soError } = await supabase
         .from("system_overrides")
@@ -145,7 +170,7 @@ Ejemplos:
           target_id: targetId,
           value: String(overrideValue),
           start_time: new Date().toISOString(),
-          end_time: endOfDay.toISOString(),
+          end_time: endOfDayUTC,
         })
         .select("id")
         .single();

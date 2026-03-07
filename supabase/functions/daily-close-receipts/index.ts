@@ -7,6 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+
 /**
  * Daily Close - Receipt Migration
  * 
@@ -34,7 +48,17 @@ serve(async (req) => {
       );
     }
 
-    const targetDate = closeDate || new Date().toISOString().split('T')[0];
+    // Fetch restaurant timezone
+    let targetDate = closeDate;
+    if (!targetDate) {
+      const { data: tzConfig } = await supabase
+        .from('whatsapp_configs')
+        .select('operating_hours')
+        .eq('restaurant_id', restaurantId)
+        .maybeSingle();
+      const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+      targetDate = getRestaurantDate(tzOffset);
+    }
     console.log(`Starting daily close for restaurant ${restaurantId} on ${targetDate}`);
 
     // 1. Get all expenses (receipts) from the day that are paid

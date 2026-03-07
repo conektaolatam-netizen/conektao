@@ -7,6 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
@@ -76,16 +90,22 @@ serve(async (req) => {
 
     const restaurantId = profile.restaurant_id;
 
-    // Date ranges
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabaseClient
+      .from('whatsapp_configs')
+      .select('operating_hours')
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
 
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const lastWeekStr = lastWeek.toISOString().split('T')[0];
+    // Date ranges using restaurant timezone
+    const localNow = getRestaurantTime(tzOffset);
+    const yesterdayLocal = new Date(localNow.getTime() - 86400000);
+    const lastWeekLocal = new Date(localNow.getTime() - 7 * 86400000);
+
+    const todayStr = getRestaurantDate(tzOffset);
+    const yesterdayStr = yesterdayLocal.toISOString().split('T')[0];
+    const lastWeekStr = lastWeekLocal.toISOString().split('T')[0];
 
     // Get all products with their costs and recipes
     const { data: productsWithCosts } = await supabaseClient
@@ -149,7 +169,7 @@ serve(async (req) => {
         sales!inner(created_at, payment_method, user_id, table_number)
       `)
       .gte('sales.created_at', todayStr)
-      .lt('sales.created_at', new Date(Date.now() + 86400000).toISOString());
+      .lt('sales.created_at', new Date(new Date(todayStr).getTime() + 86400000).toISOString().split('T')[0]);
 
     const { data: yesterdaySales } = await supabaseClient
       .from('sale_items')
