@@ -7,6 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
