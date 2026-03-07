@@ -830,7 +830,7 @@ function buildPrompt(
     ctx += `\nTiempo desde confirmación: ${minutesSince} minutos`;
   }
 
-  const { hour: h, day: d, weekend: we } = getColombiaTime();
+  const { hour: h, day: d, weekend: we } = getRestaurantTimeInfo(config || {});
   const peak = isPeakNow(config?.operating_hours || {});
 
   // All businesses use Core + Dynamic — no more hardcoded La Barra special case
