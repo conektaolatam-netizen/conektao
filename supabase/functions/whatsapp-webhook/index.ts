@@ -1157,45 +1157,23 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     const itemName = item.name || "";
     const itemLower = itemName.toLowerCase();
 
-    // Price validation using ProductEntry[] with description + category scoring
+    // Price validation using shared category-aware resolver
     let bestEntry: ProductEntry | null = null;
     let bestPrice = 0;
     if (productEntries.length > 0) {
-      let bestScore = 0;
-      const cleanItem = itemLower.replace(/[^a-záéíóúñü0-9\s]/gi, "");
-      const itemTokens = cleanItem.split(/\s+/).filter(Boolean);
+      const declaredPrice = item.unit_price || 0;
+      const resolved = resolveProductEntry(itemLower, declaredPrice, productEntries);
+      bestEntry = resolved.entry;
+      bestPrice = bestEntry?.price || 0;
 
-      for (const entry of productEntries) {
-        const cleanName = entry.name.replace(/[^a-záéíóúñü0-9\s]/gi, "");
-        const prodTokens = cleanName.split(/\s+/).filter(Boolean);
-        const descTokens = entry.description.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
-        const catTokens = entry.categoryName.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
-        let score = 0;
-
-        for (const t of itemTokens) {
-          if (prodTokens.includes(t)) score += 3;
-          if (descTokens.includes(t)) score += 5;
-          if (catTokens.includes(t)) score += 4;
-        }
-
-        if (cleanItem.includes(cleanName) || cleanName.includes(cleanItem)) score += 2;
-
-        for (const t of prodTokens) { if (!itemTokens.includes(t)) score -= 1; }
-
-        if (score > bestScore || (score === bestScore && bestEntry && entry.name.length < bestEntry.name.length)) {
-          bestScore = score;
-          bestEntry = entry;
-          bestPrice = entry.price;
-        }
-      }
-      if (bestEntry && bestPrice > 0) {
-        const declaredPrice = item.unit_price || 0;
+      if (bestEntry && bestPrice > 0 && !resolved.ambiguous) {
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
           issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`);
           item.unit_price = bestPrice;
           corrected = true;
         }
       }
+      // If ambiguous, keep AI's declared price — do NOT correct
     }
 
     // ── PACKAGING: driven exclusively by DB fields via matched ProductEntry ──
