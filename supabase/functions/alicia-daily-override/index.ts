@@ -5,7 +5,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Token-based product scoring (same algorithm as validateOrder)
+// ── Timezone helpers ──
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+function getRestaurantTime(offsetHours: number): Date {
+  const now = new Date();
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+function getRestaurantDate(offsetHours: number): string {
+  return getRestaurantTime(offsetHours).toISOString().split("T")[0];
+}
+function getRestaurantEndOfDayUTC(offsetHours: number): string {
+  const local = getRestaurantTime(offsetHours);
+  local.setHours(23, 59, 59, 999);
+  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
+  return utc.toISOString();
+}
+
 function scoreProduct(query: string, product: { name: string; description?: string; category_name?: string }): number {
   const clean = (s: string) => (s || "").toLowerCase().replace(/[^a-záéíóúñü0-9\s]/g, "");
   const qTokens = clean(query).split(/\s+/).filter(Boolean);
