@@ -915,7 +915,8 @@ function buildDynamicPrompt(
   // Daily overrides
   let overridesBlock = "";
   if (dailyOverrides.length > 0) {
-    const today = new Date().toISOString().split("T")[0];
+    const tzOffset = parseTimezoneOffset(hours?.timezone || "UTC-5");
+    const today = getRestaurantDate(tzOffset);
     const active = dailyOverrides.filter((o: any) => !o.expires || o.expires >= today);
     if (active.length > 0) {
       overridesBlock = "\nCAMBIOS DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");
