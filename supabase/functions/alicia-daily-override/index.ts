@@ -159,8 +159,7 @@ Ejemplos:
         }
       }
 
-      const endOfDay = new Date();
-      endOfDay.setUTCHours(23, 59, 59, 999);
+      const endOfDayUTC = getRestaurantEndOfDayUTC(tzOffset);
 
       const { data: soData, error: soError } = await supabase
         .from("system_overrides")
