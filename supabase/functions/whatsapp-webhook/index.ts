@@ -67,15 +67,34 @@ function humanDelay(text: string): number {
   return 4000 + Math.random() * 2000;
 }
 
-/** Get current Colombia time info */
-function getColombiaTime() {
+/** Parse "UTC-5", "UTC+1" etc. into offset hours */
+function parseTimezoneOffset(tz: string): number {
+  if (!tz) return -5;
+  const match = tz.match(/^UTC([+-]?\d+)$/i);
+  return match ? parseInt(match[1]) : -5;
+}
+
+/** Get current Date shifted to a given UTC offset */
+function getRestaurantTime(offsetHours: number): Date {
   const now = new Date();
-  const co = new Date(now.getTime() + (-5 * 60 + now.getTimezoneOffset()) * 60000);
-  const h = co.getHours();
-  const m = co.getMinutes();
-  const d = co.getDay();
-  const weekend = d === 5 || d === 6;
-  return { hour: h, minute: m, day: d, weekend, decimal: h + m / 60 };
+  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+}
+
+/** Get "YYYY-MM-DD" in restaurant's timezone */
+function getRestaurantDate(offsetHours: number): string {
+  const local = getRestaurantTime(offsetHours);
+  return local.toISOString().split("T")[0];
+}
+
+/** Get time info using restaurant's configured timezone */
+function getRestaurantTimeInfo(config: any) {
+  const tz = config?.operating_hours?.timezone || "UTC-5";
+  const offset = parseTimezoneOffset(tz);
+  const local = getRestaurantTime(offset);
+  const h = local.getHours();
+  const m = local.getMinutes();
+  const d = local.getDay();
+  return { hour: h, minute: m, day: d, weekend: d === 5 || d === 6, decimal: h + m / 60 };
 }
 
 /** Check if current time is within peak hours using structured config */
