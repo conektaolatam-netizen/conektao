@@ -25,37 +25,7 @@ function getRestaurantEndOfDayUTC(offsetHours: number): string {
   return utc.toISOString();
 }
 
-function scoreProduct(query: string, product: { name: string; description?: string; category_name?: string }): number {
-  const clean = (s: string) => (s || "").toLowerCase().replace(/[^a-záéíóúñü0-9\s]/g, "");
-  const qTokens = clean(query).split(/\s+/).filter(Boolean);
-  const nameTokens = clean(product.name).split(/\s+/).filter(Boolean);
-  const descTokens = clean(product.description || "").split(/\s+/).filter(Boolean);
-  const catTokens = clean(product.category_name || "").split(/\s+/).filter(Boolean);
-  let score = 0;
-  for (const t of qTokens) {
-    if (nameTokens.some((n) => n.includes(t) || t.includes(n))) score += 3;
-    if (descTokens.some((d) => d.includes(t) || t.includes(d))) score += 5;
-    if (catTokens.some((c) => c.includes(t) || t.includes(c))) score += 4;
-  }
-  if (clean(product.name).includes(clean(query))) score += 2;
-  const extra = nameTokens.filter((n) => !qTokens.some((q) => n.includes(q) || q.includes(n))).length;
-  score -= extra;
-  return score;
-}
-
-function resolveProduct(productName: string, products: any[]): { id: string; name: string } | null {
-  if (!productName || products.length === 0) return null;
-  let best: any = null;
-  let bestScore = 0;
-  for (const p of products) {
-    const s = scoreProduct(productName, p);
-    if (s > bestScore || (s === bestScore && best && p.name.length < best.name.length)) {
-      bestScore = s;
-      best = p;
-    }
-  }
-  return bestScore >= 3 ? { id: best.id, name: best.name } : null;
-}
+import { scoreProduct, resolveProduct } from "../_shared/productResolver.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

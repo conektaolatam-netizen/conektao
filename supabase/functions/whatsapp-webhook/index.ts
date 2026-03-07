@@ -1110,13 +1110,15 @@ function buildMenuFromProducts(products: any[]): string {
 // ==================== PRICE VALIDATION (DYNAMIC) ====================
 
 /** Build price map dynamically from products loaded from DB */
-type ProductEntry = { name: string; price: number; description: string; categoryName: string; requiresPackaging: boolean; packagingPrice: number };
+import { resolveProductEntry, type ProductEntry } from "../_shared/productResolver.ts";
+
 function buildProductEntries(products: any[]): ProductEntry[] {
   return products.filter((p: any) => p.name && p.price).map((p: any) => ({
     name: (p.name || "").toLowerCase().trim(),
     price: Number(p.price),
     description: (p.description || "").toLowerCase().trim(),
     categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
+    categoryId: (p.category_id || ""),
     requiresPackaging: p.requires_packaging === true,
     packagingPrice: p.packaging_price != null ? Number(p.packaging_price) : 0,
   }));
@@ -1155,45 +1157,23 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     const itemName = item.name || "";
     const itemLower = itemName.toLowerCase();
 
-    // Price validation using ProductEntry[] with description + category scoring
+    // Price validation using shared category-aware resolver
     let bestEntry: ProductEntry | null = null;
     let bestPrice = 0;
     if (productEntries.length > 0) {
-      let bestScore = 0;
-      const cleanItem = itemLower.replace(/[^a-záéíóúñü0-9\s]/gi, "");
-      const itemTokens = cleanItem.split(/\s+/).filter(Boolean);
+      const declaredPrice = item.unit_price || 0;
+      const resolved = resolveProductEntry(itemLower, declaredPrice, productEntries);
+      bestEntry = resolved.entry;
+      bestPrice = bestEntry?.price || 0;
 
-      for (const entry of productEntries) {
-        const cleanName = entry.name.replace(/[^a-záéíóúñü0-9\s]/gi, "");
-        const prodTokens = cleanName.split(/\s+/).filter(Boolean);
-        const descTokens = entry.description.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
-        const catTokens = entry.categoryName.replace(/[^a-záéíóúñü0-9\s]/gi, "").split(/\s+/).filter(Boolean);
-        let score = 0;
-
-        for (const t of itemTokens) {
-          if (prodTokens.includes(t)) score += 3;
-          if (descTokens.includes(t)) score += 5;
-          if (catTokens.includes(t)) score += 4;
-        }
-
-        if (cleanItem.includes(cleanName) || cleanName.includes(cleanItem)) score += 2;
-
-        for (const t of prodTokens) { if (!itemTokens.includes(t)) score -= 1; }
-
-        if (score > bestScore || (score === bestScore && bestEntry && entry.name.length < bestEntry.name.length)) {
-          bestScore = score;
-          bestEntry = entry;
-          bestPrice = entry.price;
-        }
-      }
-      if (bestEntry && bestPrice > 0) {
-        const declaredPrice = item.unit_price || 0;
+      if (bestEntry && bestPrice > 0 && !resolved.ambiguous) {
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
           issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`);
           item.unit_price = bestPrice;
           corrected = true;
         }
       }
+      // If ambiguous, keep AI's declared price — do NOT correct
     }
 
     // ── PACKAGING: driven exclusively by DB fields via matched ProductEntry ──
@@ -2128,49 +2108,6 @@ Deno.serve(async (req) => {
 
   // POST: Incoming messages
   if (req.method === "POST") {
-    // Check stale pending confirmations
-    try {
-      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data: staleConvs } = await supabase
-        .from("whatsapp_conversations")
-        .select("id, customer_phone, restaurant_id, pending_since")
-        .in("order_status", ["pending_confirmation", "pending_button_confirmation"])
-        .lt("pending_since", fiveMinAgo);
-
-      if (staleConvs?.length) {
-        for (const stale of staleConvs) {
-          // Resolve per-business config for follow-up
-          const { data: staleConfig } = await supabase
-            .from("whatsapp_configs")
-            .select("whatsapp_phone_number_id, whatsapp_access_token")
-            .eq("restaurant_id", stale.restaurant_id)
-            .maybeSingle();
-          const stalePid = staleConfig?.whatsapp_phone_number_id || GLOBAL_WA_PHONE_ID;
-          const staleToken =
-            staleConfig?.whatsapp_access_token && staleConfig.whatsapp_access_token !== "ENV_SECRET"
-              ? staleConfig.whatsapp_access_token
-              : GLOBAL_WA_TOKEN;
-          console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone} (restaurant: ${stale.restaurant_id})`);
-          const followUpMsg =
-            "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Si quieres confirmarlo, escríbeme: confirmar pedido 😊";
-          await sendWA(stalePid, staleToken, stale.customer_phone, followUpMsg);
-          const { data: staleConv } = await supabase
-            .from("whatsapp_conversations")
-            .select("messages")
-            .eq("id", stale.id)
-            .single();
-          const staleMsgs = Array.isArray(staleConv?.messages) ? staleConv.messages : [];
-          staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
-          await supabase
-            .from("whatsapp_conversations")
-            .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null })
-            .eq("id", stale.id);
-        }
-      }
-    } catch (e) {
-      console.error("Follow-up check error:", e);
-    }
-
     try {
       const body = await req.json();
       const value = body.entry?.[0]?.changes?.[0]?.value;
@@ -2186,6 +2123,53 @@ Deno.serve(async (req) => {
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
       const from = msg.from;
+
+      // ── Stale pending follow-up check (with dedup guards) ──
+      try {
+        const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const { data: staleConvs } = await supabase
+          .from("whatsapp_conversations")
+          .select("id, customer_phone, restaurant_id, pending_since")
+          .in("order_status", ["pending_confirmation", "pending_button_confirmation"])
+          .lt("pending_since", fiveMinAgo)
+          .lt("updated_at", twoMinAgo)
+          .neq("customer_phone", from)
+          .or(`follow_up_sent_at.is.null,follow_up_sent_at.lt.${thirtyMinAgo}`);
+
+        if (staleConvs?.length) {
+          for (const stale of staleConvs) {
+            const { data: staleConfig } = await supabase
+              .from("whatsapp_configs")
+              .select("whatsapp_phone_number_id, whatsapp_access_token")
+              .eq("restaurant_id", stale.restaurant_id)
+              .maybeSingle();
+            const stalePid = staleConfig?.whatsapp_phone_number_id || GLOBAL_WA_PHONE_ID;
+            const staleToken =
+              staleConfig?.whatsapp_access_token && staleConfig.whatsapp_access_token !== "ENV_SECRET"
+                ? staleConfig.whatsapp_access_token
+                : GLOBAL_WA_TOKEN;
+            console.log(`⚠️ FOLLOW-UP: Stale pending for ${stale.customer_phone} (restaurant: ${stale.restaurant_id})`);
+            const followUpMsg =
+              "Hola! Vi que estábamos armando tu pedido pero no alcancé a recibir tu confirmación. Si quieres confirmarlo, escríbeme: confirmar pedido 😊";
+            await sendWA(stalePid, staleToken, stale.customer_phone, followUpMsg);
+            const { data: staleConv } = await supabase
+              .from("whatsapp_conversations")
+              .select("messages")
+              .eq("id", stale.id)
+              .single();
+            const staleMsgs = Array.isArray(staleConv?.messages) ? staleConv.messages : [];
+            staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
+            await supabase
+              .from("whatsapp_conversations")
+              .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null, follow_up_sent_at: new Date().toISOString() })
+              .eq("id", stale.id);
+          }
+        }
+      } catch (e) {
+        console.error("Follow-up check error:", e);
+      }
 
       // ===== MESSAGE TYPE HANDLING =====
       let text = msg.text?.body || msg.button?.text || "";
