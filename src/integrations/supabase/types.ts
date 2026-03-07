@@ -5343,6 +5343,7 @@ export type Database = {
           current_order: Json | null
           customer_name: string | null
           customer_phone: string
+          follow_up_sent_at: string | null
           id: string
           last_nudge_at: string | null
           messages: Json
@@ -5357,6 +5358,7 @@ export type Database = {
           current_order?: Json | null
           customer_name?: string | null
           customer_phone: string
+          follow_up_sent_at?: string | null
           id?: string
           last_nudge_at?: string | null
           messages?: Json
@@ -5371,6 +5373,7 @@ export type Database = {
           current_order?: Json | null
           customer_name?: string | null
           customer_phone?: string
+          follow_up_sent_at?: string | null
           id?: string
           last_nudge_at?: string | null
           messages?: Json
