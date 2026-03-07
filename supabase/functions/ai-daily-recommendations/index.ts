@@ -169,7 +169,7 @@ serve(async (req) => {
         sales!inner(created_at, payment_method, user_id, table_number)
       `)
       .gte('sales.created_at', todayStr)
-      .lt('sales.created_at', new Date(Date.now() + 86400000).toISOString());
+      .lt('sales.created_at', new Date(new Date(todayStr).getTime() + 86400000).toISOString().split('T')[0]);
 
     const { data: yesterdaySales } = await supabaseClient
       .from('sale_items')

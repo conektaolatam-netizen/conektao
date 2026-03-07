@@ -146,7 +146,7 @@ serve(async (req) => {
         )
       `)
       .gte('created_at', today)
-      .lt('created_at', new Date(Date.now() + 86400000).toISOString())
+      .lt('created_at', new Date(new Date(today).getTime() + 86400000).toISOString().split('T')[0])
       .order('created_at', { ascending: false });
 
     if (salesError) {
