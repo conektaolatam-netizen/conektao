@@ -118,7 +118,14 @@ Ejemplos:
     if (!jsonMatch) throw new Error("Could not parse AI response");
     
     const parsed = JSON.parse(jsonMatch[0]);
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch timezone from whatsapp_configs
+    const { data: tzConfig } = await supabase
+      .from("whatsapp_configs")
+      .select("operating_hours")
+      .eq("restaurant_id", restaurant_id)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+    const today = getRestaurantDate(tzOffset);
 
     // ── Step 1: Insert system_override FIRST to get its ID ──
     let systemOverrideId: string | null = null;
