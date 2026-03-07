@@ -1110,13 +1110,15 @@ function buildMenuFromProducts(products: any[]): string {
 // ==================== PRICE VALIDATION (DYNAMIC) ====================
 
 /** Build price map dynamically from products loaded from DB */
-type ProductEntry = { name: string; price: number; description: string; categoryName: string; requiresPackaging: boolean; packagingPrice: number };
+import { resolveProductEntry, type ProductEntry } from "../_shared/productResolver.ts";
+
 function buildProductEntries(products: any[]): ProductEntry[] {
   return products.filter((p: any) => p.name && p.price).map((p: any) => ({
     name: (p.name || "").toLowerCase().trim(),
     price: Number(p.price),
     description: (p.description || "").toLowerCase().trim(),
     categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
+    categoryId: (p.category_id || ""),
     requiresPackaging: p.requires_packaging === true,
     packagingPrice: p.packaging_price != null ? Number(p.packaging_price) : 0,
   }));
