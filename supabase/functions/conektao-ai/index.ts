@@ -124,7 +124,14 @@ serve(async (req) => {
       .in("user_id", teamUserIds);
 
     // Get today's cash register data
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabase
+      .from("whatsapp_configs")
+      .select("operating_hours")
+      .eq("restaurant_id", restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+    const today = getRestaurantDate(tzOffset);
     const { data: cashRegister } = restaurantId
       ? await supabase
           .from("cash_registers")

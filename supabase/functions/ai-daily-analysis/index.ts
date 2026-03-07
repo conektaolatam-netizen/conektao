@@ -293,7 +293,7 @@ Sé directo, útil y enfócate en acciones concretas.`;
       .upsert({
         restaurant_id: restaurantId,
         current_usage: currentLimits.current_usage + 1,
-        reset_date: new Date().toISOString().split('T')[0]
+        reset_date: today
       }, {
         onConflict: 'restaurant_id'
       });

@@ -90,16 +90,22 @@ serve(async (req) => {
 
     const restaurantId = profile.restaurant_id;
 
-    // Date ranges
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
+    // Fetch restaurant timezone
+    const { data: tzConfig } = await supabaseClient
+      .from('whatsapp_configs')
+      .select('operating_hours')
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle();
+    const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
 
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const lastWeekStr = lastWeek.toISOString().split('T')[0];
+    // Date ranges using restaurant timezone
+    const localNow = getRestaurantTime(tzOffset);
+    const yesterdayLocal = new Date(localNow.getTime() - 86400000);
+    const lastWeekLocal = new Date(localNow.getTime() - 7 * 86400000);
+
+    const todayStr = getRestaurantDate(tzOffset);
+    const yesterdayStr = yesterdayLocal.toISOString().split('T')[0];
+    const lastWeekStr = lastWeekLocal.toISOString().split('T')[0];
 
     // Get all products with their costs and recipes
     const { data: productsWithCosts } = await supabaseClient

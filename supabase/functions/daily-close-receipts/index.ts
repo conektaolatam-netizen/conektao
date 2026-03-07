@@ -48,7 +48,17 @@ serve(async (req) => {
       );
     }
 
-    const targetDate = closeDate || new Date().toISOString().split('T')[0];
+    // Fetch restaurant timezone
+    let targetDate = closeDate;
+    if (!targetDate) {
+      const { data: tzConfig } = await supabase
+        .from('whatsapp_configs')
+        .select('operating_hours')
+        .eq('restaurant_id', restaurantId)
+        .maybeSingle();
+      const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
+      targetDate = getRestaurantDate(tzOffset);
+    }
     console.log(`Starting daily close for restaurant ${restaurantId} on ${targetDate}`);
 
     // 1. Get all expenses (receipts) from the day that are paid
