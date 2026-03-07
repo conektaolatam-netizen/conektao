@@ -894,7 +894,7 @@ function buildDynamicPrompt(
   // Schedule
   let scheduleBlock = "";
   if (hours.open_time && hours.close_time) {
-    const { hour, minute } = getColombiaTime();
+    const { hour, minute } = getRestaurantTimeInfo(config);
     const currentMinutes = hour * 60 + minute;
     const openMinutes = timeToMinutes(hours.open_time);
     const closeMinutes = timeToMinutes(hours.close_time);
