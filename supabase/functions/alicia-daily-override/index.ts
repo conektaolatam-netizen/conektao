@@ -150,7 +150,9 @@ Ejemplos:
         }
       }
 
-      const endOfDayUTC = getRestaurantEndOfDayUTC(tzOffset);
+      const endTimeUTC = parsed.until_hour
+        ? getLocalHourAsUTC(tzOffset, parsed.until_hour)
+        : getRestaurantEndOfDayUTC(tzOffset);
 
       const { data: soData, error: soError } = await supabase
         .from("system_overrides")
