@@ -1,27 +1,56 @@
 
 
-# Plan: Rename `target_id` → `product_id` in `system_overrides`
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Database Migration
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-```sql
-ALTER TABLE public.system_overrides RENAME COLUMN target_id TO product_id;
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
+
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
 ```
 
-Single column rename, no data loss, no breaking constraints.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-## Code Changes
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-### 1. `supabase/functions/alicia-daily-override/index.ts` (~line 149)
-- Change `target_id: targetId` → `product_id: targetId`
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-### 2. `supabase/functions/whatsapp-webhook/index.ts` (~lines 174-187)
-- In `getDisabledProductIds()`: change `o.target_id` references → `o.product_id`
-- In `getPriceOverrides()`: change `o.target_id` references → `o.product_id`
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-### 3. `src/integrations/supabase/types.ts`
-- Auto-updated by the migration tool (no manual edit needed)
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-## No other files affected
-All other `system_overrides` interactions use `id` or other columns, not `target_id`.
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 

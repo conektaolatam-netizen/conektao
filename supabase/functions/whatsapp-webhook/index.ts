@@ -173,17 +173,17 @@ async function getActiveOverrides(restaurantId: string): Promise<any[]> {
 function getDisabledProductIds(overrides: any[]): Set<string> {
   return new Set(
     overrides
-      .filter(o => o.type === "disable" && o.target_type === "product" && o.target_id)
-      .map(o => o.target_id)
+      .filter(o => o.type === "disable" && o.target_type === "product" && o.product_id)
+      .map(o => o.product_id)
   );
 }
 
 function getPriceOverrides(overrides: any[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const o of overrides) {
-    if (o.type === "price_override" && o.target_type === "product" && o.target_id) {
+    if (o.type === "price_override" && o.target_type === "product" && o.product_id) {
       const price = parseFloat(o.value);
-      if (!isNaN(price) && price > 0) map.set(o.target_id, price);
+      if (!isNaN(price) && price > 0) map.set(o.product_id, price);
     }
   }
   return map;
