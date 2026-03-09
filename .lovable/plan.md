@@ -1,37 +1,56 @@
 
 
-# Plan: Add product_name, category_name, and category_id columns to system_overrides
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Problem
-The `system_overrides` table only stores `target_id` (product UUID) and `value`, making it hard to read in the dashboard without joining to products/categories. The user wants to see the product name and category info directly in the table.
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-## Changes
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-### 1. Database migration — add 3 columns
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-```sql
-ALTER TABLE public.system_overrides
-  ADD COLUMN IF NOT EXISTS product_name text,
-  ADD COLUMN IF NOT EXISTS category_name text,
-  ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES public.categories(id);
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
 ```
 
-All nullable, no breaking changes.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-### 2. `supabase/functions/alicia-daily-override/index.ts` — populate new columns on insert
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-In the insert block (~line 134-146), after resolving the product match, capture `match.name` and `match.category_name`, then query for `category_id`. Add these to the insert payload:
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-```js
-product_name: match?.name || parsed.product_name || null,
-category_name: match?.category_name || null,
-category_id: matchedCategoryId || null,
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
 ```
 
-To get `category_id`, query the product's `category_id` from the products table (already fetched at line 109-113, just need to include `category_id` in the select).
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-### 3. No other files change
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-- `whatsapp-webhook/index.ts` — reads `system_overrides` but doesn't need these columns for logic
-- `AliciaDailyChat.tsx` — interacts via `system_override_id` only, no change needed
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
