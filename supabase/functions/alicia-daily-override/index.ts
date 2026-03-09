@@ -24,6 +24,13 @@ function getRestaurantEndOfDayUTC(offsetHours: number): string {
   const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
   return utc.toISOString();
 }
+function getLocalHourAsUTC(offsetHours: number, hourStr: string): string {
+  const local = getRestaurantTime(offsetHours);
+  const [h, m] = hourStr.split(":").map(Number);
+  local.setHours(h, m || 0, 0, 0);
+  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
+  return utc.toISOString();
+}
 
 import { scoreProduct, resolveProduct } from "../_shared/productResolver.ts";
 
