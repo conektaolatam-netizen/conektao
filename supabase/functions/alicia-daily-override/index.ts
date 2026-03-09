@@ -166,7 +166,7 @@ Ejemplos:
           category_name: matchedCategoryName,
           category_id: matchedCategoryId,
           start_time: new Date().toISOString(),
-          end_time: endOfDayUTC,
+          end_time: endTimeUTC,
         })
         .select("id")
         .single();
