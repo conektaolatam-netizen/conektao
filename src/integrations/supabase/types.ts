@@ -4554,9 +4554,12 @@ export type Database = {
       }
       system_overrides: {
         Row: {
+          category_id: string | null
+          category_name: string | null
           created_at: string
           end_time: string
           id: string
+          product_name: string | null
           restaurant_id: string
           start_time: string
           target_id: string | null
@@ -4565,9 +4568,12 @@ export type Database = {
           value: string | null
         }
         Insert: {
+          category_id?: string | null
+          category_name?: string | null
           created_at?: string
           end_time: string
           id?: string
+          product_name?: string | null
           restaurant_id: string
           start_time?: string
           target_id?: string | null
@@ -4576,9 +4582,12 @@ export type Database = {
           value?: string | null
         }
         Update: {
+          category_id?: string | null
+          category_name?: string | null
           created_at?: string
           end_time?: string
           id?: string
+          product_name?: string | null
           restaurant_id?: string
           start_time?: string
           target_id?: string | null
@@ -4587,6 +4596,13 @@ export type Database = {
           value?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "system_overrides_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "system_overrides_restaurant_id_fkey"
             columns: ["restaurant_id"]
