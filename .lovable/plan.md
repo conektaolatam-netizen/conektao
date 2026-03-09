@@ -1,56 +1,51 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Show category name alongside product names
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Problem
+When products share the same name (e.g., "A la española" exists as Personal and Mediana), the price response and order summary show duplicate names without context. The category name (which contains the size/variant info) is already available in the data but not displayed.
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+## Changes (single file: `supabase/functions/whatsapp-webhook/index.ts`)
 
-```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
+### 1. `validateOrder()` — attach category name to order items (line ~1167)
 
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
+After resolving `bestEntry`, copy `categoryName` onto the order item so `buildOrderSummary` can use it:
+
+```js
+if (bestEntry) {
+  item.category_name = bestEntry.categoryName; // preserve for display
 }
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+### 2. `buildOrderSummary()` — display category in item lines (line ~1264)
 
-Añadir instrucción explícita sobre signos de interrogación en español:
-
+Change the item line format from:
 ```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
-
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+- 1x A la española: $36.000
+```
+To:
+```
+- 1x A la española (Pizzas - Personal): $36.000
 ```
 
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+Logic: if `item.category_name` exists and is non-empty, append ` (CategoryName)` after the product name. The category name comes from the DB as-is (no hardcoding).
 
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+### 3. `handlePriceQuestion()` — show category in variant list (lines ~1367-1373)
 
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+Change the multi-variant display from:
+```
+- A la española: $49.000
+```
+To:
+```
+- A la española (Pizzas - Personal): $49.000
+```
+
+Logic: use the `categoryName` field already present in each `ProductEntry` variant. Title-case it for display since it's stored lowercase.
+
+Also update the single-match response (line ~1381) to include category when available.
+
+## No other files change
+- `_shared/productResolver.ts` — untouched
+- Product loading, override logic — untouched
 
