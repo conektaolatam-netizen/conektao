@@ -1380,7 +1380,8 @@ function handlePriceQuestion(
     (p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name,
   );
   const displayName = origProduct?.name || resolved.entry.name;
-  return `${displayName} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
+  const catLabel = resolved.entry.categoryName ? ` (${resolved.entry.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+  return `${displayName}${catLabel} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
 }
 
 // ==================== AI INTEGRATION ====================
