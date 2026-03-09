@@ -4559,10 +4559,10 @@ export type Database = {
           created_at: string
           end_time: string
           id: string
+          product_id: string | null
           product_name: string | null
           restaurant_id: string
           start_time: string
-          target_id: string | null
           target_type: string
           type: string
           value: string | null
@@ -4573,10 +4573,10 @@ export type Database = {
           created_at?: string
           end_time: string
           id?: string
+          product_id?: string | null
           product_name?: string | null
           restaurant_id: string
           start_time?: string
-          target_id?: string | null
           target_type: string
           type: string
           value?: string | null
@@ -4587,10 +4587,10 @@ export type Database = {
           created_at?: string
           end_time?: string
           id?: string
+          product_id?: string | null
           product_name?: string | null
           restaurant_id?: string
           start_time?: string
-          target_id?: string | null
           target_type?: string
           type?: string
           value?: string | null

@@ -146,7 +146,7 @@ Ejemplos:
           restaurant_id,
           type: overrideType,
           target_type: targetType,
-          target_id: targetId,
+          product_id: targetId,
           value: String(overrideValue),
           product_name: matchedProductName,
           category_name: matchedCategoryName,

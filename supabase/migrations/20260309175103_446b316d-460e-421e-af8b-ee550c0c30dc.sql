@@ -1,0 +1,1 @@
+ALTER TABLE public.system_overrides RENAME COLUMN target_id TO product_id;
