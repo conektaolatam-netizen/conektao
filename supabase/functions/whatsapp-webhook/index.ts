@@ -3030,6 +3030,30 @@ Deno.serve(async (req) => {
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
         ) + customerMemoryCtx + overridePromptBlock;
+
+      // === PRICE QUESTION INTERCEPTOR ===
+      // Check if user is asking a price question — respond with DB prices, skip AI
+      const userTextForPrice = trailingCustomerTexts.join(" ");
+      const priceAnswer = handlePriceQuestion(userTextForPrice, effectiveProducts || [], config);
+      if (priceAnswer) {
+        console.log(`💰 PRICE QUESTION intercepted for ${from}: "${userTextForPrice.substring(0, 60)}"`);
+        freshMsgs.push({ role: "assistant", content: priceAnswer, timestamp: new Date().toISOString() });
+        await supabase
+          .from("whatsapp_conversations")
+          .update({
+            messages: freshMsgs.slice(-30),
+            customer_name: freshCustomerName,
+            current_order: freshCurrentOrder,
+            order_status: freshOrderStatus,
+          })
+          .eq("id", conv.id);
+        await sendWA(pid, token, from, priceAnswer, true);
+        return new Response(JSON.stringify({ status: "price_answered" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const ai = await callAI(sys, mergedMsgs);
 
       if (!ai) {
