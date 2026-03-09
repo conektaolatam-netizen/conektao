@@ -1165,6 +1165,7 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
       const resolved = resolveProductEntry(itemLower, declaredPrice, productEntries);
       bestEntry = resolved.entry;
       bestPrice = bestEntry?.price || 0;
+      if (bestEntry) item.category_name = bestEntry.categoryName;
 
       if (bestEntry && bestPrice > 0 && !resolved.ambiguous) {
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
@@ -1261,7 +1262,8 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
     packagingTotal += pkgCost * qty;
-    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}: ${formatCOP(lineTotal)}\n`;
+    const catLabel = item.category_name ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}${catLabel}: ${formatCOP(lineTotal)}\n`;
     if (pkgCost > 0) {
       itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
     }
@@ -1365,9 +1367,9 @@ function handlePriceQuestion(
   if (variants.length > 1 && resolved.ambiguous) {
     let msg = "Tenemos:\n";
     for (const v of variants) {
-      // Find original product to get proper casing
       const orig = effectiveProducts.find((p: any) => (p.name || "").toLowerCase().trim() === v.name);
-      msg += `- ${orig?.name || v.name}: ${formatCOP(v.price)}\n`;
+      const catLabel = v.categoryName ? ` (${v.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+      msg += `- ${orig?.name || v.name}${catLabel}: ${formatCOP(v.price)}\n`;
     }
     msg += "¿Cuál te gustaría?";
     return msg;
@@ -1378,7 +1380,8 @@ function handlePriceQuestion(
     (p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name,
   );
   const displayName = origProduct?.name || resolved.entry.name;
-  return `${displayName} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
+  const catLabel = resolved.entry.categoryName ? ` (${resolved.entry.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+  return `${displayName}${catLabel} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
 }
 
 // ==================== AI INTEGRATION ====================
