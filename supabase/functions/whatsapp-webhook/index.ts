@@ -3067,10 +3067,13 @@ Deno.serve(async (req) => {
       const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 
       if (parsed) {
-        // ORDER DETECTED BY AI → Save order data and wait for "confirmar pedido" text
+        // ORDER DETECTED BY AI → Validate and build backend summary
         const validated = validateOrder(parsed.order, effectiveProducts);
         if (validated.corrected) parsed.order = validated.order;
-        resp = parsed.clean || "Pedido registrado! 🍽️";
+
+        // Build summary from validated data — NEVER use AI text for prices
+        resp = buildOrderSummary(validated.order, config, parsed.order.customer_name || freshCustomerName);
+        console.log(`📋 BACKEND SUMMARY built for ${from} (validated=${validated.corrected}, issues=${validated.issues.length})`);
 
         // Store order and set pending confirmation status
         freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
@@ -3085,7 +3088,7 @@ Deno.serve(async (req) => {
           })
           .eq("id", conv.id);
 
-        // Send summary text only (no buttons)
+        // Send backend-built summary (no AI text)
         await sendWA(pid, token, from, resp, true);
 
         return new Response(JSON.stringify({ status: "pending_confirmation" }), {
