@@ -1233,6 +1233,154 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
   return { order, corrected, issues };
 }
 
+// ==================== BACKEND-BUILT ORDER SUMMARY ====================
+
+/** Format COP price like $39.000 */
+function formatCOP(n: number): string {
+  return "$" + Math.round(n).toLocaleString("es-CO");
+}
+
+/**
+ * Build a human-readable WhatsApp order summary from VALIDATED order data.
+ * This replaces the AI-generated summary to guarantee price consistency.
+ */
+function buildOrderSummary(order: any, config: any, customerName?: string): string {
+  const rName = config?.restaurant_name || "Restaurante";
+  const name = customerName || order.customer_name || "";
+  const payment = config?.payment_config || {};
+  const delivery = config?.delivery_config || {};
+
+  // Build items block
+  let itemLines = "";
+  let subtotal = 0;
+  let packagingTotal = 0;
+  for (const item of order.items || []) {
+    const qty = item.quantity || 1;
+    const unitPrice = item.unit_price || 0;
+    const pkgCost = item.packaging_cost || 0;
+    const lineTotal = unitPrice * qty;
+    subtotal += lineTotal;
+    packagingTotal += pkgCost * qty;
+    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}: ${formatCOP(lineTotal)}\n`;
+    if (pkgCost > 0) {
+      itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
+    }
+  }
+
+  const total = subtotal + packagingTotal;
+
+  // Payment block
+  let paymentBlock = "";
+  const safeMethods = (payment.methods || []).filter((m: string) => !/dat[aá]fono|terminal/i.test(m));
+  const methods = safeMethods.length > 0 ? safeMethods.join(", ") : "efectivo";
+  if (payment.bank_details) {
+    paymentBlock = `Puedes pagar por transferencia a ${payment.bank_details}, o en ${methods}.`;
+    if (payment.require_proof) {
+      paymentBlock += "\nPor favor, envíanos una foto del comprobante si pagas por transferencia.";
+    }
+  } else {
+    paymentBlock = `Pago: ${methods}.`;
+  }
+
+  // Delivery block
+  let deliveryBlock = "";
+  const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") ||
+    (order.delivery_type || "").toLowerCase().includes("domicilio");
+  if (isDelivery && order.delivery_address) {
+    deliveryBlock = `\n📍 Domicilio: ${order.delivery_address}`;
+  } else if (!isDelivery) {
+    deliveryBlock = "\n🏪 Para recoger";
+  }
+
+  // Compose final message
+  let msg = `${rName}: Listo${name ? ", " + name : ""}. El total de tu pedido es de ${formatCOP(total)}.\n\n`;
+  msg += paymentBlock + "\n\n";
+  msg += "Tu pedido incluye:\n\n";
+  msg += itemLines;
+  if (packagingTotal > 0) {
+    msg += `\nSubtotal: ${formatCOP(subtotal)}`;
+    msg += `\nEmpaques: ${formatCOP(packagingTotal)}`;
+  }
+  msg += `\nTotal: ${formatCOP(total)}`;
+  msg += deliveryBlock;
+  msg += `\n\n¿Me confirmas tu pedido para empezarlo a preparar?\nResponde: "Sí, confirmar" o escribe qué quieres cambiar`;
+
+  return msg;
+}
+
+// ==================== PRICE QUESTION HANDLER ====================
+
+/** Detect price questions and return backend-built response using effectiveProducts */
+function handlePriceQuestion(
+  text: string,
+  effectiveProducts: any[],
+  config: any,
+): string | null {
+  // Detect price question patterns
+  const pricePatterns = [
+    /(?:cu[áa]nto|quanto)\s+(?:cuesta|vale|es|sale|cost)/i,
+    /(?:precio|costo)\s+(?:de(?:l)?|la|el|los|las)\s+/i,
+    /(?:qu[ée])\s+(?:precio|costo)/i,
+    /(?:a\s+c[óo]mo)\s+(?:est[áa]|sale|queda|va)/i,
+    /(?:cu[áa]l\s+es\s+el\s+precio)/i,
+    /(?:cu[áa]nto\s+(?:me\s+)?(?:sale|queda|cost))/i,
+  ];
+
+  const isPrice = pricePatterns.some((p) => p.test(text));
+  if (!isPrice) return null;
+
+  // Extract product name by stripping the question pattern
+  let productQuery = text;
+  const stripPatterns = [
+    /(?:cu[áa]nto|quanto)\s+(?:cuesta|vale|es|sale|cost[aá]?)\s+(?:la|el|un|una|los|las)?\s*/i,
+    /(?:precio|costo)\s+(?:de(?:l)?|la|el|los|las)\s*/i,
+    /(?:qu[ée])\s+(?:precio|costo)\s+(?:tiene|tiene\s+la|tiene\s+el)?\s*/i,
+    /(?:a\s+c[óo]mo)\s+(?:est[áa]|sale|queda|va)\s+(?:la|el|un|una|los|las)?\s*/i,
+    /(?:cu[áa]l\s+es\s+el\s+precio\s+(?:de(?:l)?|la|el)\s*)/i,
+    /(?:cu[áa]nto\s+(?:me\s+)?(?:sale|queda|cost[aá]?)\s+(?:la|el|un|una|los|las)?\s*)/i,
+  ];
+  for (const sp of stripPatterns) {
+    productQuery = productQuery.replace(sp, "");
+  }
+  productQuery = productQuery.replace(/[?¿!¡.,]+/g, "").trim();
+
+  if (!productQuery || productQuery.length < 2) return null;
+
+  // Use shared resolver
+  const entries = buildProductEntries(effectiveProducts);
+  if (entries.length === 0) return null;
+
+  const resolved = resolveProductEntry(productQuery, 0, entries);
+
+  if (!resolved.entry) return null;
+
+  // Check for multiple size variants (same base name)
+  const baseName = productQuery.toLowerCase().trim();
+  const variants = entries.filter((e) => {
+    const eName = e.name.toLowerCase();
+    return eName.includes(baseName) || baseName.includes(eName.replace(/(personal|mediana|grande|familiar)/i, "").trim());
+  });
+
+  // If multiple variants exist and we got an ambiguous match, list them
+  if (variants.length > 1 && resolved.ambiguous) {
+    let msg = "Tenemos:\n";
+    for (const v of variants) {
+      // Find original product to get proper casing
+      const orig = effectiveProducts.find((p: any) => (p.name || "").toLowerCase().trim() === v.name);
+      msg += `- ${orig?.name || v.name}: ${formatCOP(v.price)}\n`;
+    }
+    msg += "¿Cuál te gustaría?";
+    return msg;
+  }
+
+  // Single match — return price
+  const origProduct = effectiveProducts.find(
+    (p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name,
+  );
+  const displayName = origProduct?.name || resolved.entry.name;
+  return `${displayName} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
+}
+
 // ==================== AI INTEGRATION ====================
 
 /** Call AI for response generation */
