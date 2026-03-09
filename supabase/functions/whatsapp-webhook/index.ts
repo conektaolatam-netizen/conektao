@@ -1165,6 +1165,7 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
       const resolved = resolveProductEntry(itemLower, declaredPrice, productEntries);
       bestEntry = resolved.entry;
       bestPrice = bestEntry?.price || 0;
+      if (bestEntry) item.category_name = bestEntry.categoryName;
 
       if (bestEntry && bestPrice > 0 && !resolved.ambiguous) {
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
