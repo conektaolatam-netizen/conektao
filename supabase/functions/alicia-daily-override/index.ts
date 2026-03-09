@@ -117,6 +117,7 @@ Ejemplos:
             id: p.id,
             name: p.name,
             description: p.description || "",
+            category_id: p.category_id || null,
             category_name: Array.isArray(p.category_name) ? p.category_name[0]?.name || "" : p.category_name?.name || "",
           }));
           const match = resolveProduct(parsed.product_name, flat);
