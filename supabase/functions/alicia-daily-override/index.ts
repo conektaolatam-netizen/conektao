@@ -108,7 +108,7 @@ Ejemplos:
       if (targetType === "product" && parsed.product_name) {
         const { data: products } = await supabase
           .from("products")
-          .select("id, name, description, category_name:categories(name)")
+          .select("id, name, description, category_id, category_name:categories(name)")
           .eq("restaurant_id", restaurant_id)
           .eq("is_active", true);
 
