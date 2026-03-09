@@ -1,56 +1,75 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Support custom end time for daily overrides (UTC-normalized)
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Problem
+Currently all overrides expire at local midnight (23:59:59). The owner should be able to say "cerrado hasta las 5pm" or "precio de la pizza a 35000 hasta las 8pm" and have the override expire at that specific hour instead.
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+## Changes
+
+### 1. AI parser prompt — extract `until_hour` field
+
+In `supabase/functions/alicia-daily-override/index.ts` (lines 59-74), update the system prompt to include a new `until_hour` field in the JSON format:
+
+```json
+{
+  ...existing fields...,
+  "until_hour": "HH:mm o null si no se indica hora específica"
+}
+```
+
+Add examples:
+- "cerrado hasta las 5pm" → `"until_hour": "17:00"`
+- "no hay domicilio hasta las 6" → `"until_hour": "18:00"`
+- "pizza hawaiana a 20000 hasta las 8pm" → `"until_hour": "20:00"`
+- "se acabó la pepperoni" (no hour) → `"until_hour": null`
+
+### 2. New helper function — convert local hour to UTC ISO string
+
+Add a function `getLocalHourAsUTC(offsetHours, hourStr)` that:
+1. Takes the restaurant's UTC offset and an "HH:mm" string
+2. Gets today's restaurant date
+3. Builds a local datetime at that hour
+4. Converts to UTC for DB storage
+5. Falls back to end-of-day if the parsed hour is already past
 
 ```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
-
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
+function getLocalHourAsUTC(offsetHours: number, hourStr: string): string {
+  const local = getRestaurantTime(offsetHours);
+  const [h, m] = hourStr.split(":").map(Number);
+  local.setHours(h, m || 0, 0, 0);
+  // Convert local back to UTC
+  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
+  return utc.toISOString();
 }
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+### 3. Use `until_hour` to compute `end_time` (line ~141)
 
-Añadir instrucción explícita sobre signos de interrogación en español:
+Replace the current hardcoded end-of-day:
 
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
-
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```typescript
+const endOfDayUTC = getRestaurantEndOfDayUTC(tzOffset);
 ```
 
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+With:
 
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+```typescript
+const endTimeUTC = parsed.until_hour
+  ? getLocalHourAsUTC(tzOffset, parsed.until_hour)
+  : getRestaurantEndOfDayUTC(tzOffset);
+```
 
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+Use `endTimeUTC` in both the `system_overrides` insert (`end_time`) and optionally in the daily override instruction text.
+
+### 4. Update instruction text to reflect the hour
+
+The AI-generated `instruction` field should already mention the hour naturally (e.g., "Hoy NO hay domicilio hasta las 6pm"). The prompt examples guide this. No extra logic needed — the AI parser handles it in the `instruction` field.
+
+## Files changed
+- `supabase/functions/alicia-daily-override/index.ts` — prompt update, new helper, end_time logic
+
+## No other files change
+- `whatsapp-webhook` already filters by `end_time > now()`, so time-limited overrides will automatically stop being enforced when the hour passes.
+- `AliciaDailyChat.tsx` — no change needed, displays `instruction` text as-is.
 
