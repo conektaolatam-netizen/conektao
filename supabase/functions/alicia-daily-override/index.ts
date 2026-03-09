@@ -105,6 +105,10 @@ Ejemplos:
       const overrideValue = parsed.value || "unavailable";
 
       let targetId: string | null = null;
+      let matchedProductName: string | null = parsed.product_name || null;
+      let matchedCategoryName: string | null = null;
+      let matchedCategoryId: string | null = null;
+
       if (targetType === "product" && parsed.product_name) {
         const { data: products } = await supabase
           .from("products")
@@ -123,6 +127,10 @@ Ejemplos:
           const match = resolveProduct(parsed.product_name, flat);
           if (match) {
             targetId = match.id;
+            matchedProductName = match.name;
+            const matchedFlat = flat.find((f: any) => f.id === match.id);
+            matchedCategoryName = matchedFlat?.category_name || null;
+            matchedCategoryId = matchedFlat?.category_id || null;
             console.log(`Product resolved: "${parsed.product_name}" → ${match.name} (${match.id})`);
           } else {
             console.log(`Product NOT resolved: "${parsed.product_name}"`);
@@ -140,6 +148,9 @@ Ejemplos:
           target_type: targetType,
           target_id: targetId,
           value: String(overrideValue),
+          product_name: matchedProductName,
+          category_name: matchedCategoryName,
+          category_id: matchedCategoryId,
           start_time: new Date().toISOString(),
           end_time: endOfDayUTC,
         })
