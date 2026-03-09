@@ -1262,7 +1262,8 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
     packagingTotal += pkgCost * qty;
-    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}: ${formatCOP(lineTotal)}\n`;
+    const catLabel = item.category_name ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}${catLabel}: ${formatCOP(lineTotal)}\n`;
     if (pkgCost > 0) {
       itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
     }
