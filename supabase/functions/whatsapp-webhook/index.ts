@@ -1367,9 +1367,9 @@ function handlePriceQuestion(
   if (variants.length > 1 && resolved.ambiguous) {
     let msg = "Tenemos:\n";
     for (const v of variants) {
-      // Find original product to get proper casing
       const orig = effectiveProducts.find((p: any) => (p.name || "").toLowerCase().trim() === v.name);
-      msg += `- ${orig?.name || v.name}: ${formatCOP(v.price)}\n`;
+      const catLabel = v.categoryName ? ` (${v.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+      msg += `- ${orig?.name || v.name}${catLabel}: ${formatCOP(v.price)}\n`;
     }
     msg += "¿Cuál te gustaría?";
     return msg;
