@@ -173,8 +173,8 @@ async function getActiveOverrides(restaurantId: string): Promise<any[]> {
 function getDisabledProductIds(overrides: any[]): Set<string> {
   return new Set(
     overrides
-      .filter(o => o.type === "disable" && o.target_type === "product" && o.target_id)
-      .map(o => o.target_id)
+      .filter(o => o.type === "disable" && o.target_type === "product" && o.product_id)
+      .map(o => o.product_id)
   );
 }
 
