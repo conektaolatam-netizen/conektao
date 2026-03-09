@@ -72,13 +72,18 @@ Formato:
   "override_type": "disable|price_override|enable",
   "target_type": "product|restaurant|delivery",
   "product_name": "nombre del producto si aplica, null si no",
-  "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio"
+  "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio",
+  "until_hour": "HH:mm en formato 24h si el dueño indica una hora límite, null si no se indica hora específica (aplica todo el día)"
 }
 Ejemplos:
-- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed_early_9pm"}
-- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery"}
-- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable"}
-- "hoy la pizza hawaiana vale 20000" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000"}`,
+- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed_early_9pm","until_hour":null}
+- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","until_hour":null}
+- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","until_hour":null}
+- "hoy la pizza hawaiana vale 20000" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","until_hour":null}
+- "cerrado hasta las 5pm" → {"type":"schedule_change","instruction":"Hoy el restaurante está cerrado hasta las 5:00 PM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","until_hour":"17:00"}
+- "no hay domicilio hasta las 6" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio hasta las 6:00 PM","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","until_hour":"18:00"}
+- "pizza hawaiana a 20000 hasta las 8pm" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000 hasta las 8:00 PM","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","until_hour":"20:00"}
+- "no hay pepperoni hasta las 3" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni hasta las 3:00 PM","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","until_hour":"15:00"}`,
           },
           { role: "user", content: message },
         ],
