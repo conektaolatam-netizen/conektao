@@ -2788,11 +2788,11 @@ Deno.serve(async (req) => {
 
           if (existingEvent) {
             console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
-            const { isOpen: idempOpen } = isRestaurantOpen(config);
-            const resp = idempOpen
+            const { isOpen: idempOpen, isPreOrder: idempPreOrder } = isRestaurantOpen(config);
+            const resp = (idempOpen && !idempPreOrder)
               ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
               : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
-            const idempStatus = idempOpen ? "confirmed" : "pre_order";
+            const idempStatus = (idempOpen && !idempPreOrder) ? "confirmed" : "pre_order";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
             await supabase
               .from("whatsapp_conversations")
