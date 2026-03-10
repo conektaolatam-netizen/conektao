@@ -147,8 +147,8 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
   const closeMinutes = timeToMinutes(hours.close_time);
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  const prepStart = hours.preparation_start || hours.open_time;
-  const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a preparar a las ${prepStart}`;
+  const schedStart = hours.schedule_start || hours.open_time;
+  const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
 
   return { isOpen, preOrderMessage };
 }
