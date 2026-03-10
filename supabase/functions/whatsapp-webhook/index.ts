@@ -2072,6 +2072,12 @@ async function runSalesNudgeCheck() {
     for (const conv of allConvs) {
       if (conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString() > tenMinAgo) continue;
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+      // Skip if assistant responded recently (< 5 min) — avoid nudging while waiting for user confirmation
+      const lastAssistantMsg = msgs.filter((m: any) => m.role === "assistant").pop();
+      if (lastAssistantMsg?.timestamp) {
+        const lastTime = new Date(lastAssistantMsg.timestamp).getTime();
+        if (Date.now() - lastTime < 5 * 60 * 1000) continue;
+      }
       const lastMsg = msgs[msgs.length - 1];
       let consecutiveCustomerMsgs = 0;
       for (let i = msgs.length - 1; i >= 0; i--) {
