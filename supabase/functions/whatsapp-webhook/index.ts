@@ -3079,10 +3079,21 @@ Deno.serve(async (req) => {
       const overridePromptBlock = buildOverridePromptBlock(prodsWithCategory, activeOverrides);
       tlog("info", rId, `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`);
 
-      // ── RESTAURANT CLOSED: No hardcoded early-return. Closure flows through AI prompt via overridesBlock.
-      // The AI will respond naturally about the closure, and when the override expires, the instruction
-      // disappears from the prompt immediately — no stale conversation history problem.
-      // Order confirmation is still hard-blocked at line 2665 (confirmation flow).
+      // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
+      const availability = checkRestaurantAvailability(config, activeOverrides, config.daily_overrides || []);
+      if (availability.blocked) {
+        tlog("info", rId, `Restaurant blocked: ${availability.message.substring(0, 60)}`);
+        const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
+        convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
+        convMsgs.push({ role: "assistant", content: availability.message, timestamp: new Date().toISOString() });
+        await supabase.from("whatsapp_conversations")
+          .update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null })
+          .eq("id", conv.id);
+        await sendWA(pid, token, from, availability.message, true);
+        return new Response(JSON.stringify({ status: "restaurant_unavailable" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
 
       const { data: rest } = await supabase.from("restaurants").select("id, name").eq("id", rId).single();
       const rName = rest?.name || "Restaurante";
