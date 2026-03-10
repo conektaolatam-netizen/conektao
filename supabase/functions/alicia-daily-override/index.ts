@@ -5,31 +5,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Timezone helpers ──
+// ── Timezone helpers (pure UTC arithmetic — NO getTimezoneOffset) ──
+
 function parseTimezoneOffset(tz: string): number {
   if (!tz) return -5;
   const match = tz.match(/^UTC([+-]?\d+)$/i);
   return match ? parseInt(match[1]) : -5;
 }
+
+/** Current time in the restaurant's local timezone (as a Date whose UTC fields = local values) */
 function getRestaurantTime(offsetHours: number): Date {
-  const now = new Date();
-  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+  const nowUTC = Date.now();
+  return new Date(nowUTC + offsetHours * 3600000);
 }
+
+/** "YYYY-MM-DD" in restaurant's timezone */
 function getRestaurantDate(offsetHours: number): string {
   return getRestaurantTime(offsetHours).toISOString().split("T")[0];
 }
+
+/** Convert a "local-as-UTC" Date back to real UTC */
+function localToUTC(localDate: Date, offsetHours: number): Date {
+  return new Date(localDate.getTime() - offsetHours * 3600000);
+}
+
+/** End of today (23:59:59.999) in restaurant local time → converted to UTC */
 function getRestaurantEndOfDayUTC(offsetHours: number): string {
   const local = getRestaurantTime(offsetHours);
-  local.setHours(23, 59, 59, 999);
-  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
-  return utc.toISOString();
+  local.setUTCHours(23, 59, 59, 999);
+  return localToUTC(local, offsetHours).toISOString();
 }
+
+/** Convert a local "HH:mm" string (today) to a UTC ISO timestamp */
 function getLocalHourAsUTC(offsetHours: number, hourStr: string): string {
   const local = getRestaurantTime(offsetHours);
   const [h, m] = hourStr.split(":").map(Number);
-  local.setHours(h, m || 0, 0, 0);
-  const utc = new Date(local.getTime() - (offsetHours * 60 + new Date().getTimezoneOffset()) * 60000);
-  return utc.toISOString();
+  local.setUTCHours(h, m || 0, 0, 0);
+  return localToUTC(local, offsetHours).toISOString();
 }
 
 import { scoreProduct, resolveProduct } from "../_shared/productResolver.ts";
@@ -73,17 +85,21 @@ Formato:
   "target_type": "product|restaurant|delivery",
   "product_name": "nombre del producto si aplica, null si no",
   "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio",
+  "start_hour": "HH:mm en formato 24h si el dueño indica una hora de INICIO, null si empieza ahora",
   "until_hour": "HH:mm en formato 24h si el dueño indica una hora límite, null si no se indica hora específica (aplica todo el día)"
 }
 Ejemplos:
-- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed_early_9pm","until_hour":null}
-- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","until_hour":null}
-- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","until_hour":null}
-- "hoy la pizza hawaiana vale 20000" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","until_hour":null}
-- "cerrado hasta las 5pm" → {"type":"schedule_change","instruction":"Hoy el restaurante está cerrado hasta las 5:00 PM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","until_hour":"17:00"}
-- "no hay domicilio hasta las 6" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio hasta las 6:00 PM","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","until_hour":"18:00"}
-- "pizza hawaiana a 20000 hasta las 8pm" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000 hasta las 8:00 PM","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","until_hour":"20:00"}
-- "no hay pepperoni hasta las 3" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni hasta las 3:00 PM","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","until_hour":"15:00"}`,
+- "hoy cerramos a las 9" → {"type":"schedule_change","instruction":"Hoy cerramos a las 9:00 PM en vez del horario normal","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed_early_9pm","start_hour":null,"until_hour":null}
+- "no hay domicilio hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio. Solo recogida en local","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","start_hour":null,"until_hour":null}
+- "se acabó la pepperoni" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni. Está agotada","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","start_hour":null,"until_hour":null}
+- "hoy la pizza hawaiana vale 20000" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","start_hour":null,"until_hour":null}
+- "cerrado hasta las 5pm" → {"type":"schedule_change","instruction":"Hoy el restaurante está cerrado hasta las 5:00 PM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":null,"until_hour":"17:00"}
+- "no hay domicilio hasta las 6" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de domicilio hasta las 6:00 PM","override_type":"disable","target_type":"delivery","product_name":null,"value":"no_delivery","start_hour":null,"until_hour":"18:00"}
+- "pizza hawaiana a 20000 hasta las 8pm" → {"type":"menu_change","instruction":"Hoy la pizza hawaiana cuesta $20,000 hasta las 8:00 PM","override_type":"price_override","target_type":"product","product_name":"pizza hawaiana","value":"20000","start_hour":null,"until_hour":"20:00"}
+- "no hay pepperoni hasta las 3" → {"type":"menu_change","instruction":"Hoy NO hay pizza Pepperoni hasta las 3:00 PM","override_type":"disable","target_type":"product","product_name":"pepperoni","value":"unavailable","start_hour":null,"until_hour":"15:00"}
+- "hoy el restaurante abre desde las 9pm" → {"type":"schedule_change","instruction":"Hoy el restaurante abre desde las 9:00 PM","override_type":"enable","target_type":"restaurant","product_name":null,"value":"open_from_9pm","start_hour":"21:00","until_hour":null}
+- "pizza española personal a 37000 desde las 8pm hasta las 9pm" → {"type":"menu_change","instruction":"Hoy la pizza española personal cuesta $37,000 desde las 8:00 PM hasta las 9:00 PM","override_type":"price_override","target_type":"product","product_name":"pizza española personal","value":"37000","start_hour":"20:00","until_hour":"21:00"}
+- "cerrado desde las 10pm hasta la 1am" → {"type":"schedule_change","instruction":"Hoy el restaurante cierra desde las 10:00 PM hasta la 1:00 AM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":"22:00","until_hour":"01:00"}`,
           },
           { role: "user", content: message },
         ],
@@ -100,6 +116,7 @@ Ejemplos:
     if (!jsonMatch) throw new Error("Could not parse AI response");
     
     const parsed = JSON.parse(jsonMatch[0]);
+
     // Fetch timezone from whatsapp_configs
     const { data: tzConfig } = await supabase
       .from("whatsapp_configs")
@@ -108,6 +125,22 @@ Ejemplos:
       .maybeSingle();
     const tzOffset = parseTimezoneOffset(tzConfig?.operating_hours?.timezone);
     const today = getRestaurantDate(tzOffset);
+
+    // ── Compute start_time and end_time ──
+    const startTimeUTC = parsed.start_hour
+      ? getLocalHourAsUTC(tzOffset, parsed.start_hour)
+      : new Date().toISOString();
+
+    let endTimeUTC = parsed.until_hour
+      ? getLocalHourAsUTC(tzOffset, parsed.until_hour)
+      : getRestaurantEndOfDayUTC(tzOffset);
+
+    // Edge case: if end <= start, assume next day (e.g., "10pm to 1am")
+    if (new Date(endTimeUTC) <= new Date(startTimeUTC)) {
+      const adjusted = new Date(endTimeUTC);
+      adjusted.setDate(adjusted.getDate() + 1);
+      endTimeUTC = adjusted.toISOString();
+    }
 
     // ── Step 1: Insert system_override FIRST to get its ID ──
     let systemOverrideId: string | null = null;
@@ -150,10 +183,6 @@ Ejemplos:
         }
       }
 
-      const endTimeUTC = parsed.until_hour
-        ? getLocalHourAsUTC(tzOffset, parsed.until_hour)
-        : getRestaurantEndOfDayUTC(tzOffset);
-
       const { data: soData, error: soError } = await supabase
         .from("system_overrides")
         .insert({
@@ -165,7 +194,7 @@ Ejemplos:
           product_name: matchedProductName,
           category_name: matchedCategoryName,
           category_id: matchedCategoryId,
-          start_time: new Date().toISOString(),
+          start_time: startTimeUTC,
           end_time: endTimeUTC,
         })
         .select("id")
@@ -175,7 +204,7 @@ Ejemplos:
         console.error("system_overrides insert error:", soError.message);
       } else {
         systemOverrideId = soData?.id || null;
-        console.log(`system_override created: ${systemOverrideId}`);
+        console.log(`system_override created: ${systemOverrideId} (start: ${startTimeUTC}, end: ${endTimeUTC})`);
       }
     } catch (soErr: any) {
       console.error("system_overrides error:", soErr.message);
@@ -197,6 +226,14 @@ Ejemplos:
       created_at: new Date().toISOString(),
       expires: today,
     };
+
+    // Embed start_hour and until_hour for webhook/dashboard time-aware filtering
+    if (parsed.start_hour) {
+      newOverride.start_hour = parsed.start_hour;
+    }
+    if (parsed.until_hour) {
+      newOverride.until_hour = parsed.until_hour;
+    }
 
     // Embed the system_override_id so the frontend can expire it on removal
     if (systemOverrideId) {
