@@ -229,9 +229,19 @@ function checkRestaurantAvailability(
       const endLocal = new Date(new Date(closedOverride.end_time).getTime() + offset * 3600000);
       const endH = endLocal.getHours();
       const endM = endLocal.getMinutes();
-      const endStr = fmt12(`${endH}:${endM}`);
       const endMinutes = endH * 60 + endM;
+      // Determine the effective closing boundary
+      const schedEnd = hours.schedule_end || hours.close_time || null;
+      const closeBoundary = schedEnd ? timeToMinutes(schedEnd) : null;
       if (endMinutes > nowMinutes) {
+        // If override ends after the service window, don't say "reopening at 11:59 PM"
+        if (closeBoundary && endMinutes >= closeBoundary) {
+          const tomorrowLabel = hours.accept_pre_orders
+            ? (hours.open_time || hours.schedule_start || "")
+            : (hours.schedule_start || hours.open_time || "");
+          return { blocked: true, message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏` };
+        }
+        const endStr = fmt12(`${endH}:${endM}`);
         return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${endStr}. ¡Te esperamos! 🙏` };
       }
     }
@@ -258,6 +268,16 @@ function checkRestaurantAvailability(
   if (activeDailyClosures.length > 0) {
     const closure = activeDailyClosures[0];
     if (closure.until_hour) {
+      const untilMin = timeToMinutes(closure.until_hour);
+      const schedEnd = hours.schedule_end || hours.close_time || null;
+      const closeBoundary = schedEnd ? timeToMinutes(schedEnd) : null;
+      // If until_hour is after closing, don't give a misleading reopen time
+      if (closeBoundary && untilMin >= closeBoundary) {
+        const tomorrowLabel = hours.accept_pre_orders
+          ? (hours.open_time || hours.schedule_start || "")
+          : (hours.schedule_start || hours.open_time || "");
+        return { blocked: true, message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏` };
+      }
       return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${fmt12(closure.until_hour)}. ¡Te esperamos! 🙏` };
     }
     return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
@@ -306,6 +326,14 @@ function checkRestaurantAvailability(
   if (effectiveScheduleStart) {
     const schedStartMin = timeToMinutes(effectiveScheduleStart);
     if (nowMinutes < schedStartMin) {
+      // If accept_pre_orders is true and we're within open hours, let the flow continue
+      if (hours.accept_pre_orders && hours.open_time) {
+        const openMin = timeToMinutes(hours.open_time);
+        if (nowMinutes >= openMin) {
+          // Allow pre-orders — the AI prompt (scheduleBlock) will handle the messaging
+          return { blocked: false, message: "" };
+        }
+      }
       return { blocked: true, message: `El restaurante ya está abierto, pero comenzamos a atender pedidos a las ${fmt12(effectiveScheduleStart)}. ¡Te esperamos! 🙏` };
     }
   }
@@ -1036,6 +1064,8 @@ function buildDynamicPrompt(
       }
     } else if (currentMinutes >= closeMinutes) {
       scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
+    } else if (currentMinutes < timeToMinutes(schedStart) && hours.accept_pre_orders) {
+      scheduleBlock = `ESTADO: ABIERTOS pero en horario de pre-pedido. Atención de pedidos desde las ${schedStart} hasta las ${schedEnd}.\nMensaje pre-orden: "${hours.pre_order_message || `Tomamos tu pedido, pero empezamos a preparar a las ${schedStart}`}"\nSi el cliente confirma su pedido, tómalo pero indícale que se empezará a preparar a las ${schedStart}.`;
     } else {
       scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}. Atención: ${schedStart} - ${schedEnd}.`;
     }
