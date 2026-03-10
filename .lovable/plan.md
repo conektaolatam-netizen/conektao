@@ -1,56 +1,42 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Fix Order Summary Formatting Issues
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Problem 1: Category label repeated in product name
+The AI's JSON `item.name` may already contain the category (e.g., "A la española (Pizzas - Personal)"). Then `validateOrder` sets `item.category_name = "pizzas - personal"` from the DB match, and `buildOrderSummary` appends it again as `catLabel`. If the AI included it multiple times in the name, it compounds.
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+**Fix in `buildOrderSummary` (line 1458-1459)**: Before appending `catLabel`, strip any existing parenthesized category from `item.name`. Also, only append `catLabel` if it's not already present in the cleaned name.
 
+## Problem 2: AI includes "Empaque" as a standalone item in the items array
+The AI sometimes adds a separate line item like `{name: "Empaque", quantity: 1, unit_price: 2000}` in addition to setting `packaging_cost` on the actual product. This causes packaging to appear as both a line item AND a sub-line, and gets double-counted in the total.
+
+**Fix in `validateOrder` (before the items loop, ~line 1349)**: Filter out items whose name matches packaging patterns (`/^📦?\s*empaque/i`). Their cost is already captured via `packaging_cost` on actual product items.
+
+## Changes in `supabase/functions/whatsapp-webhook/index.ts`
+
+### Change 1: Filter packaging pseudo-items in `validateOrder` (~line 1349)
+
+Add before the `for` loop:
 ```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
-
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
+// Remove AI-generated packaging pseudo-items — packaging is handled via packaging_cost per product
+order.items = (order.items || []).filter((item: any) => {
+  const name = (item.name || "").trim();
+  return !/^📦?\s*empaque/i.test(name);
+});
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+### Change 2: Clean item name and avoid duplicate category in `buildOrderSummary` (~line 1458)
 
-Añadir instrucción explícita sobre signos de interrogación en español:
-
+Replace the catLabel + itemLines logic:
+```typescript
+// Strip any parenthesized category already embedded in the item name by the AI
+let displayName = (item.name || "").replace(/\s*\([^)]*\)\s*/g, "").trim() || item.name;
+const catLabel = item.category_name
+  ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})`
+  : "";
+itemLines += `- ${qty > 1 ? qty + "x " : ""}${displayName}${catLabel}: ${formatCOP(lineTotal)}\n`;
 ```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
-```
-
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
-
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
-
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+### Files changed
+- `supabase/functions/whatsapp-webhook/index.ts` — 2 localized edits
 
