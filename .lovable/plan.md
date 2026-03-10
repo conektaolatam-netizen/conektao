@@ -1,47 +1,56 @@
 
 
-# Plan: Fix nudge system disrupting order confirmations
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Root Cause
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-The "." messages you see are from the **nudge system** (`runSalesNudgeCheck`). It fires on conversations with statuses like `pending_confirmation` that haven't been updated in 2 minutes. When a nudge fires between the order summary and the user's "Sí, confirmar":
-
-1. The nudge changes `order_status` from `pending_confirmation` to `nudge_sent`
-2. It injects a nudge message into the conversation history
-3. When the user confirms, the AI processes the "Sí" with the nudge-polluted context, losing awareness of the pre-order state
-
-In Chat 2, the nudge fired at 1:57 PM (same minute), which is why the confirmation said "sent to kitchen" instead of showing the pre-order message.
-
-## Fix: Two changes in `supabase/functions/whatsapp-webhook/index.ts`
-
-### Change 1: Exclude pending confirmation statuses from nudges
-
-In `runSalesNudgeCheck()`, add `pending_confirmation`, `pending_button_confirmation`, and `pre_order` to the excluded statuses for `dyingConvs`. These conversations are **waiting for user input** — nudging them is counterproductive.
-
-Current filter (line 2045):
-```
-.not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
-```
-
-Updated:
-```
-.not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")')
-```
-
-Same for `abandonedConvs` (line 2050) — also exclude these statuses.
-
-### Change 2: Skip nudges for conversations with recent assistant messages (< 5 min)
-
-Add a guard: if the last assistant message in the conversation is less than 5 minutes old, skip the nudge. This prevents nudging immediately after Alicia just sent an order summary.
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-const lastAssistantMsg = msgs.filter(m => m.role === "assistant").pop();
-if (lastAssistantMsg?.timestamp) {
-  const lastTime = new Date(lastAssistantMsg.timestamp).getTime();
-  if (Date.now() - lastTime < 5 * 60 * 1000) continue; // Assistant responded recently, skip
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
+
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-### Files changed
-- `supabase/functions/whatsapp-webhook/index.ts` — 2 localized edits in `runSalesNudgeCheck()`
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+
+Añadir instrucción explícita sobre signos de interrogación en español:
+
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
