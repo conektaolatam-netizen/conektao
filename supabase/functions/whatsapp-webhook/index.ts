@@ -1026,17 +1026,18 @@ function buildDynamicPrompt(
     const currentMinutes = hour * 60 + minute;
     const openMinutes = timeToMinutes(hours.open_time);
     const closeMinutes = timeToMinutes(hours.close_time);
-    const prepStart = hours.preparation_start || hours.open_time;
+    const schedStart = hours.schedule_start || hours.open_time;
+    const schedEnd = hours.schedule_end || hours.close_time;
 
     if (currentMinutes < openMinutes) {
       scheduleBlock = `ESTADO: Cerrado. Abrimos a las ${hours.open_time}.`;
       if (hours.accept_pre_orders) {
-        scheduleBlock += ` Puedes tomar el pedido: "${hours.pre_order_message || `Empezamos a preparar a las ${prepStart}`}"`;
+        scheduleBlock += ` Puedes tomar el pedido: "${hours.pre_order_message || `Empezamos a atender a las ${schedStart}`}"`;
       }
     } else if (currentMinutes >= closeMinutes) {
       scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
     } else {
-      scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}.`;
+      scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}. Atención: ${schedStart} - ${schedEnd}.`;
     }
   }
 
