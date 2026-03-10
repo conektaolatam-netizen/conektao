@@ -1461,8 +1461,10 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
     packagingTotal += pkgCost * qty;
+    // Strip any parenthesized category already embedded in the item name by the AI
+    let displayName = (item.name || "").replace(/\s*\([^)]*\)\s*/g, "").trim() || item.name;
     const catLabel = item.category_name ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
-    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}${catLabel}: ${formatCOP(lineTotal)}\n`;
+    itemLines += `- ${qty > 1 ? qty + "x " : ""}${displayName}${catLabel}: ${formatCOP(lineTotal)}\n`;
     if (pkgCost > 0) {
       itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
     }
