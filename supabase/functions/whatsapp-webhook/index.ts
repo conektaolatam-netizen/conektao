@@ -1346,6 +1346,12 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     (order.delivery_type || "").toLowerCase().includes("delivery") ||
     (order.delivery_type || "").toLowerCase().includes("domicilio");
 
+  // Remove AI-generated packaging pseudo-items — packaging is handled via packaging_cost per product
+  order.items = (order.items || []).filter((item: any) => {
+    const name = (item.name || "").trim();
+    return !/^📦?\s*empaque/i.test(name);
+  });
+
   for (const item of order.items) {
     const itemName = item.name || "";
     const itemLower = itemName.toLowerCase();
