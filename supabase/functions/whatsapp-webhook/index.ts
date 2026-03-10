@@ -2893,17 +2893,30 @@ Deno.serve(async (req) => {
           }
           const nameGreeting = customerName ? `, ${customerName}` : "";
 
-          // Check if restaurant is currently open
-          const { isOpen, preOrderMessage } = isRestaurantOpen(config);
+          // Check if restaurant is currently open and if it's pre-order time
+          const { isOpen, isPreOrder, preOrderMessage } = isRestaurantOpen(config);
           const hours = config?.operating_hours || {};
+          const fmt12Conf = (t: string): string => {
+            const [h, m] = t.split(":").map(Number);
+            const suffix = h >= 12 ? "PM" : "AM";
+            const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            return `${h12}:${(m || 0).toString().padStart(2, "0")} ${suffix}`;
+          };
 
           let resp: string;
           let finalStatus: string;
 
-          if (isOpen) {
+          if (isOpen && !isPreOrder) {
+            // Fully operational — send to kitchen
             resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
             finalStatus = "confirmed";
+          } else if (isOpen && isPreOrder) {
+            // Open but before schedule_start — accept as pre-order, do NOT say "sent to kitchen"
+            const schedStart = hours.schedule_start || hours.open_time;
+            resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n${preOrderMessage}\n🕐 Empezamos a preparar a las ${fmt12Conf(schedStart)}${paymentInstruction}`;
+            finalStatus = "pre_order";
           } else {
+            // Closed
             const openTime = hours.open_time || "";
             resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}${paymentInstruction}`;
             finalStatus = "pre_order";
