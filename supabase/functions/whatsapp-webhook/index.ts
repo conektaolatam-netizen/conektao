@@ -74,10 +74,10 @@ function parseTimezoneOffset(tz: string): number {
   return match ? parseInt(match[1]) : -5;
 }
 
-/** Get current Date shifted to a given UTC offset */
+/** Get current Date shifted to a given UTC offset (pure arithmetic, no getTimezoneOffset) */
 function getRestaurantTime(offsetHours: number): Date {
-  const now = new Date();
-  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+  const nowUTC = Date.now();
+  return new Date(nowUTC + offsetHours * 3600000);
 }
 
 /** Get "YYYY-MM-DD" in restaurant's timezone */
@@ -912,14 +912,46 @@ function buildDynamicPrompt(
     }
   }
 
-  // Daily overrides
+  // Daily overrides — time-aware filtering + auto-clean
   let overridesBlock = "";
   if (dailyOverrides.length > 0) {
     const tzOffset = parseTimezoneOffset(hours?.timezone || "UTC-5");
     const today = getRestaurantDate(tzOffset);
-    const active = dailyOverrides.filter((o: any) => !o.expires || o.expires >= today);
+    const nowLocal = getRestaurantTime(tzOffset);
+    const nowMinutes = nowLocal.getUTCHours() * 60 + nowLocal.getUTCMinutes();
+
+    // Filter to only currently active overrides (date + hour)
+    const active = dailyOverrides.filter((o: any) => {
+      if (o.expires && o.expires < today) return false;
+      if (o.start_hour) {
+        const [sh, sm] = o.start_hour.split(":").map(Number);
+        if (nowMinutes < sh * 60 + (sm || 0)) return false;
+      }
+      if (o.until_hour) {
+        const [uh, um] = o.until_hour.split(":").map(Number);
+        if (nowMinutes > uh * 60 + (um || 0)) return false;
+      }
+      return true;
+    });
+
     if (active.length > 0) {
       overridesBlock = "\nCAMBIOS DE HOY:\n" + active.map((o: any) => `- ${o.instruction || o.value}`).join("\n");
+    }
+
+    // Auto-clean expired overrides from JSONB (fire-and-forget)
+    const cleaned = dailyOverrides.filter((o: any) => {
+      if (o.expires && o.expires < today) return false;
+      if (o.until_hour && o.expires === today) {
+        const [uh, um] = o.until_hour.split(":").map(Number);
+        if (nowMinutes > uh * 60 + (um || 0)) return false;
+      }
+      return true;
+    });
+    if (cleaned.length !== dailyOverrides.length) {
+      supabase.from("whatsapp_configs")
+        .update({ daily_overrides: cleaned })
+        .eq("restaurant_id", restaurant_id)
+        .then(() => console.log(`Cleaned ${dailyOverrides.length - cleaned.length} expired daily_overrides`));
     }
   }
 
