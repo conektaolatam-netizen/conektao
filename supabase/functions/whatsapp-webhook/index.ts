@@ -2042,12 +2042,12 @@ async function runSalesNudgeCheck() {
     const { data: dyingConvs } = await supabase
       .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent")')
+      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")')
       .lt("updated_at", twoMinAgo);
     const { data: abandonedConvs } = await supabase
       .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "eq", "confirmed")
+      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")')
       .lt("updated_at", twoMinAgo);
     const reallyAbandoned = (abandonedConvs || []).filter((c: any) => {
       const m = Array.isArray(c.messages) ? c.messages : [];
