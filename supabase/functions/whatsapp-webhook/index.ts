@@ -3045,6 +3045,18 @@ Deno.serve(async (req) => {
       const waCustomer = await getOrCreateWaCustomer(from, rId);
       const customerMemoryCtx = buildCustomerMemoryContext(waCustomer);
 
+      // ── Detect stale "closed" messages in history when restaurant is NOW OPEN ──
+      let reopenHint = "";
+      if (!isRestaurantClosedOverride(activeOverrides)) {
+        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const hasStaleClosedMsg = recentMsgs.some((m: any) =>
+          m.role === "assistant" && /cerrado|closed|cerrada|cerramos/i.test(m.content || "")
+        );
+        if (hasStaleClosedMsg) {
+          reopenHint = "\n\nIMPORTANTE: El restaurante está ABIERTO ahora. Ignora cualquier mensaje anterior que diga que está cerrado. Responde con normalidad y toma pedidos.";
+        }
+      }
+
       const sys =
         buildPrompt(
           effectiveProducts || [],
@@ -3055,7 +3067,7 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
-        ) + customerMemoryCtx + overridePromptBlock;
+        ) + customerMemoryCtx + overridePromptBlock + reopenHint;
 
       // === PRICE QUESTION INTERCEPTOR ===
       // Check if user is asking a price question — respond with DB prices, skip AI
