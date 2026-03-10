@@ -74,10 +74,10 @@ function parseTimezoneOffset(tz: string): number {
   return match ? parseInt(match[1]) : -5;
 }
 
-/** Get current Date shifted to a given UTC offset */
+/** Get current Date shifted to a given UTC offset (pure arithmetic, no getTimezoneOffset) */
 function getRestaurantTime(offsetHours: number): Date {
-  const now = new Date();
-  return new Date(now.getTime() + (offsetHours * 60 + now.getTimezoneOffset()) * 60000);
+  const nowUTC = Date.now();
+  return new Date(nowUTC + offsetHours * 3600000);
 }
 
 /** Get "YYYY-MM-DD" in restaurant's timezone */
