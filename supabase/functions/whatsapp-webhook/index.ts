@@ -1346,6 +1346,12 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
     (order.delivery_type || "").toLowerCase().includes("delivery") ||
     (order.delivery_type || "").toLowerCase().includes("domicilio");
 
+  // Remove AI-generated packaging pseudo-items — packaging is handled via packaging_cost per product
+  order.items = (order.items || []).filter((item: any) => {
+    const name = (item.name || "").trim();
+    return !/^📦?\s*empaque/i.test(name);
+  });
+
   for (const item of order.items) {
     const itemName = item.name || "";
     const itemLower = itemName.toLowerCase();
@@ -1455,8 +1461,10 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
     packagingTotal += pkgCost * qty;
+    // Strip any parenthesized category already embedded in the item name by the AI
+    let displayName = (item.name || "").replace(/\s*\([^)]*\)\s*/g, "").trim() || item.name;
     const catLabel = item.category_name ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
-    itemLines += `- ${qty > 1 ? qty + "x " : ""}${item.name}${catLabel}: ${formatCOP(lineTotal)}\n`;
+    itemLines += `- ${qty > 1 ? qty + "x " : ""}${displayName}${catLabel}: ${formatCOP(lineTotal)}\n`;
     if (pkgCost > 0) {
       itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
     }
