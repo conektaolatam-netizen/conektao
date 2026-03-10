@@ -1,56 +1,41 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Bug Analysis: Alicia stops responding after override expires
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Root Cause
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+There is a **critical crash** in `buildDynamicPrompt()` (whatsapp-webhook, line 953). The cleanup code references `restaurant_id` as a bare variable, but it's never passed as a parameter to this function. It only exists in the outer handler scope.
+
+```
+.eq("restaurant_id", restaurant_id)  // ← ReferenceError: restaurant_id is not defined
+```
+
+The error log confirms this:
+```
+🔥 CRITICAL ERROR: restaurant_id is not defined
+    at buildDynamicPrompt (index.ts:828)
+```
+
+### Why it only crashes after expiration
+
+- When the override is **active**: `cleaned.length === dailyOverrides.length` → cleanup code is **skipped** → no crash → works fine.
+- When the override **expires**: `cleaned.length !== dailyOverrides.length` → cleanup code **runs** → hits the undefined `restaurant_id` → **crashes the entire request** → Alicia returns nothing.
+- When dashboard reloads: `AliciaDailyChat.tsx` cleans the JSONB from the frontend → next webhook call has no expired overrides → no cleanup triggered → no crash.
+
+## Fix
+
+**In `supabase/functions/whatsapp-webhook/index.ts`**, line 953: replace `restaurant_id` with `config.restaurant_id`, which is available in scope since `config` is a parameter of `buildDynamicPrompt`.
 
 ```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
-
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
+// Line 953 — change:
+.eq("restaurant_id", restaurant_id)
+// To:
+.eq("restaurant_id", config.restaurant_id)
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+This is a single-line fix. No other files need changes.
 
-Añadir instrucción explícita sobre signos de interrogación en español:
+## Verification
 
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
-
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
-```
-
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
-
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
-
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+After deploying, test by creating an override with a short `until_hour` (e.g., 5 minutes from now), wait for it to expire, then send a WhatsApp message. Alicia should respond normally and the expired override should be auto-cleaned from the JSONB.
 
