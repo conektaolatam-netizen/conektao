@@ -134,11 +134,11 @@ function timeToMinutes(timeStr: string): number {
 }
 
 /** Check if the restaurant is currently within service hours */
-function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
+function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; preOrderMessage: string } {
   const hours = config?.operating_hours || {};
   if (!hours.open_time || !hours.close_time) {
     console.error("⚠️ isRestaurantOpen: missing open_time or close_time, defaulting to CLOSED");
-    return { isOpen: false, preOrderMessage: "" };
+    return { isOpen: false, isPreOrder: false, preOrderMessage: "" };
   }
 
   const { hour, minute } = getRestaurantTimeInfo(config);
@@ -148,9 +148,11 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   const schedStart = hours.schedule_start || hours.open_time;
+  const schedStartMin = timeToMinutes(schedStart);
+  const isPreOrder = isOpen && currentMinutes < schedStartMin;
   const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
 
-  return { isOpen, preOrderMessage };
+  return { isOpen, isPreOrder, preOrderMessage };
 }
 
 // ==================== SYSTEM OVERRIDES ====================
