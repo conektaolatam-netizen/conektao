@@ -950,7 +950,7 @@ function buildDynamicPrompt(
     if (cleaned.length !== dailyOverrides.length) {
       supabase.from("whatsapp_configs")
         .update({ daily_overrides: cleaned })
-        .eq("restaurant_id", restaurant_id)
+        .eq("restaurant_id", config.restaurant_id)
         .then(() => console.log(`Cleaned ${dailyOverrides.length - cleaned.length} expired daily_overrides`));
     }
   }
