@@ -1,89 +1,56 @@
 
 
-# Plan: Fix pre-order confirmation message when between open_time and schedule_start
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Problem
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-When the current time is between `open_time` and `schedule_start`, `isRestaurantOpen()` returns `isOpen: true`. The confirmation flow at line 2901 then sends "Ya lo estamos preparando / Pedido enviado a cocina", which is incorrect — the kitchen hasn't started yet.
-
-## Solution
-
-Add an `isPreOrder` flag to `isRestaurantOpen()` return value, then use it in the confirmation flow to show the pre-order message instead of the "sent to kitchen" message.
-
-### Change 1: Update `isRestaurantOpen` (lines 137-154)
-
-Add `isPreOrder: boolean` to the return type. It's `true` when the restaurant is physically open but `schedule_start` hasn't been reached yet:
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; preOrderMessage: string } {
-  const hours = config?.operating_hours || {};
-  if (!hours.open_time || !hours.close_time) {
-    return { isOpen: false, isPreOrder: false, preOrderMessage: "" };
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
   }
-  const { hour, minute } = getRestaurantTimeInfo(config);
-  const currentMinutes = hour * 60 + minute;
-  const openMinutes = timeToMinutes(hours.open_time);
-  const closeMinutes = timeToMinutes(hours.close_time);
-  const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  const schedStart = hours.schedule_start || hours.open_time;
-  const schedStartMin = timeToMinutes(schedStart);
-  const isPreOrder = isOpen && currentMinutes < schedStartMin;
-  const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
-  return { isOpen, isPreOrder, preOrderMessage };
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
+
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-### Change 2: Update confirmation flow (lines 2894-2908)
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-Use the new `isPreOrder` flag to create a third branch — order is accepted but NOT sent to kitchen:
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-```typescript
-const { isOpen, isPreOrder, preOrderMessage } = isRestaurantOpen(config);
-const hours = config?.operating_hours || {};
-const fmt12Conf = (t: string): string => {
-  const [h, m] = t.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${(m || 0).toString().padStart(2, "0")} ${suffix}`;
-};
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-let resp: string;
-let finalStatus: string;
-
-if (isOpen && !isPreOrder) {
-  // Fully operational — send to kitchen
-  resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
-  finalStatus = "confirmed";
-} else if (isOpen && isPreOrder) {
-  // Open but before schedule_start — accept as pre-order
-  const schedStart = hours.schedule_start || hours.open_time;
-  resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n${preOrderMessage}\n🕐 Empezamos a preparar a las ${fmt12Conf(schedStart)}${paymentInstruction}`;
-  finalStatus = "pre_order";
-} else {
-  // Closed
-  const openTime = hours.open_time || "";
-  resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}${paymentInstruction}`;
-  finalStatus = "pre_order";
-}
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
 ```
 
-### Change 3: Update idempotency check (lines 2789-2793)
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-Same logic for duplicate detection — use `isPreOrder`:
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-```typescript
-const { isOpen: idempOpen, isPreOrder: idempPreOrder } = isRestaurantOpen(config);
-const resp = (idempOpen && !idempPreOrder)
-  ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
-  : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
-const idempStatus = (idempOpen && !idempPreOrder) ? "confirmed" : "pre_order";
-```
-
-### Files changed
-- `supabase/functions/whatsapp-webhook/index.ts` — 3 localized edits
-
-### What is NOT modified
-- `checkRestaurantAvailability()` — already correctly allows pre-orders through
-- `buildDynamicPrompt` schedule block — already has the pre-order AI context
-- Database, overrides, validateOrder
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 

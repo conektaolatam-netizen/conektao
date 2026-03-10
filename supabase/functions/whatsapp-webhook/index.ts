@@ -134,11 +134,11 @@ function timeToMinutes(timeStr: string): number {
 }
 
 /** Check if the restaurant is currently within service hours */
-function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: string } {
+function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; preOrderMessage: string } {
   const hours = config?.operating_hours || {};
   if (!hours.open_time || !hours.close_time) {
     console.error("⚠️ isRestaurantOpen: missing open_time or close_time, defaulting to CLOSED");
-    return { isOpen: false, preOrderMessage: "" };
+    return { isOpen: false, isPreOrder: false, preOrderMessage: "" };
   }
 
   const { hour, minute } = getRestaurantTimeInfo(config);
@@ -148,9 +148,11 @@ function isRestaurantOpen(config: any): { isOpen: boolean; preOrderMessage: stri
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   const schedStart = hours.schedule_start || hours.open_time;
+  const schedStartMin = timeToMinutes(schedStart);
+  const isPreOrder = isOpen && currentMinutes < schedStartMin;
   const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
 
-  return { isOpen, preOrderMessage };
+  return { isOpen, isPreOrder, preOrderMessage };
 }
 
 // ==================== SYSTEM OVERRIDES ====================
@@ -2786,11 +2788,11 @@ Deno.serve(async (req) => {
 
           if (existingEvent) {
             console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
-            const { isOpen: idempOpen } = isRestaurantOpen(config);
-            const resp = idempOpen
+            const { isOpen: idempOpen, isPreOrder: idempPreOrder } = isRestaurantOpen(config);
+            const resp = (idempOpen && !idempPreOrder)
               ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
               : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
-            const idempStatus = idempOpen ? "confirmed" : "pre_order";
+            const idempStatus = (idempOpen && !idempPreOrder) ? "confirmed" : "pre_order";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
             await supabase
               .from("whatsapp_conversations")
@@ -2891,17 +2893,30 @@ Deno.serve(async (req) => {
           }
           const nameGreeting = customerName ? `, ${customerName}` : "";
 
-          // Check if restaurant is currently open
-          const { isOpen, preOrderMessage } = isRestaurantOpen(config);
+          // Check if restaurant is currently open and if it's pre-order time
+          const { isOpen, isPreOrder, preOrderMessage } = isRestaurantOpen(config);
           const hours = config?.operating_hours || {};
+          const fmt12Conf = (t: string): string => {
+            const [h, m] = t.split(":").map(Number);
+            const suffix = h >= 12 ? "PM" : "AM";
+            const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            return `${h12}:${(m || 0).toString().padStart(2, "0")} ${suffix}`;
+          };
 
           let resp: string;
           let finalStatus: string;
 
-          if (isOpen) {
+          if (isOpen && !isPreOrder) {
+            // Fully operational — send to kitchen
             resp = `Listo${nameGreeting} ✅ Pedido confirmado!\n\nYa lo estamos preparando 🍕\n📩 Pedido enviado a cocina${paymentInstruction}`;
             finalStatus = "confirmed";
+          } else if (isOpen && isPreOrder) {
+            // Open but before schedule_start — accept as pre-order, do NOT say "sent to kitchen"
+            const schedStart = hours.schedule_start || hours.open_time;
+            resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n${preOrderMessage}\n🕐 Empezamos a preparar a las ${fmt12Conf(schedStart)}${paymentInstruction}`;
+            finalStatus = "pre_order";
           } else {
+            // Closed
             const openTime = hours.open_time || "";
             resp = `Listo${nameGreeting} ✅ Pedido recibido!\n\n🕐 El restaurante abre a las ${openTime}.\n${preOrderMessage}${paymentInstruction}`;
             finalStatus = "pre_order";
