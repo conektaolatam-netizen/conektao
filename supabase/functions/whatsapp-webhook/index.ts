@@ -268,6 +268,16 @@ function checkRestaurantAvailability(
   if (activeDailyClosures.length > 0) {
     const closure = activeDailyClosures[0];
     if (closure.until_hour) {
+      const untilMin = timeToMinutes(closure.until_hour);
+      const schedEnd = hours.schedule_end || hours.close_time || null;
+      const closeBoundary = schedEnd ? timeToMinutes(schedEnd) : null;
+      // If until_hour is after closing, don't give a misleading reopen time
+      if (closeBoundary && untilMin >= closeBoundary) {
+        const tomorrowLabel = hours.accept_pre_orders
+          ? (hours.open_time || hours.schedule_start || "")
+          : (hours.schedule_start || hours.open_time || "");
+        return { blocked: true, message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏` };
+      }
       return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${fmt12(closure.until_hour)}. ¡Te esperamos! 🙏` };
     }
     return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
