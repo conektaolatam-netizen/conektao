@@ -1064,6 +1064,8 @@ function buildDynamicPrompt(
       }
     } else if (currentMinutes >= closeMinutes) {
       scheduleBlock = `ESTADO: Cerrando. Horario: ${hours.open_time} - ${hours.close_time}.${hours.may_extend ? " A veces nos extendemos." : ""}`;
+    } else if (currentMinutes < timeToMinutes(schedStart) && hours.accept_pre_orders) {
+      scheduleBlock = `ESTADO: ABIERTOS pero en horario de pre-pedido. Atención de pedidos desde las ${schedStart} hasta las ${schedEnd}.\nMensaje pre-orden: "${hours.pre_order_message || `Tomamos tu pedido, pero empezamos a preparar a las ${schedStart}`}"\nSi el cliente confirma su pedido, tómalo pero indícale que se empezará a preparar a las ${schedStart}.`;
     } else {
       scheduleBlock = `ESTADO: ABIERTOS. ${hours.open_time} - ${hours.close_time}. Atención: ${schedStart} - ${schedEnd}.`;
     }
