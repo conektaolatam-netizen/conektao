@@ -3415,6 +3415,23 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── Mid-conversation delivery/pickup interception ──
+      // If the AI response seems to accept a restricted service, override it
+      if (!parsed && !modification) {
+        const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase();
+        if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
+          // Check if AI is NOT already denying delivery
+          if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
+            resp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recoger tu pedido?";
+          }
+        }
+        if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
+          if (!/no.{0,20}(recogida|pickup|recoger)|no tene.{0,10}recog/i.test(resp)) {
+            resp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          }
+        }
+      }
+
       // Handle special tags
       if (resp.includes("---ESCALAMIENTO---")) {
         resp = resp.replace(/---ESCALAMIENTO---/g, "").trim();
