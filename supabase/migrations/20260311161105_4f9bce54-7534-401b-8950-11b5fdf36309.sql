@@ -1,0 +1,1 @@
+UPDATE public.system_overrides SET target_type = 'pickup' WHERE target_type = 'delivery' AND value = 'no_pickup';
