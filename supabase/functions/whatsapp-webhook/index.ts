@@ -359,6 +359,10 @@ function isDeliveryDisabledOverride(overrides: any[]): boolean {
   return overrides.some(o => o.type === "disable" && o.target_type === "delivery" && o.value === "no_delivery");
 }
 
+function isPickupDisabledOverride(overrides: any[]): boolean {
+  return overrides.some(o => o.type === "disable" && o.target_type === "pickup" && o.value === "no_pickup");
+}
+
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
   const disabledIds = getDisabledProductIds(overrides);
   const priceMap = getPriceOverrides(overrides);
@@ -382,6 +386,12 @@ function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string 
   }
   if (priceChanges.length > 0) {
     block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
+  }
+  if (overrides.some(o => o.type === "disable" && o.target_type === "delivery")) {
+    block += "\nSERVICIO DE DOMICILIO NO DISPONIBLE HOY (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que hoy solo manejamos pedidos para recoger en el local.\n";
+  }
+  if (overrides.some(o => o.type === "disable" && o.target_type === "pickup")) {
+    block += "\nRECOGIDA NO DISPONIBLE HOY (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que hoy solo manejamos domicilios.\n";
   }
   return block;
 }
@@ -2859,6 +2869,16 @@ Deno.serve(async (req) => {
             return new Response(JSON.stringify({ status: "delivery_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
 
+          // ── Check if pickup is disabled by override ──
+          const isPickupType = /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
+          if (isPickupType && isPickupDisabledOverride(confirmOverrides)) {
+            const noPickupResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 ¿Te gustaría pedirlo a domicilio?";
+            convMsgs.push({ role: "assistant", content: noPickupResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await sendWA(pid, token, from, noPickupResp, true);
+            return new Response(JSON.stringify({ status: "pickup_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
           // ── Check if any ordered items are disabled by override ──
           const confirmDisabledIds = getDisabledProductIds(confirmOverrides);
           if (confirmDisabledIds.size > 0 && resolvedOrder?.items?.length > 0) {
@@ -3331,6 +3351,27 @@ Deno.serve(async (req) => {
       const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 
       if (parsed) {
+        // ── Backend enforce delivery/pickup overrides BEFORE building summary ──
+        const orderDeliveryType = (parsed.order.delivery_type || "").toLowerCase();
+        const isOrderDelivery = /domicilio|delivery/.test(orderDeliveryType);
+        const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
+
+        if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
+          const noDelivResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recogerlo?";
+          freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noDelivResp, true);
+          return new Response(JSON.stringify({ status: "delivery_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (isOrderPickup && isPickupDisabledOverride(activeOverrides)) {
+          const noPickResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          freshMsgs.push({ role: "assistant", content: noPickResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noPickResp, true);
+          return new Response(JSON.stringify({ status: "pickup_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
         // ORDER DETECTED BY AI → Validate and build backend summary
         const validated = validateOrder(parsed.order, effectiveProducts);
         if (validated.corrected) parsed.order = validated.order;
