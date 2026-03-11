@@ -365,6 +365,48 @@ function isPickupDisabledOverride(overrides: any[]): boolean {
   );
 }
 
+function buildServiceBlockMessage(
+  overrides: any[],
+  serviceType: "delivery" | "pickup",
+  config: any
+): string {
+  const isDelivery = serviceType === "delivery";
+  const override = overrides.find(o =>
+    isDelivery
+      ? (o.type === "disable" && o.value === "no_delivery")
+      : (o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")))
+  );
+
+  const serviceName = isDelivery ? "domicilio" : "recogida";
+  const altService = isDelivery ? "recoger en el local" : "domicilio";
+  const altQuestion = isDelivery ? "¿Te gustaría recogerlo en el local?" : "¿Te gustaría pedirlo a domicilio?";
+
+  if (override?.end_time) {
+    const hours = config?.operating_hours || {};
+    const tz = hours.timezone || "UTC-5";
+    const offset = parseTimezoneOffset(tz);
+    const endLocal = new Date(new Date(override.end_time).getTime() + offset * 3600000);
+    const endH = endLocal.getHours();
+    const endM = endLocal.getMinutes();
+    const suffix = endH >= 12 ? "PM" : "AM";
+    const h12 = endH % 12 || 12;
+    const endStr = endM > 0 ? `${h12}:${String(endM).padStart(2, "0")} ${suffix}` : `${h12} ${suffix}`;
+
+    // Check if end_time is at or after restaurant closing → "all day"
+    const schedEnd = hours.schedule_end || hours.close_time;
+    if (schedEnd) {
+      const [seH, seM] = schedEnd.split(":").map(Number);
+      if (endH * 60 + endM >= seH * 60 + (seM || 0)) {
+        return `Lo siento, hoy no tenemos servicio de ${serviceName} 🚫 Solo estamos manejando pedidos para ${altService}. ${altQuestion}`;
+      }
+    }
+    return `Lo siento, no tenemos servicio de ${serviceName} hasta las ${endStr} 🚫 ${altQuestion}`;
+  }
+
+  return `Lo siento, hoy no tenemos servicio de ${serviceName} 🚫 Solo estamos manejando pedidos para ${altService}. ${altQuestion}`;
+}
+
+
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
   const disabledIds = getDisabledProductIds(overrides);
   const priceMap = getPriceOverrides(overrides);
@@ -390,10 +432,14 @@ function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string 
     block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
   }
   if (isDeliveryDisabledOverride(overrides)) {
-    block += "\nSERVICIO DE DOMICILIO NO DISPONIBLE HOY (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que hoy solo manejamos pedidos para recoger en el local.\n";
+    const delOv = overrides.find(o => o.type === "disable" && o.value === "no_delivery");
+    const timeNote = delOv?.end_time ? " El servicio de domicilio vuelve más tarde hoy." : "";
+    block += `\nSERVICIO DE DOMICILIO NO DISPONIBLE (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que no está disponible.${timeNote}\n`;
   }
   if (isPickupDisabledOverride(overrides)) {
-    block += "\nRECOGIDA NO DISPONIBLE HOY (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que hoy solo manejamos domicilios.\n";
+    const pickOv = overrides.find(o => o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")));
+    const timeNote = pickOv?.end_time ? " El servicio de recogida vuelve más tarde hoy." : "";
+    block += `\nRECOGIDA NO DISPONIBLE (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que no está disponible.${timeNote}\n`;
   }
   return block;
 }
@@ -2864,7 +2910,7 @@ Deno.serve(async (req) => {
           // ── Check if delivery is disabled by override ──
           const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
           if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
-            const noDeliveryResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 ¿Te gustaría recogerlo en el local?";
+            const noDeliveryResp = buildServiceBlockMessage(confirmOverrides, "delivery", config);
             convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
             await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
             await sendWA(pid, token, from, noDeliveryResp, true);
@@ -2874,7 +2920,7 @@ Deno.serve(async (req) => {
           // ── Check if pickup is disabled by override ──
           const isPickupType = /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
           if (isPickupType && isPickupDisabledOverride(confirmOverrides)) {
-            const noPickupResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 ¿Te gustaría pedirlo a domicilio?";
+            const noPickupResp = buildServiceBlockMessage(confirmOverrides, "pickup", config);
             convMsgs.push({ role: "assistant", content: noPickupResp, timestamp: new Date().toISOString() });
             await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
             await sendWA(pid, token, from, noPickupResp, true);
@@ -3358,7 +3404,7 @@ Deno.serve(async (req) => {
         const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
 
         if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
-          const noDelivResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recogerlo?";
+          const noDelivResp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
           await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
           await sendWA(pid, token, from, noDelivResp, true);
@@ -3366,7 +3412,7 @@ Deno.serve(async (req) => {
         }
 
         if (isOrderPickup && isPickupDisabledOverride(activeOverrides)) {
-          const noPickResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          const noPickResp = buildServiceBlockMessage(activeOverrides, "pickup", config);
           freshMsgs.push({ role: "assistant", content: noPickResp, timestamp: new Date().toISOString() });
           await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
           await sendWA(pid, token, from, noPickResp, true);
@@ -3422,12 +3468,12 @@ Deno.serve(async (req) => {
         if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
           // Check if AI is NOT already denying delivery
           if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
-            resp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recoger tu pedido?";
+            resp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           }
         }
         if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
           if (!/no.{0,20}(recogida|pickup|recoger)|no tene.{0,10}recog/i.test(resp)) {
-            resp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+            resp = buildServiceBlockMessage(activeOverrides, "pickup", config);
           }
         }
       }
