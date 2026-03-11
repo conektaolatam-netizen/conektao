@@ -82,7 +82,7 @@ Formato:
   "type": "schedule_change|menu_change|delivery_change|general",
   "instruction": "texto claro de la instrucción para que la IA del restaurante lo entienda",
   "override_type": "disable|price_override|enable",
-  "target_type": "product|restaurant|delivery",
+  "target_type": "product|restaurant|delivery|pickup",
   "product_name": "nombre del producto si aplica, null si no",
   "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio",
   "start_hour": "HH:mm en formato 24h si el dueño indica una hora de INICIO, null si empieza ahora",
@@ -100,7 +100,10 @@ Ejemplos:
 - "hoy el restaurante abre desde las 9pm" → {"type":"schedule_change","instruction":"Hoy el restaurante está cerrado hasta las 9:00 PM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":null,"until_hour":"21:00"}
 - "hoy abrimos desde la 1pm" → {"type":"schedule_change","instruction":"Hoy el restaurante está cerrado hasta la 1:00 PM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":null,"until_hour":"13:00"}
 - "pizza española personal a 37000 desde las 8pm hasta las 9pm" → {"type":"menu_change","instruction":"Hoy la pizza española personal cuesta $37,000 desde las 8:00 PM hasta las 9:00 PM","override_type":"price_override","target_type":"product","product_name":"pizza española personal","value":"37000","start_hour":"20:00","until_hour":"21:00"}
-- "cerrado desde las 10pm hasta la 1am" → {"type":"schedule_change","instruction":"Hoy el restaurante cierra desde las 10:00 PM hasta la 1:00 AM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":"22:00","until_hour":"01:00"}`,
+- "cerrado desde las 10pm hasta la 1am" → {"type":"schedule_change","instruction":"Hoy el restaurante cierra desde las 10:00 PM hasta la 1:00 AM","override_type":"disable","target_type":"restaurant","product_name":null,"value":"closed","start_hour":"22:00","until_hour":"01:00"}
+- "no hay recogida hoy" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de recogida en el local. Solo domicilios","override_type":"disable","target_type":"pickup","product_name":null,"value":"no_pickup","start_hour":null,"until_hour":null}
+- "no hay recogida hasta las 5" → {"type":"delivery_change","instruction":"Hoy NO hay servicio de recogida hasta las 5:00 PM","override_type":"disable","target_type":"pickup","product_name":null,"value":"no_pickup","start_hour":null,"until_hour":"17:00"}
+- "solo domicilio hoy" → {"type":"delivery_change","instruction":"Hoy solo manejamos domicilios. NO hay recogida en el local","override_type":"disable","target_type":"pickup","product_name":null,"value":"no_pickup","start_hour":null,"until_hour":null}`,
           },
           { role: "user", content: message },
         ],

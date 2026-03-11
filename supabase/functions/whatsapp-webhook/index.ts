@@ -356,11 +356,13 @@ function checkRestaurantAvailability(
 }
 
 function isDeliveryDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.target_type === "delivery" && o.value === "no_delivery");
+  return overrides.some(o => o.type === "disable" && o.value === "no_delivery");
 }
 
 function isPickupDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.target_type === "pickup" && o.value === "no_pickup");
+  return overrides.some(o => o.type === "disable" && 
+    (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup"))
+  );
 }
 
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
@@ -387,10 +389,10 @@ function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string 
   if (priceChanges.length > 0) {
     block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
   }
-  if (overrides.some(o => o.type === "disable" && o.target_type === "delivery")) {
+  if (isDeliveryDisabledOverride(overrides)) {
     block += "\nSERVICIO DE DOMICILIO NO DISPONIBLE HOY (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que hoy solo manejamos pedidos para recoger en el local.\n";
   }
-  if (overrides.some(o => o.type === "disable" && o.target_type === "pickup")) {
+  if (isPickupDisabledOverride(overrides)) {
     block += "\nRECOGIDA NO DISPONIBLE HOY (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que hoy solo manejamos domicilios.\n";
   }
   return block;
@@ -3292,8 +3294,7 @@ Deno.serve(async (req) => {
       }
 
       // Detect stale "no pickup" messages when pickup is now available
-      const hasPickupDisabled = activeOverrides.some((o: any) => o.type === "disable" && o.target_type === "pickup");
-      if (!hasPickupDisabled) {
+      if (!isPickupDisabledOverride(activeOverrides)) {
         const recentMsgs = (mergedMsgs || []).slice(-10);
         const hasStalePickupMsg = recentMsgs.some((m: any) =>
           m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || "")
@@ -3412,6 +3413,23 @@ Deno.serve(async (req) => {
           config,
           freshCurrentOrder,
         );
+      }
+
+      // ── Mid-conversation delivery/pickup interception ──
+      // If the AI response seems to accept a restricted service, override it
+      if (!parsed && !modification) {
+        const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase();
+        if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
+          // Check if AI is NOT already denying delivery
+          if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
+            resp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recoger tu pedido?";
+          }
+        }
+        if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
+          if (!/no.{0,20}(recogida|pickup|recoger)|no tene.{0,10}recog/i.test(resp)) {
+            resp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          }
+        }
       }
 
       // Handle special tags
