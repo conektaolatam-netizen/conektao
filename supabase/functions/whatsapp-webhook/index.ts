@@ -2916,7 +2916,7 @@ Deno.serve(async (req) => {
           // ── Check if pickup is disabled by override ──
           const isPickupType = /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
           if (isPickupType && isPickupDisabledOverride(confirmOverrides)) {
-            const noPickupResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 ¿Te gustaría pedirlo a domicilio?";
+            const noPickupResp = buildServiceBlockMessage(confirmOverrides, "pickup", config);
             convMsgs.push({ role: "assistant", content: noPickupResp, timestamp: new Date().toISOString() });
             await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
             await sendWA(pid, token, from, noPickupResp, true);
