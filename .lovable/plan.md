@@ -1,81 +1,56 @@
 
 
-# Plan: Fix stale override enforcement after expiration
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Root Cause Analysis
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-### Issue 1: Restaurant stays "closed" after override expires
-In `checkRestaurantAvailability` (line 226-251), when a closure system_override exists in `activeOverrides`:
-- Line 238 checks `if (endMinutes > nowMinutes)` — if the override's end time has passed in local time, this is FALSE
-- It falls through to line 250: `return { blocked: true, message: "Hoy el restaurante está cerrado..." }` — **unconditional block**
-- This is a fallback that should only trigger when there's NO end_time, but it also catches expired overrides due to any DB/timing edge case
-
-**Fix:** When `endMinutes <= nowMinutes`, the override has expired locally — **skip it** (don't block, continue to next priority check).
-
-### Issue 2: "No hay domicilio" persists after delivery override expires
-The delivery/pickup override enforcement during **conversation** relies entirely on the AI reading conversation history. After the override expires:
-- `system_overrides` DB correctly excludes it
-- `daily_overrides` JSONB correctly cleans it
-- But the AI conversation history still contains messages like "hoy no tenemos servicio de domicilio"
-- The AI reads this and repeats it
-
-There's already a `reopenHint` (line 3249-3257) that injects "El restaurante está ABIERTO ahora" when stale closure messages are detected. But there's **no equivalent** for delivery or pickup overrides.
-
-**Fix:** Add similar context recovery hints for delivery and pickup.
-
-## Changes in `supabase/functions/whatsapp-webhook/index.ts`
-
-### Change 1: Fix closure override fallthrough (line 248-250)
-
-When `endMinutes <= nowMinutes`, the override has expired. Don't block — continue to next priority:
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-      if (endMinutes > nowMinutes) {
-        if (closeBoundary && endMinutes >= closeBoundary) {
-          // ... existing "closed for today" logic
-        }
-        const endStr = fmt12(`${endH}:${endM}`);
-        return { blocked: true, message: `El restaurante está cerrado...` };
-      }
-      // endMinutes <= nowMinutes → override expired locally, skip it
-    }
-    // Only block if NO end_time at all (indefinite closure for today)
-    if (!closedOverride?.end_time) {
-      return { blocked: true, message: "Hoy el restaurante está cerrado..." };
-    }
-    // Otherwise: override had an end_time that has passed → don't block
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
   }
-```
-
-### Change 2: Add delivery/pickup context recovery hints (after line 3257)
-
-Check if recent AI messages mention "no hay domicilio/delivery" or "no hay recogida/pickup" but no active override exists:
-
-```typescript
-// Detect stale "no delivery" messages
-if (!isDeliveryDisabledOverride(activeOverrides)) {
-  const recentMsgs = (mergedMsgs || []).slice(-10);
-  const hasStaleDeliveryMsg = recentMsgs.some((m: any) =>
-    m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || "")
-  );
-  if (hasStaleDeliveryMsg) {
-    reopenHint += "\n\nIMPORTANTE: El servicio de DOMICILIO está disponible ahora. Ignora mensajes anteriores que digan que no hay domicilio.";
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
   }
+  return [text];
 }
 
-// Detect stale "no pickup" messages
-const hasPickupDisabled = activeOverrides.some(o => o.type === "disable" && o.target_type === "pickup");
-if (!hasPickupDisabled) {
-  const recentMsgs = (mergedMsgs || []).slice(-10);
-  const hasStalePickupMsg = recentMsgs.some((m: any) =>
-    m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || "")
-  );
-  if (hasStalePickupMsg) {
-    reopenHint += "\n\nIMPORTANTE: El servicio de RECOGIDA está disponible ahora. Ignora mensajes anteriores que digan que no hay recogida.";
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
   }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-### Files changed
-- `supabase/functions/whatsapp-webhook/index.ts` — 2 localized edits
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+
+Añadir instrucción explícita sobre signos de interrogación en español:
+
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
