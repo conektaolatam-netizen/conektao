@@ -3400,7 +3400,7 @@ Deno.serve(async (req) => {
         const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
 
         if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
-          const noDelivResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recogerlo?";
+          const noDelivResp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
           await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
           await sendWA(pid, token, from, noDelivResp, true);
