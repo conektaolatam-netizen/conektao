@@ -82,7 +82,7 @@ Formato:
   "type": "schedule_change|menu_change|delivery_change|general",
   "instruction": "texto claro de la instrucción para que la IA del restaurante lo entienda",
   "override_type": "disable|price_override|enable",
-  "target_type": "product|restaurant|delivery",
+  "target_type": "product|restaurant|delivery|pickup",
   "product_name": "nombre del producto si aplica, null si no",
   "value": "unavailable|closed|no_delivery|precio numérico si es cambio de precio",
   "start_hour": "HH:mm en formato 24h si el dueño indica una hora de INICIO, null si empieza ahora",
