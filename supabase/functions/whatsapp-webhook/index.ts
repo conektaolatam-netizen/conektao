@@ -3260,6 +3260,29 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Detect stale "no delivery" messages when delivery is now available
+      if (!isDeliveryDisabledOverride(activeOverrides)) {
+        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const hasStaleDeliveryMsg = recentMsgs.some((m: any) =>
+          m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || "")
+        );
+        if (hasStaleDeliveryMsg) {
+          reopenHint += "\n\nIMPORTANTE: El servicio de DOMICILIO está disponible ahora. Ignora mensajes anteriores que digan que no hay domicilio. Ofrece domicilio con normalidad.";
+        }
+      }
+
+      // Detect stale "no pickup" messages when pickup is now available
+      const hasPickupDisabled = activeOverrides.some((o: any) => o.type === "disable" && o.target_type === "pickup");
+      if (!hasPickupDisabled) {
+        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const hasStalePickupMsg = recentMsgs.some((m: any) =>
+          m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || "")
+        );
+        if (hasStalePickupMsg) {
+          reopenHint += "\n\nIMPORTANTE: El servicio de RECOGIDA está disponible ahora. Ignora mensajes anteriores que digan que no hay recogida.";
+        }
+      }
+
       const sys =
         buildPrompt(
           effectiveProducts || [],
