@@ -2906,7 +2906,7 @@ Deno.serve(async (req) => {
           // ── Check if delivery is disabled by override ──
           const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
           if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
-            const noDeliveryResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 ¿Te gustaría recogerlo en el local?";
+            const noDeliveryResp = buildServiceBlockMessage(confirmOverrides, "delivery", config);
             convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
             await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
             await sendWA(pid, token, from, noDeliveryResp, true);
