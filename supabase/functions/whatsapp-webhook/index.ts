@@ -3464,7 +3464,7 @@ Deno.serve(async (req) => {
         if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
           // Check if AI is NOT already denying delivery
           if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
-            resp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recoger tu pedido?";
+            resp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           }
         }
         if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
