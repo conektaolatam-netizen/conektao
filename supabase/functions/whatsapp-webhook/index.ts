@@ -3408,7 +3408,7 @@ Deno.serve(async (req) => {
         }
 
         if (isOrderPickup && isPickupDisabledOverride(activeOverrides)) {
-          const noPickResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          const noPickResp = buildServiceBlockMessage(activeOverrides, "pickup", config);
           freshMsgs.push({ role: "assistant", content: noPickResp, timestamp: new Date().toISOString() });
           await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
           await sendWA(pid, token, from, noPickResp, true);
