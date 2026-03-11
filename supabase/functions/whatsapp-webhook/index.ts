@@ -365,6 +365,48 @@ function isPickupDisabledOverride(overrides: any[]): boolean {
   );
 }
 
+function buildServiceBlockMessage(
+  overrides: any[],
+  serviceType: "delivery" | "pickup",
+  config: any
+): string {
+  const isDelivery = serviceType === "delivery";
+  const override = overrides.find(o =>
+    isDelivery
+      ? (o.type === "disable" && o.value === "no_delivery")
+      : (o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")))
+  );
+
+  const serviceName = isDelivery ? "domicilio" : "recogida";
+  const altService = isDelivery ? "recoger en el local" : "domicilio";
+  const altQuestion = isDelivery ? "¿Te gustaría recogerlo en el local?" : "¿Te gustaría pedirlo a domicilio?";
+
+  if (override?.end_time) {
+    const hours = config?.operating_hours || {};
+    const tz = hours.timezone || "UTC-5";
+    const offset = parseTimezoneOffset(tz);
+    const endLocal = new Date(new Date(override.end_time).getTime() + offset * 3600000);
+    const endH = endLocal.getHours();
+    const endM = endLocal.getMinutes();
+    const suffix = endH >= 12 ? "PM" : "AM";
+    const h12 = endH % 12 || 12;
+    const endStr = endM > 0 ? `${h12}:${String(endM).padStart(2, "0")} ${suffix}` : `${h12} ${suffix}`;
+
+    // Check if end_time is at or after restaurant closing → "all day"
+    const schedEnd = hours.schedule_end || hours.close_time;
+    if (schedEnd) {
+      const [seH, seM] = schedEnd.split(":").map(Number);
+      if (endH * 60 + endM >= seH * 60 + (seM || 0)) {
+        return `Lo siento, hoy no tenemos servicio de ${serviceName} 🚫 Solo estamos manejando pedidos para ${altService}. ${altQuestion}`;
+      }
+    }
+    return `Lo siento, no tenemos servicio de ${serviceName} hasta las ${endStr} 🚫 ${altQuestion}`;
+  }
+
+  return `Lo siento, hoy no tenemos servicio de ${serviceName} 🚫 Solo estamos manejando pedidos para ${altService}. ${altQuestion}`;
+}
+
+
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
   const disabledIds = getDisabledProductIds(overrides);
   const priceMap = getPriceOverrides(overrides);
