@@ -356,11 +356,13 @@ function checkRestaurantAvailability(
 }
 
 function isDeliveryDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.target_type === "delivery" && o.value === "no_delivery");
+  return overrides.some(o => o.type === "disable" && o.value === "no_delivery");
 }
 
 function isPickupDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.target_type === "pickup" && o.value === "no_pickup");
+  return overrides.some(o => o.type === "disable" && 
+    (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup"))
+  );
 }
 
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
