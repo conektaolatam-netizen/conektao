@@ -2869,6 +2869,16 @@ Deno.serve(async (req) => {
             return new Response(JSON.stringify({ status: "delivery_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
 
+          // ── Check if pickup is disabled by override ──
+          const isPickupType = /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
+          if (isPickupType && isPickupDisabledOverride(confirmOverrides)) {
+            const noPickupResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 ¿Te gustaría pedirlo a domicilio?";
+            convMsgs.push({ role: "assistant", content: noPickupResp, timestamp: new Date().toISOString() });
+            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await sendWA(pid, token, from, noPickupResp, true);
+            return new Response(JSON.stringify({ status: "pickup_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
           // ── Check if any ordered items are disabled by override ──
           const confirmDisabledIds = getDisabledProductIds(confirmOverrides);
           if (confirmDisabledIds.size > 0 && resolvedOrder?.items?.length > 0) {
