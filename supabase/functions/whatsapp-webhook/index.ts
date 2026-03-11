@@ -3469,7 +3469,7 @@ Deno.serve(async (req) => {
         }
         if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
           if (!/no.{0,20}(recogida|pickup|recoger)|no tene.{0,10}recog/i.test(resp)) {
-            resp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+            resp = buildServiceBlockMessage(activeOverrides, "pickup", config);
           }
         }
       }
