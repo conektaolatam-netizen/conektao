@@ -3341,6 +3341,27 @@ Deno.serve(async (req) => {
       const storedProof = paymentProofUrl || freshConv?.payment_proof_url || conv.payment_proof_url || null;
 
       if (parsed) {
+        // ── Backend enforce delivery/pickup overrides BEFORE building summary ──
+        const orderDeliveryType = (parsed.order.delivery_type || "").toLowerCase();
+        const isOrderDelivery = /domicilio|delivery/.test(orderDeliveryType);
+        const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
+
+        if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
+          const noDelivResp = "Lo siento, hoy no tenemos servicio de domicilio 🚫 Solo estamos manejando pedidos para recoger en el local. ¿Te gustaría recogerlo?";
+          freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noDelivResp, true);
+          return new Response(JSON.stringify({ status: "delivery_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (isOrderPickup && isPickupDisabledOverride(activeOverrides)) {
+          const noPickResp = "Lo siento, hoy no tenemos servicio de recogida 🚫 Solo estamos manejando domicilios. ¿Te gustaría pedirlo a domicilio?";
+          freshMsgs.push({ role: "assistant", content: noPickResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noPickResp, true);
+          return new Response(JSON.stringify({ status: "pickup_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
         // ORDER DETECTED BY AI → Validate and build backend summary
         const validated = validateOrder(parsed.order, effectiveProducts);
         if (validated.corrected) parsed.order = validated.order;
