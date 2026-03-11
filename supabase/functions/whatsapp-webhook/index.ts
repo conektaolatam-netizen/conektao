@@ -246,8 +246,12 @@ function checkRestaurantAvailability(
         const endStr = fmt12(`${endH}:${endM}`);
         return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${endStr}. ¡Te esperamos! 🙏` };
       }
+      // endMinutes <= nowMinutes → override expired locally, don't block
+      console.log(`Closure override expired (end ${endH}:${endM} <= now ${Math.floor(nowMinutes/60)}:${nowMinutes%60}), skipping block`);
+    } else {
+      // No end_time at all → indefinite closure for today
+      return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
     }
-    return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
   }
 
   // --- Priority 2: daily_overrides (restaurant closed) ---
