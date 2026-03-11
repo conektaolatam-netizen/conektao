@@ -432,10 +432,14 @@ function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string 
     block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
   }
   if (isDeliveryDisabledOverride(overrides)) {
-    block += "\nSERVICIO DE DOMICILIO NO DISPONIBLE HOY (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que hoy solo manejamos pedidos para recoger en el local.\n";
+    const delOv = overrides.find(o => o.type === "disable" && o.value === "no_delivery");
+    const timeNote = delOv?.end_time ? " El servicio de domicilio vuelve más tarde hoy." : "";
+    block += `\nSERVICIO DE DOMICILIO NO DISPONIBLE (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que no está disponible.${timeNote}\n`;
   }
   if (isPickupDisabledOverride(overrides)) {
-    block += "\nRECOGIDA NO DISPONIBLE HOY (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que hoy solo manejamos domicilios.\n";
+    const pickOv = overrides.find(o => o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")));
+    const timeNote = pickOv?.end_time ? " El servicio de recogida vuelve más tarde hoy." : "";
+    block += `\nRECOGIDA NO DISPONIBLE (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que no está disponible.${timeNote}\n`;
   }
   return block;
 }
