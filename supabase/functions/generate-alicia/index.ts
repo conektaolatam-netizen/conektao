@@ -222,10 +222,19 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
 
   const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
-  // Upselling
-  const upsellBlock = salesRules.suggest_complements
-    ? `SUGERENCIA SUAVE: Máximo ${salesRules.max_suggestions_per_order || 1} sugerencia por pedido. Si dice "no" → cero insistencia.${salesRules.no_prices_in_suggestions ? " No menciones precios en sugerencias." : ""}`
-    : "NO hacer sugerencias de venta adicional.";
+  // Upselling — aligned with core prompt's 4-moment recommendation strategy
+  let upsellBlock: string;
+  if (salesRules.suggest_complements) {
+    const maxSug = salesRules.max_suggestions_per_order || 2;
+    const moments: string[] = [];
+    if (salesRules.suggest_on_greeting !== false) moments.push("al saludar (mencionar 1-2 productos populares o recomendados)");
+    if (salesRules.suggest_complements !== false) moments.push("después de un producto principal (sugerir complemento: bebida, entrada, etc.)");
+    if (salesRules.suggest_upsizing !== false) moments.push("si hay tamaños mayores disponibles (mencionar el tamaño mayor)");
+    if (salesRules.suggest_before_close !== false) moments.push("antes de cerrar el pedido (una última sugerencia ligera)");
+    upsellBlock = `RECOMENDACIONES ACTIVAS — Sugiere productos en estos momentos:\n${moments.map((m, i) => `${i + 1}. ${m}`).join("\n")}\nMáximo ${maxSug} sugerencias por momento. Si dice "no" → cero insistencia, pasa al siguiente paso.\nPrioriza los PRODUCTOS RECOMENDADOS HOY en tus sugerencias.${salesRules.no_prices_in_suggestions ? "\nNo menciones precios en sugerencias." : ""}`;
+  } else {
+    upsellBlock = "NO hacer sugerencias de venta adicional.";
+  }
 
   return `=== CONFIG DEL NEGOCIO ===
 
