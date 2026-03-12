@@ -103,8 +103,15 @@ function isPeakNow(hours: any): boolean {
     const { peak_days, peak_hour_start, peak_hour_end } = hours || {};
     if (!peak_days?.length || !peak_hour_start || !peak_hour_end) return false;
     const dayMap: Record<string, number> = {
-      domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3,
-      jueves: 4, viernes: 5, sabado: 6, sábado: 6,
+      domingo: 0,
+      lunes: 1,
+      martes: 2,
+      miercoles: 3,
+      miércoles: 3,
+      jueves: 4,
+      viernes: 5,
+      sabado: 6,
+      sábado: 6,
     };
     const { day, hour, minute } = getRestaurantTimeInfo(hours ? { operating_hours: hours } : {});
     const isDay = peak_days.some((d: string) => dayMap[d.toLowerCase()] === day);
@@ -175,8 +182,8 @@ async function getActiveOverrides(restaurantId: string): Promise<any[]> {
 function getDisabledProductIds(overrides: any[]): Set<string> {
   return new Set(
     overrides
-      .filter(o => o.type === "disable" && o.target_type === "product" && o.product_id)
-      .map(o => o.product_id)
+      .filter((o) => o.type === "disable" && o.target_type === "product" && o.product_id)
+      .map((o) => o.product_id),
   );
 }
 
@@ -192,14 +199,14 @@ function getPriceOverrides(overrides: any[]): Map<string, number> {
 }
 
 function isRestaurantClosedOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed");
+  return overrides.some((o) => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed");
 }
 
 /** Encapsulated restaurant availability check with 5-tier priority */
 function checkRestaurantAvailability(
   config: any,
   activeOverrides: any[],
-  dailyOverrides: any[]
+  dailyOverrides: any[],
 ): { blocked: boolean; message: string } {
   const hours = config?.operating_hours || {};
   const tz = hours.timezone || "UTC-5";
@@ -210,8 +217,15 @@ function checkRestaurantAvailability(
   const nowMinutes = nowH * 60 + nowM;
 
   const dayMap: Record<string, number> = {
-    domingo: 0, lunes: 1, martes: 2, miercoles: 3, "miércoles": 3,
-    jueves: 4, viernes: 5, sabado: 6, "sábado": 6,
+    domingo: 0,
+    lunes: 1,
+    martes: 2,
+    miercoles: 3,
+    miércoles: 3,
+    jueves: 4,
+    viernes: 5,
+    sabado: 6,
+    sábado: 6,
   };
   const currentDay = now.getDay();
 
@@ -225,7 +239,7 @@ function checkRestaurantAvailability(
   // --- Priority 1: system_overrides (restaurant closed) ---
   if (isRestaurantClosedOverride(activeOverrides)) {
     const closedOverride = activeOverrides.find(
-      o => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed"
+      (o) => o.type === "disable" && o.target_type === "restaurant" && o.value === "closed",
     );
     if (closedOverride?.end_time) {
       const endLocal = new Date(new Date(closedOverride.end_time).getTime() + offset * 3600000);
@@ -239,15 +253,23 @@ function checkRestaurantAvailability(
         // If override ends after the service window, don't say "reopening at 11:59 PM"
         if (closeBoundary && endMinutes >= closeBoundary) {
           const tomorrowLabel = hours.accept_pre_orders
-            ? (hours.open_time || hours.schedule_start || "")
-            : (hours.schedule_start || hours.open_time || "");
-          return { blocked: true, message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏` };
+            ? hours.open_time || hours.schedule_start || ""
+            : hours.schedule_start || hours.open_time || "";
+          return {
+            blocked: true,
+            message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏`,
+          };
         }
         const endStr = fmt12(`${endH}:${endM}`);
-        return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${endStr}. ¡Te esperamos! 🙏` };
+        return {
+          blocked: true,
+          message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${endStr}. ¡Te esperamos! 🙏`,
+        };
       }
       // endMinutes <= nowMinutes → override expired locally, don't block
-      console.log(`Closure override expired (end ${endH}:${endM} <= now ${Math.floor(nowMinutes/60)}:${nowMinutes%60}), skipping block`);
+      console.log(
+        `Closure override expired (end ${endH}:${endM} <= now ${Math.floor(nowMinutes / 60)}:${nowMinutes % 60}), skipping block`,
+      );
     } else {
       // No end_time at all → indefinite closure for today
       return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
@@ -280,11 +302,17 @@ function checkRestaurantAvailability(
       // If until_hour is after closing, don't give a misleading reopen time
       if (closeBoundary && untilMin >= closeBoundary) {
         const tomorrowLabel = hours.accept_pre_orders
-          ? (hours.open_time || hours.schedule_start || "")
-          : (hours.schedule_start || hours.open_time || "");
-        return { blocked: true, message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏` };
+          ? hours.open_time || hours.schedule_start || ""
+          : hours.schedule_start || hours.open_time || "";
+        return {
+          blocked: true,
+          message: `El restaurante está cerrado por hoy.\nNuestro horario es hasta las ${fmt12(schedEnd)}. ¡Te esperamos mañana${tomorrowLabel ? ` desde las ${fmt12(tomorrowLabel)}` : ""}! 🙏`,
+        };
       }
-      return { blocked: true, message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${fmt12(closure.until_hour)}. ¡Te esperamos! 🙏` };
+      return {
+        blocked: true,
+        message: `El restaurante está cerrado en este momento.\nAbriremos nuevamente a las ${fmt12(closure.until_hour)}. ¡Te esperamos! 🙏`,
+      };
     }
     return { blocked: true, message: "Hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏" };
   }
@@ -295,7 +323,10 @@ function checkRestaurantAvailability(
     const dayOpen = days.some((d: string) => dayMap[d.toLowerCase()] === currentDay);
     if (!dayOpen) {
       const dayNames = days.map((d: string) => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
-      return { blocked: true, message: `Hoy el restaurante no está abierto.\nNuestros días de atención son: ${dayNames}. ¡Te esperamos! 🙏` };
+      return {
+        blocked: true,
+        message: `Hoy el restaurante no está abierto.\nNuestros días de atención son: ${dayNames}. ¡Te esperamos! 🙏`,
+      };
     }
   }
 
@@ -305,10 +336,16 @@ function checkRestaurantAvailability(
     const closeMin = timeToMinutes(hours.close_time);
 
     if (nowMinutes < openMin) {
-      return { blocked: true, message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(hours.open_time)}. ¡Te esperamos! 🙏` };
+      return {
+        blocked: true,
+        message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(hours.open_time)}. ¡Te esperamos! 🙏`,
+      };
     }
     if (nowMinutes >= closeMin) {
-      return { blocked: true, message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(hours.open_time)} a ${fmt12(hours.close_time)}. ¡Te esperamos mañana! 🙏` };
+      return {
+        blocked: true,
+        message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(hours.open_time)} a ${fmt12(hours.close_time)}. ¡Te esperamos mañana! 🙏`,
+      };
     }
   }
 
@@ -317,7 +354,7 @@ function checkRestaurantAvailability(
   let effectiveScheduleEnd = hours.schedule_end || null;
 
   // daily_overrides can override schedule_start/schedule_end
-  for (const o of (dailyOverrides || [])) {
+  for (const o of dailyOverrides || []) {
     if (o.expires && o.expires < todayStr) continue;
     if (o.type === "schedule_change" && o.schedule_start) effectiveScheduleStart = o.schedule_start;
     if (o.type === "schedule_change" && o.schedule_end) effectiveScheduleEnd = o.schedule_end;
@@ -340,7 +377,10 @@ function checkRestaurantAvailability(
           return { blocked: false, message: "" };
         }
       }
-      return { blocked: true, message: `El restaurante ya está abierto, pero comenzamos a atender pedidos a las ${fmt12(effectiveScheduleStart)}. ¡Te esperamos! 🙏` };
+      return {
+        blocked: true,
+        message: `El restaurante ya está abierto, pero comenzamos a atender pedidos a las ${fmt12(effectiveScheduleStart)}. ¡Te esperamos! 🙏`,
+      };
     }
   }
 
@@ -348,7 +388,10 @@ function checkRestaurantAvailability(
     const schedEndMin = timeToMinutes(effectiveScheduleEnd);
     if (nowMinutes >= schedEndMin) {
       const startLabel = effectiveScheduleStart || hours.open_time || "";
-      return { blocked: true, message: `Ya no estamos recibiendo pedidos por hoy.\nNuestro horario de atención es de ${fmt12(startLabel)} a ${fmt12(effectiveScheduleEnd)}. ¡Te esperamos mañana! 🙏` };
+      return {
+        blocked: true,
+        message: `Ya no estamos recibiendo pedidos por hoy.\nNuestro horario de atención es de ${fmt12(startLabel)} a ${fmt12(effectiveScheduleEnd)}. ¡Te esperamos mañana! 🙏`,
+      };
     }
   }
 
@@ -356,25 +399,23 @@ function checkRestaurantAvailability(
 }
 
 function isDeliveryDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && o.value === "no_delivery");
+  return overrides.some((o) => o.type === "disable" && o.value === "no_delivery");
 }
 
 function isPickupDisabledOverride(overrides: any[]): boolean {
-  return overrides.some(o => o.type === "disable" && 
-    (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup"))
+  return overrides.some(
+    (o) =>
+      o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")),
   );
 }
 
-function buildServiceBlockMessage(
-  overrides: any[],
-  serviceType: "delivery" | "pickup",
-  config: any
-): string {
+function buildServiceBlockMessage(overrides: any[], serviceType: "delivery" | "pickup", config: any): string {
   const isDelivery = serviceType === "delivery";
-  const override = overrides.find(o =>
+  const override = overrides.find((o) =>
     isDelivery
-      ? (o.type === "disable" && o.value === "no_delivery")
-      : (o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")))
+      ? o.type === "disable" && o.value === "no_delivery"
+      : o.type === "disable" &&
+        (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")),
   );
 
   const serviceName = isDelivery ? "domicilio" : "recogida";
@@ -406,38 +447,41 @@ function buildServiceBlockMessage(
   return `Lo siento, hoy no tenemos servicio de ${serviceName} 🚫 Solo estamos manejando pedidos para ${altService}. ${altQuestion}`;
 }
 
-
 function applyOverridesToProducts(products: any[], overrides: any[]): any[] {
   const disabledIds = getDisabledProductIds(overrides);
   const priceMap = getPriceOverrides(overrides);
   return products
     .filter((p: any) => !disabledIds.has(p.id))
-    .map((p: any) => priceMap.has(p.id) ? { ...p, price: priceMap.get(p.id) } : p);
+    .map((p: any) => (priceMap.has(p.id) ? { ...p, price: priceMap.get(p.id) } : p));
 }
 
 function buildOverridePromptBlock(allProducts: any[], overrides: any[]): string {
   const disabledIds = getDisabledProductIds(overrides);
   const priceMap = getPriceOverrides(overrides);
   let block = "";
-  const disabledNames = allProducts.filter(p => disabledIds.has(p.id)).map(p => p.name);
+  const disabledNames = allProducts.filter((p) => disabledIds.has(p.id)).map((p) => p.name);
   if (disabledNames.length > 0) {
     block += `\nPRODUCTOS NO DISPONIBLES HOY (SISTEMA): ${disabledNames.join(", ")}. NO los ofrezcas bajo ninguna circunstancia.\n`;
   }
   const priceChanges: string[] = [];
   for (const [id, price] of priceMap) {
-    const prod = allProducts.find(p => p.id === id);
+    const prod = allProducts.find((p) => p.id === id);
     if (prod) priceChanges.push(`${prod.name}: $${price}`);
   }
   if (priceChanges.length > 0) {
     block += `\nPRECIOS TEMPORALES HOY (SISTEMA): ${priceChanges.join(", ")}. Usa ESTOS precios.\n`;
   }
   if (isDeliveryDisabledOverride(overrides)) {
-    const delOv = overrides.find(o => o.type === "disable" && o.value === "no_delivery");
+    const delOv = overrides.find((o) => o.type === "disable" && o.value === "no_delivery");
     const timeNote = delOv?.end_time ? " El servicio de domicilio vuelve más tarde hoy." : "";
     block += `\nSERVICIO DE DOMICILIO NO DISPONIBLE (SISTEMA): NO ofrezcas domicilio. Si el cliente pide domicilio, dile que no está disponible.${timeNote}\n`;
   }
   if (isPickupDisabledOverride(overrides)) {
-    const pickOv = overrides.find(o => o.type === "disable" && (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")));
+    const pickOv = overrides.find(
+      (o) =>
+        o.type === "disable" &&
+        (o.target_type === "pickup" || (o.target_type === "delivery" && o.value === "no_pickup")),
+    );
     const timeNote = pickOv?.end_time ? " El servicio de recogida vuelve más tarde hoy." : "";
     block += `\nRECOGIDA NO DISPONIBLE (SISTEMA): NO ofrezcas recogida en el local. Si el cliente quiere recoger, dile que no está disponible.${timeNote}\n`;
   }
@@ -973,6 +1017,38 @@ TRATO AL CLIENTE:
 - Sé paciente. NUNCA respondas con agresividad ni impaciencia
 - Si el cliente dice algo ambiguo → pregunta con amabilidad, no asumas
 
+VENTAS Y RECOMENDACIONES (SUBIR TICKET PROMEDIO):
+- Tu objetivo también es ayudar al cliente a descubrir productos que le puedan gustar
+- Puedes hacer recomendaciones naturales sin ser insistente
+- Máximo 1 o 2 sugerencias por momento de la conversación
+- Si el cliente rechaza una sugerencia, NO la repitas
+
+CUÁNDO HACER RECOMENDACIONES:
+
+1. AL SALUDAR:
+Si el cliente solo saluda ("hola", "buenas", etc.), puedes mencionar 1 o 2 productos populares del menú.
+
+Ejemplo:
+"Hola! Bienvenido 😊 Hoy las más pedidas son la Pizza A la Española y la Pepperoni. ¿Te gustaría probar alguna?"
+
+2. CUANDO PIDEN UN PRODUCTO PRINCIPAL:
+Si el cliente pide una pizza u otro producto principal, puedes sugerir un complemento del menú (bebida, vino, entrada, etc.).
+
+Ejemplo:
+"Perfecto 👍 ¿Te gustaría acompañarla con una bebida o vino?"
+
+3. UPSELLING DE TAMAÑOS:
+Si un producto tiene varias versiones (por ejemplo Personal y Mediana), puedes mencionar que existe el tamaño mayor antes de confirmar.
+
+Ejemplo:
+"Tenemos ese sabor en tamaño personal y mediano para compartir. ¿Cuál prefieres?"
+
+4. ANTES DE CERRAR EL PEDIDO:
+Cuando el cliente diga "eso es todo", puedes hacer UNA última sugerencia ligera antes de pasar a tipo de entrega.
+
+Ejemplo:
+"Perfecto 👍 ¿Quieres agregar alguna bebida o prefieres dejarlo así?"
+
 FORMATO:
 - Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
 - NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"
@@ -983,7 +1059,7 @@ STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
-1. Saluda y pregunta qué quiere
+1. Saluda con amabilidad. Si el cliente no pide algo directamente, puedes mencionar 1 o 2 productos populares y preguntar qué le gustaría ordenar
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
@@ -1103,7 +1179,11 @@ function buildDynamicPrompt(
   const payment = config.payment_config || {};
   // packaging_rules removed — packaging context now built dynamically from products
   const hours = config.operating_hours || {};
-  const times = { weekday: hours.weekday_waiting_time, weekend: hours.weekend_waiting_time, peak: hours.peak_waiting_time };
+  const times = {
+    weekday: hours.weekday_waiting_time,
+    weekend: hours.weekend_waiting_time,
+    peak: hours.peak_waiting_time,
+  };
   const escalation = config.escalation_config || {};
   const customRules = config.custom_rules || [];
   const salesRules = config.sales_rules || {};
@@ -1171,7 +1251,8 @@ function buildDynamicPrompt(
       return true;
     });
     if (cleaned.length !== dailyOverrides.length) {
-      supabase.from("whatsapp_configs")
+      supabase
+        .from("whatsapp_configs")
         .update({ daily_overrides: cleaned })
         .eq("restaurant_id", config.restaurant_id)
         .then(() => console.log(`Cleaned ${dailyOverrides.length - cleaned.length} expired daily_overrides`));
@@ -1236,10 +1317,13 @@ function buildDynamicPrompt(
 
   // Packaging — built dynamically from products table (single source of truth)
   const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
-  const packagingBlock = packagingProducts.length > 0
-    ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
-      packagingProducts.map((p: any) => `- ${p.name}: +$${Number(p.packaging_price).toLocaleString("es-CO")}`).join("\n")
-    : "";
+  const packagingBlock =
+    packagingProducts.length > 0
+      ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
+        packagingProducts
+          .map((p: any) => `- ${p.name}: +$${Number(p.packaging_price).toLocaleString("es-CO")}`)
+          .join("\n")
+      : "";
 
   // Time estimates
   const timeBlock = times.weekday
@@ -1368,15 +1452,17 @@ function buildMenuFromProducts(products: any[]): string {
 import { resolveProductEntry, type ProductEntry } from "../_shared/productResolver.ts";
 
 function buildProductEntries(products: any[]): ProductEntry[] {
-  return products.filter((p: any) => p.name && p.price).map((p: any) => ({
-    name: (p.name || "").toLowerCase().trim(),
-    price: Number(p.price),
-    description: (p.description || "").toLowerCase().trim(),
-    categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
-    categoryId: (p.category_id || ""),
-    requiresPackaging: p.requires_packaging === true,
-    packagingPrice: p.packaging_price != null ? Number(p.packaging_price) : 0,
-  }));
+  return products
+    .filter((p: any) => p.name && p.price)
+    .map((p: any) => ({
+      name: (p.name || "").toLowerCase().trim(),
+      price: Number(p.price),
+      description: (p.description || "").toLowerCase().trim(),
+      categoryName: (p.category_name || p.categories?.name || "").toLowerCase().trim(),
+      categoryId: p.category_id || "",
+      requiresPackaging: p.requires_packaging === true,
+      packagingPrice: p.packaging_price != null ? Number(p.packaging_price) : 0,
+    }));
 }
 
 // buildPackagingMap removed — packaging now resolved from ProductEntry[] via buildProductEntries
@@ -1430,7 +1516,9 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
 
       if (bestEntry && bestPrice > 0 && !resolved.ambiguous) {
         if (declaredPrice > 0 && declaredPrice !== bestPrice) {
-          issues.push(`PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`);
+          issues.push(
+            `PRECIO CORREGIDO: ${itemName} de $${declaredPrice.toLocaleString()} a $${bestPrice.toLocaleString()}`,
+          );
           item.unit_price = bestPrice;
           corrected = true;
         }
@@ -1525,7 +1613,12 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     packagingTotal += pkgCost * qty;
     // Strip any parenthesized category already embedded in the item name by the AI
     let displayName = (item.name || "").replace(/\s*\([^)]*\)\s*/g, "").trim() || item.name;
-    const catLabel = item.category_name ? ` (${item.category_name.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+    const catLabel = item.category_name
+      ? ` (${item.category_name
+          .split(/\s+/)
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")})`
+      : "";
     itemLines += `- ${qty > 1 ? qty + "x " : ""}${displayName}${catLabel}: ${formatCOP(lineTotal)}\n`;
     if (pkgCost > 0) {
       itemLines += `  📦 Empaque: ${formatCOP(pkgCost * qty)}\n`;
@@ -1549,7 +1642,8 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
 
   // Delivery block
   let deliveryBlock = "";
-  const isDelivery = (order.delivery_type || "").toLowerCase().includes("delivery") ||
+  const isDelivery =
+    (order.delivery_type || "").toLowerCase().includes("delivery") ||
     (order.delivery_type || "").toLowerCase().includes("domicilio");
   if (isDelivery && order.delivery_address) {
     deliveryBlock = `\n📍 Domicilio: ${order.delivery_address}`;
@@ -1576,11 +1670,7 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
 // ==================== PRICE QUESTION HANDLER ====================
 
 /** Detect price questions and return backend-built response using effectiveProducts */
-function handlePriceQuestion(
-  text: string,
-  effectiveProducts: any[],
-  config: any,
-): string | null {
+function handlePriceQuestion(text: string, effectiveProducts: any[], config: any): string | null {
   // Detect price question patterns
   const pricePatterns = [
     /(?:cu[áa]nto|quanto)\s+(?:cuesta|vale|es|sale|cost)/i,
@@ -1623,7 +1713,9 @@ function handlePriceQuestion(
   const baseName = productQuery.toLowerCase().trim();
   const variants = entries.filter((e) => {
     const eName = e.name.toLowerCase();
-    return eName.includes(baseName) || baseName.includes(eName.replace(/(personal|mediana|grande|familiar)/i, "").trim());
+    return (
+      eName.includes(baseName) || baseName.includes(eName.replace(/(personal|mediana|grande|familiar)/i, "").trim())
+    );
   });
 
   // If multiple variants exist and we got an ambiguous match, list them
@@ -1631,7 +1723,12 @@ function handlePriceQuestion(
     let msg = "Tenemos:\n";
     for (const v of variants) {
       const orig = effectiveProducts.find((p: any) => (p.name || "").toLowerCase().trim() === v.name);
-      const catLabel = v.categoryName ? ` (${v.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+      const catLabel = v.categoryName
+        ? ` (${v.categoryName
+            .split(/\s+/)
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")})`
+        : "";
       msg += `- ${orig?.name || v.name}${catLabel}: ${formatCOP(v.price)}\n`;
     }
     msg += "¿Cuál te gustaría?";
@@ -1639,11 +1736,14 @@ function handlePriceQuestion(
   }
 
   // Single match — return price
-  const origProduct = effectiveProducts.find(
-    (p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name,
-  );
+  const origProduct = effectiveProducts.find((p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name);
   const displayName = origProduct?.name || resolved.entry.name;
-  const catLabel = resolved.entry.categoryName ? ` (${resolved.entry.categoryName.split(/\s+/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")})` : "";
+  const catLabel = resolved.entry.categoryName
+    ? ` (${resolved.entry.categoryName
+        .split(/\s+/)
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")})`
+    : "";
   return `${displayName}${catLabel} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
 }
 
@@ -2104,12 +2204,20 @@ async function runSalesNudgeCheck() {
     const { data: dyingConvs } = await supabase
       .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")')
+      .not(
+        "order_status",
+        "in",
+        '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")',
+      )
       .lt("updated_at", twoMinAgo);
     const { data: abandonedConvs } = await supabase
       .from("whatsapp_conversations")
       .select("id, customer_phone, restaurant_id, messages, order_status, customer_name, current_order, last_nudge_at")
-      .not("order_status", "in", '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")')
+      .not(
+        "order_status",
+        "in",
+        '("none","confirmed","followup_sent","nudge_sent","pending_confirmation","pending_button_confirmation","pre_order","emailed","sent")',
+      )
       .lt("updated_at", twoMinAgo);
     const reallyAbandoned = (abandonedConvs || []).filter((c: any) => {
       const m = Array.isArray(c.messages) ? c.messages : [];
@@ -2583,7 +2691,12 @@ Deno.serve(async (req) => {
             staleMsgs.push({ role: "assistant", content: followUpMsg, timestamp: new Date().toISOString() });
             await supabase
               .from("whatsapp_conversations")
-              .update({ messages: staleMsgs.slice(-30), order_status: "followup_sent", pending_since: null, follow_up_sent_at: new Date().toISOString() })
+              .update({
+                messages: staleMsgs.slice(-30),
+                order_status: "followup_sent",
+                pending_since: null,
+                follow_up_sent_at: new Date().toISOString(),
+              })
               .eq("id", stale.id);
           }
         }
@@ -2865,10 +2978,11 @@ Deno.serve(async (req) => {
           if (existingEvent) {
             console.log(`🔁 IDEMPOTENCY: Order already exists for conversation ${conv.id}. Skipping duplicate.`);
             const { isOpen: idempOpen, isPreOrder: idempPreOrder } = isRestaurantOpen(config);
-            const resp = (idempOpen && !idempPreOrder)
-              ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
-              : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
-            const idempStatus = (idempOpen && !idempPreOrder) ? "confirmed" : "pre_order";
+            const resp =
+              idempOpen && !idempPreOrder
+                ? "Ya quedó confirmado ✅ Tu pedido está en preparación"
+                : "Ya quedó registrado ✅ Te avisamos cuando empecemos a preparar";
+            const idempStatus = idempOpen && !idempPreOrder ? "confirmed" : "pre_order";
             convMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
             await supabase
               .from("whatsapp_conversations")
@@ -2888,11 +3002,16 @@ Deno.serve(async (req) => {
             profileIds.length > 0
               ? await supabase
                   .from("products")
-                  .select("id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)")
+                  .select(
+                    "id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)",
+                  )
                   .in("user_id", profileIds)
                   .eq("is_active", true)
               : { data: [] };
-          const confirmProdsWithCategory = (confirmProds || []).map((p: any) => ({ ...p, category_name: p.categories?.name || "Otros" }));
+          const confirmProdsWithCategory = (confirmProds || []).map((p: any) => ({
+            ...p,
+            category_name: p.categories?.name || "Otros",
+          }));
 
           // ── SYSTEM OVERRIDES: Apply overrides at confirmation time ──
           const confirmOverrides = await getActiveOverrides(rId);
@@ -2902,9 +3021,15 @@ Deno.serve(async (req) => {
           if (isRestaurantClosedOverride(confirmOverrides)) {
             const closedResp = "Lo siento, hoy el restaurante está cerrado. ¡Te esperamos pronto! 🙏";
             convMsgs.push({ role: "assistant", content: closedResp, timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null }).eq("id", conv.id);
+            await supabase
+              .from("whatsapp_conversations")
+              .update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null, pending_since: null })
+              .eq("id", conv.id);
             await sendWA(pid, token, from, closedResp, true);
-            return new Response(JSON.stringify({ status: "restaurant_closed_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ status: "restaurant_closed_override" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
 
           // ── Check if delivery is disabled by override ──
@@ -2912,19 +3037,40 @@ Deno.serve(async (req) => {
           if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
             const noDeliveryResp = buildServiceBlockMessage(confirmOverrides, "delivery", config);
             convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await supabase
+              .from("whatsapp_conversations")
+              .update({
+                messages: convMsgs.slice(-30),
+                order_status: "pending_confirmation",
+                pending_since: new Date().toISOString(),
+              })
+              .eq("id", conv.id);
             await sendWA(pid, token, from, noDeliveryResp, true);
-            return new Response(JSON.stringify({ status: "delivery_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ status: "delivery_disabled_override" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
 
           // ── Check if pickup is disabled by override ──
-          const isPickupType = /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
+          const isPickupType =
+            /recog|pickup/i.test(deliveryTypeCheck) || !/domicilio|delivery/i.test(deliveryTypeCheck);
           if (isPickupType && isPickupDisabledOverride(confirmOverrides)) {
             const noPickupResp = buildServiceBlockMessage(confirmOverrides, "pickup", config);
             convMsgs.push({ role: "assistant", content: noPickupResp, timestamp: new Date().toISOString() });
-            await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "pending_confirmation", pending_since: new Date().toISOString() }).eq("id", conv.id);
+            await supabase
+              .from("whatsapp_conversations")
+              .update({
+                messages: convMsgs.slice(-30),
+                order_status: "pending_confirmation",
+                pending_since: new Date().toISOString(),
+              })
+              .eq("id", conv.id);
             await sendWA(pid, token, from, noPickupResp, true);
-            return new Response(JSON.stringify({ status: "pickup_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+            return new Response(JSON.stringify({ status: "pickup_disabled_override" }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
           }
 
           // ── Check if any ordered items are disabled by override ──
@@ -2943,9 +3089,20 @@ Deno.serve(async (req) => {
             if (blockedItems.length > 0) {
               const blockedResp = `Lo siento, hoy no tenemos disponible: ${blockedItems.join(", ")} 😔 ¿Te gustaría pedir otra cosa?`;
               convMsgs.push({ role: "assistant", content: blockedResp, timestamp: new Date().toISOString() });
-              await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30), order_status: "active", current_order: null, pending_since: null }).eq("id", conv.id);
+              await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  messages: convMsgs.slice(-30),
+                  order_status: "active",
+                  current_order: null,
+                  pending_since: null,
+                })
+                .eq("id", conv.id);
               await sendWA(pid, token, from, blockedResp, true);
-              return new Response(JSON.stringify({ status: "items_disabled_override" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+              return new Response(JSON.stringify({ status: "items_disabled_override" }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
             }
           }
 
@@ -3191,7 +3348,9 @@ Deno.serve(async (req) => {
         restProfileIds.length > 0
           ? await supabase
               .from("products")
-              .select("id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)")
+              .select(
+                "id, name, price, description, category_id, requires_packaging, packaging_price, portions, categories(name)",
+              )
               .in("user_id", restProfileIds)
               .eq("is_active", true)
               .order("name")
@@ -3208,7 +3367,11 @@ Deno.serve(async (req) => {
       const activeOverrides = await getActiveOverrides(rId);
       const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
       const overridePromptBlock = buildOverridePromptBlock(prodsWithCategory, activeOverrides);
-      tlog("info", rId, `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`);
+      tlog(
+        "info",
+        rId,
+        `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`,
+      );
 
       // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
       const availability = checkRestaurantAvailability(config, activeOverrides, config.daily_overrides || []);
@@ -3217,12 +3380,14 @@ Deno.serve(async (req) => {
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
         convMsgs.push({ role: "assistant", content: availability.message, timestamp: new Date().toISOString() });
-        await supabase.from("whatsapp_conversations")
+        await supabase
+          .from("whatsapp_conversations")
           .update({ messages: convMsgs.slice(-30), order_status: "none", current_order: null })
           .eq("id", conv.id);
         await sendWA(pid, token, from, availability.message, true);
         return new Response(JSON.stringify({ status: "restaurant_unavailable" }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -3320,33 +3485,36 @@ Deno.serve(async (req) => {
       let reopenHint = "";
       if (!isRestaurantClosedOverride(activeOverrides)) {
         const recentMsgs = (mergedMsgs || []).slice(-10);
-        const hasStaleClosedMsg = recentMsgs.some((m: any) =>
-          m.role === "assistant" && /cerrado|closed|cerrada|cerramos/i.test(m.content || "")
+        const hasStaleClosedMsg = recentMsgs.some(
+          (m: any) => m.role === "assistant" && /cerrado|closed|cerrada|cerramos/i.test(m.content || ""),
         );
         if (hasStaleClosedMsg) {
-          reopenHint = "\n\nIMPORTANTE: El restaurante está ABIERTO ahora. Ignora cualquier mensaje anterior que diga que está cerrado. Responde con normalidad y toma pedidos.";
+          reopenHint =
+            "\n\nIMPORTANTE: El restaurante está ABIERTO ahora. Ignora cualquier mensaje anterior que diga que está cerrado. Responde con normalidad y toma pedidos.";
         }
       }
 
       // Detect stale "no delivery" messages when delivery is now available
       if (!isDeliveryDisabledOverride(activeOverrides)) {
         const recentMsgs = (mergedMsgs || []).slice(-10);
-        const hasStaleDeliveryMsg = recentMsgs.some((m: any) =>
-          m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || "")
+        const hasStaleDeliveryMsg = recentMsgs.some(
+          (m: any) => m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || ""),
         );
         if (hasStaleDeliveryMsg) {
-          reopenHint += "\n\nIMPORTANTE: El servicio de DOMICILIO está disponible ahora. Ignora mensajes anteriores que digan que no hay domicilio. Ofrece domicilio con normalidad.";
+          reopenHint +=
+            "\n\nIMPORTANTE: El servicio de DOMICILIO está disponible ahora. Ignora mensajes anteriores que digan que no hay domicilio. Ofrece domicilio con normalidad.";
         }
       }
 
       // Detect stale "no pickup" messages when pickup is now available
       if (!isPickupDisabledOverride(activeOverrides)) {
         const recentMsgs = (mergedMsgs || []).slice(-10);
-        const hasStalePickupMsg = recentMsgs.some((m: any) =>
-          m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || "")
+        const hasStalePickupMsg = recentMsgs.some(
+          (m: any) => m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || ""),
         );
         if (hasStalePickupMsg) {
-          reopenHint += "\n\nIMPORTANTE: El servicio de RECOGIDA está disponible ahora. Ignora mensajes anteriores que digan que no hay recogida.";
+          reopenHint +=
+            "\n\nIMPORTANTE: El servicio de RECOGIDA está disponible ahora. Ignora mensajes anteriores que digan que no hay recogida.";
         }
       }
 
@@ -3360,7 +3528,10 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
-        ) + customerMemoryCtx + overridePromptBlock + reopenHint;
+        ) +
+        customerMemoryCtx +
+        overridePromptBlock +
+        reopenHint;
 
       // === PRICE QUESTION INTERCEPTOR ===
       // Check if user is asking a price question — respond with DB prices, skip AI
@@ -3389,7 +3560,10 @@ Deno.serve(async (req) => {
 
       if (!ai) {
         console.error("AI returned empty response for", from);
-        return new Response(JSON.stringify({ status: "ai_empty" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ status: "ai_empty" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const parsed = parseOrder(ai);
@@ -3406,17 +3580,29 @@ Deno.serve(async (req) => {
         if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
           const noDelivResp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: freshMsgs.slice(-30) })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, noDelivResp, true);
-          return new Response(JSON.stringify({ status: "delivery_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "delivery_blocked" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (isOrderPickup && isPickupDisabledOverride(activeOverrides)) {
           const noPickResp = buildServiceBlockMessage(activeOverrides, "pickup", config);
           freshMsgs.push({ role: "assistant", content: noPickResp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await supabase
+            .from("whatsapp_conversations")
+            .update({ messages: freshMsgs.slice(-30) })
+            .eq("id", conv.id);
           await sendWA(pid, token, from, noPickResp, true);
-          return new Response(JSON.stringify({ status: "pickup_blocked" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ status: "pickup_blocked" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         // ORDER DETECTED BY AI → Validate and build backend summary
@@ -3425,7 +3611,9 @@ Deno.serve(async (req) => {
 
         // Build summary from validated data — NEVER use AI text for prices
         resp = buildOrderSummary(validated.order, config, parsed.order.customer_name || freshCustomerName);
-        console.log(`📋 BACKEND SUMMARY built for ${from} (validated=${validated.corrected}, issues=${validated.issues.length})`);
+        console.log(
+          `📋 BACKEND SUMMARY built for ${from} (validated=${validated.corrected}, issues=${validated.issues.length})`,
+        );
 
         // Store order and set pending confirmation status
         freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
