@@ -601,8 +601,13 @@ serve(async (req) => {
 
     // ── Final safeguard — choose appropriate fallback ──
     if (!reply || reply.trim().length === 0) {
-      if (errorLoopDetected) {
-        console.warn("[vendedores] Error loop detected – sending reset message");
+      // Try objection guardrail first (critical user messages that deserve a real answer)
+      const guardrail = getObjectionGuardrail(msgBody);
+      if (guardrail) {
+        console.warn("[vendedores] AI failed but objection detected — using guardrail response");
+        reply = guardrail;
+      } else if (errorLoopDetected) {
+        console.warn("[vendedores] Error loop confirmed — sending reset message");
         reply = RESET_MESSAGE;
       } else {
         console.warn("[vendedores] Fallback response used");
