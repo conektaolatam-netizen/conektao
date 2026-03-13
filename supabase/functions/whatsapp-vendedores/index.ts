@@ -19,7 +19,7 @@ const RESET_MESSAGE = "Creo que tuvimos un pequeño enredo técnico. Volvamos a 
 function isFallbackMessage(text: string): boolean {
   if (!text) return false;
   const lower = text.toLowerCase();
-  return FALLBACK_PHRASES.some((phrase) => lower.includes(phrase));
+  return FALLBACK_PHRASES.some((phrase) => lower.includes(phrase)) || lower.includes("enredo técnico");
 }
 
 function isValidAIReply(reply: unknown): reply is string {
@@ -78,6 +78,7 @@ async function callVendedoresAI(
   }
 
   console.error("[vendedores] AI retry also failed — no valid response after 2 attempts");
+  console.warn("[vendedores] AI response body (attempt 2):", JSON.stringify(data?.choices?.[0] || null));
   return { data: null, message: null, reply: "" };
 }
 
@@ -372,10 +373,12 @@ serve(async (req) => {
       console.warn("[vendedores] Error loop detected – sending reset message");
     }
 
-    const conversationMessages = (historyRows || []).map((r: { role: string; content: string }) => ({
-      role: r.role === "user" ? "user" : "assistant",
-      content: r.content,
-    }));
+    const conversationMessages = (historyRows || [])
+      .filter((r: { role: string; content: string }) => !isFallbackMessage(r.content))
+      .map((r: { role: string; content: string }) => ({
+        role: r.role === "user" ? "user" : "assistant",
+        content: r.content,
+      }));
 
     // ── Call AI gateway with history + tools ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
