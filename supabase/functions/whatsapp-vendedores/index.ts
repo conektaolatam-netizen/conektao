@@ -417,8 +417,10 @@ serve(async (req) => {
       .from("vendedores_mensajes")
       .select("role, content")
       .eq("vendedor_whatsapp", from)
-      .order("created_at", { ascending: true });
-    // .limit(20);
+      .order("created_at", { ascending: false })
+      .limit(120);
+
+    console.log(`History: ${historyRows}`);
 
     // ── Detect error loop before calling AI ──
     const errorLoopDetected = detectErrorLoop(historyRows);
