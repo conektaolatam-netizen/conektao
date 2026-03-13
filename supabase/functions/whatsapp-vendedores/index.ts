@@ -420,7 +420,7 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(120);
 
-    console.log(`History: ${historyRows.map((r: { role: string; content: string }) => r.content)}`);
+    console.log(`History: ${historyRows.map((r: { role: string; content: string }) => r.content).reverse()}`);
 
     // ── Detect error loop before calling AI ──
     const errorLoopDetected = detectErrorLoop(historyRows);
@@ -429,6 +429,7 @@ serve(async (req) => {
     }
 
     const conversationMessages = (historyRows || [])
+      .reverse()
       .filter((r: { role: string; content: string }) => !isFallbackMessage(r.content))
       .map((r: { role: string; content: string }) => ({
         role: r.role === "user" ? "user" : "assistant",
