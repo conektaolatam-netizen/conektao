@@ -82,13 +82,47 @@ async function callVendedoresAI(
   return { data: null, message: null, reply: "" };
 }
 
-// ── Error loop detection ──
+// ── Error loop detection (based on consecutive user messages without valid assistant reply) ──
 function detectErrorLoop(historyRows: Array<{ role: string; content: string }> | null): boolean {
-  if (!historyRows || historyRows.length < 2) return false;
-  const assistantMessages = historyRows.filter((r) => r.role === "assistant");
-  const lastTwo = assistantMessages.slice(-2);
-  if (lastTwo.length < 2) return false;
-  return lastTwo.every((m) => isFallbackMessage(m.content));
+  if (!historyRows || historyRows.length < 3) return false;
+  // Check if the tail of history has 2+ consecutive user messages with no assistant in between
+  // This happens when fallbacks were sent but not stored
+  const tail = historyRows.slice(-4);
+  let consecutiveUser = 0;
+  for (let i = tail.length - 1; i >= 0; i--) {
+    if (tail[i].role === "user") {
+      consecutiveUser++;
+    } else {
+      break;
+    }
+  }
+  if (consecutiveUser >= 2) {
+    console.warn(`[vendedores] Loop signal: ${consecutiveUser} consecutive user messages at tail`);
+    return true;
+  }
+  return false;
+}
+
+// ── Objection guardrail responses ──
+const OBJECTION_KEYWORDS: Array<{ keywords: string[]; response: string }> = [
+  {
+    keywords: ["pirámide", "piramide", "estafa", "fraude", "ilegal", "ponzi"],
+    response: "Tranquilo, entiendo la pregunta. Conektao es 100% legal. Eres un vendedor independiente que gana comisiones por cliente, como en seguros o inmobiliaria. No hay red de niveles ni inversión. ¿Quieres que te explique cómo funcionan las comisiones? 💪",
+  },
+  {
+    keywords: ["legal", "contrato", "demanda"],
+    response: "Conektao opera como cualquier empresa de tecnología colombiana. Tú ganas comisiones directas por cada restaurante que conectes. Sin letras chiquitas. ¿Te cuento cómo funciona el pago? 😉",
+  },
+];
+
+function getObjectionGuardrail(userMessage: string): string | null {
+  const lower = userMessage.toLowerCase();
+  for (const obj of OBJECTION_KEYWORDS) {
+    if (obj.keywords.some((kw) => lower.includes(kw))) {
+      return obj.response;
+    }
+  }
+  return null;
 }
 
 const SYSTEM_PROMPT = `SYSTEM PROMPT — ALICIA VENDEDORES by Conektao
