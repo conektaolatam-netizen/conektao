@@ -420,8 +420,6 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(120);
 
-    console.log(`History: ${historyRows.map((r: { role: string; content: string }) => r.content).reverse()}`);
-
     // ── Detect error loop before calling AI ──
     const errorLoopDetected = detectErrorLoop(historyRows);
     if (errorLoopDetected) {
