@@ -1,56 +1,46 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Fix Alicia Vendedores Loop + Clean Data
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Root Cause Analysis
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+The conversation for `573006653341` shows:
+1. **Old fallback message still in DB** (from before the fix at 15:03:24) — this poisons the AI context every time
+2. **History loader doesn't filter fallbacks** — when building the AI prompt at line 375, fallback messages from the DB are included as-is, confusing the model
+3. **No visibility into AI failures** — when the AI gateway returns empty, we don't log what it actually returned
+
+The `isFallbackMessage` check only prevents NEW fallbacks from being stored (line 561), but OLD ones already in the DB still get loaded into the conversation context.
+
+## Changes (all in `whatsapp-vendedores/index.ts`)
+
+### 1. Filter fallback messages from history when building AI context (line 375)
+Add a `.filter()` to exclude any message whose content matches `isFallbackMessage()` before sending to the AI. This ensures even old fallback messages in the DB never reach the model.
 
 ```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
-
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
+const conversationMessages = (historyRows || [])
+  .filter((r) => !isFallbackMessage(r.content))
+  .map((r) => ({
+    role: r.role === "user" ? "user" : "assistant",
+    content: r.content,
+  }));
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
-
-Añadir instrucción explícita sobre signos de interrogación en español:
-
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
-
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+### 2. Add response body logging for debugging (in `callVendedoresAI`)
+Log the raw AI response when it's empty/invalid so we can diagnose gateway issues:
+```typescript
+console.warn("[vendedores] AI response body:", JSON.stringify(data?.choices?.[0]));
 ```
 
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+### 3. Also filter RESET_MESSAGE from history
+The `RESET_MESSAGE` should also not be stored or loaded. Update `isFallbackMessage` to also match "enredo técnico".
 
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+### 4. Clean both tables via data operations
+- DELETE all rows from `vendedores_mensajes`
+- DELETE all rows from `vendedores_agente`
 
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+This gives a fresh start as the user requested.
+
+## What is NOT touched
+- SYSTEM_PROMPT, TOOLS, `generarCodigo()`, `sendWhatsAppMessage()`, tool call logic — all unchanged
+- No other files modified
 
