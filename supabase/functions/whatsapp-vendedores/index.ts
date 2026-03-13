@@ -63,9 +63,21 @@ async function callVendedoresAI(
     return { data, message: assistantMessage, reply };
   }
 
-  // Retry once
+  // Retry once with recovery instruction
   console.warn("[vendedores] AI retry triggered — first response was empty/invalid");
-  data = await makeCall();
+  console.warn("[vendedores] First attempt response body:", JSON.stringify(data?.choices?.[0] || null));
+  
+  // On retry, inject a recovery system message to force focus on last user message
+  const messagesWithRecovery = [...(payload.messages as Array<{ role: string; content: string }>)];
+  // Find the last user message
+  const lastUserMsg = [...messagesWithRecovery].reverse().find(m => m.role === "user")?.content || "";
+  messagesWithRecovery.push({
+    role: "system",
+    content: `⚠️ El intento anterior falló. Responde DIRECTAMENTE al último mensaje del usuario: "${lastUserMsg}". No repitas frases de turnos anteriores.`,
+  });
+  
+  const retryPayload = { ...payload, messages: messagesWithRecovery };
+  data = await makeCall(retryPayload);
   assistantMessage = data?.choices?.[0]?.message;
   reply = assistantMessage?.content || "";
 
