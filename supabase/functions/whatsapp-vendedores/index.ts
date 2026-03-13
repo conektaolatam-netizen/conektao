@@ -31,14 +31,15 @@ async function callVendedoresAI(
   payload: Record<string, unknown>,
   apiKey: string,
 ): Promise<{ data: Record<string, unknown> | null; message: Record<string, unknown> | null; reply: string }> {
-  const makeCall = async () => {
+  const makeCall = async (overridePayload?: Record<string, unknown>) => {
+    const body = overridePayload || payload;
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const errText = await res.text();
