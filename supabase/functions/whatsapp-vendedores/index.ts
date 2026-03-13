@@ -6,6 +6,90 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ── Fallback detection helpers ──
+const FALLBACK_PHRASES = [
+  "problema técnico",
+  "pequeño problema técnico",
+  "problema tecnico",
+];
+
+const FALLBACK_MESSAGE = "Tuve un pequeño problema técnico. ¿Me repites lo que me dijiste? 🙏";
+const RESET_MESSAGE = "Creo que tuvimos un pequeño enredo técnico. Volvamos a empezar rápido. ¿Te cuento cómo funciona la oportunidad de Conektao?";
+
+function isFallbackMessage(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return FALLBACK_PHRASES.some((phrase) => lower.includes(phrase));
+}
+
+function isValidAIReply(reply: unknown): reply is string {
+  return typeof reply === "string" && reply.trim().length > 0;
+}
+
+// ── AI call with single retry ──
+async function callVendedoresAI(
+  payload: Record<string, unknown>,
+  apiKey: string,
+): Promise<{ data: Record<string, unknown> | null; message: Record<string, unknown> | null; reply: string }> {
+  const makeCall = async () => {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[vendedores] AI HTTP error:", res.status, errText);
+      return null;
+    }
+    return await res.json();
+  };
+
+  // First attempt
+  let data = await makeCall();
+  let assistantMessage = data?.choices?.[0]?.message;
+  let reply = assistantMessage?.content || "";
+
+  // If response has tool_calls, it's valid even without content
+  if (data && assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+    return { data, message: assistantMessage, reply };
+  }
+
+  // Validate reply
+  if (isValidAIReply(reply)) {
+    return { data, message: assistantMessage, reply };
+  }
+
+  // Retry once
+  console.warn("[vendedores] AI retry triggered — first response was empty/invalid");
+  data = await makeCall();
+  assistantMessage = data?.choices?.[0]?.message;
+  reply = assistantMessage?.content || "";
+
+  if (data && assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+    return { data, message: assistantMessage, reply };
+  }
+
+  if (isValidAIReply(reply)) {
+    return { data, message: assistantMessage, reply };
+  }
+
+  console.error("[vendedores] AI retry also failed — no valid response after 2 attempts");
+  return { data: null, message: null, reply: "" };
+}
+
+// ── Error loop detection ──
+function detectErrorLoop(historyRows: Array<{ role: string; content: string }> | null): boolean {
+  if (!historyRows || historyRows.length < 2) return false;
+  const assistantMessages = historyRows.filter((r) => r.role === "assistant");
+  const lastTwo = assistantMessages.slice(-2);
+  if (lastTwo.length < 2) return false;
+  return lastTwo.every((m) => isFallbackMessage(m.content));
+}
+
 const SYSTEM_PROMPT = `SYSTEM PROMPT — ALICIA VENDEDORES by Conektao
 
 You are Alicia, the official sales and training agent for Conektao — a Colombian tech company that connects restaurants to a 24/7 WhatsApp AI assistant (also called Alicia) that takes orders, answers customers, and sends everything organized to the restaurant owner's email.
@@ -282,6 +366,12 @@ serve(async (req) => {
       .order("created_at", { ascending: true })
       .limit(20);
 
+    // ── Detect error loop before calling AI ──
+    const errorLoopDetected = detectErrorLoop(historyRows);
+    if (errorLoopDetected) {
+      console.warn("[vendedores] Error loop detected – sending reset message");
+    }
+
     const conversationMessages = (historyRows || []).map((r: { role: string; content: string }) => ({
       role: r.role === "user" ? "user" : "assistant",
       content: r.content,
@@ -308,33 +398,16 @@ serve(async (req) => {
       tools: TOOLS,
     };
 
-    let aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(aiPayload),
-    });
+    // ── AI call with retry ──
+    const { message: assistantMessage, reply: initialReply } = await callVendedoresAI(aiPayload, LOVABLE_API_KEY);
+    let reply = initialReply;
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error("[vendedores] AI error:", aiRes.status, errText);
-      await sendWhatsAppMessage(phoneNumberId, from, "Disculpa, tengo un problema técnico. Intenta de nuevo en un momento. 🙏");
-      return new Response(JSON.stringify({ error: "AI error" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let aiData = await aiRes.json();
-    let assistantMessage = aiData.choices?.[0]?.message;
-    let reply = assistantMessage?.content || "";
-
-    // ── Handle tool calls ──
-    if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
+    // ── Handle tool calls (unchanged logic) ──
+    if (assistantMessage?.tool_calls && (assistantMessage.tool_calls as unknown[]).length > 0) {
+      const toolCalls = assistantMessage.tool_calls as Array<{ id: string; function: { name: string; arguments: string | Record<string, string> } }>;
       const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
-      for (const toolCall of assistantMessage.tool_calls) {
+      for (const toolCall of toolCalls) {
         if (toolCall.function?.name === "registrar_vendedor") {
           let args: { nombre: string; correo: string };
           try {
@@ -363,7 +436,6 @@ serve(async (req) => {
           let resultData;
 
           if (existing && existing.codigo_vendedor) {
-            // Already has a code, return it
             resultData = {
               success: true,
               codigo_vendedor: existing.codigo_vendedor,
@@ -371,7 +443,6 @@ serve(async (req) => {
               message: `Vendedor ya registrado con código ${existing.codigo_vendedor}`,
             };
           } else if (existing) {
-            // Update existing record with name, email, and code
             const { data, error } = await supabase
               .from("vendedores_agente")
               .update({
@@ -396,7 +467,6 @@ serve(async (req) => {
               };
             }
           } else {
-            // Insert new
             const { data, error } = await supabase
               .from("vendedores_agente")
               .insert({
@@ -433,7 +503,7 @@ serve(async (req) => {
       // Build follow-up messages — ensure assistantMessage.content is not null
       const cleanAssistantMsg = {
         role: "assistant",
-        content: assistantMessage.content || "",
+        content: (assistantMessage.content as string) || "",
         tool_calls: assistantMessage.tool_calls,
       };
       
@@ -452,33 +522,18 @@ serve(async (req) => {
         }
       } catch { /* ignore */ }
 
+      // ── Follow-up AI call with retry ──
       try {
-        const followUpRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: followUpMessages,
-          }),
-        });
+        const followUpPayload = {
+          model: "google/gemini-2.5-flash",
+          messages: followUpMessages,
+        };
+        const { reply: followUpReply } = await callVendedoresAI(followUpPayload, LOVABLE_API_KEY);
 
-        if (followUpRes.ok) {
-          const followUpData = await followUpRes.json();
-          const followUpContent = followUpData.choices?.[0]?.message?.content;
-          if (followUpContent && followUpContent.trim().length > 0) {
-            reply = followUpContent;
-          } else {
-            console.warn("[vendedores] Follow-up returned empty content, using fallback");
-            reply = vendorCode
-              ? `¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: ${vendorCode}. Guárdalo — es tuyo para siempre.\n\nAhora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores\n\n¿Vas a entrar hoy o mañana?`
-              : "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
-          }
+        if (isValidAIReply(followUpReply)) {
+          reply = followUpReply;
         } else {
-          const errText = await followUpRes.text();
-          console.error("[vendedores] Follow-up AI error:", followUpRes.status, errText);
+          console.warn("[vendedores] Follow-up returned empty after retry, using vendor code fallback");
           reply = vendorCode
             ? `¡Perfecto! Ya estás pre-registrado/a 🎉 Tu código de vendedor es: ${vendorCode}. Guárdalo — es tuyo para siempre.\n\nAhora sí, entra aquí para certificarte en menos de 7 minutos 👉 https://conektao.com/vendedores\n\n¿Vas a entrar hoy o mañana?`
             : "¡Listo! Ya quedaste pre-registrado. Te envío los detalles en un momento.";
@@ -491,16 +546,27 @@ serve(async (req) => {
       }
     }
 
-    // Final safeguard — never show a generic error
+    // ── Final safeguard — choose appropriate fallback ──
     if (!reply || reply.trim().length === 0) {
-      reply = "Tuve un pequeño problema técnico. ¿Me repites lo que me dijiste? 🙏";
+      if (errorLoopDetected) {
+        console.warn("[vendedores] Error loop detected – sending reset message");
+        reply = RESET_MESSAGE;
+      } else {
+        console.warn("[vendedores] Fallback response used");
+        reply = FALLBACK_MESSAGE;
+      }
     }
-    // ── Save assistant reply to history ──
-    await supabase.from("vendedores_mensajes").insert({
-      vendedor_whatsapp: from,
-      role: "assistant",
-      content: reply,
-    });
+
+    // ── Save assistant reply to history (skip fallback messages) ──
+    if (!isFallbackMessage(reply)) {
+      await supabase.from("vendedores_mensajes").insert({
+        vendedor_whatsapp: from,
+        role: "assistant",
+        content: reply,
+      });
+    } else {
+      console.log("[vendedores] Skipping DB insert for fallback/technical message");
+    }
 
     // ── Send reply via WhatsApp ──
     await sendWhatsAppMessage(phoneNumberId, from, reply);
@@ -510,6 +576,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("[vendedores] CRITICAL Error:", e);
+    console.error("[vendedores] CRITICAL fallback triggered");
     // Global crash protection: always try to respond to the user
     try {
       const body = await req.clone().json().catch(() => null);

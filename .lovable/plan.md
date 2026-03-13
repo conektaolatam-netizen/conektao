@@ -1,50 +1,56 @@
 
 
-# Plan: Robustness Improvements for Alicia Vendedores
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Problems Identified in Current Code
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-1. **Fallback messages saved to history** (lines 495-503): The fallback "Tuve un pequeño problema técnico..." is saved to `vendedores_mensajes`, polluting the AI context and causing loops.
-2. **No retry before fallback** (lines 320-327, 494-497): On AI failure, it immediately sends the fallback — no second attempt.
-3. **No loop detection**: If AI keeps failing, the same fallback is repeated endlessly.
-4. **No response validation**: Empty/malformed AI responses trigger fallback without retry.
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-## Changes — All in `supabase/functions/whatsapp-vendedores/index.ts`
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-### 1. Define fallback phrases as constants (~line 7)
-Add a list of known fallback/technical-error phrases and a helper function `isFallbackMessage(text)` that checks if a string contains "problema técnico" or matches known fallback messages.
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+```
 
-### 2. Add error loop detection helper (~line 277, after loading history)
-After loading `historyRows`, check if the last 2 assistant messages contain "problema técnico". If so, set a flag `errorLoopDetected = true`.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-### 3. Add AI call + retry logic (replace lines 311-331)
-Extract the AI call into a helper `callVendedoresAI(payload)` that:
-- Makes the fetch call
-- Validates response: `reply` exists, is a string, `trim().length > 0`
-- If invalid → logs `[vendedores] AI retry triggered` → retries once
-- If still invalid → returns `null`
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-### 4. Apply retry to both AI calls
-- **Main AI call** (line 311): Use the retry helper
-- **Follow-up AI call after tool calls** (line 456): Use the same retry helper
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-### 5. Replace fallback logic (lines 494-503)
-After AI calls, if reply is still empty:
-- If `errorLoopDetected` → use soft reset message: *"Creo que tuvimos un pequeño enredo técnico. Volvamos a empezar rápido. ¿Te cuento cómo funciona la oportunidad de Conektao?"*
-- Otherwise → use standard fallback
-- Log accordingly: `[vendedores] Fallback response used` or `[vendedores] Error loop detected – sending reset message`
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-### 6. Don't store fallback messages (lines 498-503)
-Before inserting into `vendedores_mensajes`, check `isFallbackMessage(reply)`. If true, skip the insert. Only store real AI responses.
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-### 7. Apply same protection to global catch block (lines 511-531)
-The crash handler at line 522 also sends a fallback — this is fine (not saved to DB currently), but add the log: `[vendedores] CRITICAL fallback triggered`.
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-## What is NOT touched
-- `SYSTEM_PROMPT` — unchanged
-- `TOOLS` definition — unchanged
-- `generarCodigo()` — unchanged
-- Tool call registration logic (lines 334-492) — unchanged
-- `sendWhatsAppMessage()` — unchanged
-- Any other files — untouched
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
