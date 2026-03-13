@@ -19,7 +19,7 @@ const RESET_MESSAGE = "Creo que tuvimos un pequeño enredo técnico. Volvamos a 
 function isFallbackMessage(text: string): boolean {
   if (!text) return false;
   const lower = text.toLowerCase();
-  return FALLBACK_PHRASES.some((phrase) => lower.includes(phrase));
+  return FALLBACK_PHRASES.some((phrase) => lower.includes(phrase)) || lower.includes("enredo técnico");
 }
 
 function isValidAIReply(reply: unknown): reply is string {
