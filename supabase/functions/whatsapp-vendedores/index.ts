@@ -78,6 +78,7 @@ async function callVendedoresAI(
   }
 
   console.error("[vendedores] AI retry also failed — no valid response after 2 attempts");
+  console.warn("[vendedores] AI response body (attempt 2):", JSON.stringify(data?.choices?.[0] || null));
   return { data: null, message: null, reply: "" };
 }
 
