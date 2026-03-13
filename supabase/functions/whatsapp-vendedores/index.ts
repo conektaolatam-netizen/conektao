@@ -372,10 +372,12 @@ serve(async (req) => {
       console.warn("[vendedores] Error loop detected – sending reset message");
     }
 
-    const conversationMessages = (historyRows || []).map((r: { role: string; content: string }) => ({
-      role: r.role === "user" ? "user" : "assistant",
-      content: r.content,
-    }));
+    const conversationMessages = (historyRows || [])
+      .filter((r: { role: string; content: string }) => !isFallbackMessage(r.content))
+      .map((r: { role: string; content: string }) => ({
+        role: r.role === "user" ? "user" : "assistant",
+        content: r.content,
+      }));
 
     // ── Call AI gateway with history + tools ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
