@@ -31,14 +31,15 @@ async function callVendedoresAI(
   payload: Record<string, unknown>,
   apiKey: string,
 ): Promise<{ data: Record<string, unknown> | null; message: Record<string, unknown> | null; reply: string }> {
-  const makeCall = async () => {
+  const makeCall = async (overridePayload?: Record<string, unknown>) => {
+    const body = overridePayload || payload;
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -63,9 +64,21 @@ async function callVendedoresAI(
     return { data, message: assistantMessage, reply };
   }
 
-  // Retry once
+  // Retry once with recovery instruction
   console.warn("[vendedores] AI retry triggered — first response was empty/invalid");
-  data = await makeCall();
+  console.warn("[vendedores] First attempt response body:", JSON.stringify(data?.choices?.[0] || null));
+  
+  // On retry, inject a recovery system message to force focus on last user message
+  const messagesWithRecovery = [...(payload.messages as Array<{ role: string; content: string }>)];
+  // Find the last user message
+  const lastUserMsg = [...messagesWithRecovery].reverse().find(m => m.role === "user")?.content || "";
+  messagesWithRecovery.push({
+    role: "system",
+    content: `⚠️ El intento anterior falló. Responde DIRECTAMENTE al último mensaje del usuario: "${lastUserMsg}". No repitas frases de turnos anteriores.`,
+  });
+  
+  const retryPayload = { ...payload, messages: messagesWithRecovery };
+  data = await makeCall(retryPayload);
   assistantMessage = data?.choices?.[0]?.message;
   reply = assistantMessage?.content || "";
 
@@ -82,13 +95,47 @@ async function callVendedoresAI(
   return { data: null, message: null, reply: "" };
 }
 
-// ── Error loop detection ──
+// ── Error loop detection (based on consecutive user messages without valid assistant reply) ──
 function detectErrorLoop(historyRows: Array<{ role: string; content: string }> | null): boolean {
-  if (!historyRows || historyRows.length < 2) return false;
-  const assistantMessages = historyRows.filter((r) => r.role === "assistant");
-  const lastTwo = assistantMessages.slice(-2);
-  if (lastTwo.length < 2) return false;
-  return lastTwo.every((m) => isFallbackMessage(m.content));
+  if (!historyRows || historyRows.length < 3) return false;
+  // Check if the tail of history has 2+ consecutive user messages with no assistant in between
+  // This happens when fallbacks were sent but not stored
+  const tail = historyRows.slice(-4);
+  let consecutiveUser = 0;
+  for (let i = tail.length - 1; i >= 0; i--) {
+    if (tail[i].role === "user") {
+      consecutiveUser++;
+    } else {
+      break;
+    }
+  }
+  if (consecutiveUser >= 2) {
+    console.warn(`[vendedores] Loop signal: ${consecutiveUser} consecutive user messages at tail`);
+    return true;
+  }
+  return false;
+}
+
+// ── Objection guardrail responses ──
+const OBJECTION_KEYWORDS: Array<{ keywords: string[]; response: string }> = [
+  {
+    keywords: ["pirámide", "piramide", "estafa", "fraude", "ilegal", "ponzi"],
+    response: "Tranquilo, entiendo la pregunta. Conektao es 100% legal. Eres un vendedor independiente que gana comisiones por cliente, como en seguros o inmobiliaria. No hay red de niveles ni inversión. ¿Quieres que te explique cómo funcionan las comisiones? 💪",
+  },
+  {
+    keywords: ["legal", "contrato", "demanda"],
+    response: "Conektao opera como cualquier empresa de tecnología colombiana. Tú ganas comisiones directas por cada restaurante que conectes. Sin letras chiquitas. ¿Te cuento cómo funciona el pago? 😉",
+  },
+];
+
+function getObjectionGuardrail(userMessage: string): string | null {
+  const lower = userMessage.toLowerCase();
+  for (const obj of OBJECTION_KEYWORDS) {
+    if (obj.keywords.some((kw) => lower.includes(kw))) {
+      return obj.response;
+    }
+  }
+  return null;
 }
 
 const SYSTEM_PROMPT = `SYSTEM PROMPT — ALICIA VENDEDORES by Conektao
@@ -392,10 +439,26 @@ serve(async (req) => {
       ? `\n\nThe vendor's first name is: ${vendorFirstName}. Always use "${vendorFirstName}" when addressing them — never use their full name or a placeholder like "[name]".`
       : `\n\nYou do not know the vendor's name yet. Do not use any name placeholder. Once they share their name, extract the first name and use it naturally.`;
 
+    // ── Build AI payload with optional recovery mode ──
+    const systemContent = SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` + nameContext;
+    
+    const systemMessages: Array<{ role: string; content: string }> = [
+      { role: "system", content: systemContent },
+    ];
+
+    // Inject recovery instruction if loop detected
+    if (errorLoopDetected) {
+      console.log("[vendedores] RECOVERY MODE activated — injecting priority instruction");
+      systemMessages.push({
+        role: "system",
+        content: `⚠️ PRIORIDAD MÁXIMA: Hubo un fallo técnico reciente y los últimos mensajes del usuario no recibieron respuesta válida. IGNORA cualquier continuidad incompleta de turnos anteriores. Lee SOLO el último mensaje del usuario y responde directamente a eso. Si el usuario hizo una pregunta u objeción, respóndela. Si saludó, saluda de vuelta y continúa la conversación naturalmente.`,
+      });
+    }
+
     const aiPayload: Record<string, unknown> = {
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` + nameContext },
+        ...systemMessages,
         ...conversationMessages,
       ],
       tools: TOOLS,
@@ -551,8 +614,13 @@ serve(async (req) => {
 
     // ── Final safeguard — choose appropriate fallback ──
     if (!reply || reply.trim().length === 0) {
-      if (errorLoopDetected) {
-        console.warn("[vendedores] Error loop detected – sending reset message");
+      // Try objection guardrail first (critical user messages that deserve a real answer)
+      const guardrail = getObjectionGuardrail(msgBody);
+      if (guardrail) {
+        console.warn("[vendedores] AI failed but objection detected — using guardrail response");
+        reply = guardrail;
+      } else if (errorLoopDetected) {
+        console.warn("[vendedores] Error loop confirmed — sending reset message");
         reply = RESET_MESSAGE;
       } else {
         console.warn("[vendedores] Fallback response used");

@@ -1,64 +1,56 @@
 
-Objetivo: eliminar el fallo persistente en Alicia Vendedores cuando Gemini devuelve `content: null`, evitando respuestas técnicas repetidas y evitando que Alicia “retome” frases fuera de contexto.
 
-Diagnóstico (con evidencia):
-1) El bucle original mejoró parcialmente: ya no se guarda el fallback en `vendedores_mensajes` (confirmado en DB).
-2) El problema actual sigue ocurriendo porque el gateway devuelve respuesta inválida:
-- `finish_reason: "stop"` con `message.content: null` (logs actuales).
-3) La protección de bucle quedó debilitada:
-- `detectErrorLoop` hoy mira “últimos 2 assistant con problema técnico”, pero esos fallbacks ya no se guardan; por eso casi nunca activa reset.
-4) Efecto visible en chat:
-- tras fallback, el siguiente turno puede continuar una frase vieja (“Así ya quedas listo...”) en vez de responder la objeción (“¿Es pirámide?”).
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-Plan de implementación (solo backend de Alicia Vendedores):
-1) Rehacer detección de loop sin depender de guardar fallbacks
-- Mantener filtro de no guardar mensajes técnicos.
-- Cambiar señal de loop a patrón de historial “cola con múltiples mensajes user consecutivos sin assistant válido entre medio” (síntoma real cuando hubo fallback técnico).
-- Usar esta señal para activar modo recuperación.
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-2) Modo recuperación en el prompt (solo cuando se detecta señal de fallo previo)
-- Inyectar una instrucción de alta prioridad antes del historial:
-  “Hubo un fallo técnico reciente. Ignora continuidad incompleta y responde directamente al último mensaje del usuario”.
-- Esto evita respuestas “colgadas” y fuerza foco en el último mensaje real.
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-3) Retry más robusto sin tocar estrategia comercial
-- Mantener 1 retry.
-- En el segundo intento, reforzar payload con instrucción explícita de responder al último mensaje del usuario (error-recovery only).
-- Mantener validación estricta:
-  - reply existe
-  - es string
-  - `trim().length > 0`
-  - o hay `tool_calls`.
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-4) Fallback inteligente de recuperación (sin romper flow)
-- Si falla AI tras 2 intentos:
-  - si hay señal de loop: usar `RESET_MESSAGE`.
-  - si no hay señal: fallback técnico actual.
-- No guardar en DB ni fallback ni reset (se mantiene).
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+```
 
-5) Guardrail para objeción crítica cuando AI cae (error-recovery only)
-- Si el último mensaje contiene objeción tipo “pirámide/estafa/legal” y AI falló 2 veces, enviar respuesta segura predefinida alineada al prompt de objeciones.
-- Esto reduce caída en justo el punto más sensible del embudo sin cambiar estrategia general.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-6) Logging operacional adicional
-- Registrar:
-  - activación de “recovery mode”
-  - patrón detectado de users consecutivos
-  - fallback por objeción crítica
-  - fallback/reset final usado
-- Mantener logs existentes de retry/fallback.
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-Detalles técnicos:
-- Archivo objetivo: `supabase/functions/whatsapp-vendedores/index.ts`.
-- No tocar:
-  - `sendWhatsAppMessage()`
-  - webhook structure
-  - tool `registrar_vendedor` y lógica de registro/código
-  - esquemas/tablas.
-- No tocar Alicia Restaurantes.
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-Validación posterior:
-1) Reproducir conversación con objeción “¿Es una pirámide?”.
-2) Verificar en logs que, si hay `content: null`, entra recovery mode y responde al último mensaje.
-3) Confirmar que fallback/reset no se inserta en `vendedores_mensajes`.
-4) Confirmar que no hay respuestas “arrastradas” del turno previo tras error.
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+
