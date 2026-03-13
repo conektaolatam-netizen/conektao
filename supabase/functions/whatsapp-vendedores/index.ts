@@ -3,18 +3,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // ── Fallback detection helpers ──
-const FALLBACK_PHRASES = [
-  "problema técnico",
-  "pequeño problema técnico",
-  "problema tecnico",
-];
+const FALLBACK_PHRASES = ["problema técnico", "pequeño problema técnico", "problema tecnico"];
 
 const FALLBACK_MESSAGE = "Tuve un pequeño problema técnico. ¿Me repites lo que me dijiste? 🙏";
-const RESET_MESSAGE = "Creo que tuvimos un pequeño enredo técnico. Volvamos a empezar rápido. ¿Te cuento cómo funciona la oportunidad de Conektao?";
+const RESET_MESSAGE =
+  "Creo que tuvimos un pequeño enredo técnico. Volvamos a empezar rápido. ¿Te cuento cómo funciona la oportunidad de Conektao?";
 
 function isFallbackMessage(text: string): boolean {
   if (!text) return false;
@@ -67,16 +65,16 @@ async function callVendedoresAI(
   // Retry once with recovery instruction
   console.warn("[vendedores] AI retry triggered — first response was empty/invalid");
   console.warn("[vendedores] First attempt response body:", JSON.stringify(data?.choices?.[0] || null));
-  
+
   // On retry, inject a recovery system message to force focus on last user message
   const messagesWithRecovery = [...(payload.messages as Array<{ role: string; content: string }>)];
   // Find the last user message
-  const lastUserMsg = [...messagesWithRecovery].reverse().find(m => m.role === "user")?.content || "";
+  const lastUserMsg = [...messagesWithRecovery].reverse().find((m) => m.role === "user")?.content || "";
   messagesWithRecovery.push({
     role: "system",
     content: `⚠️ El intento anterior falló. Responde DIRECTAMENTE al último mensaje del usuario: "${lastUserMsg}". No repitas frases de turnos anteriores.`,
   });
-  
+
   const retryPayload = { ...payload, messages: messagesWithRecovery };
   data = await makeCall(retryPayload);
   assistantMessage = data?.choices?.[0]?.message;
@@ -120,11 +118,13 @@ function detectErrorLoop(historyRows: Array<{ role: string; content: string }> |
 const OBJECTION_KEYWORDS: Array<{ keywords: string[]; response: string }> = [
   {
     keywords: ["pirámide", "piramide", "estafa", "fraude", "ilegal", "ponzi"],
-    response: "Tranquilo, entiendo la pregunta. Conektao es 100% legal. Eres un vendedor independiente que gana comisiones por cliente, como en seguros o inmobiliaria. No hay red de niveles ni inversión. ¿Quieres que te explique cómo funcionan las comisiones? 💪",
+    response:
+      "Tranquilo, entiendo la pregunta. Conektao es 100% legal. Eres un vendedor independiente que gana comisiones por cliente, como en seguros o inmobiliaria. No hay red de niveles ni inversión. ¿Quieres que te explique cómo funcionan las comisiones? 💪",
   },
   {
     keywords: ["legal", "contrato", "demanda"],
-    response: "Conektao opera como cualquier empresa de tecnología colombiana. Tú ganas comisiones directas por cada restaurante que conectes. Sin letras chiquitas. ¿Te cuento cómo funciona el pago? 😉",
+    response:
+      "Conektao opera como cualquier empresa de tecnología colombiana. Tú ganas comisiones directas por cada restaurante que conectes. Sin letras chiquitas. ¿Te cuento cómo funciona el pago? 😉",
   },
 ];
 
@@ -302,7 +302,8 @@ const TOOLS = [
     type: "function",
     function: {
       name: "registrar_vendedor",
-      description: "Pre-registra un vendedor potencial en el sistema de Conektao. Usa esta herramienta cuando el vendedor te dé su nombre completo y correo electrónico para pre-registrarse.",
+      description:
+        "Pre-registra un vendedor potencial en el sistema de Conektao. Usa esta herramienta cuando el vendedor te dé su nombre completo y correo electrónico para pre-registrarse.",
       parameters: {
         type: "object",
         properties: {
@@ -319,7 +320,9 @@ const TOOLS = [
 function generarCodigo(nombre: string): string {
   const limpio = nombre.replace(/\s+/g, "").toUpperCase();
   const prefijo = limpio.substring(0, 6);
-  const random = Math.floor(Math.random() * 100).toString().padStart(2, "0");
+  const random = Math.floor(Math.random() * 100)
+    .toString()
+    .padStart(2, "0");
   return `${prefijo}CONEK${random}`;
 }
 
@@ -333,7 +336,8 @@ serve(async (req) => {
   // ── Health check endpoint ──
   if (req.method === "GET" && url.pathname.endsWith("/health")) {
     return new Response(JSON.stringify({ status: "ok", timestamp: new Date().toISOString() }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -358,7 +362,8 @@ serve(async (req) => {
       const phoneId = Deno.env.get("WHATSAPP_VENDEDORES_PHONE_ID");
       await sendWhatsAppMessage(phoneId || "", body.to, body.message);
       return new Response(JSON.stringify({ status: "sent", to: body.to }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -369,7 +374,8 @@ serve(async (req) => {
 
     if (!value?.messages || value.messages.length === 0) {
       return new Response(JSON.stringify({ status: "no_messages" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -411,8 +417,8 @@ serve(async (req) => {
       .from("vendedores_mensajes")
       .select("role, content")
       .eq("vendedor_whatsapp", from)
-      .order("created_at", { ascending: true })
-      .limit(20);
+      .order("created_at", { ascending: true });
+    // .limit(20);
 
     // ── Detect error loop before calling AI ──
     const errorLoopDetected = detectErrorLoop(historyRows);
@@ -432,19 +438,18 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     // ── Extract vendor's first name for context ──
-    const vendorFirstName = existingVendedor?.nombre && existingVendedor.nombre !== from
-      ? existingVendedor.nombre.trim().split(/\s+/)[0]
-      : null;
+    const vendorFirstName =
+      existingVendedor?.nombre && existingVendedor.nombre !== from
+        ? existingVendedor.nombre.trim().split(/\s+/)[0]
+        : null;
     const nameContext = vendorFirstName
       ? `\n\nThe vendor's first name is: ${vendorFirstName}. Always use "${vendorFirstName}" when addressing them — never use their full name or a placeholder like "[name]".`
       : `\n\nYou do not know the vendor's name yet. Do not use any name placeholder. Once they share their name, extract the first name and use it naturally.`;
 
     // ── Build AI payload with optional recovery mode ──
     const systemContent = SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` + nameContext;
-    
-    const systemMessages: Array<{ role: string; content: string }> = [
-      { role: "system", content: systemContent },
-    ];
+
+    const systemMessages: Array<{ role: string; content: string }> = [{ role: "system", content: systemContent }];
 
     // Inject recovery instruction if loop detected
     if (errorLoopDetected) {
@@ -457,10 +462,7 @@ serve(async (req) => {
 
     const aiPayload: Record<string, unknown> = {
       model: "google/gemini-2.5-flash",
-      messages: [
-        ...systemMessages,
-        ...conversationMessages,
-      ],
+      messages: [...systemMessages, ...conversationMessages],
       tools: TOOLS,
     };
 
@@ -470,16 +472,20 @@ serve(async (req) => {
 
     // ── Handle tool calls (unchanged logic) ──
     if (assistantMessage?.tool_calls && (assistantMessage.tool_calls as unknown[]).length > 0) {
-      const toolCalls = assistantMessage.tool_calls as Array<{ id: string; function: { name: string; arguments: string | Record<string, string> } }>;
+      const toolCalls = assistantMessage.tool_calls as Array<{
+        id: string;
+        function: { name: string; arguments: string | Record<string, string> };
+      }>;
       const toolResults: Array<{ role: string; tool_call_id: string; content: string }> = [];
 
       for (const toolCall of toolCalls) {
         if (toolCall.function?.name === "registrar_vendedor") {
           let args: { nombre: string; correo: string };
           try {
-            args = typeof toolCall.function.arguments === "string"
-              ? JSON.parse(toolCall.function.arguments)
-              : toolCall.function.arguments;
+            args =
+              typeof toolCall.function.arguments === "string"
+                ? JSON.parse(toolCall.function.arguments)
+                : toolCall.function.arguments;
           } catch {
             toolResults.push({
               role: "tool",
@@ -572,9 +578,9 @@ serve(async (req) => {
         content: (assistantMessage.content as string) || "",
         tool_calls: assistantMessage.tool_calls,
       };
-      
+
       const followUpMessages = [
-        ...aiPayload.messages as Array<{ role: string; content: string }>,
+        ...(aiPayload.messages as Array<{ role: string; content: string }>),
         cleanAssistantMsg,
         ...toolResults,
       ];
@@ -586,7 +592,9 @@ serve(async (req) => {
           const parsed = JSON.parse(tr.content);
           if (parsed.codigo_vendedor) vendorCode = parsed.codigo_vendedor;
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // ── Follow-up AI call with retry ──
       try {
@@ -643,21 +651,29 @@ serve(async (req) => {
     await sendWhatsAppMessage(phoneNumberId, from, reply);
 
     return new Response(JSON.stringify({ status: "ok" }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[vendedores] CRITICAL Error:", e);
     console.error("[vendedores] CRITICAL fallback triggered");
     // Global crash protection: always try to respond to the user
     try {
-      const body = await req.clone().json().catch(() => null);
+      const body = await req
+        .clone()
+        .json()
+        .catch(() => null);
       const entry = body?.entry?.[0];
       const changes = entry?.changes?.[0];
       const value = changes?.value;
       const crashFrom = value?.messages?.[0]?.from;
       const crashPhoneId = value?.metadata?.phone_number_id;
       if (crashFrom && crashPhoneId) {
-        await sendWhatsAppMessage(crashPhoneId, crashFrom, "Hola, tuve un pequeño problema técnico. ¿Me repites tu mensaje? 🙏");
+        await sendWhatsAppMessage(
+          crashPhoneId,
+          crashFrom,
+          "Hola, tuve un pequeño problema técnico. ¿Me repites tu mensaje? 🙏",
+        );
       }
     } catch (fallbackErr) {
       console.error("[vendedores] Fallback message also failed:", fallbackErr);
