@@ -426,10 +426,26 @@ serve(async (req) => {
       ? `\n\nThe vendor's first name is: ${vendorFirstName}. Always use "${vendorFirstName}" when addressing them — never use their full name or a placeholder like "[name]".`
       : `\n\nYou do not know the vendor's name yet. Do not use any name placeholder. Once they share their name, extract the first name and use it naturally.`;
 
+    // ── Build AI payload with optional recovery mode ──
+    const systemContent = SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` + nameContext;
+    
+    const systemMessages: Array<{ role: string; content: string }> = [
+      { role: "system", content: systemContent },
+    ];
+
+    // Inject recovery instruction if loop detected
+    if (errorLoopDetected) {
+      console.log("[vendedores] RECOVERY MODE activated — injecting priority instruction");
+      systemMessages.push({
+        role: "system",
+        content: `⚠️ PRIORIDAD MÁXIMA: Hubo un fallo técnico reciente y los últimos mensajes del usuario no recibieron respuesta válida. IGNORA cualquier continuidad incompleta de turnos anteriores. Lee SOLO el último mensaje del usuario y responde directamente a eso. Si el usuario hizo una pregunta u objeción, respóndela. Si saludó, saluda de vuelta y continúa la conversación naturalmente.`,
+      });
+    }
+
     const aiPayload: Record<string, unknown> = {
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT + `\n\nEl número de WhatsApp del vendedor actual es: ${from}` + nameContext },
+        ...systemMessages,
         ...conversationMessages,
       ],
       tools: TOOLS,
