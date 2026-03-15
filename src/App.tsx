@@ -72,7 +72,7 @@ const App = () => (
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/data-deletion" element={<DataDeletion />} />
-                    <Route path="/alicia-dashboard" element={<WhatsAppDashboard />} />
+                    <Route path="/alicia-dashboard" element={<PasswordGate><WhatsAppDashboard /></PasswordGate>} />
                     <Route path="/alicia/registro" element={<AliciaRegisterPage />} />
                     <Route path="/alicia/setup" element={<AliciaSetupPage />} />
                     <Route path="/alicia/config" element={<AliciaConfigPage />} />
