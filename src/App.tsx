@@ -30,6 +30,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const DataDeletion = lazy(() => import("./pages/DataDeletion"));
 const WhatsAppDashboard = lazy(() => import("./pages/WhatsAppDashboard"));
+import PasswordGate from "@/components/PasswordGate";
 const AliciaRegisterPage = lazy(() => import("./pages/AliciaRegisterPage"));
 const AliciaSetupPage = lazy(() => import("./pages/AliciaSetupPage"));
 const AliciaConfigPage = lazy(() => import("./pages/AliciaConfigPage"));
