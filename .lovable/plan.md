@@ -1,30 +1,56 @@
 
 
-# Plan: Proteger `/alicia-dashboard` con contraseña
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Qué se hará
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-Crear un componente `PasswordGate` que muestra un formulario de contraseña antes de permitir acceso al dashboard. La contraseña será `Vendemospizzas25`. Una vez ingresada correctamente, se guarda en `sessionStorage` para no pedirla de nuevo en la misma sesión.
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-## Cambios
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-### 1. Crear `src/components/PasswordGate.tsx`
-- Input de contraseña + botón "Entrar"
-- Valida contra `Vendemospizzas25`
-- Si es correcta, guarda flag en `sessionStorage` y renderiza `children`
-- Si es incorrecta, muestra error
-- Al recargar la pestaña se mantiene el acceso (sessionStorage)
-
-### 2. Modificar `src/App.tsx`
-- Envolver la ruta `/alicia-dashboard` con `<PasswordGate>`:
-```tsx
-<Route path="/alicia-dashboard" element={
-  <PasswordGate>
-    <WhatsAppDashboard />
-  </PasswordGate>
-} />
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
 ```
 
-## Nota de seguridad
-Esta es una protección básica del lado del cliente (la contraseña está en el código fuente). Es suficiente para evitar acceso casual pero no es seguridad robusta. Si en el futuro necesitas protección real, se puede mover la validación a una Edge Function.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+
+Añadir instrucción explícita sobre signos de interrogación en español:
+
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
