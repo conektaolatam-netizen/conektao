@@ -5249,7 +5249,6 @@ export type Database = {
           is_active: boolean
           location_address: string | null
           location_details: string | null
-          menu_data: Json | null
           menu_link: string | null
           operating_hours: Json | null
           order_email: string
@@ -5284,7 +5283,6 @@ export type Database = {
           is_active?: boolean
           location_address?: string | null
           location_details?: string | null
-          menu_data?: Json | null
           menu_link?: string | null
           operating_hours?: Json | null
           order_email: string
@@ -5319,7 +5317,6 @@ export type Database = {
           is_active?: boolean
           location_address?: string | null
           location_details?: string | null
-          menu_data?: Json | null
           menu_link?: string | null
           operating_hours?: Json | null
           order_email?: string
