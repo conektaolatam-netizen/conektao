@@ -5264,7 +5264,6 @@ export type Database = {
           selected_plan: string | null
           setup_completed: boolean | null
           setup_step: number | null
-          time_estimates: Json | null
           updated_at: string
           verify_token: string
           waba_id: string | null
@@ -5300,7 +5299,6 @@ export type Database = {
           selected_plan?: string | null
           setup_completed?: boolean | null
           setup_step?: number | null
-          time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
           waba_id?: string | null
@@ -5336,7 +5334,6 @@ export type Database = {
           selected_plan?: string | null
           setup_completed?: boolean | null
           setup_step?: number | null
-          time_estimates?: Json | null
           updated_at?: string
           verify_token?: string
           waba_id?: string | null
