@@ -255,7 +255,7 @@ export default function AliciaConfigPage() {
         <div className="lg:hidden overflow-x-auto pb-3 -mx-4 px-4">
           <div className="flex gap-1.5 min-w-max">
             {SECTIONS.map(s => {
-              const done = isSectionComplete(config, s.checkFields);
+              const done = isSectionComplete(config, s.checkFields, { productCount });
               const active = activeSection === s.id;
               return (
                 <button
