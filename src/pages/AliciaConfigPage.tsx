@@ -35,9 +35,10 @@ const SECTIONS = [
   { id: "connection", label: "WhatsApp", icon: Wifi, checkFields: ["whatsapp_phone_number_id"] },
 ];
 
-function isSectionComplete(config: any, checkFields: string[]): boolean {
+function isSectionComplete(config: any, checkFields: string[], extras?: { productCount?: number }): boolean {
   if (!checkFields.length) return false;
   return checkFields.every(f => {
+    if (f === "__has_products") return (extras?.productCount || 0) > 0;
     const v = config?.[f];
     if (v === null || v === undefined || v === "") return false;
     if (Array.isArray(v)) return v.length > 0;
