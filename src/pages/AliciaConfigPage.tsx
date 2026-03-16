@@ -53,8 +53,18 @@ export default function AliciaConfigPage() {
   const [configId, setConfigId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("business");
   const [generating, setGenerating] = useState(false);
+  const [productCount, setProductCount] = useState(0);
 
   useEffect(() => { loadConfig(); }, []);
+
+  async function loadProductCount(restaurantId: string) {
+    const { count } = await supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true);
+    setProductCount(count || 0);
+  }
 
   async function loadConfig() {
     try {
