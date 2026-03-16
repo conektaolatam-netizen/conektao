@@ -59,9 +59,12 @@ const Step7Schedule = ({ data, onSave, saving, onBack }: Props) => {
         pre_order_message: acceptPreOrders ? preOrderMsg : null,
         peak_hours: peakHours,
         may_extend: true,
+        weekday_waiting_time: weekday,
+        weekend_waiting_time: weekend,
+        peak_waiting_time: peak,
+        delivery_travel: hours.delivery_travel || "",
         schedule: `${selectedDays.length === 7 ? "Todos los días" : selectedDays.join(", ")} ${openTime} - ${closeTime}`,
       },
-      time_estimates: { weekday, weekend, peak, delivery_travel: times.delivery_travel || "" },
     });
   };
 
