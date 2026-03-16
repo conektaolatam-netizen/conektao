@@ -1,56 +1,32 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Aplicar fondo oscuro de `/` a `/alicia/config`
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Problema
+La página `/alicia/config` usa fondo blanco (`bg-white`) con texto oscuro, mientras que `/` usa el tema oscuro corporativo Conektao (fondo casi negro, texto claro). Los inputs y botones en las sub-secciones también son blancos con bordes claros, lo que no encaja con el tema oscuro.
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+## Cambios
 
-```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
+### 1. `src/pages/AliciaConfigPage.tsx`
+- Cambiar `bg-white` del contenedor principal a `bg-background` (tema oscuro)
+- Cambiar `bg-gray-50` de la barra de progreso a `bg-card`
+- Actualizar textos grises a usar `text-foreground`, `text-muted-foreground`
+- Loading/error states: `bg-background` en vez de `bg-white`
 
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
-```
+### 2. Todas las sub-secciones (11 archivos):
+Cada componente de configuración (`AliciaConfigBusiness`, `AliciaConfigMenu`, `AliciaConfigDelivery`, `AliciaConfigPayments`, `AliciaConfigPersonality`, `AliciaConfigSchedule`, `AliciaConfigConnection`, `AliciaConfigStarProducts`, `AliciaConfigUpselling`, `AliciaConfigRestrictions`, `AliciaConfigSpecialInfo`) tiene:
+- Contenedor: `bg-white border-gray-100` → `bg-card border-border/20`
+- Cuerpo: texto `text-gray-700` / `text-gray-500` → `text-foreground` / `text-muted-foreground`
+- Inputs/Textareas: `border-gray-200` → `border-border` (heredan `bg-background` del tema)
+- Fondos internos: `bg-gray-50` → `bg-muted`, `bg-gray-100` → `bg-accent`
+- Badges/tags: `bg-teal-50 text-teal-700` → mantener colores de acento teal pero sobre fondo oscuro
+- Los botones con gradiente teal-to-orange se mantienen igual
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+### 3. Sidebar nav en `AliciaConfigPage.tsx`
+- Botones activos: `bg-gradient-to-r from-teal-50 to-orange-50` → `bg-gradient-to-r from-teal-900/30 to-orange-900/30`
+- Bordes: `border-teal-100` → `border-teal-500/30`
+- Hover: `hover:bg-gray-50` → `hover:bg-muted`
+- Iconos: `bg-gray-100 text-gray-400` → `bg-muted text-muted-foreground`
 
-Añadir instrucción explícita sobre signos de interrogación en español:
-
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
-
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
-```
-
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
-
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
-
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+El gradiente del header (teal → orange) se mantiene igual ya que funciona bien en ambos temas.
 
