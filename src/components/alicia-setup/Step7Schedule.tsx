@@ -25,7 +25,6 @@ const HOURS = Array.from({ length: 24 }, (_, i) => {
 
 const Step7Schedule = ({ data, onSave, saving, onBack }: Props) => {
   const hours = data.operating_hours || {};
-  const times = data.time_estimates || {};
 
   const [openTime, setOpenTime] = useState(hours.open_time || "15:00");
   const [closeTime, setCloseTime] = useState(hours.close_time || "23:00");
@@ -38,9 +37,9 @@ const Step7Schedule = ({ data, onSave, saving, onBack }: Props) => {
     hours.pre_order_message || "Podemos tomar tu pedido ahora, pero empezamos a preparar más tarde"
   );
   const [peakHours, setPeakHours] = useState(hours.peak_hours || "");
-  const [weekday, setWeekday] = useState(times.weekday || "");
-  const [weekend, setWeekend] = useState(times.weekend || "");
-  const [peak, setPeak] = useState(times.peak || "");
+  const [weekday, setWeekday] = useState(hours.weekday_waiting_time || "");
+  const [weekend, setWeekend] = useState(hours.weekend_waiting_time || "");
+  const [peak, setPeak] = useState(hours.peak_waiting_time || "");
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
