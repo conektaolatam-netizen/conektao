@@ -176,12 +176,13 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   const promBlock = promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
 
   // Delivery
+  const radiusInfo = delivery.radius ? ` Radio de cobertura: ${delivery.radius}.` : "";
   let deliveryBlock = "";
   if (delivery.enabled) {
     const freeZones = (delivery.free_zones || []).join(", ");
     deliveryBlock = freeZones
-      ? `DOMICILIO GRATIS: ${freeZones}. ${delivery.paid_delivery_note || "Otras zonas se pagan aparte."}`
-      : `DOMICILIO: ${delivery.paid_delivery_note || "Se paga al domiciliario."}`;
+      ? `DOMICILIO GRATIS: ${freeZones}.${radiusInfo} ${delivery.paid_delivery_note || "Otras zonas se pagan aparte."}`
+      : `DOMICILIO:${radiusInfo} ${delivery.paid_delivery_note || "Se paga al domiciliario."}`;
   } else {
     deliveryBlock = `Solo recogida. ${delivery.pickup_only_details || ""}`;
   }

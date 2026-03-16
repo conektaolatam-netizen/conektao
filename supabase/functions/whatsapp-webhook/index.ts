@@ -1296,12 +1296,13 @@ function buildDynamicPrompt(
   }
 
   // Delivery
+  const radiusInfo = delivery.radius ? ` Radio de cobertura: ${delivery.radius}.` : "";
   let deliveryBlock = "";
   if (delivery.enabled) {
     const freeZones = (delivery.free_zones || []).join(", ");
     deliveryBlock = freeZones
-      ? `DOMICILIO GRATIS: ${freeZones}. ${delivery.paid_delivery_note || "Otras zonas se pagan aparte."} Si insisten → ---CONSULTA_DOMICILIO---`
-      : `DOMICILIO: ${delivery.paid_delivery_note || "Se paga al domiciliario."} Si insisten → ---CONSULTA_DOMICILIO---`;
+      ? `DOMICILIO GRATIS: ${freeZones}.${radiusInfo} ${delivery.paid_delivery_note || "Otras zonas se pagan aparte."} Si insisten → ---CONSULTA_DOMICILIO---`
+      : `DOMICILIO:${radiusInfo} ${delivery.paid_delivery_note || "Se paga al domiciliario."} Si insisten → ---CONSULTA_DOMICILIO---`;
   } else {
     deliveryBlock = `Solo recogida. ${delivery.pickup_only_details || ""}`;
   }
