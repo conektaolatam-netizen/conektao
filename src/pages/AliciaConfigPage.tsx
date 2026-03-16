@@ -138,7 +138,7 @@ export default function AliciaConfigPage() {
     }
   }
 
-  const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields)).length;
+  const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields, { productCount })).length;
   const progress = Math.round((completedCount / SECTIONS.length) * 100);
 
   if (loading) {
