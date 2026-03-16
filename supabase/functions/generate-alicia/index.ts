@@ -128,40 +128,24 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
     if (hours.may_extend) scheduleBlock += ". A veces nos extendemos";
   }
 
-  // Menu
+  // Menu — always from products table (single source of truth)
   let menuBlock = "";
-  if (config.menu_data?.length > 0) {
+  if (products?.length > 0) {
+    // Build index for anti-hallucination
     let indexBlock = "=== ÍNDICE DEL MENÚ ===\n";
-    for (const cat of config.menu_data) {
-      const itemNames = (cat.items || []).filter((i: any) => i.name).map((i: any) => i.name).join(", ");
-      if (itemNames) indexBlock += `- ${(cat.name || "").toUpperCase()}: ${itemNames}\n`;
-    }
-    indexBlock += "=== FIN ÍNDICE ===\n\nREGLA: ANTES de decir 'no tenemos eso', revisa el índice completo.\n\n";
-
-    menuBlock = indexBlock + "=== MENÚ CON PRECIOS ===\n\n";
-    for (const cat of config.menu_data) {
-      menuBlock += `${(cat.name || "").toUpperCase()}:\n`;
-      for (const item of cat.items || []) {
-        if (!item.name) continue;
-        const rec = item.is_recommended ? "⭐ " : "";
-        if (item.sizes?.length > 0) {
-          const sizeStr = item.sizes.map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`).join(" / ");
-          menuBlock += `- ${rec}${item.name}: ${sizeStr}\n`;
-        } else {
-          menuBlock += `- ${rec}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}\n`;
-        }
-      }
-      menuBlock += "\n";
-    }
-    menuBlock += "=== FIN MENÚ ===\n";
-  } else if (products?.length > 0) {
-    menuBlock = "=== MENÚ OFICIAL (COP) ===\n";
     const byCategory: Record<string, any[]> = {};
     for (const p of products) {
       const cat = p.category_name || p.categories?.name || "Otros";
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(p);
     }
+    for (const [cat, items] of Object.entries(byCategory)) {
+      const itemNames = items.map((i: any) => i.name).filter(Boolean).join(", ");
+      if (itemNames) indexBlock += `- ${cat.toUpperCase()}: ${itemNames}\n`;
+    }
+    indexBlock += "=== FIN ÍNDICE ===\n\nREGLA: ANTES de decir 'no tenemos eso', revisa el índice completo.\n\n";
+
+    menuBlock = indexBlock + "=== MENÚ OFICIAL (COP) ===\n";
     for (const [cat, items] of Object.entries(byCategory)) {
       menuBlock += `\n${cat.toUpperCase()}:\n`;
       for (const p of items) {

@@ -22,7 +22,7 @@ import AliciaConfigSpecialInfo from "@/components/alicia-config/AliciaConfigSpec
 
 const SECTIONS = [
   { id: "business", label: "Tu Negocio", icon: Store, checkFields: ["restaurant_name"] },
-  { id: "menu", label: "Menú", icon: UtensilsCrossed, checkFields: ["menu_data"] },
+  { id: "menu", label: "Menú", icon: UtensilsCrossed, checkFields: ["__has_products"] },
   { id: "payments", label: "Pagos", icon: CreditCard, checkFields: ["payment_config"] },
   { id: "schedule", label: "Horarios", icon: Clock, checkFields: ["operating_hours"] },
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
@@ -35,9 +35,10 @@ const SECTIONS = [
   { id: "connection", label: "WhatsApp", icon: Wifi, checkFields: ["whatsapp_phone_number_id"] },
 ];
 
-function isSectionComplete(config: any, checkFields: string[]): boolean {
+function isSectionComplete(config: any, checkFields: string[], extras?: { productCount?: number }): boolean {
   if (!checkFields.length) return false;
   return checkFields.every(f => {
+    if (f === "__has_products") return (extras?.productCount || 0) > 0;
     const v = config?.[f];
     if (v === null || v === undefined || v === "") return false;
     if (Array.isArray(v)) return v.length > 0;
@@ -53,8 +54,18 @@ export default function AliciaConfigPage() {
   const [configId, setConfigId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("business");
   const [generating, setGenerating] = useState(false);
+  const [productCount, setProductCount] = useState(0);
 
   useEffect(() => { loadConfig(); }, []);
+
+  async function loadProductCount(restaurantId: string) {
+    const { count } = await supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true);
+    setProductCount(count || 0);
+  }
 
   async function loadConfig() {
     try {
@@ -68,13 +79,13 @@ export default function AliciaConfigPage() {
       }
       const { data: wc } = await supabase
         .from("whatsapp_configs").select("*").eq("restaurant_id", profile.restaurant_id).maybeSingle();
-      if (wc) { setConfig(wc); setConfigId(wc.id); }
+      if (wc) { setConfig(wc); setConfigId(wc.id); loadProductCount(profile.restaurant_id); }
       else {
         const { data: newConfig, error } = await supabase
           .from("whatsapp_configs")
           .insert({ restaurant_id: profile.restaurant_id, whatsapp_phone_number_id: "", is_active: false, setup_completed: false } as any)
           .select().single();
-        if (newConfig) { setConfig(newConfig); setConfigId(newConfig.id); }
+        if (newConfig) { setConfig(newConfig); setConfigId(newConfig.id); loadProductCount(profile.restaurant_id); }
         if (error) toast.error("Error al crear configuración");
       }
     } catch { toast.error("Error cargando configuración"); }
@@ -127,7 +138,7 @@ export default function AliciaConfigPage() {
     }
   }
 
-  const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields)).length;
+  const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields, { productCount })).length;
   const progress = Math.round((completedCount / SECTIONS.length) * 100);
 
   if (loading) {
@@ -204,7 +215,7 @@ export default function AliciaConfigPage() {
         <nav className="hidden lg:block w-56 shrink-0">
           <div className="sticky top-6 space-y-0.5">
             {SECTIONS.map(s => {
-              const done = isSectionComplete(config, s.checkFields);
+              const done = isSectionComplete(config, s.checkFields, { productCount });
               const active = activeSection === s.id;
               return (
                 <button
@@ -244,7 +255,7 @@ export default function AliciaConfigPage() {
         <div className="lg:hidden overflow-x-auto pb-3 -mx-4 px-4">
           <div className="flex gap-1.5 min-w-max">
             {SECTIONS.map(s => {
-              const done = isSectionComplete(config, s.checkFields);
+              const done = isSectionComplete(config, s.checkFields, { productCount });
               const active = activeSection === s.id;
               return (
                 <button

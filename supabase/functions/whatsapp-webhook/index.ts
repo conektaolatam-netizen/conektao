@@ -1259,39 +1259,9 @@ function buildDynamicPrompt(
     }
   }
 
-  // Menu — prefer menu_data from config, fallback to products table
+  // Menu — always from products table (single source of truth)
   let menuBlock = "";
-  if (config.menu_data?.length > 0) {
-    let indexBlock = "=== ÍNDICE DEL MENÚ ===\n";
-    for (const cat of config.menu_data) {
-      const itemNames = (cat.items || [])
-        .filter((i: any) => i.name)
-        .map((i: any) => i.name)
-        .join(", ");
-      if (itemNames) indexBlock += `- ${(cat.name || "").toUpperCase()}: ${itemNames}\n`;
-    }
-    indexBlock += "=== FIN ÍNDICE ===\n\nREGLA: ANTES de decir 'no tenemos eso', revisa el índice completo.\n\n";
-
-    menuBlock = indexBlock + "=== MENÚ CON PRECIOS ===\n\n";
-    for (const cat of config.menu_data) {
-      menuBlock += `${(cat.name || "").toUpperCase()}:\n`;
-      for (const item of cat.items || []) {
-        if (!item.name) continue;
-        const rec = item.is_recommended ? "⭐ " : "";
-        if (item.sizes?.length > 0) {
-          const sizeStr = item.sizes
-            .map((s: any) => `${s.name} $${(s.price || 0).toLocaleString("es-CO")}`)
-            .join(" / ");
-          menuBlock += `- ${rec}${item.name}: ${sizeStr}\n`;
-        } else {
-          const portionsInfo = item.portions > 1 ? ` | ${item.portions} porciones` : "";
-          menuBlock += `- ${rec}${item.name}: $${(item.price || 0).toLocaleString("es-CO")}${item.description ? ` (${item.description})` : ""}${portionsInfo}\n`;
-        }
-      }
-      menuBlock += "\n";
-    }
-    menuBlock += "=== FIN MENÚ ===\n";
-  } else if (products?.length > 0) {
+  if (products?.length > 0) {
     menuBlock = buildMenuFromProducts(products);
   }
 
