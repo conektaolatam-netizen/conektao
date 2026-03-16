@@ -176,7 +176,7 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   const promBlock = promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
 
   // Delivery
-  const radiusInfo = delivery.radius ? ` Radio de cobertura: ${delivery.radius}.` : "";
+  const radiusInfo = delivery.radius && delivery.radius !== "" ? ` Radio de cobertura: ${delivery.radius}.` : "";
   let deliveryBlock = "";
   if (delivery.enabled) {
     const freeZones = (delivery.free_zones || []).join(", ");
