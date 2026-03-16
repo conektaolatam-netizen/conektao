@@ -1155,7 +1155,7 @@ function buildDynamicPrompt(
   };
   const escalation = config.escalation_config || {};
   const customRules = config.custom_rules || [];
-  const salesRules = config.sales_rules || {};
+  const suggestConfigs = config.suggest_configs || {};
   const tone = personality.tone || "casual_professional";
   const assistantName = personality.name || "Alicia";
   const dailyOverrides = config.daily_overrides || [];
