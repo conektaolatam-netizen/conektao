@@ -21,25 +21,25 @@ export default function AliciaConfigStarProducts({ config, onSave }: Props) {
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-card border border-border/20 rounded-xl shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-teal-500 to-orange-400 px-5 py-4 flex items-center gap-3">
         <div className="bg-white/20 rounded-lg p-2"><Star className="h-5 w-5 text-white" /></div>
         <div><h3 className="text-lg font-semibold text-white">Productos Estrella</h3><p className="text-xs text-white/80">Alicia los impulsará en las conversaciones</p></div>
       </div>
       <div className="p-5 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">¿Cuáles son tus productos más vendidos o que quieres impulsar?</label>
-          <p className="text-xs text-gray-400 mb-2">Alicia los sugerirá cuando el cliente no sepa qué pedir</p>
+          <label className="block text-sm font-medium text-foreground mb-1">¿Cuáles son tus productos más vendidos o que quieres impulsar?</label>
+          <p className="text-xs text-muted-foreground mb-2">Alicia los sugerirá cuando el cliente no sepa qué pedir</p>
           <div className="flex gap-2">
-            <Input value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Ej: Pizza Margarita, Combo Familiar..." onKeyDown={e => e.key === "Enter" && add()} className="border-gray-200" />
-            <Button variant="outline" onClick={add} className="border-gray-200 gap-1"><Plus className="h-4 w-4" />Agregar</Button>
+            <Input value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Ej: Pizza Margarita, Combo Familiar..." onKeyDown={e => e.key === "Enter" && add()} className="border-border" />
+            <Button variant="outline" onClick={add} className="border-border gap-1"><Plus className="h-4 w-4" />Agregar</Button>
           </div>
         </div>
 
         {products.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {products.map((p, i) => (
-              <Badge key={i} className="gap-1.5 bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 px-3 py-1.5 text-sm">
+              <Badge key={i} className="gap-1.5 bg-orange-900/30 text-orange-400 border border-orange-500/30 hover:bg-orange-900/40 px-3 py-1.5 text-sm">
                 <Star className="h-3 w-3 fill-orange-400 text-orange-400" />
                 {p}
                 <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => remove(i)} />
@@ -49,9 +49,9 @@ export default function AliciaConfigStarProducts({ config, onSave }: Props) {
         )}
 
         {products.length === 0 && (
-          <div className="bg-gray-50 rounded-lg p-6 text-center">
-            <Star className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">Agrega tus productos estrella para que Alicia los promocione</p>
+          <div className="bg-muted rounded-lg p-6 text-center">
+            <Star className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Agrega tus productos estrella para que Alicia los promocione</p>
           </div>
         )}
 

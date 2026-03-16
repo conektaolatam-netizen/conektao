@@ -47,7 +47,7 @@ const DaySelector = ({
         className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
           days.includes(d.key)
             ? "bg-gradient-to-r from-teal-500 to-orange-400 text-white shadow-sm"
-            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            : "bg-muted text-muted-foreground hover:bg-accent"
         }`}
       >
         {d.label}
@@ -59,7 +59,6 @@ const DaySelector = ({
 export default function AliciaConfigSchedule({ config, onSave }: Props) {
   const h = config.operating_hours || {};
 
-  // Existing fields
   const [openTime, setOpenTime] = useState(h.open_time || "");
   const [closeTime, setCloseTime] = useState(h.close_time || "");
   const [preOrders, setPreOrders] = useState(h.accept_pre_orders ?? false);
@@ -69,7 +68,6 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
   const [weekend, setWeekend] = useState(h.weekend_waiting_time || "");
   const [peakTime, setPeakTime] = useState(h.peak_waiting_time || "");
 
-  // New fields
   const [days, setDays] = useState<string[]>(h.days || ALL_DAYS.map((d) => d.key));
   const [scheduleStart, setScheduleStart] = useState(h.schedule_start || "");
   const [scheduleEnd, setScheduleEnd] = useState(h.schedule_end || "");
@@ -114,7 +112,7 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-card border border-border/20 rounded-xl shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-teal-500 to-orange-400 px-5 py-4 flex items-center gap-3">
         <div className="bg-white/20 rounded-lg p-2">
           <Clock className="h-5 w-5 text-white" />
@@ -126,114 +124,104 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
       </div>
 
       <div className="p-5 space-y-6">
-        {/* 1. Días de servicio */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Días de servicio</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Días de servicio</label>
           <DaySelector days={days} options={ALL_DAYS} onToggle={toggleDay} />
         </div>
 
-        {/* 2. Horario de apertura y cierre */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Horario de apertura y cierre</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Horario de apertura y cierre</label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Abrimos a las</label>
-              <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Abrimos a las</label>
+              <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="border-border" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Cerramos a las</label>
-              <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Cerramos a las</label>
+              <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="border-border" />
             </div>
           </div>
         </div>
 
-        {/* 3. Inicio y fin de atención */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Inicio y fin de atención a clientes</label>
-          <p className="text-xs text-gray-400 mb-2">¿Cuándo empieza y termina realmente la atención, aunque el local ya esté abierto?</p>
+          <label className="block text-sm font-medium text-foreground mb-2">Inicio y fin de atención a clientes</label>
+          <p className="text-xs text-muted-foreground mb-2">¿Cuándo empieza y termina realmente la atención, aunque el local ya esté abierto?</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Inicio de atención</label>
-              <Input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Inicio de atención</label>
+              <Input type="time" value={scheduleStart} onChange={(e) => setScheduleStart(e.target.value)} className="border-border" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Fin de atención</label>
-              <Input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Fin de atención</label>
+              <Input type="time" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} className="border-border" />
             </div>
           </div>
         </div>
 
-        {/* 4. Zona horaria */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Zona horaria</label>
-          <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="UTC-5" className="border-gray-200 max-w-[200px]" />
+          <label className="block text-sm font-medium text-foreground mb-2">Zona horaria</label>
+          <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="UTC-5" className="border-border max-w-[200px]" />
         </div>
 
-        {/* 5. Pre-pedidos */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
             <Switch checked={preOrders} onCheckedChange={setPreOrders} />
-            <label className="text-sm text-gray-700">¿Aceptas pedidos antes de abrir?</label>
+            <label className="text-sm text-foreground">¿Aceptas pedidos antes de abrir?</label>
           </div>
           {preOrders && (
             <div className="pl-4">
-              <label className="block text-xs text-gray-500 mb-1">¿Qué le dice Alicia al cliente?</label>
-              <Input value={preMsg} onChange={(e) => setPreMsg(e.target.value)} placeholder="Recibimos tu pedido, empezamos a preparar a las..." className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">¿Qué le dice Alicia al cliente?</label>
+              <Input value={preMsg} onChange={(e) => setPreMsg(e.target.value)} placeholder="Recibimos tu pedido, empezamos a preparar a las..." className="border-border" />
             </div>
           )}
         </div>
 
-        {/* 6. May extend */}
-        <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+        <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
           <Switch checked={mayExtend} onCheckedChange={setMayExtend} />
-          <label className="text-sm text-gray-700">¿A veces se extienden del horario?</label>
+          <label className="text-sm text-foreground">¿A veces se extienden del horario?</label>
         </div>
 
-        {/* 7. Días pico */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Días pico (mayor demanda)</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Días pico (mayor demanda)</label>
           <DaySelector days={peakDays} options={PEAK_DAY_OPTIONS} onToggle={togglePeakDay} />
         </div>
 
-        {/* 8. Horario pico */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Horario pico</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Horario pico</label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Inicia</label>
-              <Input type="time" value={peakHourStart} onChange={(e) => setPeakHourStart(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Inicia</label>
+              <Input type="time" value={peakHourStart} onChange={(e) => setPeakHourStart(e.target.value)} className="border-border" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Termina</label>
-              <Input type="time" value={peakHourEnd} onChange={(e) => setPeakHourEnd(e.target.value)} className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Termina</label>
+              <Input type="time" value={peakHourEnd} onChange={(e) => setPeakHourEnd(e.target.value)} className="border-border" />
             </div>
           </div>
         </div>
 
-        {/* 9. Tiempos estimados de preparación */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tiempos estimados de preparación</label>
+          <label className="block text-sm font-medium text-foreground mb-2">Tiempos estimados de preparación</label>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Entre semana</label>
-              <Input value={weekday} onChange={(e) => setWeekday(e.target.value)} placeholder="~15min" className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Entre semana</label>
+              <Input value={weekday} onChange={(e) => setWeekday(e.target.value)} placeholder="~15min" className="border-border" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Fin de semana</label>
-              <Input value={weekend} onChange={(e) => setWeekend(e.target.value)} placeholder="~20min" className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Fin de semana</label>
+              <Input value={weekend} onChange={(e) => setWeekend(e.target.value)} placeholder="~20min" className="border-border" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Hora pico</label>
-              <Input value={peakTime} onChange={(e) => setPeakTime(e.target.value)} placeholder="~30min" className="border-gray-200" />
+              <label className="block text-xs text-muted-foreground mb-1">Hora pico</label>
+              <Input value={peakTime} onChange={(e) => setPeakTime(e.target.value)} placeholder="~30min" className="border-border" />
             </div>
           </div>
         </div>
 
-        {/* 10. Tiempo de domicilio */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tiempo estimado de domicilio</label>
-          <p className="text-xs text-gray-400 mb-2">Informativo para Alicia cuando un cliente pregunte por tiempos de entrega</p>
-          <Input value={deliveryTravel} onChange={(e) => setDeliveryTravel(e.target.value)} placeholder="~25min" className="border-gray-200 max-w-[200px]" />
+          <label className="block text-sm font-medium text-foreground mb-2">Tiempo estimado de domicilio</label>
+          <p className="text-xs text-muted-foreground mb-2">Informativo para Alicia cuando un cliente pregunte por tiempos de entrega</p>
+          <Input value={deliveryTravel} onChange={(e) => setDeliveryTravel(e.target.value)} placeholder="~25min" className="border-border max-w-[200px]" />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
