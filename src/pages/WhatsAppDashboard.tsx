@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2 } from "lucide-react";
+import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -191,6 +192,7 @@ function StatusDot({ status }: { status: string }) {
 
 // ===== MAIN DASHBOARD =====
 export default function WhatsAppDashboard() {
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [search, setSearch] = useState("");
@@ -330,7 +332,7 @@ export default function WhatsAppDashboard() {
   return (
     <div className="h-screen flex flex-col alicia-dash-bg text-foreground">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2">
           <TabsList className="alicia-glass rounded-2xl p-1 w-auto">
             <TabsTrigger value="orders" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <Package className="w-4 h-4" />
@@ -349,6 +351,14 @@ export default function WhatsAppDashboard() {
               Bloqueados
             </TabsTrigger>
           </TabsList>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/alicia/config")}
+            className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-xl"
+          >
+            <Settings className="w-4 h-4" />
+            Configurar Alicia
+          </Button>
         </div>
 
         <TabsContent value="orders" className="flex-1 m-0 overflow-hidden">
