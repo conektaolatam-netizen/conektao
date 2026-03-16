@@ -215,7 +215,7 @@ export default function AliciaConfigPage() {
         <nav className="hidden lg:block w-56 shrink-0">
           <div className="sticky top-6 space-y-0.5">
             {SECTIONS.map(s => {
-              const done = isSectionComplete(config, s.checkFields);
+              const done = isSectionComplete(config, s.checkFields, { productCount });
               const active = activeSection === s.id;
               return (
                 <button
