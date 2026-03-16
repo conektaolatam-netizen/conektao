@@ -192,6 +192,7 @@ function StatusDot({ status }: { status: string }) {
 
 // ===== MAIN DASHBOARD =====
 export default function WhatsAppDashboard() {
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [search, setSearch] = useState("");
