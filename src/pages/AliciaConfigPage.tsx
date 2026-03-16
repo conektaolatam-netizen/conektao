@@ -84,7 +84,7 @@ export default function AliciaConfigPage() {
           .from("whatsapp_configs")
           .insert({ restaurant_id: profile.restaurant_id, whatsapp_phone_number_id: "", is_active: false, setup_completed: false } as any)
           .select().single();
-        if (newConfig) { setConfig(newConfig); setConfigId(newConfig.id); }
+        if (newConfig) { setConfig(newConfig); setConfigId(newConfig.id); loadProductCount(profile.restaurant_id); }
         if (error) toast.error("Error al crear configuración");
       }
     } catch { toast.error("Error cargando configuración"); }
