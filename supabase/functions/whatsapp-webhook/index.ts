@@ -1017,37 +1017,6 @@ TRATO AL CLIENTE:
 - Sé paciente. NUNCA respondas con agresividad ni impaciencia
 - Si el cliente dice algo ambiguo → pregunta con amabilidad, no asumas
 
-VENTAS Y RECOMENDACIONES (SUBIR TICKET PROMEDIO):
-- Tu objetivo también es ayudar al cliente a descubrir productos que le puedan gustar
-- Puedes hacer recomendaciones naturales sin ser insistente
-- Máximo 1 o 2 sugerencias por momento de la conversación
-- Si el cliente rechaza una sugerencia, NO la repitas
-
-CUÁNDO HACER RECOMENDACIONES:
-
-1. AL SALUDAR:
-Si el cliente solo saluda ("hola", "buenas", etc.), puedes mencionar 1 o 2 productos populares del menú.
-
-Ejemplo:
-"Hola! Bienvenido 😊 Hoy las más pedidas son la Pizza A la Española y la Pepperoni. ¿Te gustaría probar alguna?"
-
-2. CUANDO PIDEN UN PRODUCTO PRINCIPAL:
-Si el cliente pide una pizza u otro producto principal, puedes sugerir un complemento del menú (bebida, vino, entrada, etc.).
-
-Ejemplo:
-"Perfecto 👍 ¿Te gustaría acompañarla con una bebida o vino?"
-
-3. UPSELLING DE TAMAÑOS:
-Si un producto tiene varias versiones (por ejemplo Personal y Mediana), puedes mencionar que existe el tamaño mayor antes de confirmar.
-
-Ejemplo:
-"Tenemos ese sabor en tamaño personal y mediano para compartir. ¿Cuál prefieres?"
-
-4. ANTES DE CERRAR EL PEDIDO:
-Cuando el cliente diga "eso es todo", puedes hacer UNA última sugerencia ligera antes de pasar a tipo de entrega.
-
-Ejemplo:
-"Perfecto 👍 ¿Quieres agregar alguna bebida o prefieres dejarlo así?"
 
 FORMATO:
 - Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
@@ -1059,7 +1028,7 @@ STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
-1. Saluda con amabilidad. Si el cliente no pide algo directamente, puedes mencionar 1 o 2 productos populares y preguntar qué le gustaría ordenar
+1. Saluda y pregunta qué quiere
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"
 3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
@@ -1186,7 +1155,7 @@ function buildDynamicPrompt(
   };
   const escalation = config.escalation_config || {};
   const customRules = config.custom_rules || [];
-  const salesRules = config.sales_rules || {};
+  const suggestConfigs = config.suggest_configs || {};
   const tone = personality.tone || "casual_professional";
   const assistantName = personality.name || "Alicia";
   const dailyOverrides = config.daily_overrides || [];
@@ -1323,16 +1292,16 @@ function buildDynamicPrompt(
     ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo.`
     : "Nombre del cliente: aún no proporcionado.";
 
-  // Upselling rules from config — must ALIGN with core prompt's 4-moment recommendation strategy
+  // Upselling rules from config — dynamically generated based on suggest_configs
   let upsellBlock: string;
-  if (salesRules.suggest_complements) {
-    const maxSug = salesRules.max_suggestions_per_order || 2;
+  if (suggestConfigs.enabled) {
+    const maxSug = suggestConfigs.max_suggestions_per_order || 2;
     const moments: string[] = [];
-    if (salesRules.suggest_on_greeting !== false) moments.push("al saludar (mencionar 1-2 productos populares o recomendados)");
-    if (salesRules.suggest_complements !== false) moments.push("después de un producto principal (sugerir complemento: bebida, entrada, etc.)");
-    if (salesRules.suggest_upsizing !== false) moments.push("si hay tamaños mayores disponibles (mencionar el tamaño mayor)");
-    if (salesRules.suggest_before_close !== false) moments.push("antes de cerrar el pedido (una última sugerencia ligera)");
-    upsellBlock = `RECOMENDACIONES ACTIVAS — Sugiere productos en estos momentos:\n${moments.map((m, i) => `${i + 1}. ${m}`).join("\n")}\nMáximo ${maxSug} sugerencias por momento. Si dice "no" → cero insistencia, pasa al siguiente paso.\nPrioriza los PRODUCTOS RECOMENDADOS HOY en tus sugerencias.${salesRules.no_prices_in_suggestions ? "\nNo menciones precios en sugerencias." : ""}`;
+    if (suggestConfigs.suggest_on_greeting !== false) moments.push("al saludar (mencionar 1-2 productos populares o recomendados)");
+    if (suggestConfigs.suggest_complements !== false) moments.push("después de un producto principal (sugerir complemento: bebida, entrada, etc.)");
+    if (suggestConfigs.suggest_upsizing !== false) moments.push("si hay tamaños mayores disponibles (mencionar el tamaño mayor)");
+    if (suggestConfigs.suggest_before_close !== false) moments.push("antes de cerrar el pedido (una última sugerencia ligera)");
+    upsellBlock = `RECOMENDACIONES ACTIVAS — Sugiere productos en estos momentos:\n${moments.map((m, i) => `${i + 1}. ${m}`).join("\n")}\nMáximo ${maxSug} sugerencias por momento.${suggestConfigs.respect_first_no !== false ? " Si dice \"no\" → cero insistencia, pasa al siguiente paso." : ""}\nPrioriza los PRODUCTOS RECOMENDADOS HOY en tus sugerencias.${suggestConfigs.no_prices_in_suggestions ? "\nNo menciones precios en sugerencias." : ""}`;
   } else {
     upsellBlock = "NO hacer sugerencias de venta adicional.";
   }

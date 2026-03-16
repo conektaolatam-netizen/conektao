@@ -1,85 +1,112 @@
 import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, Lightbulb } from "lucide-react";
+import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck } from "lucide-react";
 
 interface Props { config: any; onSave: (field: string, value: any) => Promise<void>; }
 
-interface UpsellRule { trigger: string; suggestion: string; }
+interface SuggestConfig {
+  enabled: boolean;
+  respect_first_no: boolean;
+  suggest_upsizing: boolean;
+  suggest_complements: boolean;
+  suggest_on_greeting: boolean;
+  suggest_before_close: boolean;
+  no_prices_in_suggestions: boolean;
+  max_suggestions_per_order: number;
+}
+
+const DEFAULT_CONFIG: SuggestConfig = {
+  enabled: false,
+  respect_first_no: true,
+  suggest_upsizing: true,
+  suggest_complements: true,
+  suggest_on_greeting: true,
+  suggest_before_close: true,
+  no_prices_in_suggestions: true,
+  max_suggestions_per_order: 2,
+};
 
 export default function AliciaConfigUpselling({ config, onSave }: Props) {
-  const sr = config.sales_rules || {};
-  const [enabled, setEnabled] = useState(sr.enabled ?? false);
-  const [maxPerOrder, setMaxPerOrder] = useState<string>((sr.max_per_order || 1).toString());
-  const [rules, setRules] = useState<UpsellRule[]>(sr.rules || []);
+  const raw = config.suggest_configs || {};
+  const initial: SuggestConfig = { ...DEFAULT_CONFIG, ...raw };
+
+  const [state, setState] = useState<SuggestConfig>(initial);
   const [saving, setSaving] = useState(false);
 
-  const addRule = () => setRules([...rules, { trigger: "", suggestion: "" }]);
-  const removeRule = (i: number) => setRules(rules.filter((_, idx) => idx !== i));
-  const updateRule = (i: number, field: keyof UpsellRule, value: string) => {
-    const updated = [...rules];
-    updated[i] = { ...updated[i], [field]: value };
-    setRules(updated);
+  const update = <K extends keyof SuggestConfig>(key: K, value: SuggestConfig[K]) => {
+    setState(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave("sales_rules", { enabled, max_per_order: Number(maxPerOrder), rules: rules.filter(r => r.trigger && r.suggestion) });
+    await onSave("suggest_configs", state);
     setSaving(false);
   };
+
+  const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
+    { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
+    { key: "suggest_complements", label: "Sugerir complementos", desc: "Sugiere bebidas, entradas u otros complementos tras un producto principal", icon: ShoppingBag },
+    { key: "suggest_upsizing", label: "Sugerir tamaños mayores", desc: "Menciona tamaños más grandes si están disponibles", icon: ArrowUpCircle },
+    { key: "suggest_before_close", label: "Sugerir antes de cerrar", desc: "Una última sugerencia ligera antes de confirmar el pedido", icon: ClipboardCheck },
+    { key: "no_prices_in_suggestions", label: "No mencionar precios", desc: "Alicia no incluye precios al hacer sugerencias", icon: DollarSign },
+    { key: "respect_first_no", label: "Respetar el primer 'no'", desc: "Si el cliente rechaza, no insistir con más sugerencias", icon: ShieldCheck },
+  ];
 
   return (
     <div className="bg-card border border-border/20 rounded-xl shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-teal-500 to-orange-400 px-5 py-4 flex items-center gap-3">
         <div className="bg-white/20 rounded-lg p-2"><Lightbulb className="h-5 w-5 text-white" /></div>
-        <div><h3 className="text-lg font-semibold text-white">Sugerencias Inteligentes</h3><p className="text-xs text-white/80">Alicia sugiere productos extras para subir el ticket</p></div>
+        <div>
+          <h3 className="text-lg font-semibold text-white">Sugerencias Inteligentes</h3>
+          <p className="text-xs text-white/80">Alicia sugiere productos extras para subir el ticket</p>
+        </div>
       </div>
+
       <div className="p-5 space-y-5">
-        <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
-          <Switch checked={enabled} onCheckedChange={setEnabled} />
-          <label className="text-sm text-foreground font-medium">¿Quieres que Alicia sugiera algo extra en cada pedido?</label>
+        {/* Master toggle */}
+        <div className="flex items-center gap-3 bg-muted rounded-lg p-4">
+          <Switch checked={state.enabled} onCheckedChange={v => update("enabled", v)} />
+          <div>
+            <label className="text-sm text-foreground font-medium block">Sistema de sugerencias</label>
+            <span className="text-xs text-muted-foreground">
+              {state.enabled ? "Alicia hará sugerencias según la configuración" : "Alicia no hará ninguna sugerencia"}
+            </span>
+          </div>
         </div>
 
-        {enabled && (
+        {state.enabled && (
           <>
+            {/* Max suggestions selector */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Máximo de sugerencias por pedido</label>
-              <Select value={maxPerOrder} onValueChange={setMaxPerOrder}>
-                <SelectTrigger className="w-32 border-border"><SelectValue /></SelectTrigger>
+              <label className="block text-sm font-medium text-foreground mb-1">Máximo de sugerencias por momento</label>
+              <p className="text-xs text-muted-foreground mb-2">Cuántas sugerencias puede hacer Alicia en cada momento de la conversación</p>
+              <Select value={state.max_suggestions_per_order.toString()} onValueChange={v => update("max_suggestions_per_order", Number(v))}>
+                <SelectTrigger className="w-40 border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 sugerencia</SelectItem>
-                  <SelectItem value="2">2 sugerencias</SelectItem>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? "sugerencia" : "sugerencias"}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Reglas de sugerencia</label>
-              <p className="text-xs text-muted-foreground mb-3">Ej: "Si pide pizza sola" → "sugerir una bebida o entrada"</p>
-              
-              {rules.map((r, i) => (
-                <div key={i} className="flex gap-2 items-start mb-2 bg-muted rounded-lg p-3">
-                  <div className="flex-1 space-y-2">
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-0.5">Si el cliente pide...</label>
-                      <Input value={r.trigger} onChange={e => updateRule(i, "trigger", e.target.value)} placeholder="Pizza sola" className="border-border bg-background" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-0.5">Alicia sugiere...</label>
-                      <Input value={r.suggestion} onChange={e => updateRule(i, "suggestion", e.target.value)} placeholder="Una bebida o entrada" className="border-border bg-background" />
-                    </div>
+            {/* Individual moment switches */}
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground mb-2">Momentos y comportamiento</label>
+              {switches.map(({ key, label, desc, icon: Icon }) => (
+                <div key={key} className="flex items-center gap-3 bg-muted/50 rounded-lg p-3">
+                  <div className="bg-muted rounded-md p-1.5">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-500 mt-5">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground block">{label}</span>
+                    <span className="text-xs text-muted-foreground">{desc}</span>
+                  </div>
+                  <Switch checked={state[key] as boolean} onCheckedChange={v => update(key, v)} />
                 </div>
               ))}
-
-              <Button variant="outline" onClick={addRule} className="gap-1 border-dashed border-border text-muted-foreground">
-                <Plus className="h-4 w-4" />Agregar regla
-              </Button>
             </div>
           </>
         )}

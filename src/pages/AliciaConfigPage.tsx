@@ -28,7 +28,7 @@ const SECTIONS = [
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
   
   { id: "star", label: "Estrella", icon: Star, checkFields: ["promoted_products"] },
-  { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["sales_rules"] },
+  { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs"] },
   { id: "restrictions", label: "Restricciones", icon: ShieldAlert, checkFields: ["custom_rules"] },
   { id: "special", label: "Info Especial", icon: Info, checkFields: [] },
   { id: "personality", label: "Personalidad", icon: Smile, checkFields: ["personality_rules"] },

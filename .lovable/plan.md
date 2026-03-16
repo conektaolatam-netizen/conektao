@@ -1,86 +1,56 @@
-# Plan: Refactor completo de Sugerencias (Upselling)
 
-## Resumen
 
-Renombrar `sales_rules` → `suggest_configs`, usar `enabled` como puerta principal, eliminar prompt hardcodeado de sugerencias, rediseñar UI, y alinear todo el sistema.
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Cambios
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-### 1. Migración SQL: Renombrar columna
-
-```sql
-ALTER TABLE public.whatsapp_configs RENAME COLUMN sales_rules TO suggest_configs;
-```
-
-### 2. `whatsapp-webhook/index.ts`
-
-**a) Eliminar sección hardcodeada de sugerencias del core prompt (líneas 1020-1050)**  
-Eliminar el bloque "VENTAS Y RECOMENDACIONES" y los 4 momentos hardcodeados (AL SALUDAR, CUANDO PIDEN PRODUCTO, UPSELLING DE TAMAÑOS, ANTES DE CERRAR). También cambia la línea 1062 que menciona sugerencias en el flujo de pedido por 'Saluda y pregunta qué quiere'.
-
-**b) Cambiar referencia `sales_rules` → `suggest_configs` (línea 1189)**
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-const suggestConfigs = config.suggest_configs || {};
-```
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-**c) Cambiar gate principal de `suggest_complements` a `enabled` (línea 1328)**
-
-```typescript
-if (suggestConfigs.enabled) {
-```
-
-Mantener la lógica interna de momentos exactamente igual. Cambiar `salesRules` → `suggestConfigs` en todas las referencias.
-
-**d) `max_suggestions_per_order` — ya se usa correctamente** (línea 1329). Sin cambios.
-
-### 3. `generate-alicia/index.ts`
-
-**a) Cambiar `sales_rules` → `suggest_configs` (línea 117)**
-
-**b) Cambiar gate principal de `suggest_complements` a `enabled` (línea 212)**
-Misma lógica que webhook. Mantener momentos individuales iguales.
-
-### 4. `AliciaConfigUpselling.tsx` — Rediseño completo
-
-Eliminar `rules[]` (trigger/suggestion) de la UI. Nuevo modelo:
-
-```typescript
-{
-  enabled: boolean,
-  respect_first_no: boolean,
-  suggest_upsizing: boolean, 
-  suggest_complements: boolean,
-  suggest_on_greeting: boolean,
-  suggest_before_close: boolean,
-  no_prices_in_suggestions: boolean,
-  max_suggestions_per_order: number (1-5)
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-Controles UI:
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-- **Switch principal**: `enabled` — activa/desactiva todo el sistema
-- **Switch**: `suggest_on_greeting` — "Sugerir al saludar"
-- **Switch**: `suggest_complements` — "Sugerir complementos"
-- **Switch**: `suggest_upsizing` — "Sugerir tamaños mayores"
-- **Switch**: `suggest_before_close` — "Sugerir antes de cerrar pedido"
-- **Switch**: `no_prices_in_suggestions` — "No mencionar precios en sugerencias"
-- **Switch**: `respect_first_no` — "Respetar el primer 'no'"
-- **Select 1-5**: `max_suggestions_per_order` — "Máximo de sugerencias por momento"
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-Los switches individuales se muestran solo cuando `enabled === true`.
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-### 5. `AliciaConfigPage.tsx`
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-Cambiar referencia de `checkFields: ["sales_rules"]` → `checkFields: ["suggest_configs"]`.
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-Guardar con: `onSave("suggest_configs", { ... })`.
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-### 6. Verificación final
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
-- Ambas edge functions leen `suggest_configs` (no `sales_rules`)
-- Si `enabled === false` → no se inyecta bloque de sugerencias al prompt
-- Si `enabled === true` → se genera dinámicamente basado en los flags individuales
-- No quedan referencias a `sales_rules` en el código
-- No se eliminan datos antiguos en DB (la migración solo renombra)
-- `rules[]` existentes en DB se ignoran sin eliminar
