@@ -114,7 +114,7 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   const times = { weekday: hours.weekday_waiting_time, weekend: hours.weekend_waiting_time, peak: hours.peak_waiting_time };
   const escalation = config.escalation_config || {};
   const customRules = config.custom_rules || [];
-  const salesRules = config.sales_rules || {};
+  const suggestConfigs = config.suggest_configs || {};
   const tone = personality.tone || "casual_professional";
   const promoted = config.promoted_products || [];
 
