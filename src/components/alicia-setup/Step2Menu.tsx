@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Plus, Trash2, Star, UtensilsCrossed } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface MenuItem {
   name: string;
   price: number;
   description?: string;
   is_recommended?: boolean;
-  sizes?: { name: string; price: number }[];
 }
 
 interface MenuCategory {
@@ -24,8 +25,9 @@ interface Props {
 const Step2Menu = ({ data, onSave, saving, onBack }: Props) => {
   const [menuLink, setMenuLink] = useState(data.menu_link || "");
   const [categories, setCategories] = useState<MenuCategory[]>(
-    data.menu_data?.length ? data.menu_data : [{ name: "", items: [{ name: "", price: 0 }] }]
+    [{ name: "", items: [{ name: "", price: 0 }] }]
   );
+  const [submitting, setSubmitting] = useState(false);
 
   const addCategory = () => {
     setCategories([...categories, { name: "", items: [{ name: "", price: 0 }] }]);
@@ -59,15 +61,70 @@ const Step2Menu = ({ data, onSave, saving, onBack }: Props) => {
     setCategories(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validCategories = categories.filter(
-      (c) => c.name.trim() && c.items.some((i) => i.name.trim() && i.price > 0)
-    );
-    onSave({
-      menu_data: validCategories,
-      menu_link: menuLink,
-    });
+    setSubmitting(true);
+
+    try {
+      const restaurantId = data.restaurant_id;
+      if (!restaurantId) {
+        toast.error("No se encontró el restaurante");
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Sesión expirada"); return; }
+
+      const validCategories = categories.filter(
+        (c) => c.name.trim() && c.items.some((i) => i.name.trim() && i.price > 0)
+      );
+
+      for (const cat of validCategories) {
+        // Upsert category
+        const { data: existingCat } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("restaurant_id", restaurantId)
+          .ilike("name", cat.name.trim())
+          .maybeSingle();
+
+        let categoryId = existingCat?.id;
+        if (!categoryId) {
+          const { data: newCat } = await supabase
+            .from("categories")
+            .insert({ name: cat.name.trim(), restaurant_id: restaurantId, user_id: user.id })
+            .select("id")
+            .single();
+          categoryId = newCat?.id;
+        }
+
+        if (!categoryId) continue;
+
+        // Insert products
+        for (const item of cat.items) {
+          if (!item.name.trim() || !item.price) continue;
+
+          await supabase.from("products").insert({
+            name: item.name.trim(),
+            price: item.price,
+            description: item.description || null,
+            category_id: categoryId,
+            restaurant_id: restaurantId,
+            user_id: user.id,
+            is_active: true,
+          } as any);
+        }
+      }
+
+      // Save menu_link if provided
+      onSave({ menu_link: menuLink });
+      toast.success("Menú guardado en productos ✅");
+    } catch (err) {
+      console.error("Error saving menu:", err);
+      toast.error("Error al guardar el menú");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -138,18 +195,6 @@ const Step2Menu = ({ data, onSave, saving, onBack }: Props) => {
                   placeholder="Precio"
                   className="w-28 px-3 py-2 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
-                <button
-                  type="button"
-                  onClick={() => updateItem(catIdx, itemIdx, "is_recommended", !item.is_recommended)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    item.is_recommended
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:text-primary"
-                  }`}
-                  title="Marcar como recomendado"
-                >
-                  <Star className="w-4 h-4" fill={item.is_recommended ? "currentColor" : "none"} />
-                </button>
                 {cat.items.length > 1 && (
                   <button
                     type="button"
@@ -193,10 +238,10 @@ const Step2Menu = ({ data, onSave, saving, onBack }: Props) => {
         )}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || submitting}
           className="flex-1 py-3 rounded-xl font-semibold text-primary-foreground bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all disabled:opacity-50"
         >
-          {saving ? "Guardando..." : "Siguiente →"}
+          {saving || submitting ? "Guardando..." : "Siguiente →"}
         </button>
       </div>
     </form>
