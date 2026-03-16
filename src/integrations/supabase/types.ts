@@ -5259,10 +5259,10 @@ export type Database = {
           restaurant_description: string | null
           restaurant_id: string
           restaurant_name: string | null
-          sales_rules: Json | null
           selected_plan: string | null
           setup_completed: boolean | null
           setup_step: number | null
+          suggest_configs: Json | null
           updated_at: string
           verify_token: string
           waba_id: string | null
@@ -5293,10 +5293,10 @@ export type Database = {
           restaurant_description?: string | null
           restaurant_id: string
           restaurant_name?: string | null
-          sales_rules?: Json | null
           selected_plan?: string | null
           setup_completed?: boolean | null
           setup_step?: number | null
+          suggest_configs?: Json | null
           updated_at?: string
           verify_token?: string
           waba_id?: string | null
@@ -5327,10 +5327,10 @@ export type Database = {
           restaurant_description?: string | null
           restaurant_id?: string
           restaurant_name?: string | null
-          sales_rules?: Json | null
           selected_plan?: string | null
           setup_completed?: boolean | null
           setup_step?: number | null
+          suggest_configs?: Json | null
           updated_at?: string
           verify_token?: string
           waba_id?: string | null

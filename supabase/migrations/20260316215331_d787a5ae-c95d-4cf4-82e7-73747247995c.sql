@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_configs RENAME COLUMN sales_rules TO suggest_configs;
