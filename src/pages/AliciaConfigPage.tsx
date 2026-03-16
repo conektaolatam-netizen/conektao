@@ -22,7 +22,7 @@ import AliciaConfigSpecialInfo from "@/components/alicia-config/AliciaConfigSpec
 
 const SECTIONS = [
   { id: "business", label: "Tu Negocio", icon: Store, checkFields: ["restaurant_name"] },
-  { id: "menu", label: "Menú", icon: UtensilsCrossed, checkFields: ["menu_data"] },
+  { id: "menu", label: "Menú", icon: UtensilsCrossed, checkFields: [] },
   { id: "payments", label: "Pagos", icon: CreditCard, checkFields: ["payment_config"] },
   { id: "schedule", label: "Horarios", icon: Clock, checkFields: ["operating_hours"] },
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
