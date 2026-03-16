@@ -1,56 +1,59 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Alinear Horarios con `operating_hours` y eliminar `time_estimates`
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## 1. Migración DB: Eliminar columna `time_estimates`
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
-
-```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
-
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
+```sql
+ALTER TABLE public.whatsapp_configs DROP COLUMN IF EXISTS time_estimates;
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+Esto eliminará el campo legacy. No afecta ninguna lógica funcional (generate-alicia ni whatsapp-webhook lo usan).
 
-Añadir instrucción explícita sobre signos de interrogación en español:
+## 2. Actualizar `AliciaConfigSchedule.tsx`
 
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+Reescribir el componente para cubrir todos los campos de `operating_hours`:
 
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
-```
+**Nuevos campos a agregar en la UI:**
+- **Días de servicio** (`days`): Selector visual de botones togglables (lunes-domingo), mismo estilo que el onboarding
+- **Inicio/fin de atención** (`schedule_start`, `schedule_end`): Dos inputs tipo `time`, misma presentación que open/close
+- **Días pico** (`peak_days`): Selector visual de botones togglables igual que `days`
+- **Horario pico** (`peak_hour_start`, `peak_hour_end`): Dos inputs tipo `time`
+- **Zona horaria** (`timezone`): Input de texto (ej: "UTC-5")
+- **Tiempo de domicilio** (`delivery_travel`): Input de texto (ej: "~25min")
 
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+**Cambios a campos existentes:**
+- Renombrar label "Horario de atención" → "Horario de apertura y cierre"
 
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+**Se mantiene sin cambios:** pre-orders, may_extend, tiempos de preparación (weekday/weekend/peak)
 
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+**handleSave** hará spread de todos los campos en `operating_hours`, preservando campos existentes con `...h`.
+
+## 3. Limpiar `Step7Schedule.tsx` (onboarding wizard)
+
+- Eliminar lectura de `data.time_estimates`
+- Mover `weekday`, `weekend`, `peak` a leer/escribir desde `operating_hours`
+- Eliminar `time_estimates` del payload de `onSave`
+- Agregar `delivery_travel` dentro de `operating_hours`
+
+## 4. Lo que NO se toca
+
+- `generate-alicia/index.ts` — sin cambios
+- `whatsapp-webhook/index.ts` — sin cambios
+- `isPeakNow()` — sin cambios
+- `AliciaConfigPage.tsx` — sin cambios (checkFields sigue con `operating_hours`)
+- Lógica del bot — sin cambios
+
+## Secciones de la UI resultante (orden)
+
+1. Días de servicio (botones togglables)
+2. Horario de apertura y cierre (open_time / close_time)
+3. Inicio y fin de atención (schedule_start / schedule_end)
+4. Zona horaria (timezone)
+5. Pre-pedidos (accept_pre_orders + pre_order_message)
+6. ¿Se extienden? (may_extend)
+7. Días pico (peak_days - botones togglables)
+8. Horario pico (peak_hour_start / peak_hour_end)
+9. Tiempos estimados de preparación (weekday / weekend / peak_waiting_time)
+10. Tiempo estimado de domicilio (delivery_travel)
 
