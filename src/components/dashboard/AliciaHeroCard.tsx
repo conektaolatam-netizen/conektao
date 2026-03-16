@@ -73,25 +73,28 @@ const AliciaHeroCard = () => {
               Tu asistente inteligente de ventas por WhatsApp
             </p>
 
-            <Button
-              className="mt-3 sm:mt-4 bg-gradient-to-r from-secondary to-secondary-hover text-secondary-foreground font-semibold px-6 py-2 rounded-xl hover:shadow-lg hover:shadow-secondary/30 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClick();
-              }}
-            >
-              {isConfigured ? (
-                <>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Entrar a Alicia
-                </>
-              ) : (
-                <>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurar Alicia
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2 flex-wrap mt-3 sm:mt-4">
+              <Button
+                className="bg-gradient-to-r from-secondary to-secondary-hover text-secondary-foreground font-semibold px-6 py-2 rounded-xl hover:shadow-lg hover:shadow-secondary/30 transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClick();
+                }}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Entrar a Alicia
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-secondary to-secondary-hover text-secondary-foreground font-semibold px-6 py-2 rounded-xl hover:shadow-lg hover:shadow-secondary/30 transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/alicia/config");
+                }}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Configurar Alicia
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
