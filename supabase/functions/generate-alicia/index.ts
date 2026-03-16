@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
       assistant_name: assistantName,
       prompt_length: finalPrompt.length,
       products_count: products?.length || 0,
-      categories_count: config.menu_data?.length || 0,
+      categories_count: new Set((products || []).map((p: any) => p.category_name || p.categories?.name).filter(Boolean)).size,
       has_delivery: !!(config.delivery_config?.enabled),
       has_payments: !!(config.payment_config?.methods?.length),
       has_packaging: !!(products?.some((p: any) => p.requires_packaging)),

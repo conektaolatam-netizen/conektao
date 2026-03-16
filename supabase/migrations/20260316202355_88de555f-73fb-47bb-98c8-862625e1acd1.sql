@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_configs DROP COLUMN IF EXISTS menu_data;
