@@ -78,7 +78,7 @@ export default function AliciaConfigPage() {
       }
       const { data: wc } = await supabase
         .from("whatsapp_configs").select("*").eq("restaurant_id", profile.restaurant_id).maybeSingle();
-      if (wc) { setConfig(wc); setConfigId(wc.id); }
+      if (wc) { setConfig(wc); setConfigId(wc.id); loadProductCount(profile.restaurant_id); }
       else {
         const { data: newConfig, error } = await supabase
           .from("whatsapp_configs")
