@@ -1296,7 +1296,7 @@ function buildDynamicPrompt(
   }
 
   // Delivery
-  const radiusInfo = delivery.radius ? ` Radio de cobertura: ${delivery.radius}.` : "";
+  const radiusInfo = delivery.radius && delivery.radius !== "" ? ` Radio de cobertura: ${delivery.radius}.` : "";
   let deliveryBlock = "";
   if (delivery.enabled) {
     const freeZones = (delivery.free_zones || []).join(", ");
