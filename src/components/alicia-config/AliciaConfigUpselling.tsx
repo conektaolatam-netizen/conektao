@@ -49,6 +49,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const handleSave = async () => {
     setSaving(true);
     await onSave("suggest_configs", state);
+    await onSave("promoted_products", products);
     setSaving(false);
   };
 
