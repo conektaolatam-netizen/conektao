@@ -15,7 +15,6 @@ import AliciaConfigPayments from "@/components/alicia-config/AliciaConfigPayment
 import AliciaConfigPersonality from "@/components/alicia-config/AliciaConfigPersonality";
 import AliciaConfigSchedule from "@/components/alicia-config/AliciaConfigSchedule";
 import AliciaConfigConnection from "@/components/alicia-config/AliciaConfigConnection";
-import AliciaConfigStarProducts from "@/components/alicia-config/AliciaConfigStarProducts";
 import AliciaConfigUpselling from "@/components/alicia-config/AliciaConfigUpselling";
 import AliciaConfigRestrictions from "@/components/alicia-config/AliciaConfigRestrictions";
 import AliciaConfigSpecialInfo from "@/components/alicia-config/AliciaConfigSpecialInfo";
