@@ -1095,7 +1095,7 @@ REGLAS INQUEBRANTABLES:
 6. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
 7. FRUSTRACIÓN → pasa al humano
 8. NUNCA muestres JSON al cliente
-RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso del resumen), NO después de la confirmación.
 
 === FIN CORE ===`;
 }
