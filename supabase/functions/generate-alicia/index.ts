@@ -291,7 +291,8 @@ Deno.serve(async (req) => {
     const escalation = config.escalation_config || {};
     const assistantName = personality.name || "Alicia";
 
-    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "");
+    const suggestConfigs = config.suggest_configs || {};
+    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs);
     const businessPrompt = buildBusinessConfigPrompt(config, products || []);
     const finalPrompt = corePrompt + "\n\n" + businessPrompt;
 
