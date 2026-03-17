@@ -68,7 +68,7 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
           <Input value={escMsg} onChange={e => setEscMsg(e.target.value)} placeholder="Comunícate al..." className="border-border" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Reglas especiales del negocio</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Consideraciones especiales del negocio</label>
           <p className="text-xs text-muted-foreground mb-2">Instrucciones específicas que Alicia debe seguir</p>
           <div className="flex gap-2">
             <Input value={newRule} onChange={e => setNewRule(e.target.value)} placeholder={"Ej: Tono ante quejas: emp\u00e1tico, transparente, responsable, profesional"} onKeyDown={e => e.key === "Enter" && addRule()} className="border-border" />
