@@ -15,9 +15,7 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const [greeting, setGreeting] = useState(config.greeting_message || "");
   const [humanPhone, setHumanPhone] = useState(esc.human_phone || "");
   const [escMsg, setEscMsg] = useState(esc.escalation_message || "");
-  const [customRules, setCustomRules] = useState<string[]>(
-    (config.custom_rules || []).filter((r: string) => !r.startsWith("[RESTRICCION]") && !r.startsWith("[INFO_ESPECIAL]"))
-  );
+  const [customRules, setCustomRules] = useState<string[]>(config.custom_rules || []);
   const [newRule, setNewRule] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -26,12 +24,11 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
 
   const handleSave = async () => {
     setSaving(true);
-    const taggedRules = (config.custom_rules || []).filter((r: string) => r.startsWith("[RESTRICCION]") || r.startsWith("[INFO_ESPECIAL]"));
     await onSave({
       personality_rules: { ...pr, tone, name: assistantName },
       greeting_message: greeting,
       escalation_config: { human_phone: humanPhone, escalation_message: escMsg },
-      custom_rules: [...customRules, ...taggedRules],
+      custom_rules: customRules,
     });
     setSaving(false);
   };
