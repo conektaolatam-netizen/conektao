@@ -141,9 +141,6 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
                 </div>
               )}
 
-              <Button onClick={handleSaveStarProducts} disabled={savingStarProducts} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
-                {savingStarProducts ? "Guardando..." : "Guardar productos"}
-              </Button>
             </div>
 
             {/* Individual moment switches */}
