@@ -974,6 +974,34 @@ function buildCustomerMemoryContext(customer: any | null): string {
 // ==================== AI PROMPT BUILDING ====================
 
 /**
+ * Build the numbered FLUJO DE PEDIDO dynamically.
+ * Suggestion steps are included only when non-empty.
+ */
+function buildFlowText(sf: SuggestionFragments, variant: "generate-alicia" | "whatsapp-webhook"): string {
+  const resumenStep = variant === "generate-alicia"
+    ? 'Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: \'Sí, confirmar\' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)'
+    : 'Recopila toda la información del pedido (productos, cantidades, tipo de entrega, dirección si aplica, nombre, forma de pago). Cuando tengas TODO listo, genera el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje. El sistema generará y enviará el resumen automáticamente con los precios correctos. NO escribas un resumen de precios detallado en tu respuesta, solo incluye el tag con el JSON. (Antes de generar el tag, asegúrate de que el restaurante esté ABIERTO)';
+
+  const steps = [
+    "Saluda y pregunta qué quiere",
+    sf.step1,
+    "Anota cada producto",
+    sf.step2,
+    'Después de cada uno pregunta: "Algo más?"',
+    sf.step3,
+    'Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio',
+    "Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre",
+    "Indica datos de pago",
+    resumenStep,
+    "El sistema guarda el pedido y espera confirmación del cliente automáticamente",
+  ].filter(Boolean);
+
+  const numbered = steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
+
+  return `FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):\n${numbered}\nJSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}`;
+}
+
+/**
  * CORE SYSTEM PROMPT — Conektao immutable rules.
  * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
  * This is the "DNA" of every Alicia instance.
