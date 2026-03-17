@@ -1295,8 +1295,7 @@ function buildDynamicPrompt(
     ? `NOMBRE DEL CLIENTE YA CONOCIDO: "${customerName}". Úsalo. NO vuelvas a pedirlo.`
     : "Nombre del cliente: aún no proporcionado.";
 
-  // Upselling — built from shared helper (single source of truth)
-  const upsellBlock = buildSuggestionFlow(suggestConfigs);
+  // Upselling now injected directly into the core flow steps (buildCoreSystemPrompt)
 
   return `=== CONFIG DEL NEGOCIO ===
 
