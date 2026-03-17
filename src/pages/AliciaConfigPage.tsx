@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Store, UtensilsCrossed, Truck, CreditCard, 
-  Smile, Clock, Wifi, Star, Lightbulb, ShieldAlert, Info, Check, Sparkles
+  Smile, Clock, Wifi, Lightbulb, ShieldAlert, Info, Check, Sparkles
 } from "lucide-react";
 import AliciaConfigBusiness from "@/components/alicia-config/AliciaConfigBusiness";
 import AliciaConfigMenu from "@/components/alicia-config/AliciaConfigMenu";
@@ -15,7 +15,6 @@ import AliciaConfigPayments from "@/components/alicia-config/AliciaConfigPayment
 import AliciaConfigPersonality from "@/components/alicia-config/AliciaConfigPersonality";
 import AliciaConfigSchedule from "@/components/alicia-config/AliciaConfigSchedule";
 import AliciaConfigConnection from "@/components/alicia-config/AliciaConfigConnection";
-import AliciaConfigStarProducts from "@/components/alicia-config/AliciaConfigStarProducts";
 import AliciaConfigUpselling from "@/components/alicia-config/AliciaConfigUpselling";
 import AliciaConfigRestrictions from "@/components/alicia-config/AliciaConfigRestrictions";
 import AliciaConfigSpecialInfo from "@/components/alicia-config/AliciaConfigSpecialInfo";
@@ -27,8 +26,7 @@ const SECTIONS = [
   { id: "schedule", label: "Horarios", icon: Clock, checkFields: ["operating_hours"] },
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
   
-  { id: "star", label: "Estrella", icon: Star, checkFields: ["promoted_products"] },
-  { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs"] },
+  { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs", "promoted_products"] },
   { id: "restrictions", label: "Restricciones", icon: ShieldAlert, checkFields: ["custom_rules"] },
   { id: "special", label: "Info Especial", icon: Info, checkFields: [] },
   { id: "personality", label: "Personalidad", icon: Smile, checkFields: ["personality_rules"] },
@@ -165,7 +163,6 @@ export default function AliciaConfigPage() {
       case "schedule": return <AliciaConfigSchedule config={config} onSave={saveMultipleFields} />;
       case "delivery": return <AliciaConfigDelivery config={config} onSave={saveField} />;
       
-      case "star": return <AliciaConfigStarProducts config={config} onSave={saveField} />;
       case "upselling": return <AliciaConfigUpselling config={config} onSave={saveField} />;
       case "restrictions": return <AliciaConfigRestrictions config={config} onSave={saveField} />;
       case "special": return <AliciaConfigSpecialInfo config={config} onSave={saveField} />;

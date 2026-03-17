@@ -1,30 +1,56 @@
 
 
-# Plan: Mover "Productos Estrella" a pestaña Sugerencias y eliminar pestaña Estrella
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Archivos a modificar
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-### 1. `src/components/alicia-config/AliciaConfigUpselling.tsx`
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-Integrar la funcionalidad de productos estrella directamente dentro de este componente:
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-- Agregar imports: `Input`, `Badge`, `Star`, `X`, `Plus`
-- Agregar estado local para productos estrella (`products`, `newProduct`, `savingStarProducts`) leyendo de `config.promoted_products`
-- Insertar la sección de productos estrella **entre** el selector de `max_suggestions_per_order` y el bloque de "Momentos y comportamiento" (dentro del `state.enabled` conditional)
-- La sección tendrá el mismo input, badges y empty state que tiene actualmente `AliciaConfigStarProducts`
-- Botón "Guardar" de productos estrella independiente, llamando `onSave("promoted_products", products)`
-- Visualmente: subsección con label "Productos destacados", misma estética (badges naranja con estrella)
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+```
 
-### 2. `src/pages/AliciaConfigPage.tsx`
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-- Eliminar import de `AliciaConfigStarProducts`
-- Eliminar entrada `{ id: "star", ... }` del array `SECTIONS`
-- Eliminar `case "star"` del `renderContent()` switch
-- Eliminar `Star` del import de lucide (si no se usa en otro lugar — verificar; se usa en SECTIONS pero al eliminarlo ya no se necesita)
-- La sección "upselling" ahora valida completitud con `checkFields: ["suggest_configs", "promoted_products"]` para cubrir ambos campos
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-### Sin cambios en
-- Backend, edge functions, base de datos
-- `AliciaConfigStarProducts.tsx` — se puede dejar el archivo (no rompe nada) o eliminarlo; lo eliminaremos para limpieza
-- Todas las demás pestañas permanecen intactas
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 

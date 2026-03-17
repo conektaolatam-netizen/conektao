@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck } from "lucide-react";
+import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck, Star, X, Plus } from "lucide-react";
 
 interface Props { config: any; onSave: (field: string, value: any) => Promise<void>; }
 
@@ -35,6 +37,11 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const [state, setState] = useState<SuggestConfig>(initial);
   const [saving, setSaving] = useState(false);
 
+  // Star products state
+  const [products, setProducts] = useState<string[]>(config.promoted_products || []);
+  const [newProduct, setNewProduct] = useState("");
+  const [savingStarProducts, setSavingStarProducts] = useState(false);
+
   const update = <K extends keyof SuggestConfig>(key: K, value: SuggestConfig[K]) => {
     setState(prev => ({ ...prev, [key]: value }));
   };
@@ -43,6 +50,21 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
     setSaving(true);
     await onSave("suggest_configs", state);
     setSaving(false);
+  };
+
+  // Star products handlers
+  const addProduct = () => {
+    if (newProduct.trim() && !products.includes(newProduct.trim())) {
+      setProducts([...products, newProduct.trim()]);
+      setNewProduct("");
+    }
+  };
+  const removeProduct = (i: number) => setProducts(products.filter((_, idx) => idx !== i));
+
+  const handleSaveStarProducts = async () => {
+    setSavingStarProducts(true);
+    await onSave("promoted_products", products);
+    setSavingStarProducts(false);
   };
 
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
@@ -90,6 +112,42 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Star products section */}
+            <div className="border border-border/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Star className="h-4 w-4 text-orange-400" />
+                <label className="text-sm font-medium text-foreground">Productos destacados</label>
+              </div>
+              <p className="text-xs text-muted-foreground">Alicia los sugerirá cuando el cliente no sepa qué pedir</p>
+              <div className="flex gap-2">
+                <Input value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Ej: Pizza Margarita, Combo Familiar..." onKeyDown={e => e.key === "Enter" && addProduct()} className="border-border" />
+                <Button variant="outline" onClick={addProduct} className="border-border gap-1"><Plus className="h-4 w-4" />Agregar</Button>
+              </div>
+
+              {products.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {products.map((p, i) => (
+                    <Badge key={i} className="gap-1.5 bg-orange-900/30 text-orange-400 border border-orange-500/30 hover:bg-orange-900/40 px-3 py-1.5 text-sm">
+                      <Star className="h-3 w-3 fill-orange-400 text-orange-400" />
+                      {p}
+                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeProduct(i)} />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {products.length === 0 && (
+                <div className="bg-muted rounded-lg p-4 text-center">
+                  <Star className="h-6 w-6 text-muted-foreground mx-auto mb-1.5" />
+                  <p className="text-xs text-muted-foreground">Agrega tus productos estrella para que Alicia los promocione</p>
+                </div>
+              )}
+
+              <Button onClick={handleSaveStarProducts} disabled={savingStarProducts} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
+                {savingStarProducts ? "Guardando..." : "Guardar productos"}
+              </Button>
             </div>
 
             {/* Individual moment switches */}
