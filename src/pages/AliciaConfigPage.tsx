@@ -16,8 +16,6 @@ import AliciaConfigPersonality from "@/components/alicia-config/AliciaConfigPers
 import AliciaConfigSchedule from "@/components/alicia-config/AliciaConfigSchedule";
 import AliciaConfigConnection from "@/components/alicia-config/AliciaConfigConnection";
 import AliciaConfigUpselling from "@/components/alicia-config/AliciaConfigUpselling";
-import AliciaConfigRestrictions from "@/components/alicia-config/AliciaConfigRestrictions";
-import AliciaConfigSpecialInfo from "@/components/alicia-config/AliciaConfigSpecialInfo";
 
 const SECTIONS = [
   { id: "business", label: "Tu Negocio", icon: Store, checkFields: ["restaurant_name"] },
