@@ -160,8 +160,6 @@ export default function AliciaConfigPage() {
       case "delivery": return <AliciaConfigDelivery config={config} onSave={saveField} />;
       
       case "upselling": return <AliciaConfigUpselling config={config} onSave={saveField} />;
-      case "restrictions": return <AliciaConfigRestrictions config={config} onSave={saveField} />;
-      case "special": return <AliciaConfigSpecialInfo config={config} onSave={saveField} />;
       case "personality": return <AliciaConfigPersonality config={config} onSave={saveMultipleFields} />;
       case "connection": return <AliciaConfigConnection config={config} onSave={saveMultipleFields} />;
       default: return null;
