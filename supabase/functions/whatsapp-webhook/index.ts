@@ -1082,7 +1082,7 @@ RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6
 
 function buildPrompt(
   products: any[],
-  promoted: string[],
+  promoted: any[],
   greeting: string,
   name: string,
   order: any,
@@ -1090,8 +1090,20 @@ function buildPrompt(
   config?: any,
   customerName?: string,
 ) {
-  const prom =
-    promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
+  let prom = "";
+  if (promoted && promoted.length > 0) {
+    const lines: string[] = [];
+    for (const item of promoted) {
+      if (typeof item === "string") {
+        lines.push(`⭐ ${item}`);
+      } else if (item.category && Array.isArray(item.products)) {
+        for (const p of item.products) {
+          lines.push(p.note ? `⭐ ${p.name} — ${p.note}` : `⭐ ${p.name}`);
+        }
+      }
+    }
+    if (lines.length > 0) prom = `\nPRODUCTOS RECOMENDADOS HOY:\n${lines.join("\n")}`;
+  }
   let ctx = status !== "none" && order ? `\n\nPEDIDO ACTUAL:\n${JSON.stringify(order)}\nEstado: ${status}` : "";
   if (status === "confirmed" && config?._confirmed_at) {
     const minutesSince = Math.floor((Date.now() - new Date(config._confirmed_at).getTime()) / 60000);

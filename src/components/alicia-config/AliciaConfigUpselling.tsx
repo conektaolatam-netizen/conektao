@@ -99,17 +99,17 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
 
       const { data: products } = await supabase
         .from("products")
-        .select("id, name, price, category_name, categories(name)")
+        .select("id, name, price, categories(name)")
         .eq("restaurant_id", profile.restaurant_id)
         .eq("is_active", true)
         .order("name");
 
       if (products) {
         const grouped: Record<string, MenuProduct[]> = {};
-        for (const p of products) {
-          const cat = p.category_name || (p.categories as any)?.name || "Otros";
+        for (const p of products as any[]) {
+          const cat = p.categories?.name || "Otros";
           if (!grouped[cat]) grouped[cat] = [];
-          grouped[cat].push({ ...p, category_name: cat } as MenuProduct);
+          grouped[cat].push({ id: p.id, name: p.name, price: p.price, category_name: cat, categories: p.categories });
         }
         setMenuByCategory(grouped);
       }
