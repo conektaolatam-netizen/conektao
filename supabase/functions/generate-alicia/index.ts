@@ -1,35 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildSuggestionFlow, SuggestionFragments } from "../_shared/suggestionFlow.ts";
 
-/**
- * Build the numbered FLUJO DE PEDIDO dynamically.
- * Suggestion steps are included only when non-empty.
- */
-function buildFlowText(sf: SuggestionFragments, variant: "generate-alicia" | "whatsapp-webhook"): string {
-  const resumenStep = variant === "generate-alicia"
-    ? 'Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: \'Sí, confirmar\' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)'
-    : 'Recopila toda la información del pedido (productos, cantidades, tipo de entrega, dirección si aplica, nombre, forma de pago). Cuando tengas TODO listo, genera el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje. El sistema generará y enviará el resumen automáticamente con los precios correctos. NO escribas un resumen de precios detallado en tu respuesta, solo incluye el tag con el JSON. (Antes de generar el tag, asegúrate de que el restaurante esté ABIERTO)';
-
-  const steps = [
-    "Saluda y pregunta qué quiere",
-    sf.step1,
-    "Anota cada producto",
-    sf.step2,
-    'Después de cada uno pregunta: "Algo más?"',
-    sf.step3,
-    'Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio',
-    "Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre",
-    "Indica datos de pago",
-    resumenStep,
-    "El sistema guarda el pedido y espera confirmación del cliente automáticamente",
-  ].filter(Boolean);
-
-  const numbered = steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
-
-  return `FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):\n${numbered}\nJSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}`;
-}
-
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -90,10 +61,18 @@ AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → 
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 ${globalRulesBlock}
-${buildFlowText(sf, "generate-alicia")}
+FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
+1. Saluda y pregunta qué quiere${sf.step1}
+2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
+3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+5. Indica datos de pago
+6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
+7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
+JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
 
 TAG OBLIGATORIO:
-- El tag ---PEDIDO_CONFIRMADO--- va en el paso del resumen (al presentar el resumen), NO después de que confirmen
+- El tag ---PEDIDO_CONFIRMADO--- va en el PASO 6 (al presentar el resumen), NO después de que confirmen
 - SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
 - Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
@@ -121,7 +100,7 @@ REGLAS INQUEBRANTABLES:
 7. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
 8. FRUSTRACIÓN → pasa al humano
 9. NUNCA muestres JSON al cliente
-RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso del resumen), NO después de la confirmación.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.
 
 === FIN CORE ===`;
 }
