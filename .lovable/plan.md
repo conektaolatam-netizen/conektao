@@ -1,61 +1,56 @@
 
 
-# Plan: Productos desplegables y eliminables en la pestaña Menú
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Resumen
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-Modificar `AliciaConfigMenu.tsx` para que cada categoría sea un acordeón desplegable que muestre sus productos, con opción de eliminar (soft delete: `is_active = false`).
-
-## Cambios
-
-### Único archivo: `src/components/alicia-config/AliciaConfigMenu.tsx`
-
-**1. Cambiar estructura de datos**
-
-En lugar de solo contar productos por categoría, almacenar los productos completos agrupados:
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-interface ProductItem {
-  id: string;
-  name: string;
-  price: number;
-  description: string | null;
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
 }
 
-interface CategoryWithProducts {
-  name: string;
-  products: ProductItem[];
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-La query actual ya trae `id, name, category_id, categories(name)` — se añade `price, description` al select.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-**2. Agrupar productos completos por categoría**
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-En `loadProducts()`, agrupar en un `Record<string, ProductItem[]>` en vez de `Record<string, number>`.
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-**3. UI: Acordeón por categoría**
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-Usar `Collapsible` (ya existe en el proyecto) para cada categoría:
-- **Header clickeable**: nombre de categoría + badge con count + chevron
-- **Contenido expandible**: lista de productos con nombre, precio y botón eliminar
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-**4. Eliminar producto (soft delete)**
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-Botón con icono `Trash2` por producto. Al hacer click:
-- Diálogo de confirmación con `AlertDialog` (ya existe)
-- Ejecuta `supabase.from("products").update({ is_active: false }).eq("id", productId)`
-- Recarga la lista con `loadProducts()`
-- Toast de confirmación
-
-**5. Formato de precio**
-
-Helper simple para mostrar precio formateado (ej: `$12.50`).
-
-### Sin cambios en
-
-- Lógica de importación de menú
-- Edge functions
-- Base de datos (no requiere migración, usa `is_active` existente)
-- Ningún otro componente
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
