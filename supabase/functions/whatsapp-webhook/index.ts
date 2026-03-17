@@ -1147,7 +1147,7 @@ function buildPrompt(
 function buildDynamicPrompt(
   config: any,
   products: any[],
-  promoted: string[],
+  promoted: any[],
   prom: string,
   ctx: string,
   peak: boolean,
