@@ -1321,7 +1321,6 @@ ${deliveryBlock}
 ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
-${upsellBlock}
 
 === FIN CONFIG ===
 ${ctx}`;
