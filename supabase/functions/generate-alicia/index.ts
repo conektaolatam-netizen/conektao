@@ -10,7 +10,9 @@ const corsHeaders = {
  * CORE SYSTEM PROMPT — Conektao immutable rules.
  * Exact copy from whatsapp-webhook to ensure consistency.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {});
+  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
