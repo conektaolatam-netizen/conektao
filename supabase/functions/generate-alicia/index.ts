@@ -61,18 +61,10 @@ AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → 
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 ${globalRulesBlock}
-FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
-1. Saluda y pregunta qué quiere${sf.step1}
-2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
-3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
-4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
-5. Indica datos de pago
-6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
-7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
-JSON: {items:[{name,quantity,unit_price,packaging_cost}],packaging_total,subtotal,total,delivery_type,delivery_address,customer_name,payment_method,observations}
+${buildFlowText(sf, "generate-alicia")}
 
 TAG OBLIGATORIO:
-- El tag ---PEDIDO_CONFIRMADO--- va en el PASO 6 (al presentar el resumen), NO después de que confirmen
+- El tag ---PEDIDO_CONFIRMADO--- va en el paso del resumen (al presentar el resumen), NO después de que confirmen
 - SIEMPRE inclúyelo al final del mensaje del resumen, el sistema lo oculta automáticamente
 - Si NO incluyes el tag, el pedido NO se guardará y se perderá
 
