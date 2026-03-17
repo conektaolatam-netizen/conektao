@@ -1,56 +1,54 @@
 
 
-## Plan: Corregir signos de interrogación cortados y faltantes
+# Plan: Sugerencias como pasos independientes en el flujo
 
-### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
+## Cambios
 
-Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
+### 1. `supabase/functions/_shared/suggestionFlow.ts`
 
-```typescript
-function splitIntoHumanChunks(text: string): string[] {
-  if (text.length <= 200) return [text];
-  const parts = text.split(/\n\n+/).filter((p) => p.trim());
-  if (parts.length >= 2 && parts.length <= 4) {
-    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
-  }
-  const lines = text.split(/\n/).filter((p) => p.trim());
-  if (lines.length >= 2) {
-    const mid = Math.ceil(lines.length / 2);
-    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
-    return fixOrphanedPunctuation(chunks);
-  }
-  return [text];
-}
+Cambiar los fragmentos `step1`, `step2`, `step3` para que sean texto completo de paso (sin el prefijo `\n   →`):
 
-function fixOrphanedPunctuation(chunks: string[]): string[] {
-  for (let i = 1; i < chunks.length; i++) {
-    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
-    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
-    if (match) {
-      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
-      chunks[i] = chunks[i].substring(match[0].length).trim();
-    }
-  }
-  return chunks.filter((c) => c.length > 0);
-}
+- `step1`: `'Menciona naturalmente 1-2 productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"'`
+- `step2`: Combina upsizing + complements en un solo string de paso
+- `step3`: `'Antes de pasar a recoger/domicilio, haz UNA última sugerencia breve. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"'`
+
+Si disabled → siguen siendo `""`. Sin cambios en `globalRules`.
+
+### 2. `buildCoreSystemPrompt` en ambos archivos
+
+Reemplazar el bloque estático del flujo (líneas 64-72 en generate-alicia, 1033-1041 en webhook) con construcción dinámica por array:
+
+```ts
+const flowSteps = [
+  "Saluda y pregunta qué quiere",
+  sf.step1,
+  "Anota cada producto",
+  sf.step2,
+  'Después de cada uno pregunta: "Algo más?"',
+  sf.step3,
+  'Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio',
+  "Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre",
+  "Indica datos de pago",
+  // paso 6 específico de cada archivo (diferente entre generate-alicia y webhook)
+  "El sistema guarda el pedido y espera confirmación del cliente automáticamente",
+].filter(Boolean);
+
+const flowText = flowSteps.map((s, i) => `${i + 1}. ${s}`).join("\n");
 ```
 
-### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+Luego se interpola `${flowText}` donde antes estaba el bloque estático.
 
-Añadir instrucción explícita sobre signos de interrogación en español:
+**Diferencia en paso 6**: `generate-alicia` usa el texto con resumen completo visible; `whatsapp-webhook` usa el texto con tag + resumen automático. Cada archivo inserta su versión propia en el array.
 
-```
-ANTES (línea 647):
-"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+### 3. Archivos afectados
 
-DESPUÉS:
-"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
-```
+1. `supabase/functions/_shared/suggestionFlow.ts` — ajustar formato de step1/step2/step3
+2. `supabase/functions/generate-alicia/index.ts` — flujo dinámico por array
+3. `supabase/functions/whatsapp-webhook/index.ts` — flujo dinámico por array
 
-### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+### Resultado
 
-Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
-
-### Archivos afectados
-- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
+- `enabled=true` → flujo tiene ~11 pasos numerados secuencialmente (con sugerencias como pasos propios)
+- `enabled=false` → flujo tiene ~8 pasos (idéntico al original, sin huecos)
+- Las referencias a "PASO 6" en TAG OBLIGATORIO se actualizarán al número dinámico correcto
 
