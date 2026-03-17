@@ -1,32 +1,56 @@
 
 
-# Plan: Ver y reactivar productos inactivos en la pestaña Menú
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Resumen
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-Agregar un toggle/botón "Ver productos inactivos" que muestre los productos desactivados agrupados por categoría, con un botón para reactivar cada uno (`is_active = true`).
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-## Cambios — único archivo: `AliciaConfigMenu.tsx`
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-### 1. Nuevo estado y carga de inactivos
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+```
 
-- Agregar estados: `showInactive` (boolean toggle), `inactiveCategories` (misma estructura `CategoryWithProducts[]`), `loadingInactive` (boolean).
-- Nueva función `loadInactiveProducts()` — misma query pero con `.eq("is_active", false)`. Se llama al activar el toggle.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-### 2. Reactivar producto
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-- Nueva función `handleReactivateProduct(product)` — ejecuta `supabase.from("products").update({ is_active: true }).eq("id", product.id)`, recarga ambas listas (activos e inactivos), muestra toast de confirmación.
-- Confirmación con `AlertDialog` similar al de eliminar, pero con texto y botón verde de "Reactivar".
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-### 3. UI
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-- Agregar import de `RotateCcw` (o `Undo2`) y `EyeOff` de lucide-react.
-- Botón "Ver inactivos" junto al botón "Actualizar", con badge del conteo si hay inactivos.
-- Cuando `showInactive` es true, mostrar debajo de la lista activa una sección con borde punteado/opacidad reducida con las categorías inactivas en acordeones idénticos, pero:
-  - En lugar del botón trash, un botón con icono de reactivar (verde).
-  - Los nombres aparecen con opacidad reducida para distinguirlos visualmente.
-- Si no hay productos inactivos, mostrar mensaje "No hay productos inactivos".
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-### Sin cambios en
-- Lógica de importación, edge functions, base de datos, otros componentes.
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
