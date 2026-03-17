@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Store, UtensilsCrossed, Truck, CreditCard, 
-  Smile, Clock, Wifi, Star, Lightbulb, ShieldAlert, Info, Check, Sparkles
+  Smile, Clock, Wifi, Lightbulb, ShieldAlert, Info, Check, Sparkles
 } from "lucide-react";
 import AliciaConfigBusiness from "@/components/alicia-config/AliciaConfigBusiness";
 import AliciaConfigMenu from "@/components/alicia-config/AliciaConfigMenu";
