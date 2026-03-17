@@ -40,7 +40,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   // Star products state
   const [products, setProducts] = useState<string[]>(config.promoted_products || []);
   const [newProduct, setNewProduct] = useState("");
-  const [savingStarProducts, setSavingStarProducts] = useState(false);
+  
 
   const update = <K extends keyof SuggestConfig>(key: K, value: SuggestConfig[K]) => {
     setState(prev => ({ ...prev, [key]: value }));
