@@ -29,11 +29,11 @@ export default function AliciaConfigConnection({ config, onSave }: Props) {
           <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-300">Estos datos son técnicos. Solo modifícalos si sabes lo que haces o con soporte de Conektao.</p>
         </div>
-        <div>
+        <div className="hidden">
           <label className="block text-sm font-medium text-foreground mb-1">Phone Number ID (Meta)</label>
           <Input value={phoneId} onChange={e => setPhoneId(e.target.value)} placeholder="942285825640689" className="border-border" />
         </div>
-        <div>
+        <div className="hidden">
           <label className="block text-sm font-medium text-foreground mb-1">Access Token (Meta)</label>
           <Input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="EAF..." className="border-border" />
         </div>
