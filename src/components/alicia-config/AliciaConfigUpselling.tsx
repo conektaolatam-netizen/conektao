@@ -40,7 +40,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   // Star products state
   const [products, setProducts] = useState<string[]>(config.promoted_products || []);
   const [newProduct, setNewProduct] = useState("");
-  const [savingStarProducts, setSavingStarProducts] = useState(false);
+  
 
   const update = <K extends keyof SuggestConfig>(key: K, value: SuggestConfig[K]) => {
     setState(prev => ({ ...prev, [key]: value }));
@@ -49,6 +49,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const handleSave = async () => {
     setSaving(true);
     await onSave("suggest_configs", state);
+    await onSave("promoted_products", products);
     setSaving(false);
   };
 
@@ -61,11 +62,6 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   };
   const removeProduct = (i: number) => setProducts(products.filter((_, idx) => idx !== i));
 
-  const handleSaveStarProducts = async () => {
-    setSavingStarProducts(true);
-    await onSave("promoted_products", products);
-    setSavingStarProducts(false);
-  };
 
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
     { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
@@ -145,9 +141,6 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
                 </div>
               )}
 
-              <Button onClick={handleSaveStarProducts} disabled={savingStarProducts} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
-                {savingStarProducts ? "Guardando..." : "Guardar productos"}
-              </Button>
             </div>
 
             {/* Individual moment switches */}
