@@ -159,8 +159,21 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
     menuBlock += "\n=== FIN MENÚ ===\n";
   }
 
-  // Promoted
-  const promBlock = promoted.length > 0 ? `\nPRODUCTOS RECOMENDADOS HOY:\n${promoted.map((p: string) => `⭐ ${p}`).join("\n")}` : "";
+  // Promoted — supports legacy string[] and new categorized format
+  let promBlock = "";
+  if (promoted.length > 0) {
+    const lines: string[] = [];
+    for (const item of promoted) {
+      if (typeof item === "string") {
+        lines.push(`⭐ ${item}`);
+      } else if (item.category && Array.isArray(item.products)) {
+        for (const p of item.products) {
+          lines.push(p.note ? `⭐ ${p.name} — ${p.note}` : `⭐ ${p.name}`);
+        }
+      }
+    }
+    if (lines.length > 0) promBlock = `\nPRODUCTOS RECOMENDADOS HOY:\n${lines.join("\n")}`;
+  }
 
   // Delivery
   const radiusInfo = delivery.radius && delivery.radius !== "" ? ` Radio de cobertura: ${delivery.radius}.` : "";
