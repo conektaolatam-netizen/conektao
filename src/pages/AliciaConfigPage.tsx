@@ -25,8 +25,6 @@ const SECTIONS = [
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
   
   { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs", "promoted_products"] },
-  { id: "restrictions", label: "Restricciones", icon: ShieldAlert, checkFields: ["custom_rules"] },
-  { id: "special", label: "Info Especial", icon: Info, checkFields: [] },
   { id: "personality", label: "Personalidad", icon: Smile, checkFields: ["personality_rules"] },
   { id: "connection", label: "WhatsApp", icon: Wifi, checkFields: ["whatsapp_phone_number_id"] },
 ];
