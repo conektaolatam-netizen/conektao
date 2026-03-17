@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildSuggestionFlow } from "../_shared/suggestionFlow.ts";
+import { buildSuggestionFlow, SuggestionFragments } from "../_shared/suggestionFlow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +10,9 @@ const corsHeaders = {
  * CORE SYSTEM PROMPT — Conektao immutable rules.
  * Exact copy from whatsapp-webhook to ensure consistency.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {});
+  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
@@ -58,11 +60,11 @@ FORMATO:
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
-
+${globalRulesBlock}
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
-1. Saluda y pregunta qué quiere
-2. Anota cada producto. Después de cada uno pregunta: "Algo más?"
-3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
+1. Saluda y pregunta qué quiere${sf.step1}
+2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
+3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
 4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
 5. Indica datos de pago
 6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
@@ -208,8 +210,7 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
 
   const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
-  // Upselling — built from shared helper (single source of truth)
-  const upsellBlock = buildSuggestionFlow(suggestConfigs);
+  // Upselling now injected directly into the core flow steps (buildCoreSystemPrompt)
 
   return `=== CONFIG DEL NEGOCIO ===
 
@@ -233,7 +234,6 @@ ${deliveryBlock}
 ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
-${upsellBlock}
 
 === FIN CONFIG ===`;
 }
@@ -291,7 +291,8 @@ Deno.serve(async (req) => {
     const escalation = config.escalation_config || {};
     const assistantName = personality.name || "Alicia";
 
-    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "");
+    const suggestConfigs = config.suggest_configs || {};
+    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs);
     const businessPrompt = buildBusinessConfigPrompt(config, products || []);
     const finalPrompt = corePrompt + "\n\n" + businessPrompt;
 
