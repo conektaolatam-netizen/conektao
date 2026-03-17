@@ -210,8 +210,7 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
 
   const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
-  // Upselling — built from shared helper (single source of truth)
-  const upsellBlock = buildSuggestionFlow(suggestConfigs);
+  // Upselling now injected directly into the core flow steps (buildCoreSystemPrompt)
 
   return `=== CONFIG DEL NEGOCIO ===
 
