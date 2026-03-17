@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck, Star, X, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck, Star, ChevronDown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { config: any; onSave: (field: string, value: any) => Promise<void>; }
 
@@ -19,6 +21,25 @@ interface SuggestConfig {
   max_suggestions_per_order: number;
 }
 
+interface PromotedProduct {
+  product_id: string;
+  name: string;
+  note: string;
+}
+
+interface PromotedCategory {
+  category: string;
+  products: PromotedProduct[];
+}
+
+interface MenuProduct {
+  id: string;
+  name: string;
+  price: number;
+  category_name: string | null;
+  categories?: { name: string } | null;
+}
+
 const DEFAULT_CONFIG: SuggestConfig = {
   enabled: false,
   respect_first_no: true,
@@ -30,38 +51,112 @@ const DEFAULT_CONFIG: SuggestConfig = {
   max_suggestions_per_order: 2,
 };
 
+/** Parse legacy string[] or new category-based format */
+function parsePromotedProducts(raw: any): PromotedCategory[] {
+  if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
+  // New format: array of { category, products }
+  if (typeof raw[0] === "object" && raw[0].category) {
+    return raw as PromotedCategory[];
+  }
+  // Legacy format: string[]
+  return [{
+    category: "General",
+    products: raw.map((name: string) => ({ product_id: "", name, note: "" })),
+  }];
+}
+
+function isProductSelected(promoted: PromotedCategory[], productId: string): boolean {
+  return promoted.some(c => c.products.some(p => p.product_id === productId));
+}
+
+function getProductNote(promoted: PromotedCategory[], productId: string): string {
+  for (const c of promoted) {
+    const found = c.products.find(p => p.product_id === productId);
+    if (found) return found.note;
+  }
+  return "";
+}
+
+function totalSelected(promoted: PromotedCategory[]): number {
+  return promoted.reduce((acc, c) => acc + c.products.length, 0);
+}
+
 export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const raw = config.suggest_configs || {};
   const initial: SuggestConfig = { ...DEFAULT_CONFIG, ...raw };
 
   const [state, setState] = useState<SuggestConfig>(initial);
   const [saving, setSaving] = useState(false);
+  const [promoted, setPromoted] = useState<PromotedCategory[]>(() => parsePromotedProducts(config.promoted_products));
+  const [menuByCategory, setMenuByCategory] = useState<Record<string, MenuProduct[]>>({});
+  const [loading, setLoading] = useState(true);
 
-  // Star products state
-  const [products, setProducts] = useState<string[]>(config.promoted_products || []);
-  const [newProduct, setNewProduct] = useState("");
-  
+  // Load active products
+  useEffect(() => {
+    const load = async () => {
+      const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", (await supabase.auth.getUser()).data.user?.id || "").single();
+      if (!profile?.restaurant_id) return;
+
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, name, price, category_name, categories(name)")
+        .eq("restaurant_id", profile.restaurant_id)
+        .eq("is_active", true)
+        .order("name");
+
+      if (products) {
+        const grouped: Record<string, MenuProduct[]> = {};
+        for (const p of products) {
+          const cat = p.category_name || (p.categories as any)?.name || "Otros";
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push({ ...p, category_name: cat } as MenuProduct);
+        }
+        setMenuByCategory(grouped);
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
 
   const update = <K extends keyof SuggestConfig>(key: K, value: SuggestConfig[K]) => {
     setState(prev => ({ ...prev, [key]: value }));
   };
 
+  const toggleProduct = (product: MenuProduct, categoryName: string) => {
+    setPromoted(prev => {
+      const isSelected = isProductSelected(prev, product.id);
+      if (isSelected) {
+        // Remove
+        const updated = prev.map(c => ({
+          ...c,
+          products: c.products.filter(p => p.product_id !== product.id),
+        })).filter(c => c.products.length > 0);
+        return updated;
+      } else {
+        // Add
+        const existing = prev.find(c => c.category === categoryName);
+        const newProduct: PromotedProduct = { product_id: product.id, name: product.name, note: "" };
+        if (existing) {
+          return prev.map(c => c.category === categoryName ? { ...c, products: [...c.products, newProduct] } : c);
+        }
+        return [...prev, { category: categoryName, products: [newProduct] }];
+      }
+    });
+  };
+
+  const updateNote = (productId: string, note: string) => {
+    setPromoted(prev => prev.map(c => ({
+      ...c,
+      products: c.products.map(p => p.product_id === productId ? { ...p, note } : p),
+    })));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     await onSave("suggest_configs", state);
-    await onSave("promoted_products", products);
+    await onSave("promoted_products", promoted);
     setSaving(false);
   };
-
-  // Star products handlers
-  const addProduct = () => {
-    if (newProduct.trim() && !products.includes(newProduct.trim())) {
-      setProducts([...products, newProduct.trim()]);
-      setNewProduct("");
-    }
-  };
-  const removeProduct = (i: number) => setProducts(products.filter((_, idx) => idx !== i));
-
 
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
     { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
@@ -71,6 +166,8 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
     { key: "no_prices_in_suggestions", label: "No mencionar precios", desc: "Alicia no incluye precios al hacer sugerencias", icon: DollarSign },
     { key: "respect_first_no", label: "Respetar el primer 'no'", desc: "Si el cliente rechaza, no insistir con más sugerencias", icon: ShieldCheck },
   ];
+
+  const sortedCategories = Object.keys(menuByCategory).sort();
 
   return (
     <div className="bg-card border border-border/20 rounded-xl shadow-sm overflow-hidden">
@@ -110,37 +207,71 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
               </Select>
             </div>
 
-            {/* Star products section */}
+            {/* Star products section — categorized selector */}
             <div className="border border-border/30 rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Star className="h-4 w-4 text-orange-400" />
                 <label className="text-sm font-medium text-foreground">Productos destacados</label>
+                {totalSelected(promoted) > 0 && (
+                  <span className="text-xs text-muted-foreground ml-auto">{totalSelected(promoted)} seleccionados</span>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">Alicia los sugerirá cuando el cliente no sepa qué pedir</p>
-              <div className="flex gap-2">
-                <Input value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Ej: Pizza Margarita, Combo Familiar..." onKeyDown={e => e.key === "Enter" && addProduct()} className="border-border" />
-                <Button variant="outline" onClick={addProduct} className="border-border gap-1"><Plus className="h-4 w-4" />Agregar</Button>
-              </div>
+              <p className="text-xs text-muted-foreground">Selecciona los productos que Alicia recomendará y agrega una nota descriptiva</p>
 
-              {products.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {products.map((p, i) => (
-                    <Badge key={i} className="gap-1.5 bg-orange-900/30 text-orange-400 border border-orange-500/30 hover:bg-orange-900/40 px-3 py-1.5 text-sm">
-                      <Star className="h-3 w-3 fill-orange-400 text-orange-400" />
-                      {p}
-                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeProduct(i)} />
-                    </Badge>
+              {loading ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">Cargando productos...</div>
+              ) : sortedCategories.length === 0 ? (
+                <div className="bg-muted rounded-lg p-4 text-center">
+                  <Star className="h-6 w-6 text-muted-foreground mx-auto mb-1.5" />
+                  <p className="text-xs text-muted-foreground">No hay productos activos en el menú</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {sortedCategories.map(cat => (
+                    <Collapsible key={cat}>
+                      <CollapsibleTrigger className="flex items-center justify-between w-full bg-muted/50 rounded-lg px-3 py-2.5 hover:bg-muted transition-colors group">
+                        <span className="text-sm font-medium text-foreground">{cat}</span>
+                        <div className="flex items-center gap-2">
+                          {promoted.find(c => c.category === cat)?.products.length ? (
+                            <span className="text-xs text-orange-400 font-medium">
+                              {promoted.find(c => c.category === cat)!.products.length}
+                            </span>
+                          ) : null}
+                          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pl-2 pr-1 py-1 space-y-1">
+                        {menuByCategory[cat].map(product => {
+                          const selected = isProductSelected(promoted, product.id);
+                          const note = getProductNote(promoted, product.id);
+                          return (
+                            <div key={product.id} className="space-y-1">
+                              <label className="flex items-center gap-3 rounded-md px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors">
+                                <Checkbox
+                                  checked={selected}
+                                  onCheckedChange={() => toggleProduct(product, cat)}
+                                />
+                                <span className="text-sm text-foreground flex-1">{product.name}</span>
+                                <span className="text-xs text-muted-foreground">${Number(product.price).toLocaleString("es-CO")}</span>
+                              </label>
+                              {selected && (
+                                <div className="ml-9 mr-2 mb-2">
+                                  <Input
+                                    value={note}
+                                    onChange={e => updateNote(product.id, e.target.value)}
+                                    placeholder="Nota para Alicia, ej: recién salidos del horno..."
+                                    className="text-xs border-border h-8"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
                   ))}
                 </div>
               )}
-
-              {products.length === 0 && (
-                <div className="bg-muted rounded-lg p-4 text-center">
-                  <Star className="h-6 w-6 text-muted-foreground mx-auto mb-1.5" />
-                  <p className="text-xs text-muted-foreground">Agrega tus productos estrella para que Alicia los promocione</p>
-                </div>
-              )}
-
             </div>
 
             {/* Individual moment switches */}
