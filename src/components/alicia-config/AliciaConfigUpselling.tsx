@@ -62,11 +62,6 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   };
   const removeProduct = (i: number) => setProducts(products.filter((_, idx) => idx !== i));
 
-  const handleSaveStarProducts = async () => {
-    setSavingStarProducts(true);
-    await onSave("promoted_products", products);
-    setSavingStarProducts(false);
-  };
 
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
     { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
