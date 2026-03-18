@@ -29,6 +29,7 @@ interface PromotedProduct {
 
 interface PromotedCategory {
   category: string;
+  category_id: string;
   products: PromotedProduct[];
 }
 
@@ -36,6 +37,7 @@ interface MenuProduct {
   id: string;
   name: string;
   price: number;
+  category_id: string;
   category_name: string | null;
   categories?: { name: string } | null;
 }
@@ -51,18 +53,12 @@ const DEFAULT_CONFIG: SuggestConfig = {
   max_suggestions_per_order: 2,
 };
 
-/** Parse legacy string[] or new category-based format */
 function parsePromotedProducts(raw: any): PromotedCategory[] {
   if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
-  // New format: array of { category, products }
   if (typeof raw[0] === "object" && raw[0].category) {
     return raw as PromotedCategory[];
   }
-  // Legacy format: string[]
-  return [{
-    category: "General",
-    products: raw.map((name: string) => ({ product_id: "", name, note: "" })),
-  }];
+  return [];
 }
 
 function isProductSelected(promoted: PromotedCategory[], productId: string): boolean {
@@ -99,7 +95,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
 
       const { data: products } = await supabase
         .from("products")
-        .select("id, name, price, categories(name)")
+        .select("id, name, price, category_id, categories(name)")
         .eq("restaurant_id", profile.restaurant_id)
         .eq("is_active", true)
         .order("name");
@@ -109,7 +105,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
         for (const p of products as any[]) {
           const cat = p.categories?.name || "Otros";
           if (!grouped[cat]) grouped[cat] = [];
-          grouped[cat].push({ id: p.id, name: p.name, price: p.price, category_name: cat, categories: p.categories });
+          grouped[cat].push({ id: p.id, name: p.name, price: p.price, category_id: p.category_id || "", category_name: cat, categories: p.categories });
         }
         setMenuByCategory(grouped);
       }
@@ -126,20 +122,18 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
     setPromoted(prev => {
       const isSelected = isProductSelected(prev, product.id);
       if (isSelected) {
-        // Remove
         const updated = prev.map(c => ({
           ...c,
           products: c.products.filter(p => p.product_id !== product.id),
         })).filter(c => c.products.length > 0);
         return updated;
       } else {
-        // Add
         const existing = prev.find(c => c.category === categoryName);
         const newProduct: PromotedProduct = { product_id: product.id, name: product.name, note: "" };
         if (existing) {
           return prev.map(c => c.category === categoryName ? { ...c, products: [...c.products, newProduct] } : c);
         }
-        return [...prev, { category: categoryName, products: [newProduct] }];
+        return [...prev, { category: categoryName, category_id: product.category_id, products: [newProduct] }];
       }
     });
   };

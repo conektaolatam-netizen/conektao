@@ -1094,9 +1094,7 @@ function buildPrompt(
   if (promoted && promoted.length > 0) {
     const lines: string[] = [];
     for (const item of promoted) {
-      if (typeof item === "string") {
-        lines.push(`⭐ ${item}`);
-      } else if (item.category && Array.isArray(item.products)) {
+      if (item.category && Array.isArray(item.products)) {
         for (const p of item.products) {
           lines.push(p.note ? `⭐ ${p.name} — ${p.note}` : `⭐ ${p.name}`);
         }
