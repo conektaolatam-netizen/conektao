@@ -3508,7 +3508,7 @@ Deno.serve(async (req) => {
 
       // Detect stale "no delivery" messages when delivery is now available
       if (!isDeliveryDisabledOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStaleDeliveryMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || ""),
         );
