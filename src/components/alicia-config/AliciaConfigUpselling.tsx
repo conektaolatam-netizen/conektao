@@ -55,8 +55,14 @@ const DEFAULT_CONFIG: SuggestConfig = {
 
 function parsePromotedProducts(raw: any): PromotedCategory[] {
   if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
-  if (typeof raw[0] === "object" && raw[0].category) {
-    return raw as PromotedCategory[];
+  let parsed = raw;
+  if (typeof raw[0] === "string") {
+    try {
+      parsed = raw.map((item: string) => JSON.parse(item));
+    } catch { return []; }
+  }
+  if (typeof parsed[0] === "object" && parsed[0].category) {
+    return parsed as PromotedCategory[];
   }
   return [];
 }

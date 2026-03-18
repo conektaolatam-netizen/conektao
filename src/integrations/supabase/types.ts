@@ -5254,7 +5254,7 @@ export type Database = {
           order_email: string
           payment_config: Json | null
           personality_rules: Json | null
-          promoted_products: string[] | null
+          promoted_products: Json | null
           prompt_generated_at: string | null
           restaurant_description: string | null
           restaurant_id: string
@@ -5288,7 +5288,7 @@ export type Database = {
           order_email: string
           payment_config?: Json | null
           personality_rules?: Json | null
-          promoted_products?: string[] | null
+          promoted_products?: Json | null
           prompt_generated_at?: string | null
           restaurant_description?: string | null
           restaurant_id: string
@@ -5322,7 +5322,7 @@ export type Database = {
           order_email?: string
           payment_config?: Json | null
           personality_rules?: Json | null
-          promoted_products?: string[] | null
+          promoted_products?: Json | null
           prompt_generated_at?: string | null
           restaurant_description?: string | null
           restaurant_id?: string

@@ -1,56 +1,56 @@
 
 
-# Fix: Change `promoted_products` column from `text[]` to `jsonb`
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Root Cause
-The `promoted_products` column in `whatsapp_configs` is defined as `text[]` (PostgreSQL text array). When the frontend saves the categorized JSON structure, each object gets stringified into a text element. On reload, Supabase returns an array of strings, not parsed objects. The `parsePromotedProducts` function checks `typeof raw[0] === "object"` which fails for strings, so it returns `[]`.
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-## Solution
-
-### 1. Database Migration
-Alter the column from `text[]` to `jsonb`, converting existing data:
-
-```sql
-ALTER TABLE whatsapp_configs 
-ALTER COLUMN promoted_products 
-TYPE jsonb 
-USING COALESCE(
-  CASE 
-    WHEN array_length(promoted_products, 1) IS NULL THEN '[]'::jsonb
-    ELSE (
-      SELECT jsonb_agg(elem::jsonb)
-      FROM unnest(promoted_products) AS elem
-    )
-  END,
-  '[]'::jsonb
-);
-
-ALTER TABLE whatsapp_configs 
-ALTER COLUMN promoted_products 
-SET DEFAULT '[]'::jsonb;
-```
-
-This safely converts existing text array data (stringified JSON objects) into proper JSONB.
-
-### 2. `src/components/alicia-config/AliciaConfigUpselling.tsx`
-Add a safety fallback in `parsePromotedProducts` to handle string elements (in case any edge case remains):
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
 ```typescript
-function parsePromotedProducts(raw: any): PromotedCategory[] {
-  if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
-  // Handle case where elements might be strings (from text[] column)
-  let parsed = raw;
-  if (typeof raw[0] === "string") {
-    try {
-      parsed = raw.map((item: string) => JSON.parse(item));
-    } catch { return []; }
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
   }
-  if (typeof parsed[0] === "object" && parsed[0].category) {
-    return parsed as PromotedCategory[];
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
   }
-  return [];
+  return [text];
+}
+
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 ```
 
-No other files need changes since the data structure itself is correct — only the column type was wrong.
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
+
+Añadir instrucción explícita sobre signos de interrogación en español:
+
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
+
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
+
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
+
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
+
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
