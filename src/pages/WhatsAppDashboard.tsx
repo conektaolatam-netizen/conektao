@@ -223,10 +223,12 @@ export default function WhatsAppDashboard() {
   }, []);
 
   const fetchConversations = async () => {
+    if (!restaurantId) return;
     setLoading(true);
     const { data } = await supabase
       .from("whatsapp_conversations")
       .select("*")
+      .eq("restaurant_id", restaurantId)
       .order("updated_at", { ascending: false });
     if (data) {
       const parsed = data.map((c: any) => ({
@@ -243,19 +245,21 @@ export default function WhatsAppDashboard() {
   };
 
   useEffect(() => {
+    if (!restaurantId) return;
     fetchConversations();
     const interval = setInterval(fetchConversations, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
+    if (!restaurantId) return;
     const checkNudges = async () => {
       try {
         const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook?action=check_nudges`;
         await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ restaurant_id: restaurantId }),
         });
       } catch (e) {
         console.error("Nudge check error:", e);
@@ -264,7 +268,7 @@ export default function WhatsAppDashboard() {
     checkNudges();
     const nudgeInterval = setInterval(checkNudges, 2 * 60 * 1000);
     return () => clearInterval(nudgeInterval);
-  }, []);
+  }, [restaurantId]);
 
   const blockFromConversation = async (conv: Conversation) => {
     if (!restaurantId) return;
@@ -362,7 +366,7 @@ export default function WhatsAppDashboard() {
         </div>
 
         <TabsContent value="orders" className="flex-1 m-0 overflow-hidden">
-          <OrdersPanel />
+          {restaurantId ? <OrdersPanel restaurantId={restaurantId} /> : <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>}
         </TabsContent>
 
         <TabsContent value="conversations" className="flex-1 m-0 overflow-hidden">

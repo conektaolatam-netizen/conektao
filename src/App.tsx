@@ -30,7 +30,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const DataDeletion = lazy(() => import("./pages/DataDeletion"));
 const WhatsAppDashboard = lazy(() => import("./pages/WhatsAppDashboard"));
-import PasswordGate from "@/components/PasswordGate";
+import ProtectedRoute from "@/components/ProtectedRoute";
 const AliciaRegisterPage = lazy(() => import("./pages/AliciaRegisterPage"));
 const AliciaSetupPage = lazy(() => import("./pages/AliciaSetupPage"));
 const AliciaConfigPage = lazy(() => import("./pages/AliciaConfigPage"));
@@ -73,7 +73,7 @@ const App = () => (
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/data-deletion" element={<DataDeletion />} />
-                    <Route path="/alicia-dashboard" element={<PasswordGate><WhatsAppDashboard /></PasswordGate>} />
+                    <Route path="/alicia-dashboard" element={<ProtectedRoute><WhatsAppDashboard /></ProtectedRoute>} />
                     <Route path="/alicia/registro" element={<AliciaRegisterPage />} />
                     <Route path="/alicia/setup" element={<AliciaSetupPage />} />
                     <Route path="/alicia/config" element={<AliciaConfigPage />} />

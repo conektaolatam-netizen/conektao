@@ -1,53 +1,56 @@
 
 
-# Plan: Secure /alicia-dashboard with auth + multi-tenant filtering
+## Plan: Corregir signos de interrogación cortados y faltantes
 
-## Summary
-Three changes: (1) wrap route with ProtectedRoute, (2) filter all queries by restaurant_id, (3) remove PasswordGate.
+### Cambio 1: Mejorar `splitIntoHumanChunks()` para no cortar preguntas
 
-## Changes
+Después de dividir el texto en chunks, verificar si un chunk empieza con `?` o `!`. Si es así, mover ese carácter al final del chunk anterior:
 
-### 1. `src/App.tsx` — Route protection + remove PasswordGate
+```typescript
+function splitIntoHumanChunks(text: string): string[] {
+  if (text.length <= 200) return [text];
+  const parts = text.split(/\n\n+/).filter((p) => p.trim());
+  if (parts.length >= 2 && parts.length <= 4) {
+    return fixOrphanedPunctuation(parts.map((p) => p.trim()));
+  }
+  const lines = text.split(/\n/).filter((p) => p.trim());
+  if (lines.length >= 2) {
+    const mid = Math.ceil(lines.length / 2);
+    const chunks = [lines.slice(0, mid).join("\n"), lines.slice(mid).join("\n")].filter((p) => p.trim());
+    return fixOrphanedPunctuation(chunks);
+  }
+  return [text];
+}
 
-- Import `ProtectedRoute`
-- Change the `/alicia-dashboard` route from:
-  ```tsx
-  <Route path="/alicia-dashboard" element={<PasswordGate><WhatsAppDashboard /></PasswordGate>} />
-  ```
-  to:
-  ```tsx
-  <Route path="/alicia-dashboard" element={<ProtectedRoute><WhatsAppDashboard /></ProtectedRoute>} />
-  ```
-- Remove the `PasswordGate` import (it can stay as a file but won't be used)
+function fixOrphanedPunctuation(chunks: string[]): string[] {
+  for (let i = 1; i < chunks.length; i++) {
+    // If chunk starts with ? or ! (with optional spaces), move it to previous chunk
+    const match = chunks[i].match(/^(\s*[?!¡¿]+\s*)/);
+    if (match) {
+      chunks[i - 1] = chunks[i - 1].trimEnd() + match[1].trim();
+      chunks[i] = chunks[i].substring(match[0].length).trim();
+    }
+  }
+  return chunks.filter((c) => c.length > 0);
+}
+```
 
-### 2. `src/pages/WhatsAppDashboard.tsx` — Filter all queries by restaurant_id
+### Cambio 2: Agregar regla de puntuación al Core Prompt (línea 647)
 
-The dashboard already fetches `restaurantId` from the user's profile. The problems:
-- **Conversations query** (line 227-230): no `restaurant_id` filter — fetches ALL conversations globally
-- **Conversations polling** starts before `restaurantId` is available
-- **OrdersPanel** receives no `restaurantId` prop — fetches ALL orders globally
-- **TemplatesPanel** already receives `wabaId` (OK)
-- **Nudge check** fires globally without restaurant context
+Añadir instrucción explícita sobre signos de interrogación en español:
 
-Changes:
-- Pass `restaurantId` to the conversations query: `.eq("restaurant_id", restaurantId)`
-- Wait for `restaurantId` before fetching conversations (move fetch into effect that depends on `restaurantId`)
-- Pass `restaurantId` as prop to `<OrdersPanel>`
-- Pass `restaurantId` to nudge check endpoint
-- Use `useAuth()` hook instead of manual `supabase.auth.getUser()` for consistency
+```
+ANTES (línea 647):
+"Primera letra MAYÚSCULA siempre. NO punto final. Mensajes CORTOS..."
 
-### 3. `src/components/alicia-dashboard/OrdersPanel.tsx` — Filter orders by restaurant_id
+DESPUÉS:
+"Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS..."
+```
 
-- Accept `restaurantId` prop
-- Add `.eq("restaurant_id", restaurantId)` to the orders query
-- Filter realtime subscription to the restaurant's orders
-- Don't fetch until `restaurantId` is available
+### Cambio 3: Aplicar la misma lógica al corte por 4000 chars (líneas 286-298)
 
-### 4. No DB changes needed
-Both `whatsapp_conversations` and `whatsapp_orders` already have `restaurant_id` columns with foreign keys.
+Después de cortar un segmento largo, verificar si el `rem` (resto) empieza con `?` o `!` y moverlo al segmento anterior.
 
-## Files modified
-- `src/App.tsx`
-- `src/pages/WhatsAppDashboard.tsx`
-- `src/components/alicia-dashboard/OrdersPanel.tsx`
+### Archivos afectados
+- `supabase/functions/whatsapp-webhook/index.ts` (3 cambios puntuales, mismas funciones)
 
