@@ -61,12 +61,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   }
 
   let step2 = "";
-  const hasUpsizing = suggestConfigs.suggest_upsizing !== false;
   const hasComplements = suggestConfigs.suggest_complements !== false;
-  if (hasUpsizing) {
-    step2 +=
-      '\n   → Si el producto tiene tamaño mayor disponible en el menú, ofrécelo. Ej: "También lo tenemos en [tamaño mayor], ¿prefieres ese?"';
-  }
   if (hasComplements) {
     step2 += `\n   → Antes de preguntar "¿algo más?", sugiere hasta ${maxSug} complemento(s) natural(es). Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
   }
