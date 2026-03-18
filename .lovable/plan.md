@@ -1,100 +1,65 @@
 
 
-# Plan: Asistente Personal de Santiago (573176436656)
+# Diagnóstico: Por qué el bot sigue usando solo el saludo literal
 
-## Overview
-Intercept messages from Santiago's number in the WhatsApp webhook, bypass the restaurant/emotional flow entirely, and route to a dedicated personal assistant powered by Gemini that manages an `agenda_santi` table.
+## Causa raíz identificada
 
-## 1. Database: Create `agenda_santi` table
+El cambio anterior SÍ inyecta correctamente el greeting + instrucción de productos en el paso 1 del flujo. El prompt generado queda así:
 
-```sql
-CREATE TABLE public.agenda_santi (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  fecha_hora timestamptz NOT NULL,
-  titulo text NOT NULL,
-  descripcion text,
-  aviso_minutos integer DEFAULT 5,
-  aviso_enviado boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.agenda_santi ENABLE ROW LEVEL SECURITY;
--- Service role only (edge functions use service role key)
-CREATE POLICY "Service role full access" ON public.agenda_santi FOR ALL USING (true) WITH CHECK (true);
+```text
+1. Saluda y pregunta qué quiere 
+   → Usa como base este saludo: "¡Hola! 👋 Soy ALICIA, la asistente virtual 
+   de La Barra Crea Tu Pizza en Ibagué. ¿En qué te puedo ayudar?". 
+   Personalízalo y ,debes mencionar naturalmente hasta 1 productos populares...
 ```
 
-## 2. Webhook: Intercept Santiago's number
+**El modelo interpreta el texto entre comillas como el saludo a copiar**, ignorando la instrucción que viene después. Razones:
 
-**File: `supabase/functions/whatsapp-webhook/index.ts`**
+1. **El greeting es autocontenido**: Ya incluye presentación + pregunta ("¿En qué te puedo ayudar?"), así que el modelo no siente necesidad de agregar nada más.
+2. **Instrucción débil después de comillas**: "Personalízalo y ,debes mencionar..." queda como nota secundaria (además tiene error sintáctico: coma extra).
+3. **Gemini 2.5 Flash con temperature 0.2** favorece lo concreto (texto entre comillas) sobre lo abstracto (instrucciones).
 
-After message type handling (~line 2696, after the empty-text check) and **before** the config lookup (line 2698), insert:
+## Solución propuesta
 
+Cambiar la estrategia en `suggestionFlow.ts` — en lugar de poner el greeting textual entre comillas (que el modelo copia), **descomponer** el greeting en instrucciones de tono y obligar la mención de productos como parte inseparable del paso:
+
+### Cambio en `suggestionFlow.ts`, step1 (cuando `suggest_on_greeting` es true):
+
+**Antes:**
 ```typescript
-const SANTI_PHONE = "573176436656";
-if (from === SANTI_PHONE) {
-  await markRead(pid, GLOBAL_WA_TOKEN, msg.id);
-  await handleSantiAssistant(text, from, pid, GLOBAL_WA_TOKEN);
-  return new Response(JSON.stringify({ status: "santi_handled" }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo y ,debes mencionar naturalmente hasta ${maxSug} productos...`;
 ```
 
-This returns early, completely skipping the restaurant/emotional flow.
+**Después:**
+```typescript
+step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda con el tono de "${greetingMessage}" pero NO lo copies textualmente, (b) Menciona hasta ${maxSug} producto(s) del menú recomendado(s). Tu saludo DEBE incluir nombre(s) de producto(s). Ej: "Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
+```
 
-## 3. `handleSantiAssistant` function
+Esto hace tres cosas:
+- Cambia "usa como base" (débil) por "OBLIGATORIO" con sub-pasos claros (a) y (b)
+- Dice explícitamente "NO lo copies textualmente"
+- Dice "Tu saludo DEBE incluir nombre(s) de producto(s)" — sin esto, no se genera producto
 
-Add in the webhook file (helpers section, ~line 490). This function:
+### Cambio para cuando `suggest_on_greeting` es false pero hay greeting:
 
-1. Loads existing conversation context from `agenda_santi` (upcoming events)
-2. Calls Gemini via Lovable AI Gateway with tool-calling to extract structured actions:
-   - **Tool `agendar`**: params `fecha_hora`, `titulo`, `descripcion`, `aviso_minutos` → INSERT into `agenda_santi`
-   - **Tool `ver_agenda`**: params `rango` (hoy/semana/todo) → SELECT from `agenda_santi`
-   - **Tool `eliminar`**: params `titulo_parcial` → DELETE matching row
-   - **Tool `modificar`**: params `titulo_parcial`, `nueva_fecha_hora` → UPDATE matching row
-3. Executes the tool action against the DB
-4. Sends the AI's confirmation text back via `sendWA`
+**Antes:**
+```typescript
+step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo naturalmente`;
+```
 
-The system prompt instructs Gemini to always assume `America/Bogota` (UTC-5), respond in Spanish, confirm with date/time/notes, use direct tone, max one ✅ emoji.
+**Después:**
+```typescript
+step1 = `\n   → Saluda con el tono de: "${greetingMessage}" (NO copies textualmente, personalízalo)`;
+```
 
-Gemini handles natural Spanish date parsing ("mañana a las 3", "el miércoles", "en 2 horas") internally via the system prompt instructions. Dates are stored as UTC `timestamptz`.
+### Corrección menor
+- Arreglar la coma extra en `,debes` → `debes`
 
-## 4. Edge Function: `agenda-reminder`
+## Archivos a modificar
 
-**New file: `supabase/functions/agenda-reminder/index.ts`**
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/_shared/suggestionFlow.ts` | Reescribir step1 con instrucciones más directivas que eviten copia textual del greeting |
 
-- Runs on HTTP call (triggered externally via cron-job.org every 1 minute)
-- Queries `agenda_santi` for events where:
-  - `aviso_enviado = false`
-  - `fecha_hora - interval 'aviso_minutos minutes' <= now()`
-  - `fecha_hora > now()`
-- For each match, sends WhatsApp message to `573176436656` with format:
-  ```
-  ⏰ Santiago, en X minutos:
-  
-  TÍTULO
-  DESCRIPCIÓN
-  
-  Hora Colombia: HH:mm
-  ```
-- Marks `aviso_enviado = true`
-- Uses `GLOBAL_WA_PHONE_ID` and `GLOBAL_WA_TOKEN` from env
-
-**Config**: Add `[functions.agenda-reminder]` with `verify_jwt = false` to `supabase/config.toml`.
-
-## 5. Files Modified
-
-| File | Change |
-|------|--------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Add `handleSantiAssistant` function + early-return intercept for Santiago's number |
-| `supabase/functions/agenda-reminder/index.ts` | New edge function for reminder cron |
-| `supabase/config.toml` | Add `[functions.agenda-reminder]` entry |
-| Database migration | Create `agenda_santi` table |
-
-## 6. Cron Setup
-
-After deployment, the reminder URL will be:
-`https://ctsqvjcgcukosusksulx.supabase.co/functions/v1/agenda-reminder`
-
-The user should configure this in cron-job.org to run every 1 minute with the anon key as Authorization header.
+No se toca el webhook, el problema está exclusivamente en cómo `suggestionFlow.ts` formula la instrucción del step1.
 
