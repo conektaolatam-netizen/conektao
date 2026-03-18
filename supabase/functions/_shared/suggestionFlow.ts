@@ -34,8 +34,12 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   rules.push("REGLAS DE SUGERENCIAS:");
   rules.push(`- Máximo ${maxSug} sugerencias por pedido. Lleva la cuenta internamente`);
   if (suggestConfigs.respect_first_no !== false) {
-    rules.push("- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación");
-    rules.push("- IMPORTANTE: Cuando el cliente dice 'no' a '¿Algo más?' NO es un rechazo de sugerencia — es que terminó de pedir. Puedes seguir sugiriendo en pasos posteriores");
+    rules.push(
+      "- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación",
+    );
+    rules.push(
+      "- IMPORTANTE: Cuando el cliente dice 'no' a '¿Algo más?' NO es un rechazo de sugerencia — es que terminó de pedir. Puedes seguir sugiriendo en pasos posteriores",
+    );
   }
   if (suggestConfigs.no_prices_in_suggestions) {
     rules.push("- NO menciones precios al sugerir");
@@ -51,7 +55,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     const greetingPart = greetingMessage
       ? `Usa como base este saludo: "${greetingMessage}". Personalízalo y`
       : "Al saludar,";
-    step1 = `\n   → ${greetingPart} menciona naturalmente hasta ${maxSug} productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"`;
+    step1 = `\n   → ${greetingPart} ,debes mencionar naturalmente hasta ${maxSug} productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"`;
   } else if (greetingMessage) {
     step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo naturalmente`;
   }
@@ -64,14 +68,12 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
       '\n   → Si el producto tiene tamaño mayor disponible en el menú, ofrécelo. Ej: "También lo tenemos en [tamaño mayor], ¿prefieres ese?"';
   }
   if (hasComplements) {
-    step2 +=
-      `\n   → Antes de preguntar "¿algo más?", sugiere hasta ${maxSug} complemento(s) natural(es). Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
+    step2 += `\n   → Antes de preguntar "¿algo más?", sugiere hasta ${maxSug} complemento(s) natural(es). Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
   }
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 =
-      `\n   → Antes de pasar a recoger/domicilio, haz hasta ${maxSug} última(s) sugerencia(s) breve(s). Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
+    step3 = `\n   → Antes de pasar a recoger/domicilio, haz hasta ${maxSug} última(s) sugerencia(s) breve(s). Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {
