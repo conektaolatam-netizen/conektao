@@ -1,45 +1,100 @@
-Diagnóstico (causa raíz identificada)
 
-1. La lógica nueva sí está funcionando en conversaciones nuevas
 
-- Evidencia en DB: conversación `573161087806` (creada 2026-03-18 17:29) respondió en el primer mensaje con saludo + recomendación de producto.  
-- Esto confirma que `suggestionFlow.ts` y el flujo inyectado en `whatsapp-webhook` están activos.
+# Plan: Asistente Personal de Santiago (573176436656)
 
-2. El problema real ocurre por contexto de conversación “contaminado” en números ya usados
+## Overview
+Intercept messages from Santiago's number in the WhatsApp webhook, bypass the restaurant/emotional flow entirely, and route to a dedicated personal assistant powered by Gemini that manages an `agenda_santi` table.
 
-- En `whatsapp-webhook/index.ts`, `callAI()` envía historial completo reciente: `msgs.slice(-120)`; además se guardan hasta 30 mensajes por conversación.  
-- En conversaciones como `573506332222` y `573006653341`, el historial está lleno de ciclos `Hola` → mismo saludo literal.  
-- El modelo termina copiando el último patrón del historial en vez de ejecutar de nuevo el “paso 1 con sugerencia”.
+## 1. Database: Create `agenda_santi` table
 
-3. Regla de máximo sugerencias también contribuye
+```sql
+CREATE TABLE public.agenda_santi (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  fecha_hora timestamptz NOT NULL,
+  titulo text NOT NULL,
+  descripcion text,
+  aviso_minutos integer DEFAULT 5,
+  aviso_enviado boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.agenda_santi ENABLE ROW LEVEL SECURITY;
+-- Service role only (edge functions use service role key)
+CREATE POLICY "Service role full access" ON public.agenda_santi FOR ALL USING (true) WITH CHECK (true);
+```
 
-- `suggest_configs.max_suggestions_per_order = 1`.  
-- En varias conversaciones ya hubo sugerencias antes (pasos 2/3), por lo que el modelo puede interpretar que ya alcanzó el máximo y evita sugerir de nuevo en saludos posteriores.
+## 2. Webhook: Intercept Santiago's number
 
-4. Estado conversacional no siempre se reinicia para “nuevo intento”
+**File: `supabase/functions/whatsapp-webhook/index.ts`**
 
-- Hay casos con `order_status = active` y `current_order` aún presente (ej. `573506332222`), lo cual empuja al modelo a continuar contexto viejo.  
-- Aunque `order_status = none`, si el historial sigue largo/repetitivo, el sesgo de copia persiste.
+After message type handling (~line 2696, after the empty-text check) and **before** the config lookup (line 2698), insert:
 
-Plan propuesto (sin tocar código aún)
+```typescript
+const SANTI_PHONE = "573176436656";
+if (from === SANTI_PHONE) {
+  await markRead(pid, GLOBAL_WA_TOKEN, msg.id);
+  await handleSantiAssistant(text, from, pid, GLOBAL_WA_TOKEN);
+  return new Response(JSON.stringify({ status: "santi_handled" }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+```
 
-A. Controlar reinicio de conversación por inactividad o saludo de reapertura  
+This returns early, completely skipping the restaurant/emotional flow.
 
-- Si llega “hola/buenas” después de X minutos y no hay confirmación pendiente, resetear contexto operativo (y opcionalmente historial corto).
+## 3. `handleSantiAssistant` function
 
-B. Evitar que “hola loops” dominen el prompt  
+Add in the webhook file (helpers section, ~line 490). This function:
 
-- Antes de `callAI`, comprimir/eliminar secuencias repetidas de saludo-respuesta para no sesgar salida.
-- &nbsp;
+1. Loads existing conversation context from `agenda_santi` (upcoming events)
+2. Calls Gemini via Lovable AI Gateway with tool-calling to extract structured actions:
+   - **Tool `agendar`**: params `fecha_hora`, `titulo`, `descripcion`, `aviso_minutos` → INSERT into `agenda_santi`
+   - **Tool `ver_agenda`**: params `rango` (hoy/semana/todo) → SELECT from `agenda_santi`
+   - **Tool `eliminar`**: params `titulo_parcial` → DELETE matching row
+   - **Tool `modificar`**: params `titulo_parcial`, `nueva_fecha_hora` → UPDATE matching row
+3. Executes the tool action against the DB
+4. Sends the AI's confirmation text back via `sendWA`
 
-C. Ajuste de reglas de sugerencia por ciclo de pedido  
+The system prompt instructs Gemini to always assume `America/Bogota` (UTC-5), respond in Spanish, confirm with date/time/notes, use direct tone, max one ✅ emoji.
 
-- `max_suggestions_per_order`  no debe definir el maximo conteo por ciclo, en realidad el debe definir solo las maximas sugerencias por momento, ahora se utilizara `max_suggestions_per_moment`  en lugar de `max_suggestions_per_order`  , cambiar todas las logicas para tomar el nuevo nombre
+Gemini handles natural Spanish date parsing ("mañana a las 3", "el miércoles", "en 2 horas") internally via the system prompt instructions. Dates are stored as UTC `timestamptz`.
 
-D. Verificación  
+## 4. Edge Function: `agenda-reminder`
 
-- Probar con:  
-  1. número nuevo,  
-  2. número antiguo con historial largo,  
-  3. conversación con pedido previo incompleto.
-- Confirmar que en los tres casos el primer saludo del nuevo ciclo incluya producto recomendado.
+**New file: `supabase/functions/agenda-reminder/index.ts`**
+
+- Runs on HTTP call (triggered externally via cron-job.org every 1 minute)
+- Queries `agenda_santi` for events where:
+  - `aviso_enviado = false`
+  - `fecha_hora - interval 'aviso_minutos minutes' <= now()`
+  - `fecha_hora > now()`
+- For each match, sends WhatsApp message to `573176436656` with format:
+  ```
+  ⏰ Santiago, en X minutos:
+  
+  TÍTULO
+  DESCRIPCIÓN
+  
+  Hora Colombia: HH:mm
+  ```
+- Marks `aviso_enviado = true`
+- Uses `GLOBAL_WA_PHONE_ID` and `GLOBAL_WA_TOKEN` from env
+
+**Config**: Add `[functions.agenda-reminder]` with `verify_jwt = false` to `supabase/config.toml`.
+
+## 5. Files Modified
+
+| File | Change |
+|------|--------|
+| `supabase/functions/whatsapp-webhook/index.ts` | Add `handleSantiAssistant` function + early-return intercept for Santiago's number |
+| `supabase/functions/agenda-reminder/index.ts` | New edge function for reminder cron |
+| `supabase/config.toml` | Add `[functions.agenda-reminder]` entry |
+| Database migration | Create `agenda_santi` table |
+
+## 6. Cron Setup
+
+After deployment, the reminder URL will be:
+`https://ctsqvjcgcukosusksulx.supabase.co/functions/v1/agenda-reminder`
+
+The user should configure this in cron-job.org to run every 1 minute with the anon key as Authorization header.
+

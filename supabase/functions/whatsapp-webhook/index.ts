@@ -748,11 +748,19 @@ async function markRead(phoneId: string, token: string, msgId: string) {
 
 // ==================== CONVERSATION MANAGEMENT ====================
 
+/** Detect if text is a greeting that starts a new conversation cycle */
+function isGreetingMessage(text: string): boolean {
+  if (!text) return false;
+  const t = text.trim().toLowerCase().replace(/[!¡?¿.,;:\s]+/g, " ").trim();
+  return /^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches|hey|hi|hello|ey|epa|alo|aló|qué tal|que tal|buenas buenas)(\s|$)/i.test(t);
+}
+
 /** Get or create a conversation record.
  * If the existing conversation has a closed order (confirmed/emailed/sent),
  * reset it so recurring customers can place a NEW order without any block.
+ * Also resets on greeting after inactivity to prevent stale context bias.
  * Idempotency still applies per order_id — not per phone/customer. */
-async function getConversation(rid: string, phone: string) {
+async function getConversation(rid: string, phone: string, incomingText?: string) {
   const { data: ex } = await supabase
     .from("whatsapp_conversations")
     .select("*")
@@ -777,6 +785,31 @@ async function getConversation(rid: string, phone: string) {
       console.log(`🔄 CONV_RESET: ${phone} retorna tras pedido cerrado (${ex.order_status}) → estado fresco`);
       return reset || ex;
     }
+
+    // Greeting after inactivity → reset context to prevent stale history bias
+    if (incomingText && isGreetingMessage(incomingText)) {
+      const lastActivity = ex.updated_at ? new Date(ex.updated_at).getTime() : 0;
+      const minutesSinceLastActivity = (Date.now() - lastActivity) / 60000;
+      const isPendingConfirmation = ex.order_status === "pending_confirmation";
+      // Reset if 15+ minutes of inactivity AND no pending confirmation
+      if (minutesSinceLastActivity >= 15 && !isPendingConfirmation) {
+        const { data: reset } = await supabase
+          .from("whatsapp_conversations")
+          .update({
+            order_status: "none",
+            current_order: null,
+            pending_since: null,
+            payment_proof_url: null,
+            messages: [], // Clear history to prevent greeting-loop bias
+          })
+          .eq("id", ex.id)
+          .select()
+          .single();
+        console.log(`🔄 GREETING_RESET: ${phone} greeted after ${Math.round(minutesSinceLastActivity)}min inactivity → fresh context`);
+        return reset || ex;
+      }
+    }
+
     return ex;
   }
 
@@ -789,6 +822,7 @@ async function getConversation(rid: string, phone: string) {
   if (error) throw error;
   return cr;
 }
+
 
 // ==================== WA CUSTOMER MEMORY ====================
 
@@ -2779,7 +2813,7 @@ Deno.serve(async (req) => {
       }
 
       tlog("info", rId, `MSG from ${from}: "${text.substring(0, 80)}" (type: ${msg.type})`);
-      const conv = await getConversation(rId, from);
+      const conv = await getConversation(rId, from, text);
 
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
       const lowerTextTrim = text
@@ -3411,6 +3445,35 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
 
+      // === COMPRESS GREETING LOOPS ===
+      // Remove repetitive hola→saludo cycles that bias the model into copying old patterns
+      const compressedMsgs: any[] = [];
+      let greetingLoopCount = 0;
+      for (let i = 0; i < mergedMsgs.length; i++) {
+        const m = mergedMsgs[i];
+        const next = mergedMsgs[i + 1];
+        // Detect pattern: customer greeting followed by assistant greeting response
+        if (
+          m.role === "customer" &&
+          isGreetingMessage(m.content) &&
+          next?.role === "assistant" &&
+          greetingLoopCount >= 1 // Keep the first greeting cycle, compress subsequent ones
+        ) {
+          greetingLoopCount++;
+          i++; // Skip the assistant response too
+          continue;
+        }
+        if (m.role === "customer" && isGreetingMessage(m.content)) {
+          greetingLoopCount++;
+        }
+        compressedMsgs.push(m);
+      }
+      if (greetingLoopCount > 2) {
+        console.log(`🗜️ GREETING_COMPRESS: Removed ${greetingLoopCount - 1} redundant greeting cycles for ${from}`);
+      }
+      // Use compressed messages for AI call
+      const finalMsgs = compressedMsgs;
+
       // Store payment proof
       if (paymentProofUrl) {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
@@ -3433,7 +3496,7 @@ Deno.serve(async (req) => {
       // ── Detect stale "closed" messages in history when restaurant is NOW OPEN ──
       let reopenHint = "";
       if (!isRestaurantClosedOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStaleClosedMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /cerrado|closed|cerrada|cerramos/i.test(m.content || ""),
         );
@@ -3445,7 +3508,7 @@ Deno.serve(async (req) => {
 
       // Detect stale "no delivery" messages when delivery is now available
       if (!isDeliveryDisabledOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStaleDeliveryMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || ""),
         );
@@ -3457,7 +3520,7 @@ Deno.serve(async (req) => {
 
       // Detect stale "no pickup" messages when pickup is now available
       if (!isPickupDisabledOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStalePickupMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || ""),
         );
@@ -3505,7 +3568,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const ai = await callAI(sys, mergedMsgs);
+      const ai = await callAI(sys, finalMsgs);
 
       if (!ai) {
         console.error("AI returned empty response for", from);

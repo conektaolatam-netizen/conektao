@@ -27,12 +27,12 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     return empty;
   }
 
-  const maxSug = suggestConfigs.max_suggestions_per_order || 2;
+  const maxSug = suggestConfigs.max_suggestions_per_moment || suggestConfigs.max_suggestions_per_order || 2;
 
   // --- Global rules ---
   const rules: string[] = [];
   rules.push("REGLAS DE SUGERENCIAS:");
-  rules.push(`- Máximo ${maxSug} sugerencias por pedido. Lleva la cuenta internamente`);
+  rules.push(`- Máximo ${maxSug} sugerencia(s) por MOMENTO (saludo, durante pedido, antes de cerrar). El contador se reinicia en cada momento`);
   if (suggestConfigs.respect_first_no !== false) {
     rules.push(
       "- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación",
@@ -47,7 +47,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   rules.push("- Prioriza PRODUCTOS RECOMENDADOS HOY en tus sugerencias");
   rules.push("- NO repitas la misma sugerencia dos veces");
   rules.push("- NO sugieras productos que el cliente ya pidió");
-  rules.push("- Si ya alcanzaste el máximo de sugerencias → pasa al siguiente paso sin sugerir");
+  rules.push("- Si ya alcanzaste el máximo de sugerencias EN ESTE MOMENTO → pasa al siguiente paso sin sugerir");
 
   // --- Step fragments ---
   let step1 = "";
