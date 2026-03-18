@@ -366,7 +366,7 @@ export default function WhatsAppDashboard() {
         </div>
 
         <TabsContent value="orders" className="flex-1 m-0 overflow-hidden">
-          <OrdersPanel />
+          {restaurantId ? <OrdersPanel restaurantId={restaurantId} /> : <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>}
         </TabsContent>
 
         <TabsContent value="conversations" className="flex-1 m-0 overflow-hidden">

@@ -38,7 +38,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   completed: { label: "Entregado", color: "text-gray-400", bg: "bg-gray-400/10 border-gray-400/30", icon: CheckCircle2 },
 };
 
-export default function OrdersPanel() {
+interface OrdersPanelProps {
+  restaurantId: string;
+}
+
+export default function OrdersPanel({ restaurantId }: OrdersPanelProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -50,12 +54,13 @@ export default function OrdersPanel() {
     const { data, error } = await supabase
       .from("whatsapp_orders")
       .select("*")
+      .eq("restaurant_id", restaurantId)
       .gte("created_at", today.toISOString())
       .order("created_at", { ascending: false });
     if (data) setOrders(data.map((d: any) => ({ ...d, items: Array.isArray(d.items) ? d.items : [] })) as Order[]);
     if (error) console.error("Error fetching orders:", error);
     setLoading(false);
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
     fetchOrders();
@@ -63,16 +68,16 @@ export default function OrdersPanel() {
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  // Real-time subscription
+  // Real-time subscription filtered by restaurant
   useEffect(() => {
     const channel = supabase
       .channel("orders-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_orders" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_orders", filter: `restaurant_id=eq.${restaurantId}` }, () => {
         fetchOrders();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [fetchOrders]);
+  }, [fetchOrders, restaurantId]);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     setUpdatingId(orderId);
