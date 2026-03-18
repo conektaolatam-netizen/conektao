@@ -44,7 +44,6 @@ interface MenuProduct {
 const DEFAULT_CONFIG: SuggestConfig = {
   enabled: false,
   respect_first_no: true,
-  suggest_upsizing: true,
   suggest_complements: true,
   suggest_on_greeting: true,
   suggest_before_close: true,
