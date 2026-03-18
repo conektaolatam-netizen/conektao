@@ -17,7 +17,7 @@ interface SuggestConfig {
   suggest_on_greeting: boolean;
   suggest_before_close: boolean;
   no_prices_in_suggestions: boolean;
-  max_suggestions_per_order: number;
+  max_suggestions_per_moment: number;
 }
 
 interface PromotedProduct {
