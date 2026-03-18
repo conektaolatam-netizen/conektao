@@ -16,10 +16,14 @@ export interface SuggestionFragments {
   step3: string;
 }
 
-export function buildSuggestionFlow(suggestConfigs: any): SuggestionFragments {
+export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: string): SuggestionFragments {
   const empty: SuggestionFragments = { globalRules: "", step1: "", step2: "", step3: "" };
 
+  // If suggestions are disabled, still inject greeting into step1 if available
   if (!suggestConfigs?.enabled) {
+    if (greetingMessage) {
+      empty.step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo naturalmente`;
+    }
     return empty;
   }
 
@@ -44,8 +48,12 @@ export function buildSuggestionFlow(suggestConfigs: any): SuggestionFragments {
   // --- Step fragments ---
   let step1 = "";
   if (suggestConfigs.suggest_on_greeting !== false) {
-    step1 =
-      '\n   → Debes menciona naturalmente 1-2 productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"';
+    const greetingPart = greetingMessage
+      ? `Usa como base este saludo: "${greetingMessage}". Personalízalo y`
+      : "Al saludar,";
+    step1 = `\n   → ${greetingPart} menciona naturalmente hasta ${maxSug} productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"`;
+  } else if (greetingMessage) {
+    step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo naturalmente`;
   }
 
   let step2 = "";
@@ -57,13 +65,13 @@ export function buildSuggestionFlow(suggestConfigs: any): SuggestionFragments {
   }
   if (hasComplements) {
     step2 +=
-      '\n   → Antes de preguntar "¿algo más?", sugiere UN complemento natural. Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"';
+      `\n   → Antes de preguntar "¿algo más?", sugiere hasta ${maxSug} complemento(s) natural(es). Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
   }
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
     step3 =
-      '\n   → Antes de pasar a recoger/domicilio, haz UNA última sugerencia breve. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"';
+      `\n   → Antes de pasar a recoger/domicilio, haz hasta ${maxSug} última(s) sugerencia(s) breve(s). Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {

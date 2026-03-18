@@ -978,8 +978,8 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
  * This is the "DNA" of every Alicia instance.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any): string {
-  const sf = buildSuggestionFlow(suggestConfigs || {});
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage);
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
@@ -1117,7 +1117,7 @@ function buildPrompt(
     const personality = config.personality_rules || {};
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting);
     const dynamic = buildDynamicPrompt(
       config,
       products,
@@ -1321,8 +1321,6 @@ TONO: ${toneBlock}
 - Varía: ${(personality.preferred_vocabulary || ["dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto"]).join(", ")}
 
 ${customerCtx}
-SALUDO (referencia de tono, NO copiar textualmente): "${greeting}"
-- IMPORTANTE: Al saludar, usa este mensaje como BASE pero SIEMPRE personalízalo e incluye las sugerencias del paso 1 del flujo si aplican
 ${menuLinkBlock}
 
 ${menuBlock}
