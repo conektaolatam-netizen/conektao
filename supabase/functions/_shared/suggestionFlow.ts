@@ -52,12 +52,12 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   // --- Step fragments ---
   let step1 = "";
   if (suggestConfigs.suggest_on_greeting !== false) {
-    const greetingPart = greetingMessage
-      ? `Usa como base este saludo: "${greetingMessage}". Personalízalo y`
-      : "Al saludar,";
-    step1 = `\n   → ${greetingPart} ,debes mencionar naturalmente hasta ${maxSug} productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"`;
+    const greetingRef = greetingMessage
+      ? ` con el tono de: "${greetingMessage}" pero NO lo copies textualmente`
+      : "";
+    step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda${greetingRef}, (b) Menciona hasta ${maxSug} producto(s) del menú recomendado(s) HOY. Tu saludo DEBE incluir nombre(s) de producto(s). Ej: "¡Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
   } else if (greetingMessage) {
-    step1 = `\n   → Usa como base este saludo: "${greetingMessage}". Personalízalo naturalmente`;
+    step1 = `\n   → Saluda con el tono de: "${greetingMessage}" (NO copies textualmente, personalízalo)`;
   }
 
   let step2 = "";
