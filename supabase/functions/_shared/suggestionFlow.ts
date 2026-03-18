@@ -27,7 +27,9 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     return empty;
   }
 
-  const maxSug = suggestConfigs.max_suggestions_per_moment || suggestConfigs.max_suggestions_per_order || 2;
+  const maxSug = suggestConfigs.max_suggestions_per_moment || 2;
+  const sugLabel = maxSug === 1 ? "EXACTAMENTE 1" : `hasta ${maxSug}`;
+  const sugNoun = (s: string, p: string) => maxSug === 1 ? s : p;
 
   // --- Global rules ---
   const rules: string[] = [];
