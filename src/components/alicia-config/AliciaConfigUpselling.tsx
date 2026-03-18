@@ -162,7 +162,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   };
 
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
-    { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
+    { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona productos populares cuando el cliente saluda", icon: MessageCircle },
     { key: "suggest_complements", label: "Sugerir complementos", desc: "Sugiere bebidas, entradas u otros complementos tras un producto principal", icon: ShoppingBag },
     
     { key: "suggest_before_close", label: "Sugerir antes de cerrar", desc: "Una última sugerencia ligera antes de confirmar el pedido", icon: ClipboardCheck },
