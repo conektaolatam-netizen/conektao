@@ -48,7 +48,7 @@ const DEFAULT_CONFIG: SuggestConfig = {
   suggest_on_greeting: true,
   suggest_before_close: true,
   no_prices_in_suggestions: true,
-  max_suggestions_per_order: 2,
+  max_suggestions_per_moment: 2,
 };
 
 function parsePromotedProducts(raw: any): PromotedCategory[] {
