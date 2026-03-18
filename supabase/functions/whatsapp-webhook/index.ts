@@ -3496,7 +3496,7 @@ Deno.serve(async (req) => {
       // ── Detect stale "closed" messages in history when restaurant is NOW OPEN ──
       let reopenHint = "";
       if (!isRestaurantClosedOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStaleClosedMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /cerrado|closed|cerrada|cerramos/i.test(m.content || ""),
         );
