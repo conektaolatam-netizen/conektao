@@ -13,7 +13,6 @@ interface Props { config: any; onSave: (field: string, value: any) => Promise<vo
 interface SuggestConfig {
   enabled: boolean;
   respect_first_no: boolean;
-  suggest_upsizing: boolean;
   suggest_complements: boolean;
   suggest_on_greeting: boolean;
   suggest_before_close: boolean;
