@@ -29,6 +29,7 @@ interface PromotedProduct {
 
 interface PromotedCategory {
   category: string;
+  category_id: string;
   products: PromotedProduct[];
 }
 
@@ -36,6 +37,7 @@ interface MenuProduct {
   id: string;
   name: string;
   price: number;
+  category_id: string;
   category_name: string | null;
   categories?: { name: string } | null;
 }
