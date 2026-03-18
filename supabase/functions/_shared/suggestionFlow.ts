@@ -30,7 +30,8 @@ export function buildSuggestionFlow(suggestConfigs: any): SuggestionFragments {
   rules.push("REGLAS DE SUGERENCIAS:");
   rules.push(`- Máximo ${maxSug} sugerencias por pedido. Lleva la cuenta internamente`);
   if (suggestConfigs.respect_first_no !== false) {
-    rules.push("- Si el cliente rechaza UNA sugerencia → NO sugieras más en toda la conversación");
+    rules.push("- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación");
+    rules.push("- IMPORTANTE: Cuando el cliente dice 'no' a '¿Algo más?' NO es un rechazo de sugerencia — es que terminó de pedir. Puedes seguir sugiriendo en pasos posteriores");
   }
   if (suggestConfigs.no_prices_in_suggestions) {
     rules.push("- NO menciones precios al sugerir");
