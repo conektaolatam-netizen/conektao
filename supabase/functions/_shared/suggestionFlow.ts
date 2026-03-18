@@ -32,7 +32,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   // --- Global rules ---
   const rules: string[] = [];
   rules.push("REGLAS DE SUGERENCIAS:");
-  rules.push(`- Máximo ${maxSug} sugerencias por pedido. Lleva la cuenta internamente`);
+  rules.push(`- Máximo ${maxSug} sugerencia(s) por MOMENTO (saludo, durante pedido, antes de cerrar). El contador se reinicia en cada momento`);
   if (suggestConfigs.respect_first_no !== false) {
     rules.push(
       "- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación",
