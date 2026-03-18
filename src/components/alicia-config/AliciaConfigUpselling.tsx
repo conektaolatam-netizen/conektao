@@ -87,6 +87,11 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const [menuByCategory, setMenuByCategory] = useState<Record<string, MenuProduct[]>>({});
   const [loading, setLoading] = useState(true);
 
+  // Sync promoted products from DB when config loads/reloads
+  useEffect(() => {
+    setPromoted(parsePromotedProducts(config.promoted_products));
+  }, [config.promoted_products]);
+
   // Load active products
   useEffect(() => {
     const load = async () => {
