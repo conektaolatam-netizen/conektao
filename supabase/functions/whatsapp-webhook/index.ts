@@ -2813,7 +2813,7 @@ Deno.serve(async (req) => {
       }
 
       tlog("info", rId, `MSG from ${from}: "${text.substring(0, 80)}" (type: ${msg.type})`);
-      const conv = await getConversation(rId, from);
+      const conv = await getConversation(rId, from, text);
 
       // ===== HANDLE AFFIRMATIVE CONFIRMATION =====
       const lowerTextTrim = text
