@@ -122,20 +122,18 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
     setPromoted(prev => {
       const isSelected = isProductSelected(prev, product.id);
       if (isSelected) {
-        // Remove
         const updated = prev.map(c => ({
           ...c,
           products: c.products.filter(p => p.product_id !== product.id),
         })).filter(c => c.products.length > 0);
         return updated;
       } else {
-        // Add
         const existing = prev.find(c => c.category === categoryName);
         const newProduct: PromotedProduct = { product_id: product.id, name: product.name, note: "" };
         if (existing) {
           return prev.map(c => c.category === categoryName ? { ...c, products: [...c.products, newProduct] } : c);
         }
-        return [...prev, { category: categoryName, products: [newProduct] }];
+        return [...prev, { category: categoryName, category_id: product.category_id, products: [newProduct] }];
       }
     });
   };
