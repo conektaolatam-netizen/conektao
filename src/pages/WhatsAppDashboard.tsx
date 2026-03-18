@@ -252,13 +252,14 @@ export default function WhatsAppDashboard() {
   }, [restaurantId]);
 
   useEffect(() => {
+    if (!restaurantId) return;
     const checkNudges = async () => {
       try {
         const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook?action=check_nudges`;
         await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ restaurant_id: restaurantId }),
         });
       } catch (e) {
         console.error("Nudge check error:", e);
@@ -267,7 +268,7 @@ export default function WhatsAppDashboard() {
     checkNudges();
     const nudgeInterval = setInterval(checkNudges, 2 * 60 * 1000);
     return () => clearInterval(nudgeInterval);
-  }, []);
+  }, [restaurantId]);
 
   const blockFromConversation = async (conv: Conversation) => {
     if (!restaurantId) return;
