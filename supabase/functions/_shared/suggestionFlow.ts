@@ -47,7 +47,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   rules.push("- Prioriza PRODUCTOS RECOMENDADOS HOY en tus sugerencias");
   rules.push("- NO repitas la misma sugerencia dos veces");
   rules.push("- NO sugieras productos que el cliente ya pidió");
-  rules.push("- Si ya alcanzaste el máximo de sugerencias → pasa al siguiente paso sin sugerir");
+  rules.push("- Si ya alcanzaste el máximo de sugerencias EN ESTE MOMENTO → pasa al siguiente paso sin sugerir");
 
   // --- Step fragments ---
   let step1 = "";
