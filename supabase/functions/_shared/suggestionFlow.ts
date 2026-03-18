@@ -43,22 +43,26 @@ export function buildSuggestionFlow(suggestConfigs: any): SuggestionFragments {
   // --- Step fragments ---
   let step1 = "";
   if (suggestConfigs.suggest_on_greeting !== false) {
-    step1 = '\n   → Después de saludar, menciona naturalmente 1-2 productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"';
+    step1 =
+      '\n   → Debes menciona naturalmente 1-2 productos populares o recomendados. Ej: "Hoy tenemos [producto], te lo recomiendo"';
   }
 
   let step2 = "";
   const hasUpsizing = suggestConfigs.suggest_upsizing !== false;
   const hasComplements = suggestConfigs.suggest_complements !== false;
   if (hasUpsizing) {
-    step2 += '\n   → Si el producto tiene tamaño mayor disponible en el menú, ofrécelo. Ej: "También lo tenemos en [tamaño mayor], ¿prefieres ese?"';
+    step2 +=
+      '\n   → Si el producto tiene tamaño mayor disponible en el menú, ofrécelo. Ej: "También lo tenemos en [tamaño mayor], ¿prefieres ese?"';
   }
   if (hasComplements) {
-    step2 += '\n   → Antes de preguntar "¿algo más?", sugiere UN complemento natural. Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"';
+    step2 +=
+      '\n   → Antes de preguntar "¿algo más?", sugiere UN complemento natural. Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"';
   }
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 = '\n   → Antes de pasar a recoger/domicilio, haz UNA última sugerencia breve. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"';
+    step3 =
+      '\n   → Antes de pasar a recoger/domicilio, haz UNA última sugerencia breve. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"';
   }
 
   return {
