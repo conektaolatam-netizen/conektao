@@ -57,7 +57,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     const greetingRef = greetingMessage
       ? ` con el tono de: "${greetingMessage}" pero NO lo copies textualmente`
       : "";
-    step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda${greetingRef}, (b) Menciona hasta ${maxSug} producto(s) del menú recomendado(s) HOY. Tu saludo DEBE incluir nombre(s) de producto(s). Ej: "¡Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
+    step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda${greetingRef}, (b) Menciona ${sugLabel} ${sugNoun("producto", "productos")} del menú ${sugNoun("recomendado", "recomendados")} HOY. Tu saludo DEBE incluir ${sugNoun("nombre de producto", "nombres de productos")}. Ej: "¡Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
   } else if (greetingMessage) {
     step1 = `\n   → Saluda con el tono de: "${greetingMessage}" (NO copies textualmente, personalízalo)`;
   }
