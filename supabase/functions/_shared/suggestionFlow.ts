@@ -70,7 +70,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 = `\n   → Antes de pasar a recoger/domicilio, haz hasta ${maxSug} última(s) sugerencia(s) breve(s). Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
+    step3 = `\n   → Antes de pasar a recoger/domicilio, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {
