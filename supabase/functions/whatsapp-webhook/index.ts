@@ -3568,7 +3568,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const ai = await callAI(sys, mergedMsgs);
+      const ai = await callAI(sys, finalMsgs);
 
       if (!ai) {
         console.error("AI returned empty response for", from);
