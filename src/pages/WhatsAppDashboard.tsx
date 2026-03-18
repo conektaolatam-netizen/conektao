@@ -223,10 +223,12 @@ export default function WhatsAppDashboard() {
   }, []);
 
   const fetchConversations = async () => {
+    if (!restaurantId) return;
     setLoading(true);
     const { data } = await supabase
       .from("whatsapp_conversations")
       .select("*")
+      .eq("restaurant_id", restaurantId)
       .order("updated_at", { ascending: false });
     if (data) {
       const parsed = data.map((c: any) => ({
@@ -243,10 +245,11 @@ export default function WhatsAppDashboard() {
   };
 
   useEffect(() => {
+    if (!restaurantId) return;
     fetchConversations();
     const interval = setInterval(fetchConversations, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
     const checkNudges = async () => {
