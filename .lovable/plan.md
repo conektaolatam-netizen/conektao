@@ -1,100 +1,45 @@
 
 
-# Plan: Asistente Personal de Santiago (573176436656)
+# Plan: Fix greeting product suggestions + "no" interpretation
 
-## Overview
-Intercept messages from Santiago's number in the WhatsApp webhook, bypass the restaurant/emotional flow entirely, and route to a dedicated personal assistant powered by Gemini that manages an `agenda_santi` table.
+## Problem 1 — Greeting ignores product suggestions
+**Root cause**: Line 1324 in `buildDynamicPrompt` outputs `SALUDO: "${greeting}"` as a quoted literal. The model treats it as exact text to copy, overriding the dynamic `sf.step1` instruction on line 1034 that says to mention 1-2 products.
 
-## 1. Database: Create `agenda_santi` table
-
-```sql
-CREATE TABLE public.agenda_santi (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  fecha_hora timestamptz NOT NULL,
-  titulo text NOT NULL,
-  descripcion text,
-  aviso_minutos integer DEFAULT 5,
-  aviso_enviado boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.agenda_santi ENABLE ROW LEVEL SECURITY;
--- Service role only (edge functions use service role key)
-CREATE POLICY "Service role full access" ON public.agenda_santi FOR ALL USING (true) WITH CHECK (true);
+**Fix** in `supabase/functions/whatsapp-webhook/index.ts` line 1324:
+Change from:
+```
+SALUDO: "${greeting}"
+```
+To:
+```
+SALUDO (referencia de tono, NO copiar textualmente): "${greeting}"
+- IMPORTANTE: Al saludar, usa este mensaje como BASE pero SIEMPRE personalízalo e incluye las sugerencias del paso 1 del flujo si aplican
 ```
 
-## 2. Webhook: Intercept Santiago's number
+This tells the model the greeting is a tone reference, not verbatim text, so it will naturally incorporate the `sf.step1` product suggestions.
 
-**File: `supabase/functions/whatsapp-webhook/index.ts`**
+## Problem 2 — "No" to "¿Algo más?" kills all suggestions
+**Root cause**: Line 33 in `suggestionFlow.ts` says: *"Si el cliente rechaza UNA sugerencia → NO sugieras más en toda la conversación"*. When the client says "no" to "¿Algo más?", the model interprets this as rejecting a suggestion.
 
-After message type handling (~line 2696, after the empty-text check) and **before** the config lookup (line 2698), insert:
-
-```typescript
-const SANTI_PHONE = "573176436656";
-if (from === SANTI_PHONE) {
-  await markRead(pid, GLOBAL_WA_TOKEN, msg.id);
-  await handleSantiAssistant(text, from, pid, GLOBAL_WA_TOKEN);
-  return new Response(JSON.stringify({ status: "santi_handled" }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+**Fix** in `supabase/functions/_shared/suggestionFlow.ts` line 33:
+Change from:
+```
+"- Si el cliente rechaza UNA sugerencia → NO sugieras más en toda la conversación"
+```
+To:
+```
+"- Si el cliente rechaza UNA sugerencia específica de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación"
+"- IMPORTANTE: Cuando el cliente dice 'no' a '¿Algo más?' NO es un rechazo de sugerencia — es que terminó de pedir. Puedes seguir sugiriendo en pasos posteriores"
 ```
 
-This returns early, completely skipping the restaurant/emotional flow.
+## Files modified
+| File | Lines | Change |
+|------|-------|--------|
+| `supabase/functions/whatsapp-webhook/index.ts` | ~1324 | Reword SALUDO label to prevent verbatim copying |
+| `supabase/functions/_shared/suggestionFlow.ts` | ~33 | Clarify that "no" to "¿Algo más?" ≠ rejection of suggestion |
 
-## 3. `handleSantiAssistant` function
-
-Add in the webhook file (helpers section, ~line 490). This function:
-
-1. Loads existing conversation context from `agenda_santi` (upcoming events)
-2. Calls Gemini via Lovable AI Gateway with tool-calling to extract structured actions:
-   - **Tool `agendar`**: params `fecha_hora`, `titulo`, `descripcion`, `aviso_minutos` → INSERT into `agenda_santi`
-   - **Tool `ver_agenda`**: params `rango` (hoy/semana/todo) → SELECT from `agenda_santi`
-   - **Tool `eliminar`**: params `titulo_parcial` → DELETE matching row
-   - **Tool `modificar`**: params `titulo_parcial`, `nueva_fecha_hora` → UPDATE matching row
-3. Executes the tool action against the DB
-4. Sends the AI's confirmation text back via `sendWA`
-
-The system prompt instructs Gemini to always assume `America/Bogota` (UTC-5), respond in Spanish, confirm with date/time/notes, use direct tone, max one ✅ emoji.
-
-Gemini handles natural Spanish date parsing ("mañana a las 3", "el miércoles", "en 2 horas") internally via the system prompt instructions. Dates are stored as UTC `timestamptz`.
-
-## 4. Edge Function: `agenda-reminder`
-
-**New file: `supabase/functions/agenda-reminder/index.ts`**
-
-- Runs on HTTP call (triggered externally via cron-job.org every 1 minute)
-- Queries `agenda_santi` for events where:
-  - `aviso_enviado = false`
-  - `fecha_hora - interval 'aviso_minutos minutes' <= now()`
-  - `fecha_hora > now()`
-- For each match, sends WhatsApp message to `573176436656` with format:
-  ```
-  ⏰ Santiago, en X minutos:
-  
-  TÍTULO
-  DESCRIPCIÓN
-  
-  Hora Colombia: HH:mm
-  ```
-- Marks `aviso_enviado = true`
-- Uses `GLOBAL_WA_PHONE_ID` and `GLOBAL_WA_TOKEN` from env
-
-**Config**: Add `[functions.agenda-reminder]` with `verify_jwt = false` to `supabase/config.toml`.
-
-## 5. Files Modified
-
-| File | Change |
-|------|--------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Add `handleSantiAssistant` function + early-return intercept for Santiago's number |
-| `supabase/functions/agenda-reminder/index.ts` | New edge function for reminder cron |
-| `supabase/config.toml` | Add `[functions.agenda-reminder]` entry |
-| Database migration | Create `agenda_santi` table |
-
-## 6. Cron Setup
-
-After deployment, the reminder URL will be:
-`https://ctsqvjcgcukosusksulx.supabase.co/functions/v1/agenda-reminder`
-
-The user should configure this in cron-job.org to run every 1 minute with the anon key as Authorization header.
+## What stays the same
+- No changes to business logic, ordering flow, or product data
+- The `sf.step1` dynamic injection remains untouched — it already works correctly
+- The `greeting` variable keeps coming from the config as before
 
