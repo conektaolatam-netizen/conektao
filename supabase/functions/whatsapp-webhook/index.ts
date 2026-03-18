@@ -1117,7 +1117,7 @@ function buildPrompt(
     const personality = config.personality_rules || {};
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting);
     const dynamic = buildDynamicPrompt(
       config,
       products,
