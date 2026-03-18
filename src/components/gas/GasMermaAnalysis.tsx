@@ -24,13 +24,17 @@ import {
 import {
   LineChart,
   Line,
-  XAxis,
-  YAxis,
+  XAxis as RechartsXAxis,
+  YAxis as RechartsYAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const Tooltip = RechartsTooltip as any;
 
 const GasMermaAnalysis: React.FC = () => {
   const { mermaByDriver, dailySummary, isLoading } = useFlowmeterData();
