@@ -3445,6 +3445,35 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
 
+      // === COMPRESS GREETING LOOPS ===
+      // Remove repetitive hola→saludo cycles that bias the model into copying old patterns
+      const compressedMsgs: any[] = [];
+      let greetingLoopCount = 0;
+      for (let i = 0; i < mergedMsgs.length; i++) {
+        const m = mergedMsgs[i];
+        const next = mergedMsgs[i + 1];
+        // Detect pattern: customer greeting followed by assistant greeting response
+        if (
+          m.role === "customer" &&
+          isGreetingMessage(m.content) &&
+          next?.role === "assistant" &&
+          greetingLoopCount >= 1 // Keep the first greeting cycle, compress subsequent ones
+        ) {
+          greetingLoopCount++;
+          i++; // Skip the assistant response too
+          continue;
+        }
+        if (m.role === "customer" && isGreetingMessage(m.content)) {
+          greetingLoopCount++;
+        }
+        compressedMsgs.push(m);
+      }
+      if (greetingLoopCount > 2) {
+        console.log(`🗜️ GREETING_COMPRESS: Removed ${greetingLoopCount - 1} redundant greeting cycles for ${from}`);
+      }
+      // Use compressed messages for AI call
+      const finalMsgs = compressedMsgs;
+
       // Store payment proof
       if (paymentProofUrl) {
         await supabase.from("whatsapp_conversations").update({ payment_proof_url: paymentProofUrl }).eq("id", conv.id);
