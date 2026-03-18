@@ -3520,7 +3520,7 @@ Deno.serve(async (req) => {
 
       // Detect stale "no pickup" messages when pickup is now available
       if (!isPickupDisabledOverride(activeOverrides)) {
-        const recentMsgs = (mergedMsgs || []).slice(-10);
+        const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStalePickupMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /no.*(recogida|recoger|pickup)/i.test(m.content || ""),
         );
