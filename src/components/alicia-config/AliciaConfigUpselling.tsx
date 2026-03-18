@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Lightbulb, MessageCircle, ShoppingBag, ArrowUpCircle, ClipboardCheck, DollarSign, ShieldCheck, Star, ChevronDown } from "lucide-react";
+import { Lightbulb, MessageCircle, ShoppingBag, ClipboardCheck, DollarSign, ShieldCheck, Star, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props { config: any; onSave: (field: string, value: any) => Promise<void>; }
@@ -13,7 +13,6 @@ interface Props { config: any; onSave: (field: string, value: any) => Promise<vo
 interface SuggestConfig {
   enabled: boolean;
   respect_first_no: boolean;
-  suggest_upsizing: boolean;
   suggest_complements: boolean;
   suggest_on_greeting: boolean;
   suggest_before_close: boolean;
@@ -45,7 +44,6 @@ interface MenuProduct {
 const DEFAULT_CONFIG: SuggestConfig = {
   enabled: false,
   respect_first_no: true,
-  suggest_upsizing: true,
   suggest_complements: true,
   suggest_on_greeting: true,
   suggest_before_close: true,
@@ -166,7 +164,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
   const switches: { key: keyof SuggestConfig; label: string; desc: string; icon: React.ElementType }[] = [
     { key: "suggest_on_greeting", label: "Sugerir al saludar", desc: "Menciona 1-2 productos populares cuando el cliente saluda", icon: MessageCircle },
     { key: "suggest_complements", label: "Sugerir complementos", desc: "Sugiere bebidas, entradas u otros complementos tras un producto principal", icon: ShoppingBag },
-    { key: "suggest_upsizing", label: "Sugerir tamaños mayores", desc: "Menciona tamaños más grandes si están disponibles", icon: ArrowUpCircle },
+    
     { key: "suggest_before_close", label: "Sugerir antes de cerrar", desc: "Una última sugerencia ligera antes de confirmar el pedido", icon: ClipboardCheck },
     { key: "no_prices_in_suggestions", label: "No mencionar precios", desc: "Alicia no incluye precios al hacer sugerencias", icon: DollarSign },
     { key: "respect_first_no", label: "Respetar el primer 'no'", desc: "Si el cliente rechaza, no insistir con más sugerencias", icon: ShieldCheck },
