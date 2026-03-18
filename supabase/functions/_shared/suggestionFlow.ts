@@ -27,7 +27,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     return empty;
   }
 
-  const maxSug = suggestConfigs.max_suggestions_per_order || 2;
+  const maxSug = suggestConfigs.max_suggestions_per_moment || suggestConfigs.max_suggestions_per_order || 2;
 
   // --- Global rules ---
   const rules: string[] = [];

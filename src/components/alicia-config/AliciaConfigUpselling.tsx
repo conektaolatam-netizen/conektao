@@ -200,7 +200,7 @@ export default function AliciaConfigUpselling({ config, onSave }: Props) {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Máximo de sugerencias por momento</label>
               <p className="text-xs text-muted-foreground mb-2">Cuántas sugerencias puede hacer Alicia en cada momento de la conversación</p>
-              <Select value={state.max_suggestions_per_order.toString()} onValueChange={v => update("max_suggestions_per_order", Number(v))}>
+              <Select value={state.max_suggestions_per_moment.toString()} onValueChange={v => update("max_suggestions_per_moment", Number(v))}>
                 <SelectTrigger className="w-40 border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[1, 2, 3, 4, 5].map(n => (
