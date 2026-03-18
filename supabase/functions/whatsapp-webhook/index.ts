@@ -978,8 +978,8 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
  * This is the "DNA" of every Alicia instance.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any): string {
-  const sf = buildSuggestionFlow(suggestConfigs || {});
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage);
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
