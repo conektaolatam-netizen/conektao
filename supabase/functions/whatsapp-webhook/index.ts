@@ -1321,12 +1321,8 @@ TONO: ${toneBlock}
 - Varía: ${(personality.preferred_vocabulary || ["dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto"]).join(", ")}
 
 ${customerCtx}
-${(() => {
-  const _sf = buildSuggestionFlow(suggestConfigs);
-  return _sf.step1
-    ? `SALUDO (referencia de tono, NO copiar textualmente): "${greeting}"\n${_sf.step1}`
-    : `SALUDO (referencia de tono, NO copiar textualmente): "${greeting}"`;
-})()}
+SALUDO (referencia de tono, NO copiar textualmente): "${greeting}"
+- IMPORTANTE: Al saludar, usa este mensaje como BASE pero SIEMPRE personalízalo e incluye las sugerencias del paso 1 del flujo si aplican
 ${menuLinkBlock}
 
 ${menuBlock}
