@@ -53,18 +53,12 @@ const DEFAULT_CONFIG: SuggestConfig = {
   max_suggestions_per_order: 2,
 };
 
-/** Parse legacy string[] or new category-based format */
 function parsePromotedProducts(raw: any): PromotedCategory[] {
   if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
-  // New format: array of { category, products }
   if (typeof raw[0] === "object" && raw[0].category) {
     return raw as PromotedCategory[];
   }
-  // Legacy format: string[]
-  return [{
-    category: "General",
-    products: raw.map((name: string) => ({ product_id: "", name, note: "" })),
-  }];
+  return [];
 }
 
 function isProductSelected(promoted: PromotedCategory[], productId: string): boolean {
