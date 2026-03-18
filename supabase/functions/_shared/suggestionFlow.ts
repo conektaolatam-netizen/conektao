@@ -27,12 +27,14 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     return empty;
   }
 
-  const maxSug = suggestConfigs.max_suggestions_per_moment || suggestConfigs.max_suggestions_per_order || 2;
+  const maxSug = suggestConfigs.max_suggestions_per_moment || 2;
+  const sugLabel = maxSug === 1 ? "EXACTAMENTE 1" : `hasta ${maxSug}`;
+  const sugNoun = (s: string, p: string) => maxSug === 1 ? s : p;
 
   // --- Global rules ---
   const rules: string[] = [];
   rules.push("REGLAS DE SUGERENCIAS:");
-  rules.push(`- Máximo ${maxSug} sugerencia(s) por MOMENTO (saludo, durante pedido, antes de cerrar). El contador se reinicia en cada momento`);
+  rules.push(`- Máximo ${maxSug} ${sugNoun("sugerencia", "sugerencias")} por MOMENTO (saludo, durante pedido, antes de cerrar). El contador se reinicia en cada momento`);
   if (suggestConfigs.respect_first_no !== false) {
     rules.push(
       "- Si el cliente rechaza UNA sugerencia ESPECÍFICA de producto (ej: 'no quiero eso', 'no gracias' a un producto sugerido) → NO sugieras más en toda la conversación",
@@ -55,7 +57,7 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
     const greetingRef = greetingMessage
       ? ` con el tono de: "${greetingMessage}" pero NO lo copies textualmente`
       : "";
-    step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda${greetingRef}, (b) Menciona hasta ${maxSug} producto(s) del menú recomendado(s) HOY. Tu saludo DEBE incluir nombre(s) de producto(s). Ej: "¡Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
+    step1 = `\n   → OBLIGATORIO en tu primer mensaje: (a) Saluda${greetingRef}, (b) Menciona ${sugLabel} ${sugNoun("producto", "productos")} del menú ${sugNoun("recomendado", "recomendados")} HOY. Tu saludo DEBE incluir ${sugNoun("nombre de producto", "nombres de productos")}. Ej: "¡Hola! Hoy te recomiendo [producto del menú]. ¿Qué se te antoja?"`;
   } else if (greetingMessage) {
     step1 = `\n   → Saluda con el tono de: "${greetingMessage}" (NO copies textualmente, personalízalo)`;
   }
@@ -63,12 +65,12 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
   let step2 = "";
   const hasComplements = suggestConfigs.suggest_complements !== false;
   if (hasComplements) {
-    step2 += `\n   → Antes de preguntar "¿algo más?", sugiere hasta ${maxSug} complemento(s) natural(es). Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
+    step2 += `\n   → Antes de preguntar "¿algo más?", sugiere ${sugLabel} ${sugNoun("complemento natural", "complementos naturales")}. Ej: "Para acompañar te queda genial un [complemento]. ¿Algo más?"`;
   }
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 = `\n   → Antes de pasar a recoger/domicilio, haz hasta ${maxSug} última(s) sugerencia(s) breve(s). Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
+    step3 = `\n   → Antes de pasar a recoger/domicilio, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {
