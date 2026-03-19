@@ -1668,7 +1668,8 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     }
   }
 
-  const total = subtotal + packagingTotal;
+  const deliveryCost = order.delivery_cost || 0;
+  const total = subtotal + packagingTotal + deliveryCost;
 
   // Payment block
   let paymentBlock = "";
