@@ -1054,7 +1054,7 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * This is the "DNA" of every Alicia instance.
  */
 function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true): string {
-  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage);
+  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage, deliveryAvailable);
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
