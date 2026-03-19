@@ -3157,7 +3157,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          const validated = validateOrder(resolvedOrder, effectiveConfirmProds);
+          const validated = validateOrder(resolvedOrder, effectiveConfirmProds, config);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
