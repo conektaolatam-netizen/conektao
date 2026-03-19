@@ -3657,7 +3657,7 @@ Deno.serve(async (req) => {
         const isOrderDelivery = /domicilio|delivery/.test(orderDeliveryType);
         const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
 
-        if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
+        if (isOrderDelivery && (isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false)) {
           const noDelivResp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
           await supabase
