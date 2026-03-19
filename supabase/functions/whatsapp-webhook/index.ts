@@ -3739,10 +3739,13 @@ Deno.serve(async (req) => {
       // If the AI response seems to accept a restricted service, override it
       if (!parsed && !modification) {
         const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase();
-        if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
+        if ((isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false) && /domicilio|delivery/i.test(lastCustomerText)) {
           // Check if AI is NOT already denying delivery
           if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
-            resp = buildServiceBlockMessage(activeOverrides, "delivery", config);
+            const blockMsg = isDeliveryDisabledOverride(activeOverrides)
+              ? buildServiceBlockMessage(activeOverrides, "delivery", config)
+              : "En este momento solo tenemos pedidos para recoger en el local 😊";
+            resp = blockMsg;
           }
         }
         if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
