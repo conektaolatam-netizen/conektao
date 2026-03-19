@@ -3613,6 +3613,7 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
+          activeOverrides,
         ) +
         customerMemoryCtx +
         overridePromptBlock +
