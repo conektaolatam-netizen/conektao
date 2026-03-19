@@ -3686,7 +3686,7 @@ Deno.serve(async (req) => {
         }
 
         // ORDER DETECTED BY AI → Validate and build backend summary
-        const validated = validateOrder(parsed.order, effectiveProducts);
+        const validated = validateOrder(parsed.order, effectiveProducts, config);
         if (validated.corrected) parsed.order = validated.order;
 
         // Build summary from validated data — NEVER use AI text for prices
