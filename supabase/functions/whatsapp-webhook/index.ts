@@ -1167,6 +1167,7 @@ function buildPrompt(
   status: string,
   config?: any,
   customerName?: string,
+  activeOverrides?: any[],
 ) {
   let prom = "";
   if (promoted && promoted.length > 0) {
