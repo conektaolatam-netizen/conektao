@@ -159,7 +159,7 @@ export default function AliciaConfigPage() {
       case "payments": return <AliciaConfigPayments config={config} onSave={saveField} />;
       case "schedule": return <AliciaConfigSchedule config={config} onSave={saveMultipleFields} />;
       case "delivery": return <AliciaConfigDelivery config={config} onSave={saveField} />;
-      
+      case "reservations": return <AliciaConfigReservations config={config} onSave={saveField} />;
       case "upselling": return <AliciaConfigUpselling config={config} onSave={saveField} />;
       case "personality": return <AliciaConfigPersonality config={config} onSave={saveMultipleFields} />;
       case "connection": return <AliciaConfigConnection config={config} onSave={saveMultipleFields} />;
