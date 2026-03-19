@@ -16,7 +16,7 @@ export interface SuggestionFragments {
   step3: string;
 }
 
-export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: string): SuggestionFragments {
+export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: string, deliveryAvailable: boolean = true): SuggestionFragments {
   const empty: SuggestionFragments = { globalRules: "", step1: "", step2: "", step3: "" };
 
   // If suggestions are disabled, still inject greeting into step1 if available
