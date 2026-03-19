@@ -1508,7 +1508,7 @@ function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packag
 }
 
 /** Validate and correct order prices/packaging for any business */
-function validateOrder(order: any, products?: any[]): { order: any; corrected: boolean; issues: string[] } {
+function validateOrder(order: any, products?: any[], config?: any): { order: any; corrected: boolean; issues: string[] } {
   if (!order?.items) return { order, corrected: false, issues: [] };
 
   const productEntries: ProductEntry[] = products ? buildProductEntries(products) : [];
