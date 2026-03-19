@@ -1706,9 +1706,10 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
   msg += paymentBlock + "\n\n";
   msg += "Tu pedido incluye:\n\n";
   msg += itemLines;
-  if (packagingTotal > 0) {
+  if (packagingTotal > 0 || deliveryCost > 0) {
     msg += `\nSubtotal: ${formatCOP(subtotal)}`;
-    msg += `\nEmpaques: ${formatCOP(packagingTotal)}`;
+    if (packagingTotal > 0) msg += `\nEmpaques: ${formatCOP(packagingTotal)}`;
+    if (deliveryCost > 0) msg += `\nDomicilio: ${formatCOP(deliveryCost)}`;
   }
   msg += `\nTotal: ${formatCOP(total)}`;
   msg += deliveryBlock;
