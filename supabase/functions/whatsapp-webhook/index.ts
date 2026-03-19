@@ -1690,6 +1690,12 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     (order.delivery_type || "").toLowerCase().includes("domicilio");
   if (isDelivery && order.delivery_address) {
     deliveryBlock = `\n📍 Domicilio: ${order.delivery_address}`;
+    if (order.delivery_cost > 0) {
+      deliveryBlock += `\n🏍️ Costo domicilio: ${formatCOP(order.delivery_cost)}`;
+    }
+    if (order.delivery_note) {
+      deliveryBlock += `\nℹ️ ${order.delivery_note}`;
+    }
   } else if (!isDelivery) {
     deliveryBlock = "\n🏪 Para recoger";
   }
