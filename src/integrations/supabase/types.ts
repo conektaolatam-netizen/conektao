@@ -5409,7 +5409,7 @@ export type Database = {
           {
             foreignKeyName: "whatsapp_configs_restaurant_id_fkey"
             columns: ["restaurant_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
