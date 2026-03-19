@@ -1,87 +1,49 @@
 
 
-# Plan: Prompt dinámico para domicilios + interceptación mid-conversation
+# Plan: Corregir paso 3 — LLM sigue ofreciendo domicilio
 
-## Resumen
+## Diagnóstico
 
-Hacer que el paso 3 del flujo conversacional se adapte dinámicamente según la disponibilidad de domicilios, y agregar interceptación mid-conversation cuando el cliente pide domicilio y no está disponible (por config o por override).
+El prompt dinámico está correcto. Cuando `deliveryAvailable = false`, el paso 3 dice "indícale que el pedido es para recoger en el local". Sin embargo, el LLM sigue preguntando "¿Sería para recoger o para domicilio?" por dos causas:
 
-## Cambios (2 archivos)
+1. **Historial de conversación**: Los mensajes anteriores del asistente (cuando domicilio estaba activo) contienen "¿Sería para recoger o para domicilio?". El LLM lee estos mensajes y replica el patrón, ignorando la instrucción del prompt.
 
-### Archivo 1: `supabase/functions/whatsapp-webhook/index.ts`
+2. **`suggestionFlow.ts` línea 73**: El texto de `sf.step3` dice "Antes de pasar a recoger/domicilio" — aunque NO se usa en la rama `false` del paso 3, sí se inyecta como parte de las reglas de sugerencia en la rama `true`. Si la config de sugerencias está activa, este texto aparece incluso cuando no debería.
 
-**Cambio A — Paso 3 dinámico en `buildCoreSystemPrompt` (línea ~1056)**
+## Cambios propuestos (2 archivos)
 
-Agregar un parámetro `deliveryAvailable: boolean` a la firma de `buildCoreSystemPrompt`. Usar este valor para construir el paso 3 condicionalmente:
+### 1. `supabase/functions/_shared/suggestionFlow.ts`
 
-```text
-// Línea 1111 actual:
-3. ${sf.step3}, Cuando diga "no"... → pregunta: recoger o domicilio
+Hacer que `step3` sea consciente de si hay domicilio disponible. Cambiar la firma de `buildSuggestionFlow` para aceptar `deliveryAvailable?: boolean`. Cuando `deliveryAvailable = false`, el texto de `step3` debe decir "Antes de cerrar el pedido" en vez de "Antes de pasar a recoger/domicilio".
 
-// Nuevo:
-if (deliveryAvailable):
-  3. ${sf.step3}, Cuando diga "no"... → pregunta: recoger o domicilio
-else:
-  3. Cuando diga "no"... → indícale que el pedido es para recoger en el local y pídele el nombre
+### 2. `supabase/functions/whatsapp-webhook/index.ts`
+
+**Cambio A** — Pasar `deliveryAvailable` a `buildSuggestionFlow` dentro de `buildCoreSystemPrompt`, para que `sf.step3` no mencione domicilio cuando no aplica.
+
+**Cambio B** — Agregar un bloque de limpieza de historial: cuando `deliveryAvailable = false`, inyectar un hint en el prompt que diga explícitamente:
+
+```
+IMPORTANTE: Ignora mensajes anteriores del historial donde se haya ofrecido domicilio. 
+El servicio de domicilio NO está disponible. SOLO ofrece recogida.
 ```
 
-También adaptar el paso 4 condicionalmente:
-- Si `deliveryAvailable = false`: `4. Pide solo el nombre` (sin mencionar dirección)
-- Si `deliveryAvailable = true`: mantener paso 4 actual
+Esto se insertaría en el `overridePromptBlock` o como sufijo al prompt, similar al patrón existente de `reopenHint`.
 
-**Cambio B — Calcular `deliveryAvailable` en `buildPrompt` (línea ~1158)**
+### 3. `supabase/functions/generate-alicia/index.ts`
 
-En la función `buildPrompt`, antes de llamar a `buildCoreSystemPrompt`, calcular:
-
-```text
-const deliveryAvailable = config?.delivery_config?.enabled !== false 
-  && !isDeliveryDisabledOverride(activeOverrides);
-```
-
-Para esto, `buildPrompt` necesita recibir `activeOverrides` como parámetro adicional.
-
-Pasar `deliveryAvailable` a `buildCoreSystemPrompt`.
-
-**Cambio C — Actualizar la llamada a `buildPrompt` (línea ~3602)**
-
-Pasar `activeOverrides` como nuevo parámetro:
-
-```text
-buildPrompt(effectiveProducts, ..., config, customerName, activeOverrides)
-```
-
-**Cambio D — Interceptación mid-conversation ampliada (línea ~3734)**
-
-Actualmente la interceptación mid-conversation solo actúa cuando hay un `isDeliveryDisabledOverride`. Agregar la condición `config?.delivery_config?.enabled === false`:
-
-```text
-if ((isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false) 
-    && /domicilio|delivery/i.test(lastCustomerText)) {
-```
-
-Esto ya existe en los bloques de orden (líneas 3088 y 3660), pero falta en el interceptor mid-conversation (línea 3736).
-
-### Archivo 2: `supabase/functions/generate-alicia/index.ts`
-
-**Cambio E — Paso 3 dinámico en el prompt generado**
-
-En `buildCoreSystemPrompt` de generate-alicia (línea ~67), aplicar la misma lógica condicional. Como generate-alicia no tiene contexto de overrides en tiempo real, usar solo `delivery_config.enabled` del config para determinar el paso 3 del prompt pre-generado.
-
-Agregar parámetro `deliveryAvailable?: boolean` y adaptar pasos 3 y 4.
+Pasar `deliveryAvailable` a `buildSuggestionFlow` para consistencia.
 
 ## Lo que NO se modifica
 
-- Flujo de sugerencias / upselling
 - Lógica de pedidos / JSON
-- Service overrides existentes
-- Validación de zonas gratuitas
-- Validación de costo de domicilio
-- Lógica de guardado de pedidos
+- Service overrides
+- Validación de zonas
+- Interceptación mid-conversation (ya funciona)
 - Schema de base de datos
 
 ## Resultado
 
-- Si `delivery_config.enabled = false` o hay override activo de `no_delivery`: el bot nunca ofrece domicilio en el paso 3
-- Si el cliente insiste con "quiero domicilio": el backend intercepta y responde "Solo tenemos pedidos para recoger en el local"
-- Si domicilio está disponible: comportamiento actual sin cambios
+- El `sf.step3` no mencionará "domicilio" cuando no hay domicilio disponible
+- El LLM recibirá instrucción explícita de ignorar mensajes previos sobre domicilio
+- El paso 3 siempre dirá "para recoger en el local" cuando `deliveryAvailable = false`
 
