@@ -10,7 +10,7 @@ const corsHeaders = {
  * CORE SYSTEM PROMPT — Conektao immutable rules.
  * Exact copy from whatsapp-webhook to ensure consistency.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true): string {
   const sf = buildSuggestionFlow(suggestConfigs || {});
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
@@ -64,8 +64,11 @@ ${globalRulesBlock}
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
-3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
-4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+${deliveryAvailable
+  ? `3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre`
+  : `3. Cuando diga "no", "eso es todo", "nada más" → indícale que el pedido es para recoger en el local y pídele el nombre. NO menciones domicilio como opción
+4. Pide solo el nombre del cliente`}
 5. Indica datos de pago
 6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
 7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
@@ -302,8 +305,9 @@ Deno.serve(async (req) => {
     const escalation = config.escalation_config || {};
     const assistantName = personality.name || "Alicia";
 
+    const deliveryAvailable = config.delivery_config?.enabled !== false;
     const suggestConfigs = config.suggest_configs || {};
-    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs);
+    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, deliveryAvailable);
     const businessPrompt = buildBusinessConfigPrompt(config, products || []);
     const finalPrompt = corePrompt + "\n\n" + businessPrompt;
 

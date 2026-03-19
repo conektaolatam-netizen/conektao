@@ -1053,7 +1053,7 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
  * This is the "DNA" of every Alicia instance.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true): string {
   const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage);
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
@@ -1108,8 +1108,11 @@ ${globalRulesBlock}
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
-3. ${sf.step3}, Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
-4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+${deliveryAvailable
+  ? `3. ${sf.step3}, Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre`
+  : `3. Cuando diga "no", "eso es todo", "nada más" → indícale que el pedido es para recoger en el local y pídele el nombre. NO menciones domicilio como opción
+4. Pide solo el nombre del cliente`}
 5. Indica datos de pago
 6. Recopila toda la información del pedido (productos, cantidades, tipo de entrega, dirección si aplica, nombre, forma de pago). Cuando tengas TODO listo, genera el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje. El sistema generará y enviará el resumen automáticamente con los precios correctos. NO escribas un resumen de precios detallado en tu respuesta, solo incluye el tag con el JSON. (Antes de generar el tag, asegúrate de que el restaurante esté ABIERTO)
 7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
@@ -1164,6 +1167,7 @@ function buildPrompt(
   status: string,
   config?: any,
   customerName?: string,
+  activeOverrides?: any[],
 ) {
   let prom = "";
   if (promoted && promoted.length > 0) {
@@ -1192,7 +1196,8 @@ function buildPrompt(
     const personality = config.personality_rules || {};
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting);
+    const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable);
     const dynamic = buildDynamicPrompt(
       config,
       products,
@@ -3608,6 +3613,7 @@ Deno.serve(async (req) => {
           freshOrderStatus,
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
+          activeOverrides,
         ) +
         customerMemoryCtx +
         overridePromptBlock +
@@ -3733,10 +3739,13 @@ Deno.serve(async (req) => {
       // If the AI response seems to accept a restricted service, override it
       if (!parsed && !modification) {
         const lastCustomerText = trailingCustomerTexts.join(" ").toLowerCase();
-        if (isDeliveryDisabledOverride(activeOverrides) && /domicilio|delivery/i.test(lastCustomerText)) {
+        if ((isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false) && /domicilio|delivery/i.test(lastCustomerText)) {
           // Check if AI is NOT already denying delivery
           if (!/no.{0,20}(domicilio|delivery)|no tene.{0,10}domicilio/i.test(resp)) {
-            resp = buildServiceBlockMessage(activeOverrides, "delivery", config);
+            const blockMsg = isDeliveryDisabledOverride(activeOverrides)
+              ? buildServiceBlockMessage(activeOverrides, "delivery", config)
+              : "En este momento solo tenemos pedidos para recoger en el local 😊";
+            resp = blockMsg;
           }
         }
         if (isPickupDisabledOverride(activeOverrides) && /recog|pickup|recoger/i.test(lastCustomerText)) {
