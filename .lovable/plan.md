@@ -1,100 +1,107 @@
 
 
-# Plan: Asistente Personal de Santiago (573176436656)
+# Plan: Validación Backend de Domicilios
 
-## Overview
-Intercept messages from Santiago's number in the WhatsApp webhook, bypass the restaurant/emotional flow entirely, and route to a dedicated personal assistant powered by Gemini that manages an `agenda_santi` table.
+## Resumen
 
-## 1. Database: Create `agenda_santi` table
+Agregar validación backend en `whatsapp-webhook/index.ts` para que el costo de domicilio y la detección de zonas gratuitas sea determinista (no dependa del LLM). Sin modificar flujos existentes.
 
-```sql
-CREATE TABLE public.agenda_santi (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  fecha_hora timestamptz NOT NULL,
-  titulo text NOT NULL,
-  descripcion text,
-  aviso_minutos integer DEFAULT 5,
-  aviso_enviado boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.agenda_santi ENABLE ROW LEVEL SECURITY;
--- Service role only (edge functions use service role key)
-CREATE POLICY "Service role full access" ON public.agenda_santi FOR ALL USING (true) WITH CHECK (true);
-```
+## Cambios (un solo archivo)
 
-## 2. Webhook: Intercept Santiago's number
+**Archivo: `supabase/functions/whatsapp-webhook/index.ts`**
 
-**File: `supabase/functions/whatsapp-webhook/index.ts`**
+### 1. Nueva función: `validateDeliveryZone`
 
-After message type handling (~line 2696, after the empty-text check) and **before** the config lookup (line 2698), insert:
+Función pura que recibe la dirección del cliente y el `delivery_config`, y retorna:
 
-```typescript
-const SANTI_PHONE = "573176436656";
-if (from === SANTI_PHONE) {
-  await markRead(pid, GLOBAL_WA_TOKEN, msg.id);
-  await handleSantiAssistant(text, from, pid, GLOBAL_WA_TOKEN);
-  return new Response(JSON.stringify({ status: "santi_handled" }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+```text
+{
+  isFreeZone: boolean;
+  deliveryCost: number;       // 0 si gratis, N si hay costo fijo
+  paidNote: string | null;    // mensaje para zonas no gratuitas sin costo fijo
 }
 ```
 
-This returns early, completely skipping the restaurant/emotional flow.
+Lógica:
+- Si `delivery_config.enabled === false` → no aplica (se maneja aparte)
+- Normaliza dirección a minúsculas y sin acentos
+- Itera `free_zones[]`, hace match case-insensitive + sin acentos contra la dirección
+- Si match → `{ isFreeZone: true, deliveryCost: 0, paidNote: null }`
+- Si no match:
+  - Si `delivery_cost > 0` → `{ isFreeZone: false, deliveryCost: delivery_cost, paidNote: null }`
+  - Si `delivery_cost` es 0/null → `{ isFreeZone: false, deliveryCost: 0, paidNote: paid_delivery_note }`
 
-## 3. `handleSantiAssistant` function
+### 2. Modificar `validateOrder` — inyectar costo de domicilio
 
-Add in the webhook file (helpers section, ~line 490). This function:
+Después de la validación de precios/empaques existente (sin tocarla), agregar un bloque al final que:
 
-1. Loads existing conversation context from `agenda_santi` (upcoming events)
-2. Calls Gemini via Lovable AI Gateway with tool-calling to extract structured actions:
-   - **Tool `agendar`**: params `fecha_hora`, `titulo`, `descripcion`, `aviso_minutos` → INSERT into `agenda_santi`
-   - **Tool `ver_agenda`**: params `rango` (hoy/semana/todo) → SELECT from `agenda_santi`
-   - **Tool `eliminar`**: params `titulo_parcial` → DELETE matching row
-   - **Tool `modificar`**: params `titulo_parcial`, `nueva_fecha_hora` → UPDATE matching row
-3. Executes the tool action against the DB
-4. Sends the AI's confirmation text back via `sendWA`
+- Solo actúa si `delivery_type` contiene "domicilio"/"delivery" Y hay `delivery_address`
+- Llama `validateDeliveryZone(order.delivery_address, config.delivery_config)`
+- Si `deliveryCost > 0`:
+  - Agrega campo `order.delivery_cost = deliveryCost`
+  - Suma al total: `order.total += deliveryCost`
+  - Registra en `issues[]`: "DOMICILIO: Costo $X aplicado (zona no gratuita)"
+- Si zona gratuita:
+  - `order.delivery_cost = 0`
+  - Registra: "DOMICILIO: Zona gratuita detectada"
+- Si no gratuita y sin costo fijo:
+  - `order.delivery_cost = 0`
+  - `order.delivery_note = paidNote`
+  - Registra: "DOMICILIO: Zona no gratuita, pago al domiciliario"
 
-The system prompt instructs Gemini to always assume `America/Bogota` (UTC-5), respond in Spanish, confirm with date/time/notes, use direct tone, max one ✅ emoji.
+Para esto, `validateOrder` necesita recibir `config` como parámetro adicional (actualmente solo recibe `products`).
 
-Gemini handles natural Spanish date parsing ("mañana a las 3", "el miércoles", "en 2 horas") internally via the system prompt instructions. Dates are stored as UTC `timestamptz`.
+### 3. Modificar `buildOrderSummary` — mostrar costo de domicilio
 
-## 4. Edge Function: `agenda-reminder`
+Si `order.delivery_cost > 0`:
+- Agregar línea "Domicilio: $X.XXX" al desglose
+- Sumar al total mostrado
 
-**New file: `supabase/functions/agenda-reminder/index.ts`**
+Si `order.delivery_note` existe (zona no gratuita, pago externo):
+- Agregar nota al bloque de domicilio: ej. "El domicilio se paga directamente al domiciliario"
 
-- Runs on HTTP call (triggered externally via cron-job.org every 1 minute)
-- Queries `agenda_santi` for events where:
-  - `aviso_enviado = false`
-  - `fecha_hora - interval 'aviso_minutos minutes' <= now()`
-  - `fecha_hora > now()`
-- For each match, sends WhatsApp message to `573176436656` with format:
-  ```
-  ⏰ Santiago, en X minutos:
-  
-  TÍTULO
-  DESCRIPCIÓN
-  
-  Hora Colombia: HH:mm
-  ```
-- Marks `aviso_enviado = true`
-- Uses `GLOBAL_WA_PHONE_ID` and `GLOBAL_WA_TOKEN` from env
+### 4. Bloqueo de domicilio si `enabled === false`
 
-**Config**: Add `[functions.agenda-reminder]` with `verify_jwt = false` to `supabase/config.toml`.
+En los dos puntos donde ya se valida `isDeliveryDisabledOverride` (líneas ~3020 y ~3592), agregar condición adicional:
 
-## 5. Files Modified
+```text
+if (isOrderDelivery && !config.delivery_config?.enabled) {
+  // Bloquear igual que override, con mensaje:
+  // "No tenemos servicio de domicilio disponible"
+}
+```
 
-| File | Change |
-|------|--------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Add `handleSantiAssistant` function + early-return intercept for Santiago's number |
-| `supabase/functions/agenda-reminder/index.ts` | New edge function for reminder cron |
-| `supabase/config.toml` | Add `[functions.agenda-reminder]` entry |
-| Database migration | Create `agenda_santi` table |
+Esto usa el mismo patrón de bloqueo existente (responder + return), sin cambiar la estructura.
 
-## 6. Cron Setup
+### 5. Actualizar las dos llamadas a `validateOrder`
 
-After deployment, the reminder URL will be:
-`https://ctsqvjcgcukosusksulx.supabase.co/functions/v1/agenda-reminder`
+Pasar `config` como tercer argumento en las dos invocaciones existentes:
+- Línea ~3092: `validateOrder(resolvedOrder, effectiveConfirmProds, config)`
+- Línea ~3621: `validateOrder(parsed.order, effectiveProducts, config)`
 
-The user should configure this in cron-job.org to run every 1 minute with the anon key as Authorization header.
+### 6. Persistencia en `saveOrder` — campo `delivery_cost` en el JSON
+
+El campo `delivery_cost` ya quedará dentro del objeto `order` que se guarda en `whatsapp_orders.items`/`current_order`. No requiere cambio de schema, solo fluye naturalmente con el JSON.
+
+## Lo que NO se toca
+
+- System prompt / generación de Alicia
+- Flujo de sugerencias
+- Service overrides existentes
+- Estructura de tags de pedido
+- Historial de conversación
+- Lógica de confirmación
+- Schema de base de datos
+
+## Detalle técnico: normalización de texto
+
+```text
+function normalizeText(s: string): string {
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+```
+
+Match: `normalizeText(address).includes(normalizeText(zone))`
 
