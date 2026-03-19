@@ -71,46 +71,56 @@ const AliciaSetupPage = () => {
 
       setRestaurantId(restId);
 
-      // Check for existing whatsapp_config
-      const { data: existing } = await supabase
+      // Upsert whatsapp_config (unique on restaurant_id prevents duplicates)
+      const uniqueId = crypto.randomUUID().slice(0, 8);
+      const { data: config, error: cfgErr } = await supabase
         .from("whatsapp_configs")
-        .select("*")
-        .eq("restaurant_id", restId)
-        .maybeSingle();
+        .upsert({
+          restaurant_id: restId,
+          is_active: false,
+          setup_completed: false,
+          setup_step: 0,
+          whatsapp_phone_number_id: `pending_${uniqueId}`,
+          whatsapp_access_token: `pending_${uniqueId}`,
+          verify_token: `pending_${uniqueId}`,
+          order_email: user!.email || "",
+        }, { onConflict: "restaurant_id", ignoreDuplicates: true })
+        .select()
+        .single();
 
-      if (existing) {
-        setConfigId(existing.id);
-        setConfigData(existing);
-        // Resume from saved step
-        const savedStep = existing.setup_step || 0;
-        setCurrentStep(savedStep);
-        // Restore meta credentials if already saved
-        if (existing.whatsapp_phone_number_id && existing.whatsapp_phone_number_id !== "pending") {
-          setMetaPhoneId(existing.whatsapp_phone_number_id);
-        }
-        if (existing.whatsapp_access_token && existing.whatsapp_access_token !== "pending") {
-          setMetaAccessToken(existing.whatsapp_access_token);
-        }
-      } else {
-        // Generate unique placeholder to avoid unique constraint violation
-        const uniqueId = crypto.randomUUID().slice(0, 8);
-        const { data: newConfig, error: cfgErr } = await supabase
+      if (cfgErr) {
+        // If upsert with ignoreDuplicates returns nothing, fetch existing
+        const { data: existing } = await supabase
           .from("whatsapp_configs")
-          .insert([{
-            restaurant_id: restId,
-            is_active: false,
-            setup_completed: false,
-            setup_step: 0,
-            whatsapp_phone_number_id: `pending_${uniqueId}`,
-            whatsapp_access_token: `pending_${uniqueId}`,
-            verify_token: `pending_${uniqueId}`,
-            order_email: user!.email || "",
-          }])
-          .select()
+          .select("*")
+          .eq("restaurant_id", restId)
+          .limit(1)
           .single();
-        if (cfgErr) throw cfgErr;
-        setConfigId(newConfig.id);
-        setConfigData(newConfig);
+        if (existing) {
+          setConfigId(existing.id);
+          setConfigData(existing);
+          const savedStep = existing.setup_step || 0;
+          setCurrentStep(savedStep);
+          if (existing.whatsapp_phone_number_id && !existing.whatsapp_phone_number_id.startsWith("pending")) {
+            setMetaPhoneId(existing.whatsapp_phone_number_id);
+          }
+          if (existing.whatsapp_access_token && !existing.whatsapp_access_token.startsWith("pending")) {
+            setMetaAccessToken(existing.whatsapp_access_token);
+          }
+        } else {
+          throw cfgErr;
+        }
+      } else if (config) {
+        setConfigId(config.id);
+        setConfigData(config);
+        const savedStep = config.setup_step || 0;
+        setCurrentStep(savedStep);
+        if (config.whatsapp_phone_number_id && !config.whatsapp_phone_number_id.startsWith("pending")) {
+          setMetaPhoneId(config.whatsapp_phone_number_id);
+        }
+        if (config.whatsapp_access_token && !config.whatsapp_access_token.startsWith("pending")) {
+          setMetaAccessToken(config.whatsapp_access_token);
+        }
       }
     } catch (err: any) {
       console.error("Setup load error:", err);
