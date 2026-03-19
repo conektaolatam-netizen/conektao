@@ -64,8 +64,11 @@ ${globalRulesBlock}
 FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
-3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
-4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre
+${deliveryAvailable
+  ? `3. Cuando diga "no", "eso es todo", "nada más" → pregunta: recoger o domicilio${sf.step3}
+4. Si domicilio → pide nombre y dirección. Si recoger → pide solo nombre`
+  : `3. Cuando diga "no", "eso es todo", "nada más" → indícale que el pedido es para recoger en el local y pídele el nombre. NO menciones domicilio como opción
+4. Pide solo el nombre del cliente`}
 5. Indica datos de pago
 6. Presenta resumen COMPLETO (productos + empaques + total), pregunta: "¿Me confirmas tu pedido para empezarlo a preparar? Responde: 'Sí, confirmar' o escribe qué quieres cambiar." Y SIEMPRE incluye el tag ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- al final del mensaje (invisible para el cliente)
 7. El sistema guarda el pedido y espera confirmación del cliente automáticamente
