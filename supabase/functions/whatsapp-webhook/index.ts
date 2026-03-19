@@ -823,6 +823,47 @@ async function getConversation(rid: string, phone: string, incomingText?: string
   return cr;
 }
 
+// ── Text normalization for delivery zone matching ──
+function normalizeText(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+// ── Backend delivery zone validation ──
+function validateDeliveryZone(
+  address: string,
+  deliveryConfig: any
+): { isFreeZone: boolean; deliveryCost: number; paidNote: string | null } {
+  if (!deliveryConfig || !address) {
+    return { isFreeZone: false, deliveryCost: 0, paidNote: null };
+  }
+
+  const freeZones: string[] = deliveryConfig.free_zones || [];
+  const normalizedAddr = normalizeText(address);
+
+  // Check if the address matches any free zone
+  const matchedFreeZone = freeZones.some((zone) => {
+    if (!zone || zone.trim() === "") return false;
+    return normalizedAddr.includes(normalizeText(zone));
+  });
+
+  if (matchedFreeZone) {
+    return { isFreeZone: true, deliveryCost: 0, paidNote: null };
+  }
+
+  // Not a free zone — check if there's a fixed delivery cost
+  const cost = deliveryConfig.delivery_cost;
+  if (cost && cost > 0) {
+    return { isFreeZone: false, deliveryCost: cost, paidNote: null };
+  }
+
+  // No fixed cost → paid externally (e.g., to the delivery driver)
+  return {
+    isFreeZone: false,
+    deliveryCost: 0,
+    paidNote: deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.",
+  };
+}
+
 
 // ==================== WA CUSTOMER MEMORY ====================
 
@@ -1467,7 +1508,7 @@ function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packag
 }
 
 /** Validate and correct order prices/packaging for any business */
-function validateOrder(order: any, products?: any[]): { order: any; corrected: boolean; issues: string[] } {
+function validateOrder(order: any, products?: any[], config?: any): { order: any; corrected: boolean; issues: string[] } {
   if (!order?.items) return { order, corrected: false, issues: [] };
 
   const productEntries: ProductEntry[] = products ? buildProductEntries(products) : [];
@@ -1562,6 +1603,25 @@ function validateOrder(order: any, products?: any[]): { order: any; corrected: b
   order.packaging_total = packagingTotal;
   order.total = calculatedTotal;
 
+  // ── DELIVERY COST: Backend validation of delivery zones ──
+  const deliveryConfig = config?.delivery_config;
+  if (isDelivery && order.delivery_address && deliveryConfig) {
+    const zoneResult = validateDeliveryZone(order.delivery_address, deliveryConfig);
+    if (zoneResult.isFreeZone) {
+      order.delivery_cost = 0;
+      issues.push("DOMICILIO: Zona gratuita detectada");
+    } else if (zoneResult.deliveryCost > 0) {
+      order.delivery_cost = zoneResult.deliveryCost;
+      order.total += zoneResult.deliveryCost;
+      corrected = true;
+      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado (zona no gratuita)`);
+    } else {
+      order.delivery_cost = 0;
+      order.delivery_note = zoneResult.paidNote;
+      issues.push("DOMICILIO: Zona no gratuita, pago al domiciliario");
+    }
+  }
+
   if (issues.length > 0) console.log("🔧 ORDER CORRECTIONS:", issues.join("; "));
   return { order, corrected, issues };
 }
@@ -1608,7 +1668,8 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     }
   }
 
-  const total = subtotal + packagingTotal;
+  const deliveryCost = order.delivery_cost || 0;
+  const total = subtotal + packagingTotal + deliveryCost;
 
   // Payment block
   let paymentBlock = "";
@@ -1630,6 +1691,12 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
     (order.delivery_type || "").toLowerCase().includes("domicilio");
   if (isDelivery && order.delivery_address) {
     deliveryBlock = `\n📍 Domicilio: ${order.delivery_address}`;
+    if (order.delivery_cost > 0) {
+      deliveryBlock += `\n🏍️ Costo domicilio: ${formatCOP(order.delivery_cost)}`;
+    }
+    if (order.delivery_note) {
+      deliveryBlock += `\nℹ️ ${order.delivery_note}`;
+    }
   } else if (!isDelivery) {
     deliveryBlock = "\n🏪 Para recoger";
   }
@@ -1639,9 +1706,10 @@ function buildOrderSummary(order: any, config: any, customerName?: string): stri
   msg += paymentBlock + "\n\n";
   msg += "Tu pedido incluye:\n\n";
   msg += itemLines;
-  if (packagingTotal > 0) {
+  if (packagingTotal > 0 || deliveryCost > 0) {
     msg += `\nSubtotal: ${formatCOP(subtotal)}`;
-    msg += `\nEmpaques: ${formatCOP(packagingTotal)}`;
+    if (packagingTotal > 0) msg += `\nEmpaques: ${formatCOP(packagingTotal)}`;
+    if (deliveryCost > 0) msg += `\nDomicilio: ${formatCOP(deliveryCost)}`;
   }
   msg += `\nTotal: ${formatCOP(total)}`;
   msg += deliveryBlock;
@@ -3017,7 +3085,7 @@ Deno.serve(async (req) => {
 
           // ── Check if delivery is disabled by override ──
           const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
-          if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
+          if (/domicilio|delivery/i.test(deliveryTypeCheck) && (isDeliveryDisabledOverride(confirmOverrides) || config?.delivery_config?.enabled === false)) {
             const noDeliveryResp = buildServiceBlockMessage(confirmOverrides, "delivery", config);
             convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
             await supabase
@@ -3089,7 +3157,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          const validated = validateOrder(resolvedOrder, effectiveConfirmProds);
+          const validated = validateOrder(resolvedOrder, effectiveConfirmProds, config);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
@@ -3589,7 +3657,7 @@ Deno.serve(async (req) => {
         const isOrderDelivery = /domicilio|delivery/.test(orderDeliveryType);
         const isOrderPickup = /pickup|recog/.test(orderDeliveryType) || (!isOrderDelivery && orderDeliveryType !== "");
 
-        if (isOrderDelivery && isDeliveryDisabledOverride(activeOverrides)) {
+        if (isOrderDelivery && (isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false)) {
           const noDelivResp = buildServiceBlockMessage(activeOverrides, "delivery", config);
           freshMsgs.push({ role: "assistant", content: noDelivResp, timestamp: new Date().toISOString() });
           await supabase
@@ -3618,7 +3686,7 @@ Deno.serve(async (req) => {
         }
 
         // ORDER DETECTED BY AI → Validate and build backend summary
-        const validated = validateOrder(parsed.order, effectiveProducts);
+        const validated = validateOrder(parsed.order, effectiveProducts, config);
         if (validated.corrected) parsed.order = validated.order;
 
         // Build summary from validated data — NEVER use AI text for prices
