@@ -3608,6 +3608,71 @@ export type Database = {
         }
         Relationships: []
       }
+      reservations: {
+        Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          confirmed_at: string | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          ics_sent: boolean
+          id: string
+          notes: string | null
+          party_size: number
+          reservation_date: string
+          reservation_time: string
+          restaurant_id: string
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          ics_sent?: boolean
+          id?: string
+          notes?: string | null
+          party_size?: number
+          reservation_date: string
+          reservation_time: string
+          restaurant_id: string
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          ics_sent?: boolean
+          id?: string
+          notes?: string | null
+          party_size?: number
+          reservation_date?: string
+          reservation_time?: string
+          restaurant_id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resource_access: {
         Row: {
           allowed: boolean | null
@@ -5256,6 +5321,7 @@ export type Database = {
           personality_rules: Json | null
           promoted_products: Json | null
           prompt_generated_at: string | null
+          reservation_config: Json | null
           restaurant_description: string | null
           restaurant_id: string
           restaurant_name: string | null
@@ -5290,6 +5356,7 @@ export type Database = {
           personality_rules?: Json | null
           promoted_products?: Json | null
           prompt_generated_at?: string | null
+          reservation_config?: Json | null
           restaurant_description?: string | null
           restaurant_id: string
           restaurant_name?: string | null
@@ -5324,6 +5391,7 @@ export type Database = {
           personality_rules?: Json | null
           promoted_products?: Json | null
           prompt_generated_at?: string | null
+          reservation_config?: Json | null
           restaurant_description?: string | null
           restaurant_id?: string
           restaurant_name?: string | null

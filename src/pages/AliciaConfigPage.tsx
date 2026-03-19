@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Store, UtensilsCrossed, Truck, CreditCard, 
-  Smile, Clock, Wifi, Lightbulb, Check, Sparkles
+  Smile, Clock, Wifi, Lightbulb, Check, Sparkles, CalendarDays
 } from "lucide-react";
 import AliciaConfigBusiness from "@/components/alicia-config/AliciaConfigBusiness";
 import AliciaConfigMenu from "@/components/alicia-config/AliciaConfigMenu";
@@ -16,6 +16,7 @@ import AliciaConfigPersonality from "@/components/alicia-config/AliciaConfigPers
 import AliciaConfigSchedule from "@/components/alicia-config/AliciaConfigSchedule";
 import AliciaConfigConnection from "@/components/alicia-config/AliciaConfigConnection";
 import AliciaConfigUpselling from "@/components/alicia-config/AliciaConfigUpselling";
+import AliciaConfigReservations from "@/components/alicia-config/AliciaConfigReservations";
 
 const SECTIONS = [
   { id: "business", label: "Tu Negocio", icon: Store, checkFields: ["restaurant_name"] },
@@ -23,7 +24,7 @@ const SECTIONS = [
   { id: "payments", label: "Pagos", icon: CreditCard, checkFields: ["payment_config"] },
   { id: "schedule", label: "Horarios", icon: Clock, checkFields: ["operating_hours"] },
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
-  
+  { id: "reservations", label: "Reservas", icon: CalendarDays, checkFields: ["reservation_config"] },
   { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs", "promoted_products"] },
   { id: "personality", label: "Personalidad", icon: Smile, checkFields: ["personality_rules"] },
   { id: "connection", label: "WhatsApp", icon: Wifi, checkFields: ["whatsapp_phone_number_id"] },
@@ -158,7 +159,7 @@ export default function AliciaConfigPage() {
       case "payments": return <AliciaConfigPayments config={config} onSave={saveField} />;
       case "schedule": return <AliciaConfigSchedule config={config} onSave={saveMultipleFields} />;
       case "delivery": return <AliciaConfigDelivery config={config} onSave={saveField} />;
-      
+      case "reservations": return <AliciaConfigReservations config={config} onSave={saveField} />;
       case "upselling": return <AliciaConfigUpselling config={config} onSave={saveField} />;
       case "personality": return <AliciaConfigPersonality config={config} onSave={saveMultipleFields} />;
       case "connection": return <AliciaConfigConnection config={config} onSave={saveMultipleFields} />;
