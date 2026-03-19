@@ -16,7 +16,7 @@ export interface SuggestionFragments {
   step3: string;
 }
 
-export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: string): SuggestionFragments {
+export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: string, deliveryAvailable: boolean = true): SuggestionFragments {
   const empty: SuggestionFragments = { globalRules: "", step1: "", step2: "", step3: "" };
 
   // If suggestions are disabled, still inject greeting into step1 if available
@@ -70,7 +70,8 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 = `\n   → Antes de pasar a recoger/domicilio, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
+    const closeContext = deliveryAvailable ? "Antes de pasar a recoger/domicilio" : "Antes de cerrar el pedido";
+    step3 = `\n   → ${closeContext}, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {
