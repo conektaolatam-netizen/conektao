@@ -823,6 +823,47 @@ async function getConversation(rid: string, phone: string, incomingText?: string
   return cr;
 }
 
+// ── Text normalization for delivery zone matching ──
+function normalizeText(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+// ── Backend delivery zone validation ──
+function validateDeliveryZone(
+  address: string,
+  deliveryConfig: any
+): { isFreeZone: boolean; deliveryCost: number; paidNote: string | null } {
+  if (!deliveryConfig || !address) {
+    return { isFreeZone: false, deliveryCost: 0, paidNote: null };
+  }
+
+  const freeZones: string[] = deliveryConfig.free_zones || [];
+  const normalizedAddr = normalizeText(address);
+
+  // Check if the address matches any free zone
+  const matchedFreeZone = freeZones.some((zone) => {
+    if (!zone || zone.trim() === "") return false;
+    return normalizedAddr.includes(normalizeText(zone));
+  });
+
+  if (matchedFreeZone) {
+    return { isFreeZone: true, deliveryCost: 0, paidNote: null };
+  }
+
+  // Not a free zone — check if there's a fixed delivery cost
+  const cost = deliveryConfig.delivery_cost;
+  if (cost && cost > 0) {
+    return { isFreeZone: false, deliveryCost: cost, paidNote: null };
+  }
+
+  // No fixed cost → paid externally (e.g., to the delivery driver)
+  return {
+    isFreeZone: false,
+    deliveryCost: 0,
+    paidNote: deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.",
+  };
+}
+
 
 // ==================== WA CUSTOMER MEMORY ====================
 
