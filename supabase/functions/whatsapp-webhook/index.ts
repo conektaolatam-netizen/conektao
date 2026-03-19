@@ -1603,6 +1603,25 @@ function validateOrder(order: any, products?: any[], config?: any): { order: any
   order.packaging_total = packagingTotal;
   order.total = calculatedTotal;
 
+  // ── DELIVERY COST: Backend validation of delivery zones ──
+  const deliveryConfig = config?.delivery_config;
+  if (isDelivery && order.delivery_address && deliveryConfig) {
+    const zoneResult = validateDeliveryZone(order.delivery_address, deliveryConfig);
+    if (zoneResult.isFreeZone) {
+      order.delivery_cost = 0;
+      issues.push("DOMICILIO: Zona gratuita detectada");
+    } else if (zoneResult.deliveryCost > 0) {
+      order.delivery_cost = zoneResult.deliveryCost;
+      order.total += zoneResult.deliveryCost;
+      corrected = true;
+      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado (zona no gratuita)`);
+    } else {
+      order.delivery_cost = 0;
+      order.delivery_note = zoneResult.paidNote;
+      issues.push("DOMICILIO: Zona no gratuita, pago al domiciliario");
+    }
+  }
+
   if (issues.length > 0) console.log("🔧 ORDER CORRECTIONS:", issues.join("; "));
   return { order, corrected, issues };
 }
