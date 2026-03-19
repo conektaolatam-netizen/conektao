@@ -70,7 +70,8 @@ export function buildSuggestionFlow(suggestConfigs: any, greetingMessage?: strin
 
   let step3 = "";
   if (suggestConfigs.suggest_before_close !== false) {
-    step3 = `\n   → Antes de pasar a recoger/domicilio, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
+    const closeContext = deliveryAvailable ? "Antes de pasar a recoger/domicilio" : "Antes de cerrar el pedido";
+    step3 = `\n   → ${closeContext}, haz ${sugLabel} ${sugNoun("última sugerencia breve", "últimas sugerencias breves")}. Ej: "Antes de cerrar, ¿no te provoca un [producto]?"`;
   }
 
   return {

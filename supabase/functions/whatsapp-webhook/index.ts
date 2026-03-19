@@ -3580,7 +3580,8 @@ Deno.serve(async (req) => {
       }
 
       // Detect stale "no delivery" messages when delivery is now available
-      if (!isDeliveryDisabledOverride(activeOverrides)) {
+      const deliveryReallyAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides);
+      if (deliveryReallyAvailable) {
         const recentMsgs = (finalMsgs || []).slice(-10);
         const hasStaleDeliveryMsg = recentMsgs.some(
           (m: any) => m.role === "assistant" && /no.*(domicilio|delivery|servicio de domicilio)/i.test(m.content || ""),
@@ -3588,6 +3589,16 @@ Deno.serve(async (req) => {
         if (hasStaleDeliveryMsg) {
           reopenHint +=
             "\n\nIMPORTANTE: El servicio de DOMICILIO está disponible ahora. Ignora mensajes anteriores que digan que no hay domicilio. Ofrece domicilio con normalidad.";
+        }
+      } else {
+        // Delivery NOT available — inject hint to override stale history where delivery WAS offered
+        const recentMsgs = (finalMsgs || []).slice(-10);
+        const hasStaleDeliveryOffer = recentMsgs.some(
+          (m: any) => m.role === "assistant" && /recoger o domicilio|domicilio o recoger|para domicilio/i.test(m.content || ""),
+        );
+        if (hasStaleDeliveryOffer) {
+          reopenHint +=
+            "\n\nIMPORTANTE: Ignora mensajes anteriores del historial donde se haya ofrecido domicilio. El servicio de domicilio NO está disponible. SOLO ofrece recogida en el local. NO menciones domicilio como opción.";
         }
       }
 
