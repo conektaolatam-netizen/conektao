@@ -3085,7 +3085,7 @@ Deno.serve(async (req) => {
 
           // ── Check if delivery is disabled by override ──
           const deliveryTypeCheck = resolvedOrder?.delivery_type || "";
-          if (/domicilio|delivery/i.test(deliveryTypeCheck) && isDeliveryDisabledOverride(confirmOverrides)) {
+          if (/domicilio|delivery/i.test(deliveryTypeCheck) && (isDeliveryDisabledOverride(confirmOverrides) || config?.delivery_config?.enabled === false)) {
             const noDeliveryResp = buildServiceBlockMessage(confirmOverrides, "delivery", config);
             convMsgs.push({ role: "assistant", content: noDeliveryResp, timestamp: new Date().toISOString() });
             await supabase
