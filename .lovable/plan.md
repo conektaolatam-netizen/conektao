@@ -1,107 +1,87 @@
 
 
-# Plan: Validación Backend de Domicilios
+# Plan: Prompt dinámico para domicilios + interceptación mid-conversation
 
 ## Resumen
 
-Agregar validación backend en `whatsapp-webhook/index.ts` para que el costo de domicilio y la detección de zonas gratuitas sea determinista (no dependa del LLM). Sin modificar flujos existentes.
+Hacer que el paso 3 del flujo conversacional se adapte dinámicamente según la disponibilidad de domicilios, y agregar interceptación mid-conversation cuando el cliente pide domicilio y no está disponible (por config o por override).
 
-## Cambios (un solo archivo)
+## Cambios (2 archivos)
 
-**Archivo: `supabase/functions/whatsapp-webhook/index.ts`**
+### Archivo 1: `supabase/functions/whatsapp-webhook/index.ts`
 
-### 1. Nueva función: `validateDeliveryZone`
+**Cambio A — Paso 3 dinámico en `buildCoreSystemPrompt` (línea ~1056)**
 
-Función pura que recibe la dirección del cliente y el `delivery_config`, y retorna:
-
-```text
-{
-  isFreeZone: boolean;
-  deliveryCost: number;       // 0 si gratis, N si hay costo fijo
-  paidNote: string | null;    // mensaje para zonas no gratuitas sin costo fijo
-}
-```
-
-Lógica:
-- Si `delivery_config.enabled === false` → no aplica (se maneja aparte)
-- Normaliza dirección a minúsculas y sin acentos
-- Itera `free_zones[]`, hace match case-insensitive + sin acentos contra la dirección
-- Si match → `{ isFreeZone: true, deliveryCost: 0, paidNote: null }`
-- Si no match:
-  - Si `delivery_cost > 0` → `{ isFreeZone: false, deliveryCost: delivery_cost, paidNote: null }`
-  - Si `delivery_cost` es 0/null → `{ isFreeZone: false, deliveryCost: 0, paidNote: paid_delivery_note }`
-
-### 2. Modificar `validateOrder` — inyectar costo de domicilio
-
-Después de la validación de precios/empaques existente (sin tocarla), agregar un bloque al final que:
-
-- Solo actúa si `delivery_type` contiene "domicilio"/"delivery" Y hay `delivery_address`
-- Llama `validateDeliveryZone(order.delivery_address, config.delivery_config)`
-- Si `deliveryCost > 0`:
-  - Agrega campo `order.delivery_cost = deliveryCost`
-  - Suma al total: `order.total += deliveryCost`
-  - Registra en `issues[]`: "DOMICILIO: Costo $X aplicado (zona no gratuita)"
-- Si zona gratuita:
-  - `order.delivery_cost = 0`
-  - Registra: "DOMICILIO: Zona gratuita detectada"
-- Si no gratuita y sin costo fijo:
-  - `order.delivery_cost = 0`
-  - `order.delivery_note = paidNote`
-  - Registra: "DOMICILIO: Zona no gratuita, pago al domiciliario"
-
-Para esto, `validateOrder` necesita recibir `config` como parámetro adicional (actualmente solo recibe `products`).
-
-### 3. Modificar `buildOrderSummary` — mostrar costo de domicilio
-
-Si `order.delivery_cost > 0`:
-- Agregar línea "Domicilio: $X.XXX" al desglose
-- Sumar al total mostrado
-
-Si `order.delivery_note` existe (zona no gratuita, pago externo):
-- Agregar nota al bloque de domicilio: ej. "El domicilio se paga directamente al domiciliario"
-
-### 4. Bloqueo de domicilio si `enabled === false`
-
-En los dos puntos donde ya se valida `isDeliveryDisabledOverride` (líneas ~3020 y ~3592), agregar condición adicional:
+Agregar un parámetro `deliveryAvailable: boolean` a la firma de `buildCoreSystemPrompt`. Usar este valor para construir el paso 3 condicionalmente:
 
 ```text
-if (isOrderDelivery && !config.delivery_config?.enabled) {
-  // Bloquear igual que override, con mensaje:
-  // "No tenemos servicio de domicilio disponible"
-}
+// Línea 1111 actual:
+3. ${sf.step3}, Cuando diga "no"... → pregunta: recoger o domicilio
+
+// Nuevo:
+if (deliveryAvailable):
+  3. ${sf.step3}, Cuando diga "no"... → pregunta: recoger o domicilio
+else:
+  3. Cuando diga "no"... → indícale que el pedido es para recoger en el local y pídele el nombre
 ```
 
-Esto usa el mismo patrón de bloqueo existente (responder + return), sin cambiar la estructura.
+También adaptar el paso 4 condicionalmente:
+- Si `deliveryAvailable = false`: `4. Pide solo el nombre` (sin mencionar dirección)
+- Si `deliveryAvailable = true`: mantener paso 4 actual
 
-### 5. Actualizar las dos llamadas a `validateOrder`
+**Cambio B — Calcular `deliveryAvailable` en `buildPrompt` (línea ~1158)**
 
-Pasar `config` como tercer argumento en las dos invocaciones existentes:
-- Línea ~3092: `validateOrder(resolvedOrder, effectiveConfirmProds, config)`
-- Línea ~3621: `validateOrder(parsed.order, effectiveProducts, config)`
+En la función `buildPrompt`, antes de llamar a `buildCoreSystemPrompt`, calcular:
 
-### 6. Persistencia en `saveOrder` — campo `delivery_cost` en el JSON
+```text
+const deliveryAvailable = config?.delivery_config?.enabled !== false 
+  && !isDeliveryDisabledOverride(activeOverrides);
+```
 
-El campo `delivery_cost` ya quedará dentro del objeto `order` que se guarda en `whatsapp_orders.items`/`current_order`. No requiere cambio de schema, solo fluye naturalmente con el JSON.
+Para esto, `buildPrompt` necesita recibir `activeOverrides` como parámetro adicional.
 
-## Lo que NO se toca
+Pasar `deliveryAvailable` a `buildCoreSystemPrompt`.
 
-- System prompt / generación de Alicia
-- Flujo de sugerencias
+**Cambio C — Actualizar la llamada a `buildPrompt` (línea ~3602)**
+
+Pasar `activeOverrides` como nuevo parámetro:
+
+```text
+buildPrompt(effectiveProducts, ..., config, customerName, activeOverrides)
+```
+
+**Cambio D — Interceptación mid-conversation ampliada (línea ~3734)**
+
+Actualmente la interceptación mid-conversation solo actúa cuando hay un `isDeliveryDisabledOverride`. Agregar la condición `config?.delivery_config?.enabled === false`:
+
+```text
+if ((isDeliveryDisabledOverride(activeOverrides) || config?.delivery_config?.enabled === false) 
+    && /domicilio|delivery/i.test(lastCustomerText)) {
+```
+
+Esto ya existe en los bloques de orden (líneas 3088 y 3660), pero falta en el interceptor mid-conversation (línea 3736).
+
+### Archivo 2: `supabase/functions/generate-alicia/index.ts`
+
+**Cambio E — Paso 3 dinámico en el prompt generado**
+
+En `buildCoreSystemPrompt` de generate-alicia (línea ~67), aplicar la misma lógica condicional. Como generate-alicia no tiene contexto de overrides en tiempo real, usar solo `delivery_config.enabled` del config para determinar el paso 3 del prompt pre-generado.
+
+Agregar parámetro `deliveryAvailable?: boolean` y adaptar pasos 3 y 4.
+
+## Lo que NO se modifica
+
+- Flujo de sugerencias / upselling
+- Lógica de pedidos / JSON
 - Service overrides existentes
-- Estructura de tags de pedido
-- Historial de conversación
-- Lógica de confirmación
+- Validación de zonas gratuitas
+- Validación de costo de domicilio
+- Lógica de guardado de pedidos
 - Schema de base de datos
 
-## Detalle técnico: normalización de texto
+## Resultado
 
-```text
-function normalizeText(s: string): string {
-  return s.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-```
-
-Match: `normalizeText(address).includes(normalizeText(zone))`
+- Si `delivery_config.enabled = false` o hay override activo de `no_delivery`: el bot nunca ofrece domicilio en el paso 3
+- Si el cliente insiste con "quiero domicilio": el backend intercepta y responde "Solo tenemos pedidos para recoger en el local"
+- Si domicilio está disponible: comportamiento actual sin cambios
 
