@@ -24,7 +24,7 @@ const SECTIONS = [
   { id: "payments", label: "Pagos", icon: CreditCard, checkFields: ["payment_config"] },
   { id: "schedule", label: "Horarios", icon: Clock, checkFields: ["operating_hours"] },
   { id: "delivery", label: "Domicilios", icon: Truck, checkFields: ["delivery_config"] },
-  
+  { id: "reservations", label: "Reservas", icon: CalendarDays, checkFields: ["reservation_config"] },
   { id: "upselling", label: "Sugerencias", icon: Lightbulb, checkFields: ["suggest_configs", "promoted_products"] },
   { id: "personality", label: "Personalidad", icon: Smile, checkFields: ["personality_rules"] },
   { id: "connection", label: "WhatsApp", icon: Wifi, checkFields: ["whatsapp_phone_number_id"] },
