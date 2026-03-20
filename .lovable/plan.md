@@ -1,67 +1,136 @@
+`.
 
+<lov-plan>
 
-# Plan: Forzar instrucción de no-domicilio siempre (no solo con historial stale)
+# Plan: Flujo de Reservas por WhatsApp + Generación ICS
 
-## Diagnóstico
+## Resumen
 
-El código está técnicamente correcto: el paso 3 dice "solo recoger" y hay un hint de historial. Pero el LLM ignora ambos porque:
+Implementar el flujo completo de reservas en el webhook de WhatsApp: detección de intención, recolección de datos guiada por IA, validación de disponibilidad en backend, persistencia en la tabla `reservations`, generación de archivo `.ics`, envío por WhatsApp (documento) al cliente y por email (adjunto) al restaurante. Si `reservation_config.enabled = false`, el bot rechaza educadamente.
 
-1. **El hint solo se inyecta si detecta historial stale** (línea 3596-3602). Si por algún motivo el regex no matchea, no se inyecta.
-2. **El hint va al final del prompt** (después de un prompt de miles de caracteres), donde tiene menos peso para el LLM.
-3. **La conversación tiene mensajes previos del asistente diciendo "recoger o domicilio"**, y el LLM replica ese patrón por inercia.
+## Arquitectura
 
-## Cambio (1 archivo)
-
-### `supabase/functions/whatsapp-webhook/index.ts`
-
-**Cambio A — Inyectar hint SIEMPRE cuando `deliveryAvailable = false`** (líneas ~3593-3602)
-
-Actualmente:
-```
-} else {
-  // Delivery NOT available — inject hint to override stale history
-  const recentMsgs = ...
-  const hasStaleDeliveryOffer = recentMsgs.some(...)
-  if (hasStaleDeliveryOffer) {
-    reopenHint += "\n\nIMPORTANTE: Ignora mensajes anteriores..."
-  }
-}
-```
-
-Cambiar a: inyectar el hint **siempre** que `deliveryAvailable = false`, sin condicionar al historial:
-```
-} else {
-  // Delivery NOT available — ALWAYS inject strong instruction
-  reopenHint += "\n\nIMPORTANTE: El servicio de domicilio NO está disponible. 
-  SOLO ofrece recogida en el local. NO preguntes 'recoger o domicilio'. 
-  NO menciones domicilio como opción bajo ninguna circunstancia. 
-  Ignora cualquier mensaje anterior donde se haya ofrecido domicilio.";
-}
-```
-
-Esto garantiza que el hint siempre esté presente, independientemente de si el regex detecta historial stale o no.
-
-**Cambio B — Mover instrucción de no-domicilio MÁS ARRIBA en el prompt** (línea ~1107)
-
-Agregar un bloque justo antes de "FLUJO DE PEDIDO" en `buildCoreSystemPrompt` cuando `deliveryAvailable = false`:
-
-```
-${!deliveryAvailable ? "DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'.\n" : ""}
+```text
+Cliente WhatsApp
+    │
+    ▼
+[Intent Detection] ─── "reservar", "mesa", "reserva" ───►
+    │
+    ▼
+[Check enabled?] ── false ──► "No aceptamos reservas por el momento"
+    │ true
+    ▼
+[Prompt AI con flujo reserva] ──► Recolecta: fecha, hora, # personas, nombre
+    │
+    ▼
+[Parse tag ---RESERVA_CONFIRMADA---{json}---FIN_RESERVA---]
+    │
+    ▼
+[Backend Validation] ──► slot disponible? horarios? capacidad? anticipación?
+    │
+    ▼
+[Insert en `reservations` table]
+    │
+    ▼
+[Generar .ics] ──► Upload a whatsapp-media bucket
+    │
+    ├──► Enviar .ics por WA como documento al cliente
+    └──► Enviar email con .ics adjunto al restaurante (Brevo)
 ```
 
-Esto pone la instrucción en la parte más relevante del prompt (justo antes del flujo), no solo al final.
+## Cambios
+
+### Archivo 1: `supabase/functions/whatsapp-webhook/index.ts`
+
+**Cambio A — Detección de intención de reserva (antes de la sección NORMAL MESSAGE PROCESSING, ~línea 3399)**
+
+Agregar un bloque que detecte intención de reserva usando regex:
+```
+/\b(reservar?|reservaci[oó]n|mesa para|quiero (una )?mesa|apartar mesa|booking)\b/i
+```
+
+Si matchea:
+- Cargar `config.reservation_config`
+- Si `enabled !== true` → responder "En este momento no estamos aceptando reservas por WhatsApp" y retornar
+- Si `enabled === true` → inyectar `conv.reservation_flow = true` en la conversación (via campo `order_status = "reservation_flow"`) y dejar que el AI fluya con instrucciones de reserva
+
+**Cambio B — Instrucciones de reserva en el prompt (dentro de `buildCoreSystemPrompt` o como hint inyectado)**
+
+Cuando `reservation_flow = true`, agregar al prompt un bloque de instrucciones:
+```
+FLUJO DE RESERVA (activo):
+1. Pregunta para cuántas personas
+2. Pregunta la fecha deseada
+3. Pregunta la hora deseada  
+4. Pide el nombre
+5. Confirma los datos y genera el tag:
+   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
+```
+
+Esto se inyecta como sufijo al prompt, similar a `reopenHint`.
+
+**Cambio C — Parser de tag `---RESERVA_CONFIRMADA---` (después de `parseOrder`)**
+
+Nueva función `parseReservation(text)` que extrae el JSON del tag de reserva, similar a `parseOrder()`.
+
+**Cambio D — Validación backend de reserva (después del parser)**
+
+Cuando se detecta el tag:
+1. Validar que `reservation_config.enabled === true`
+2. Validar que el día de la semana está en `available_days`
+3. Validar que la hora está entre `available_hours.start` y `available_hours.end`
+4. Validar `party_size <= max_party_size`
+5. Validar anticipación mínima (`min_advance_hours`)
+6. Validar anticipación máxima (`max_advance_days`)
+7. Contar reservas existentes en ese slot → validar `< max_per_slot`
+8. Validar que la fecha no está en `blocked_dates`
+
+Si falla validación → responder con el motivo específico.
+
+**Cambio E — Persistencia y envío ICS**
+
+Si la validación pasa:
+1. Insertar en tabla `reservations` (status = "confirmed")
+2. Generar string ICS con `VCALENDAR`/`VEVENT` (incluir `DTSTART` con TZID del restaurante, duración del slot, nombre del cliente, etc.)
+3. Subir el `.ics` al bucket `whatsapp-media` como `reservations/{rid}/{timestamp}.ics`
+4. Enviar al cliente vía WhatsApp como documento (`type: document`, `link: publicUrl`, `filename: "Reserva_NombreCliente.ics"`)
+5. Enviar email al restaurante (`config.order_email`) con HTML de notificación + attachment ICS (Brevo soporta `attachment: [{content: base64, name: "reserva.ics"}]`)
+6. Responder al cliente con confirmación
+
+**Cambio F — Funciones auxiliares nuevas**
+
+- `generateICS(reservation, config)`: genera string ICS estándar
+- `parseReservation(text)`: extrae JSON del tag
+- `validateReservation(data, config)`: valida disponibilidad
+- `sendWADocument(phoneId, token, to, documentUrl, filename, caption)`: envía documento por WA API
+
+### Archivo 2: `supabase/config.toml`
+
+No requiere cambios — el webhook ya tiene `verify_jwt = false`.
+
+### Archivo 3: UI — Sin cambios
+
+La UI de configuración de reservas ya existe en `AliciaConfigReservations.tsx`. La tabla `reservations` ya existe. No se requieren cambios en UI.
 
 ## Lo que NO se modifica
 
-- Lógica de pedidos / JSON / service overrides
-- Interceptación mid-conversation (ya funciona)
-- `suggestionFlow.ts` (ya está correcto)
-- `generate-alicia/index.ts`
-- Schema de base de datos
+- Flujo de pedidos (tags `PEDIDO_CONFIRMADO`, `CAMBIO_PEDIDO`, `ADICION_PEDIDO`)
+- Lógica de sugerencias/upselling
+- Service overrides
+- Validación de precios/empaques
+- Confirmación de pedidos
+- Email de pedidos
+- SaveOrder / nudge system
+- Cualquier tabla existente
 
-## Resultado
+## Resultado esperado
 
-- La instrucción de no-domicilio aparecerá en DOS lugares del prompt: antes del flujo + al final como hint
-- Se inyectará SIEMPRE cuando no hay domicilio, no solo cuando hay historial stale
-- El LLM tendrá mucho más difícil ignorar la instrucción
+- Cliente escribe "quiero reservar" → Alicia inicia flujo de reserva
+- Recolecta datos paso a paso (personas, fecha, hora, nombre)
+- Backend valida disponibilidad real antes de confirmar
+- Se inserta en `reservations` como `confirmed`
+- Cliente recibe `.ics` por WhatsApp
+- Restaurante recibe email con notificación + `.ics` adjunto
+- Si `enabled = false` → "No aceptamos reservas por WhatsApp en este momento"
+- Si el slot está lleno → "Lo siento, ese horario ya está completo"
 
