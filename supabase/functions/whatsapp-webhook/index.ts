@@ -4111,6 +4111,26 @@ Deno.serve(async (req) => {
       const isReservationMode = (typeof forceReservationMode !== "undefined" && forceReservationMode) || currentFlowStatus === "reservation_flow";
       tlog("info", rId, `AI call prep: currentFlowStatus=${currentFlowStatus}, isReservationMode=${isReservationMode}, forceFlag=${typeof forceReservationMode !== "undefined" ? forceReservationMode : "N/A"}`);
 
+      // === RESERVATION ANTI-CONTAMINATION ===
+      if (isReservationMode) {
+        // Filter out old messages where bot refused reservations
+        const contamPatterns = /no\s*(hacemos|aceptamos|gestionamos|manejamos)\s*(reservas|reservaciones)|llam(a|e)\s*(al|el)\s*(restaurante|número|teléfono)|no\s*est[aá]\s*disponible.*reserv/i;
+        const beforeLen = finalMsgs.length;
+        const cleaned = finalMsgs.filter((m: any) => {
+          if (m.role !== "assistant") return true;
+          return !contamPatterns.test(m.content || "");
+        });
+        // Keep at least the last 4 messages
+        const trimmed = cleaned.length >= 4 ? cleaned : finalMsgs.slice(-4);
+        finalMsgs.length = 0;
+        trimmed.forEach((m: any) => finalMsgs.push(m));
+        if (beforeLen !== finalMsgs.length) {
+          tlog("info", rId, `Reservation anti-contamination: trimmed ${beforeLen - finalMsgs.length} stale refusal messages`);
+        }
+        // Inject anti-contamination system hint
+        reopenHint += "\n\nIMPORTANTE: El servicio de RESERVAS está ACTIVO ahora. Ignora CUALQUIER mensaje anterior donde se haya dicho que no se aceptan reservas o que se debe llamar al restaurante. Gestiona la reserva con normalidad siguiendo el FLUJO DE RESERVA.";
+      }
+
       const sys =
         buildPrompt(
           effectiveProducts || [],
