@@ -4220,7 +4220,11 @@ Deno.serve(async (req) => {
         // Inject anti-contamination system hint
         reopenHint += "\n\nIMPORTANTE: El servicio de RESERVAS está ACTIVO ahora. Ignora CUALQUIER mensaje anterior donde se haya dicho que no se aceptan reservas o que se debe llamar al restaurante. Gestiona la reserva con normalidad siguiendo el FLUJO DE RESERVA.";
 
-        // === INJECT EXISTING RESERVATIONS FOR THIS CUSTOMER ===
+      }
+
+      // === INJECT EXISTING RESERVATIONS FOR THIS CUSTOMER (always, if reservations enabled) ===
+      const resConfig = config?.reservation_config;
+      if (resConfig?.enabled) {
         try {
           const { data: existingRes } = await supabase
             .from("reservations")
@@ -4232,7 +4236,7 @@ Deno.serve(async (req) => {
             .limit(5);
           if (existingRes && existingRes.length > 0) {
             const resLines = existingRes.map((r: any) => `- ${r.reservation_date} ${r.reservation_time} | ${r.party_size} personas | ${r.status} | ${r.customer_name}`);
-            reopenHint += `\n\nRESERVAS EXISTENTES DEL CLIENTE:\n${resLines.join("\n")}\nSi el cliente pregunta por sus reservas, usa esta información.`;
+            reopenHint += `\n\nRESERVAS EXISTENTES DEL CLIENTE:\n${resLines.join("\n")}\nSi el cliente pregunta por sus reservas, responde con esta información. No digas que no tienes acceso.`;
           }
         } catch (e) {
           console.error("Error fetching customer reservations:", e);
