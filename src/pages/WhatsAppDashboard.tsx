@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
 import TemplatesPanel from "@/components/alicia-dashboard/TemplatesPanel";
+import ReservationsPanel from "@/components/alicia-dashboard/ReservationsPanel";
 import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 interface Message {
