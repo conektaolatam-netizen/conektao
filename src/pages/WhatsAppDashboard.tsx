@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2, Settings } from "lucide-react";
+import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2, Settings, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
