@@ -1191,6 +1191,7 @@ function buildPrompt(
   config?: any,
   customerName?: string,
   activeOverrides?: any[],
+  reservationMode: boolean = false,
 ) {
   let prom = "";
   if (promoted && promoted.length > 0) {
