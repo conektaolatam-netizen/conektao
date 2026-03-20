@@ -27,6 +27,7 @@ interface ReservationConfig {
   available_hours: { start: string; end: string };
   blocked_dates: string[];
   confirmation_message: string;
+  slot_full_message: string;
 }
 
 const DEFAULT_CONFIG: ReservationConfig = {
