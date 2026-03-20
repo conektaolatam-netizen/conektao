@@ -1236,6 +1236,7 @@ function buildPrompt(
       order,
       status,
       customerName,
+      reservationMode,
     );
     return core + "\n\n" + dynamic;
   }
