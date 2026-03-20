@@ -1237,7 +1237,8 @@ function buildPrompt(
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, config?.reservation_config);
+    const resConfigWithTz = config?.reservation_config ? { ...config.reservation_config, _timezone: config?.operating_hours?.timezone || "UTC-5" } : undefined;
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz);
     const dynamic = buildDynamicPrompt(
       config,
       products,
