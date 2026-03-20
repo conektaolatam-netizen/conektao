@@ -551,6 +551,16 @@ export default function WhatsAppDashboard() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="reservations" className="flex-1 m-0 overflow-y-auto">
+          {restaurantId ? (
+            <ReservationsPanel restaurantId={restaurantId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
+              <p className="text-sm">Cargando...</p>
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
