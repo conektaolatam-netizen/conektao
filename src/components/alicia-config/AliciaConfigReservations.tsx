@@ -1,21 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { RotateCcw } from "lucide-react";
+import React, { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  CalendarDays, Users, Clock, Settings2, CheckCircle2, 
-  XCircle, Phone, ChevronLeft, ChevronRight, AlertCircle
-} from "lucide-react";
-import { format, addDays, subDays, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { CalendarDays, Clock, Settings2 } from "lucide-react";
 
 interface ReservationConfig {
   enabled: boolean;
