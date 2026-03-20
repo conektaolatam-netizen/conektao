@@ -1105,7 +1105,30 @@ AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → 
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 ${globalRulesBlock}
-${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
+${reservationMode ? (() => {
+  const rc = reservationConfig || {};
+  const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
+  const maxParty = rc.max_party_size || 12;
+  const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
+  return `FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
+1. Pregunta para cuántas personas (máximo ${maxParty})
+2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
+3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
+4. Pide el nombre del cliente
+5. Confirma todos los datos con el cliente
+6. Cuando el cliente confirme, genera el tag:
+   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
+   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
+   IMPORTANTE: La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
+   NO inventes disponibilidad. Solo recolecta los datos.
+
+REGLAS DE RESERVA:
+- NO tomes pedidos de comida durante el flujo de reserva
+- Si el cliente quiere pedir comida, dile que primero terminen con la reserva
+- Si el cliente quiere cancelar la reserva, responde amablemente y resetea
+- NUNCA muestres JSON ni tags al cliente`;
+})() : `${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
 ${deliveryAvailable
@@ -1153,7 +1176,7 @@ REGLAS INQUEBRANTABLES:
 6. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
 7. FRUSTRACIÓN → pasa al humano
 8. NUNCA muestres JSON al cliente
-RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.`}
 
 === FIN CORE ===`;
 }
