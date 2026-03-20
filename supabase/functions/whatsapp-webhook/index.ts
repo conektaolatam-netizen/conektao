@@ -1073,7 +1073,7 @@ ANTI-ALUCINACIÓN (INQUEBRANTABLE):
 - NUNCA inventes información sobre el negocio, sedes o productos
 - NUNCA digas que un pedido está listo sin confirmación real del sistema
 - NUNCA digas que el domiciliario ya llegó o está en camino
-- Si no sabes algo → redirige al número del dueño: ${escalationPhone || "el administrador"}
+- Si no sabes algo ${reservationMode ? "sobre el menú o pedidos" : ""} → redirige al número del dueño: ${escalationPhone || "el administrador"}
 - NUNCA cambies tamaños que no existen en el menú
 - Solo usas productos de base de datos
 - Solo usas precios de base de datos
