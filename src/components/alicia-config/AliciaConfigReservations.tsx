@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ interface ReservationConfig {
   available_hours: { start: string; end: string };
   blocked_dates: string[];
   confirmation_message: string;
+  slot_full_message: string;
 }
 
 const DEFAULT_CONFIG: ReservationConfig = {
@@ -39,6 +41,7 @@ const DEFAULT_CONFIG: ReservationConfig = {
   available_hours: { start: "12:00", end: "21:00" },
   blocked_dates: [],
   confirmation_message: "¡Tu reserva ha sido confirmada! Te esperamos 🎉",
+  slot_full_message: "Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?",
 };
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -287,6 +290,21 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
               onChange={e => updateConfig({ confirmation_message: e.target.value })}
               placeholder="¡Tu reserva ha sido confirmada! Te esperamos 🎉"
             />
+          </Card>
+
+          {/* Slot full message */}
+          <Card className="p-4 bg-card border-border space-y-3">
+            <Label className="text-xs text-muted-foreground">Mensaje cuando el horario está lleno</Label>
+            <Textarea
+              value={resConfig.slot_full_message}
+              onChange={e => updateConfig({ slot_full_message: e.target.value })}
+              placeholder="Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?"
+              className="min-h-[60px] resize-none"
+              rows={2}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Se envía directamente al cliente cuando intenta reservar en un horario sin disponibilidad.
+            </p>
           </Card>
 
 

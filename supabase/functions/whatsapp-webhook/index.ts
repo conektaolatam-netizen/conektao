@@ -2122,7 +2122,7 @@ async function checkSlotAvailability(
   });
 
   if (overlapping.length >= maxPerSlot) {
-    return { available: false, error: `Lo siento, ese horario ya está completo. ¿Te gustaría otro horario?` };
+    return { available: false, error: "SLOT_FULL" };
   }
 
   return { available: true, error: "" };
@@ -2319,7 +2319,9 @@ async function processReservation(
   // 2. Check slot availability
   const slotCheck = await checkSlotAvailability(rId, reservationData.date, reservationData.time, resConfig);
   if (!slotCheck.available) {
-    const slotResp = slotCheck.error;
+    const slotResp = slotCheck.error === "SLOT_FULL"
+      ? (resConfig.slot_full_message || "Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?")
+      : slotCheck.error;
     freshMsgs.push({ role: "assistant", content: slotResp, timestamp: new Date().toISOString() });
     await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
     await sendWA(pid, token, phone, slotResp, true);
