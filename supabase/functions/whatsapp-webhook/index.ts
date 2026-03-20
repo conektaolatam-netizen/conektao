@@ -4046,6 +4046,28 @@ Deno.serve(async (req) => {
         }
       }
 
+      // === RESERVATION FLOW PROMPT INJECTION ===
+      let reservationHint = "";
+      const currentFlowStatus = freshConv?.order_status || conv.order_status;
+      if (currentFlowStatus === "reservation_flow") {
+        const rc = config?.reservation_config || {};
+        const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
+        const maxParty = rc.max_party_size || 12;
+        const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+        const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNames[d]).join(", ");
+        reservationHint = `\n\nFLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
+1. Pregunta para cuántas personas (máximo ${maxParty})
+2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
+3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
+4. Pide el nombre del cliente
+5. Confirma todos los datos con el cliente
+6. Cuando el cliente confirme, genera el tag:
+   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
+   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
+   IMPORTANTE: La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
+   NO inventes disponibilidad. Solo recolecta los datos.`;
+      }
+
       const sys =
         buildPrompt(
           effectiveProducts || [],
@@ -4060,7 +4082,8 @@ Deno.serve(async (req) => {
         ) +
         customerMemoryCtx +
         overridePromptBlock +
-        reopenHint;
+        reopenHint +
+        reservationHint;
 
       // === PRICE QUESTION INTERCEPTOR ===
       // Check if user is asking a price question — respond with DB prices, skip AI
