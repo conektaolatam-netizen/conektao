@@ -2034,6 +2034,21 @@ function parseReservation(txt: string): { reservation: any; clean: string } | nu
   }
 }
 
+/** Parse cancel reservation tag from AI response */
+function parseCancelReservation(txt: string): { phone: string; clean: string } | null {
+  const m = txt.match(/---CANCELAR_RESERVA---\s*([\s\S]*?)\s*---FIN_CANCELAR---/);
+  if (!m) return null;
+  try {
+    const data = JSON.parse(m[1].trim());
+    return {
+      phone: data.phone || "",
+      clean: txt.replace(/---CANCELAR_RESERVA---[\s\S]*?---FIN_CANCELAR---/, "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Validate reservation data against config rules */
 function validateReservation(
   data: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
