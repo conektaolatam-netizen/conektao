@@ -292,6 +292,21 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             />
           </Card>
 
+          {/* Slot full message */}
+          <Card className="p-4 bg-card border-border space-y-3">
+            <Label className="text-xs text-muted-foreground">Mensaje cuando el horario está lleno</Label>
+            <Textarea
+              value={resConfig.slot_full_message}
+              onChange={e => updateConfig({ slot_full_message: e.target.value })}
+              placeholder="Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?"
+              className="min-h-[60px] resize-none"
+              rows={2}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Se envía directamente al cliente cuando intenta reservar en un horario sin disponibilidad.
+            </p>
+          </Card>
+
 
           {/* === AGENDA VIEW === */}
           <div className="border-t border-border pt-6 space-y-4">
