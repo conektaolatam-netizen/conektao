@@ -1053,13 +1053,13 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
  * This is the "DNA" of every Alicia instance.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any): string {
   const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage, deliveryAvailable);
   const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
-- Eres ${assistantName}, una IA conversacional de pedidos por WhatsApp
+- Eres ${assistantName}, una IA conversacional de ${reservationMode ? "pedidos y reservas" : "pedidos"} por WhatsApp
 - Eres amable, humana, clara y paciente
 - Te enfocas en vender y subir ticket promedio según gustos y presupuesto
 - Si preguntan si eres bot → admítelo: "Sí, soy una asistente virtual, pero te atiendo con todo el gusto del mundo 😊"
@@ -1073,7 +1073,7 @@ ANTI-ALUCINACIÓN (INQUEBRANTABLE):
 - NUNCA inventes información sobre el negocio, sedes o productos
 - NUNCA digas que un pedido está listo sin confirmación real del sistema
 - NUNCA digas que el domiciliario ya llegó o está en camino
-- Si no sabes algo → redirige al número del dueño: ${escalationPhone || "el administrador"}
+- Si no sabes algo ${reservationMode ? "sobre el menú o pedidos" : ""} → redirige al número del dueño: ${escalationPhone || "el administrador"}
 - NUNCA cambies tamaños que no existen en el menú
 - Solo usas productos de base de datos
 - Solo usas precios de base de datos
@@ -1105,7 +1105,30 @@ AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → 
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
 ${globalRulesBlock}
-${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
+${reservationMode ? (() => {
+  const rc = reservationConfig || {};
+  const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
+  const maxParty = rc.max_party_size || 12;
+  const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
+  return `FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
+1. Pregunta para cuántas personas (máximo ${maxParty})
+2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
+3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
+4. Pide el nombre del cliente
+5. Confirma todos los datos con el cliente
+6. Cuando el cliente confirme, genera el tag:
+   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
+   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
+   IMPORTANTE: La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
+   NO inventes disponibilidad. Solo recolecta los datos.
+
+REGLAS DE RESERVA:
+- NO tomes pedidos de comida durante el flujo de reserva
+- Si el cliente quiere pedir comida, dile que primero terminen con la reserva
+- Si el cliente quiere cancelar la reserva, responde amablemente y resetea
+- NUNCA muestres JSON ni tags al cliente`;
+})() : `${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
 ${deliveryAvailable
@@ -1153,7 +1176,7 @@ REGLAS INQUEBRANTABLES:
 6. DIRECCIÓN: Cuando la den, GRÁBALA. DEBE aparecer en el JSON
 7. FRUSTRACIÓN → pasa al humano
 8. NUNCA muestres JSON al cliente
-RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.
+RECUERDA: ---PEDIDO_CONFIRMADO---{json}---FIN_PEDIDO--- va en el RESUMEN (paso 6), NO después de la confirmación.`}
 
 === FIN CORE ===`;
 }
@@ -1168,6 +1191,7 @@ function buildPrompt(
   config?: any,
   customerName?: string,
   activeOverrides?: any[],
+  reservationMode: boolean = false,
 ) {
   let prom = "";
   if (promoted && promoted.length > 0) {
@@ -1197,7 +1221,7 @@ function buildPrompt(
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, config?.reservation_config);
     const dynamic = buildDynamicPrompt(
       config,
       products,
@@ -3869,7 +3893,7 @@ Deno.serve(async (req) => {
 
       // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
       const availability = checkRestaurantAvailability(config, activeOverrides, config.daily_overrides || []);
-      if (availability.blocked) {
+      if (availability.blocked && conv.order_status !== "reservation_flow") {
         tlog("info", rId, `Restaurant blocked: ${availability.message.substring(0, 60)}`);
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
@@ -4046,27 +4070,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === RESERVATION FLOW PROMPT INJECTION ===
-      let reservationHint = "";
+      // === RESERVATION MODE ===
       const currentFlowStatus = freshConv?.order_status || conv.order_status;
-      if (currentFlowStatus === "reservation_flow") {
-        const rc = config?.reservation_config || {};
-        const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
-        const maxParty = rc.max_party_size || 12;
-        const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-        const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNames[d]).join(", ");
-        reservationHint = `\n\nFLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
-1. Pregunta para cuántas personas (máximo ${maxParty})
-2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
-3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
-4. Pide el nombre del cliente
-5. Confirma todos los datos con el cliente
-6. Cuando el cliente confirme, genera el tag:
-   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
-   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
-   IMPORTANTE: La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
-   NO inventes disponibilidad. Solo recolecta los datos.`;
-      }
+      const isReservationMode = currentFlowStatus === "reservation_flow";
 
       const sys =
         buildPrompt(
@@ -4079,12 +4085,11 @@ Deno.serve(async (req) => {
           configWithTime,
           freshCustomerName || waCustomer?.name || "",
           activeOverrides,
+          isReservationMode,
         ) +
         customerMemoryCtx +
         overridePromptBlock +
-        reopenHint +
-        reservationHint;
-
+        reopenHint;
       // === PRICE QUESTION INTERCEPTOR ===
       // Check if user is asking a price question — respond with DB prices, skip AI
       const userTextForPrice = trailingCustomerTexts.join(" ");
