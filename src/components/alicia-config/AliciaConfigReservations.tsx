@@ -41,6 +41,7 @@ const DEFAULT_CONFIG: ReservationConfig = {
   available_hours: { start: "12:00", end: "21:00" },
   blocked_dates: [],
   confirmation_message: "¡Tu reserva ha sido confirmada! Te esperamos 🎉",
+  slot_full_message: "Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?",
 };
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
