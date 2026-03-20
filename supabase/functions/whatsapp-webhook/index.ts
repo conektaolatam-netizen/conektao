@@ -1111,10 +1111,13 @@ ${reservationMode ? (() => {
   const maxParty = rc.max_party_size || 12;
   const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
-  const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const todayDayName = dayNamesArr[now.getDay()];
+  const tz = reservationConfig?._timezone || "UTC-5";
+  const tzOffset = parseTimezoneOffset(tz);
+  const localNow = getRestaurantTime(tzOffset);
+  const todayStr = getRestaurantDate(tzOffset);
+  const todayDayName = dayNamesArr[localNow.getDay()];
   return `FECHA_ACTUAL: ${todayStr} (${todayDayName})
+HORA_ACTUAL: ${String(localNow.getHours()).padStart(2,"0")}:${String(localNow.getMinutes()).padStart(2,"0")}
 Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
 Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el sábado 22 de marzo de 2026, ¿correcto?"
 
@@ -1138,7 +1141,8 @@ CRÍTICO SOBRE EL TAG:
 REGLAS DE RESERVA:
 - NO tomes pedidos de comida durante el flujo de reserva
 - Si el cliente quiere pedir comida, dile que primero terminen con la reserva
-- Si el cliente quiere cancelar la reserva, responde amablemente y resetea
+- Si el cliente quiere CANCELAR una reserva existente, genera el tag:
+  ---CANCELAR_RESERVA---{"phone":"${escalationPhone ? "telefono_del_cliente" : "telefono_del_cliente"}"}---FIN_CANCELAR---
 - NUNCA muestres JSON ni tags al cliente`;
 })() : `${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
