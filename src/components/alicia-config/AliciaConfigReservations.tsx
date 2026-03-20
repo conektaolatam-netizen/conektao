@@ -387,6 +387,18 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
                             onClick={() => updateReservationStatus(r.id, "no_show")}>
                             No asistió
                           </Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            onClick={() => updateReservationStatus(r.id, "cancelled")}>
+                            <XCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      {(r.status === "completed" || r.status === "no_show" || r.status === "cancelled") && (
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-teal-400 hover:text-teal-300 hover:bg-teal-900/20"
+                            onClick={() => updateReservationStatus(r.id, "confirmed")}>
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restablecer
+                          </Button>
                         </div>
                       )}
                     </div>
