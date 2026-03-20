@@ -38,18 +38,6 @@ const DEFAULT_CONFIG: ReservationConfig = {
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-interface Reservation {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  party_size: number;
-  reservation_date: string;
-  reservation_time: string;
-  status: string;
-  notes: string | null;
-  source: string;
-}
-
 interface Props {
   config: any;
   onSave: (field: string, value: any) => Promise<void>;
@@ -64,9 +52,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
     return { ...DEFAULT_CONFIG };
   });
 
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
-  const [loadingReservations, setLoadingReservations] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Load reservations for selected date
