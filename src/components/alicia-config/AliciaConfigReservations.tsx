@@ -15,7 +15,7 @@ interface ReservationConfig {
   max_party_size: number;
   min_advance_hours: number;
   max_advance_days: number;
-  available_days: number[]; // 0=Sun, 1=Mon...6=Sat
+  available_days: number[];
   available_hours: { start: string; end: string };
   blocked_dates: string[];
   confirmation_message: string;
@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: ReservationConfig = {
   max_party_size: 12,
   min_advance_hours: 2,
   max_advance_days: 30,
-  available_days: [1, 2, 3, 4, 5, 6], // Mon-Sat
+  available_days: [1, 2, 3, 4, 5, 6],
   available_hours: { start: "12:00", end: "21:00" },
   blocked_dates: [],
   confirmation_message: "¡Tu reserva ha sido confirmada! Te esperamos 🎉",
@@ -54,31 +54,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
 
   const [saving, setSaving] = useState(false);
 
-  // Load reservations for selected date
-  useEffect(() => {
-    loadReservations();
-  }, [selectedDate, config?.restaurant_id]);
-
-  async function loadReservations() {
-    if (!config?.restaurant_id) return;
-    setLoadingReservations(true);
-    try {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select("*")
-        .eq("restaurant_id", config.restaurant_id)
-        .eq("reservation_date", selectedDate)
-        .order("reservation_time", { ascending: true });
-
-      if (error) throw error;
-      setReservations((data as Reservation[]) || []);
-    } catch (err) {
-      console.error("Error loading reservations:", err);
-    } finally {
-      setLoadingReservations(false);
-    }
-  }
-
   function updateConfig(partial: Partial<ReservationConfig>) {
     setResConfig(prev => ({ ...prev, ...partial }));
   }
@@ -99,39 +74,8 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
     updateConfig({ available_days: days });
   }
 
-  async function updateReservationStatus(id: string, status: string) {
-    const updateData: any = { status, updated_at: new Date().toISOString() };
-    if (status === "confirmed") updateData.confirmed_at = new Date().toISOString();
-    if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
-
-    const { error } = await supabase.from("reservations").update(updateData).eq("id", id);
-    if (error) {
-      toast.error("Error actualizando reserva");
-      console.error(error);
-    } else {
-      toast.success(status === "confirmed" ? "Reserva confirmada ✅" : status === "cancelled" ? "Reserva cancelada" : "Estado actualizado");
-      loadReservations();
-    }
-  }
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      pending: { label: "Pendiente", variant: "outline" },
-      confirmed: { label: "Confirmada", variant: "default" },
-      cancelled: { label: "Cancelada", variant: "destructive" },
-      completed: { label: "Completada", variant: "secondary" },
-      no_show: { label: "No asistió", variant: "destructive" },
-    };
-    const info = map[status] || { label: status, variant: "outline" as const };
-    return <Badge variant={info.variant}>{info.label}</Badge>;
-  };
-
-  const confirmedCount = reservations.filter(r => r.status === "confirmed").length;
-  const pendingCount = reservations.filter(r => r.status === "pending").length;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-teal-400" />
@@ -142,7 +86,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
         </p>
       </div>
 
-      {/* Enable toggle */}
       <Card className="p-4 bg-card border-border">
         <div className="flex items-center justify-between">
           <div>
@@ -158,13 +101,11 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
 
       {resConfig.enabled && (
         <>
-          {/* Limits & Capacity */}
           <Card className="p-4 bg-card border-border space-y-4">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-muted-foreground" />
               Capacidad y límites
             </h3>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Máximo reservas por slot</Label>
@@ -218,7 +159,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             </div>
           </Card>
 
-          {/* Available days */}
           <Card className="p-4 bg-card border-border space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -259,7 +199,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             </div>
           </Card>
 
-          {/* Confirmation message */}
           <Card className="p-4 bg-card border-border space-y-3">
             <Label className="text-xs text-muted-foreground">Mensaje de confirmación (WhatsApp)</Label>
             <Input
@@ -269,7 +208,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             />
           </Card>
 
-          {/* Slot full message */}
           <Card className="p-4 bg-card border-border space-y-3">
             <Label className="text-xs text-muted-foreground">Mensaje cuando el horario está lleno</Label>
             <Textarea
@@ -283,11 +221,9 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
               Se envía directamente al cliente cuando intenta reservar en un horario sin disponibilidad.
             </p>
           </Card>
-
         </>
       )}
 
-      {/* Save button — always visible */}
       <Button
         onClick={handleSave}
         disabled={saving}
