@@ -4223,12 +4223,7 @@ Deno.serve(async (req) => {
       // === RESERVATION TAG DETECTION (before order parsing) ===
       const parsedReservation = parseReservation(ai);
       if (parsedReservation) {
-        const cleanResp = parsedReservation.clean;
-        if (cleanResp) {
-          freshMsgs.push({ role: "assistant", content: cleanResp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
-          await sendWA(pid, token, from, cleanResp, true);
-        }
+        // Do NOT send AI text yet — validate first via processReservation
         return await processReservation(
           parsedReservation.reservation,
           rId,
@@ -4238,7 +4233,43 @@ Deno.serve(async (req) => {
           pid,
           token,
           freshMsgs,
+          parsedReservation.clean, // pass AI text to send only on success
         );
+      }
+
+      // === CANCEL RESERVATION TAG DETECTION ===
+      const parsedCancel = parseCancelReservation(ai);
+      if (parsedCancel) {
+        const cancelClean = parsedCancel.clean;
+        // Find most recent confirmed/pending reservation for this phone
+        const { data: cancelTarget, error: cancelErr } = await supabase
+          .from("reservations")
+          .select("id, reservation_date, reservation_time, customer_name")
+          .eq("restaurant_id", rId)
+          .eq("customer_phone", from)
+          .in("status", ["confirmed", "pending"])
+          .order("reservation_date", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (cancelTarget && !cancelErr) {
+          await supabase.from("reservations").update({
+            status: "cancelled",
+            cancelled_at: new Date().toISOString(),
+          }).eq("id", cancelTarget.id);
+          const cancelMsg = cancelClean || `Tu reserva del ${cancelTarget.reservation_date} a las ${cancelTarget.reservation_time} ha sido cancelada`;
+          freshMsgs.push({ role: "assistant", content: cancelMsg, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30), order_status: "none" }).eq("id", conv.id);
+          await sendWA(pid, token, from, cancelMsg, true);
+          tlog("info", rId, `Reservation cancelled via chat: ${cancelTarget.id} for ${from}`);
+          return new Response(JSON.stringify({ status: "reservation_cancelled" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } else {
+          const noCancelMsg = cancelClean || "No encontré una reserva activa para cancelar";
+          freshMsgs.push({ role: "assistant", content: noCancelMsg, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noCancelMsg, true);
+          return new Response(JSON.stringify({ status: "no_reservation_to_cancel" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
       const parsed = parseOrder(ai);
