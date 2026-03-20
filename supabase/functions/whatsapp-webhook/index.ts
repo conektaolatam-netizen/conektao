@@ -1261,6 +1261,7 @@ function buildDynamicPrompt(
   order: any,
   status: string,
   customerName?: string,
+  reservationMode: boolean = false,
 ): string {
   const personality = config.personality_rules || {};
   const delivery = config.delivery_config || {};
