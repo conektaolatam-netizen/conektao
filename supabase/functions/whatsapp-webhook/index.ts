@@ -2318,6 +2318,7 @@ async function processReservation(
   pid: string,
   token: string,
   freshMsgs: any[],
+  preConfirmMsg?: string,
 ): Promise<Response> {
   const resConfig = config?.reservation_config || {};
   const tz = config?.operating_hours?.timezone || "UTC-5";
@@ -2339,9 +2340,22 @@ async function processReservation(
   // 2. Check slot availability
   const slotCheck = await checkSlotAvailability(rId, reservationData.date, reservationData.time, resConfig);
   if (!slotCheck.available) {
-    const slotResp = slotCheck.error === "SLOT_FULL"
+    let slotResp = slotCheck.error === "SLOT_FULL"
       ? (resConfig.slot_full_message || "Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?")
       : slotCheck.error;
+
+    // Add available alternative slots
+    if (slotCheck.error === "SLOT_FULL") {
+      try {
+        const availSlots = await getAvailableSlots(rId, reservationData.date, resConfig, tz);
+        if (availSlots.length > 0) {
+          slotResp += "\n\nHorarios disponibles para ese día:\n" + availSlots.map((s: string) => `• ${s}`).join("\n");
+        }
+      } catch (e) {
+        console.error("Error getting available slots:", e);
+      }
+    }
+
     freshMsgs.push({ role: "assistant", content: slotResp, timestamp: new Date().toISOString() });
     await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
     await sendWA(pid, token, phone, slotResp, true);
