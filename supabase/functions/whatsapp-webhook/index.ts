@@ -1377,7 +1377,7 @@ function buildDynamicPrompt(
 
   // Packaging — built dynamically from products table (single source of truth)
   const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
-  const packagingBlock =
+  let packagingBlock =
     packagingProducts.length > 0
       ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
         packagingProducts
