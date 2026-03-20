@@ -1119,7 +1119,8 @@ ${reservationMode ? (() => {
   return `FECHA_ACTUAL: ${todayStr} (${todayDayName})
 HORA_ACTUAL: ${String(localNow.getHours()).padStart(2,"0")}:${String(localNow.getMinutes()).padStart(2,"0")}
 Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
-Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el sábado 22 de marzo de 2026, ¿correcto?"
+Siempre CONFIRMA la fecha completa al cliente con formato: "Sería el [día de la semana] [número] de [mes] de [año], ¿correcto?"
+NO uses fechas de ejemplo literalmente — CALCULA la fecha real basándote en FECHA_ACTUAL.
 
 FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
 1. Pregunta para cuántas personas (máximo ${maxParty})
