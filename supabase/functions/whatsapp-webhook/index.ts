@@ -1391,7 +1391,7 @@ function buildDynamicPrompt(
     : "";
 
   // Escalation
-  const escalationBlock = escalation.human_phone
+  let escalationBlock = escalation.human_phone
     ? `ESCALAMIENTO: Si insiste en persona → "${escalation.escalation_message || `Comunícate al ${escalation.human_phone}`}". Solo ---ESCALAMIENTO--- para temas técnicos.`
     : "";
 
