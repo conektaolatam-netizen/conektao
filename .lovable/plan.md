@@ -1,60 +1,54 @@
 
+Diagnóstico encontrado (sin modificar nada):
 
-# Plan: Fix reservation flow being ignored by LLM (Root Cause #2)
+1) Causa raíz principal: `reservation_flow` NO está permitido en la DB  
+- La tabla `whatsapp_conversations` tiene un CHECK activo:
+  `whatsapp_conversations_order_status_check`
+- Valores permitidos actuales:  
+  `none, building, confirmed, sent, emailed, active, pending_confirmation, pending_button_confirmation, nudge_sent, followup_sent`
+- `reservation_flow` no está en esa lista.
 
-## Diagnosis
+2) Efecto directo en runtime  
+- El webhook intenta hacer:
+  `update({ order_status: "reservation_flow" })`
+- Ese update falla por constraint, pero el código no valida `error` en ese punto.
+- Aun así imprime log “Reservation flow activated…”, dando falso positivo.
 
-The reservation intent IS being detected correctly (logs confirm `Reservation flow activated`). The `reservationMode` flag IS being passed to `buildCoreSystemPrompt`. However, the AI still refuses because:
+3) Evidencia consistente con tus síntomas  
+- Logs: “Reservation flow activated…” aparece repetidamente para el mismo número.
+- Si realmente persistiera, en el siguiente mensaje NO debería volver a “activar”.
+- Conversación actual quedó en `order_status = none`, y el bot responde como flujo normal de pedidos (“no manejamos reservas…”), justo lo que estás viendo.
 
-1. **`buildDynamicPrompt` is NOT reservation-aware**: It always outputs `ESTADO: Cerrado` (schedule), full delivery/payment blocks, escalation instructions, and the entire menu — all order-taking context that overwhelms the FLUJO DE RESERVA instructions.
+Plan de corrección (mínimo impacto, sin romper pedidos):
 
-2. **Schedule says "Cerrado"**: Even though we bypass the hard availability block (line 3896), the dynamic prompt's `scheduleBlock` still tells the AI "ESTADO: Cerrado. Abrimos a las X" — and the AI obeys this instead of the reservation flow.
+Paso 1 — Migración DB (obligatorio)
+- Actualizar constraint `whatsapp_conversations_order_status_check` para incluir:
+  - `reservation_flow`
+- Mantener todos los demás estados intactos.
 
-3. **Escalation block**: The dynamic prompt includes "Si insiste → comunícate al [phone]", causing the AI to redirect to the phone instead of handling the reservation.
+Paso 2 — Robustecer webhook al guardar estado
+- En el bloque de activación de reserva, validar `error` del update.
+- Si falla, loggear error explícito con causa (constraint/status inválido).
 
-## Fix (1 file)
+Paso 3 — Fallback defensivo en el mismo request
+- Añadir flag local (`forceReservationMode`) cuando se detecta intención.
+- Calcular modo así:
+  `isReservationMode = forceReservationMode || currentFlowStatus === "reservation_flow"`
+- Esto evita que un fallo puntual de persistencia rompa ese turno de conversación.
 
-### `supabase/functions/whatsapp-webhook/index.ts`
+Paso 4 — Observabilidad mínima
+- Log explícito antes de llamar AI con:
+  - `currentFlowStatus`
+  - `isReservationMode`
+- Así se valida en logs si realmente entró al prompt de reserva.
 
-**Change A — Pass `reservationMode` to `buildDynamicPrompt`**
+Paso 5 — Verificación E2E
+- Caso A: `enabled=false` → rechazo correcto (como hoy).
+- Caso B: `enabled=true` + “quiero reservar mesa” → debe pedir personas/fecha/hora/nombre (no desviar a pedidos).
+- Caso C: confirmar reserva → inserta en `reservations`, envía ICS por WhatsApp y correo restaurante.
+- Caso D: pedido normal → flujo de pedidos sigue intacto.
 
-Add `reservationMode: boolean = false` parameter to `buildDynamicPrompt()` and forward it from `buildPrompt()` (line 1225).
-
-**Change B — Override `scheduleBlock` in reservation mode**
-
-When `reservationMode = true`, replace whatever schedule status was calculated with:
-```
-"ESTADO: Aceptando reservas. El horario de operación del restaurante no afecta las reservas (son para fecha futura)."
-```
-
-**Change C — Suppress order-specific blocks in reservation mode**
-
-When `reservationMode = true`:
-- Replace `deliveryBlock` with empty string (reservations don't involve delivery)
-- Replace `paymentBlock` with empty string
-- Replace `escalationBlock` with empty string (don't redirect to phone for reservations)
-- Replace `packagingBlock` with empty string
-- Keep `menuBlock` (the customer might ask about the menu while reserving — harmless)
-- Keep business name, location, tone, customer context
-
-**Change D — Add reservation override note in dynamic prompt**
-
-When `reservationMode = true`, add after the business name:
-```
-MODO ACTUAL: RESERVA. Tu ÚNICO objetivo es completar el FLUJO DE RESERVA del prompt principal. NO tomes pedidos. NO hables de horarios de cierre.
-```
-
-## What stays untouched
-
-- `buildCoreSystemPrompt` (already has reservation mode working correctly)
-- Order flow, confirmation, modification tags
-- Reservation intent detection, validation, ICS generation
-- Database, tables, UI
-
-## Expected result
-
-- When `reservationMode = true`, the dynamic prompt will be lean: business name + location + tone + menu + reservation mode indicator
-- No more "ESTADO: Cerrado" confusing the AI during reservation flow
-- No more escalation to phone number during reservation flow
-- The AI will focus exclusively on the FLUJO DE RESERVA instructions from the core prompt
-
+Resultado esperado tras aplicar:
+- El estado `reservation_flow` sí persistirá.
+- El LLM recibirá consistentemente el modo de reserva.
+- Dejará de “evadir” reservas cuando estén habilitadas.
