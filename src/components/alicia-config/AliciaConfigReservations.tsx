@@ -1,21 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { RotateCcw } from "lucide-react";
+import React, { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  CalendarDays, Users, Clock, Settings2, CheckCircle2, 
-  XCircle, Phone, ChevronLeft, ChevronRight, AlertCircle
-} from "lucide-react";
-import { format, addDays, subDays, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { CalendarDays, Clock, Settings2 } from "lucide-react";
 
 interface ReservationConfig {
   enabled: boolean;
@@ -24,7 +15,7 @@ interface ReservationConfig {
   max_party_size: number;
   min_advance_hours: number;
   max_advance_days: number;
-  available_days: number[]; // 0=Sun, 1=Mon...6=Sat
+  available_days: number[];
   available_hours: { start: string; end: string };
   blocked_dates: string[];
   confirmation_message: string;
@@ -38,7 +29,7 @@ const DEFAULT_CONFIG: ReservationConfig = {
   max_party_size: 12,
   min_advance_hours: 2,
   max_advance_days: 30,
-  available_days: [1, 2, 3, 4, 5, 6], // Mon-Sat
+  available_days: [1, 2, 3, 4, 5, 6],
   available_hours: { start: "12:00", end: "21:00" },
   blocked_dates: [],
   confirmation_message: "¡Tu reserva ha sido confirmada! Te esperamos 🎉",
@@ -46,18 +37,6 @@ const DEFAULT_CONFIG: ReservationConfig = {
 };
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-interface Reservation {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  party_size: number;
-  reservation_date: string;
-  reservation_time: string;
-  status: string;
-  notes: string | null;
-  source: string;
-}
 
 interface Props {
   config: any;
@@ -73,35 +52,7 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
     return { ...DEFAULT_CONFIG };
   });
 
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
-  const [loadingReservations, setLoadingReservations] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  // Load reservations for selected date
-  useEffect(() => {
-    loadReservations();
-  }, [selectedDate, config?.restaurant_id]);
-
-  async function loadReservations() {
-    if (!config?.restaurant_id) return;
-    setLoadingReservations(true);
-    try {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select("*")
-        .eq("restaurant_id", config.restaurant_id)
-        .eq("reservation_date", selectedDate)
-        .order("reservation_time", { ascending: true });
-
-      if (error) throw error;
-      setReservations((data as Reservation[]) || []);
-    } catch (err) {
-      console.error("Error loading reservations:", err);
-    } finally {
-      setLoadingReservations(false);
-    }
-  }
 
   function updateConfig(partial: Partial<ReservationConfig>) {
     setResConfig(prev => ({ ...prev, ...partial }));
@@ -123,39 +74,8 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
     updateConfig({ available_days: days });
   }
 
-  async function updateReservationStatus(id: string, status: string) {
-    const updateData: any = { status, updated_at: new Date().toISOString() };
-    if (status === "confirmed") updateData.confirmed_at = new Date().toISOString();
-    if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
-
-    const { error } = await supabase.from("reservations").update(updateData).eq("id", id);
-    if (error) {
-      toast.error("Error actualizando reserva");
-      console.error(error);
-    } else {
-      toast.success(status === "confirmed" ? "Reserva confirmada ✅" : status === "cancelled" ? "Reserva cancelada" : "Estado actualizado");
-      loadReservations();
-    }
-  }
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      pending: { label: "Pendiente", variant: "outline" },
-      confirmed: { label: "Confirmada", variant: "default" },
-      cancelled: { label: "Cancelada", variant: "destructive" },
-      completed: { label: "Completada", variant: "secondary" },
-      no_show: { label: "No asistió", variant: "destructive" },
-    };
-    const info = map[status] || { label: status, variant: "outline" as const };
-    return <Badge variant={info.variant}>{info.label}</Badge>;
-  };
-
-  const confirmedCount = reservations.filter(r => r.status === "confirmed").length;
-  const pendingCount = reservations.filter(r => r.status === "pending").length;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-teal-400" />
@@ -166,7 +86,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
         </p>
       </div>
 
-      {/* Enable toggle */}
       <Card className="p-4 bg-card border-border">
         <div className="flex items-center justify-between">
           <div>
@@ -182,13 +101,11 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
 
       {resConfig.enabled && (
         <>
-          {/* Limits & Capacity */}
           <Card className="p-4 bg-card border-border space-y-4">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-muted-foreground" />
               Capacidad y límites
             </h3>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Máximo reservas por slot</Label>
@@ -242,7 +159,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             </div>
           </Card>
 
-          {/* Available days */}
           <Card className="p-4 bg-card border-border space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -283,7 +199,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             </div>
           </Card>
 
-          {/* Confirmation message */}
           <Card className="p-4 bg-card border-border space-y-3">
             <Label className="text-xs text-muted-foreground">Mensaje de confirmación (WhatsApp)</Label>
             <Input
@@ -293,7 +208,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
             />
           </Card>
 
-          {/* Slot full message */}
           <Card className="p-4 bg-card border-border space-y-3">
             <Label className="text-xs text-muted-foreground">Mensaje cuando el horario está lleno</Label>
             <Textarea
@@ -307,110 +221,9 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
               Se envía directamente al cliente cuando intenta reservar en un horario sin disponibilidad.
             </p>
           </Card>
+        </>
+      )}
 
-
-          {/* === AGENDA VIEW === */}
-          <div className="border-t border-border pt-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-teal-400" />
-                Reservas del día
-              </h3>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm text-muted-foreground min-w-[120px] text-center">
-                  {format(parseISO(selectedDate), "EEE d MMM", { locale: es })}
-                </span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="flex gap-3">
-              <div className="flex items-center gap-1.5 text-xs text-green-400">
-                <CheckCircle2 className="h-3.5 w-3.5" /> {confirmedCount} confirmadas
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-yellow-400">
-                <AlertCircle className="h-3.5 w-3.5" /> {pendingCount} pendientes
-              </div>
-            </div>
-
-            {/* Reservation list */}
-            {loadingReservations ? (
-              <div className="text-sm text-muted-foreground animate-pulse py-4">Cargando reservas...</div>
-            ) : reservations.length === 0 ? (
-              <Card className="p-6 bg-card border-border text-center">
-                <CalendarDays className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No hay reservas para este día</p>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {reservations.map(r => (
-                  <Card key={r.id} className="p-3 bg-card border-border">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-foreground">{r.reservation_time.slice(0, 5)}</span>
-                          <span className="text-sm text-foreground truncate">{r.customer_name}</span>
-                          {statusBadge(r.status)}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.party_size} personas</span>
-                          <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{r.customer_phone}</span>
-                          {r.source !== "whatsapp" && <Badge variant="outline" className="text-[10px] px-1.5">{r.source}</Badge>}
-                        </div>
-                        {r.notes && <p className="text-xs text-muted-foreground mt-1 italic">"{r.notes}"</p>}
-                      </div>
-                      {r.status === "pending" && (
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-green-400 hover:text-green-300 hover:bg-green-900/20"
-                            onClick={() => updateReservationStatus(r.id, "confirmed")}>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                            onClick={() => updateReservationStatus(r.id, "cancelled")}>
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                      {r.status === "confirmed" && (
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:bg-muted"
-                            onClick={() => updateReservationStatus(r.id, "completed")}>
-                            ✓ Asistió
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-yellow-400 hover:bg-yellow-900/20"
-                            onClick={() => updateReservationStatus(r.id, "no_show")}>
-                            No asistió
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                            onClick={() => updateReservationStatus(r.id, "cancelled")}>
-                            <XCircle className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                      {(r.status === "completed" || r.status === "no_show" || r.status === "cancelled") && (
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-teal-400 hover:text-teal-300 hover:bg-teal-900/20"
-                            onClick={() => updateReservationStatus(r.id, "confirmed")}>
-                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restablecer
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-              )}
-            </div>
-          </>
-        )}
-
-      {/* Save button — always visible */}
       <Button
         onClick={handleSave}
         disabled={saving}
