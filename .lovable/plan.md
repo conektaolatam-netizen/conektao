@@ -1,54 +1,60 @@
-# Plan: Fix reservation flow not being followed by LLM
 
-## Root Cause
 
-The reservation hint is appended at the END of a ~4000-char prompt that explicitly says:
+# Plan: Fix reservation flow being ignored by LLM (Root Cause #2)
 
-- "Eres una IA conversacional de **pedidos** por WhatsApp" (identity = orders only)
-- FLUJO DE PEDIDO steps 1-7 are always present, even during reservation flow
-- "Si no sabes algo → redirige al número del dueño" — triggers phone escalation
-- The reservation instructions at the bottom get ignored because the core prompt dominates
+## Diagnosis
+
+The reservation intent IS being detected correctly (logs confirm `Reservation flow activated`). The `reservationMode` flag IS being passed to `buildCoreSystemPrompt`. However, the AI still refuses because:
+
+1. **`buildDynamicPrompt` is NOT reservation-aware**: It always outputs `ESTADO: Cerrado` (schedule), full delivery/payment blocks, escalation instructions, and the entire menu — all order-taking context that overwhelms the FLUJO DE RESERVA instructions.
+
+2. **Schedule says "Cerrado"**: Even though we bypass the hard availability block (line 3896), the dynamic prompt's `scheduleBlock` still tells the AI "ESTADO: Cerrado. Abrimos a las X" — and the AI obeys this instead of the reservation flow.
+
+3. **Escalation block**: The dynamic prompt includes "Si insiste → comunícate al [phone]", causing the AI to redirect to the phone instead of handling the reservation.
 
 ## Fix (1 file)
 
 ### `supabase/functions/whatsapp-webhook/index.ts`
 
-**Change A — Make `buildCoreSystemPrompt` aware of reservation flow**
+**Change A — Pass `reservationMode` to `buildDynamicPrompt`**
 
-Add a `reservationMode: boolean = false` parameter. When `true`:
+Add `reservationMode: boolean = false` parameter to `buildDynamicPrompt()` and forward it from `buildPrompt()` (line 1225).
 
-- Change identity line from "IA conversacional de pedidos" to "IA conversacional de pedidos y reservas"
-- Wrap the entire FLUJO DE PEDIDO block in a conditional: when `reservationMode = true`, replace it with a FLUJO DE RESERVA block directly in the core prompt (not as a suffix)
-  &nbsp;
+**Change B — Override `scheduleBlock` in reservation mode**
 
-**Change B — Pass `reservationMode` through the call chain**
-
-In `buildPrompt()`, add the `reservationMode` parameter and forward it to `buildCoreSystemPrompt()`.
-
-In the main handler (~line 4071), pass `currentFlowStatus === "reservation_flow"` to `buildPrompt()`.
-
-**Change C — Remove the redundant `reservationHint` suffix**
-
-Since the reservation flow instructions will now be embedded IN the core prompt (replacing the order flow), the `reservationHint` variable appended at the end (~line 4050-4068) is no longer needed. Remove it.
-
-**Change D — Skip restaurant-closed check for reservation flow**
-
-The availability check at line 3871 returns early with a "we're closed" message. Reservations should be allowed even when the restaurant is currently closed (you're booking for a future date). Add a condition:
-
+When `reservationMode = true`, replace whatever schedule status was calculated with:
 ```
-if (availability.blocked && conv.order_status !== "reservation_flow") {
+"ESTADO: Aceptando reservas. El horario de operación del restaurante no afecta las reservas (son para fecha futura)."
+```
+
+**Change C — Suppress order-specific blocks in reservation mode**
+
+When `reservationMode = true`:
+- Replace `deliveryBlock` with empty string (reservations don't involve delivery)
+- Replace `paymentBlock` with empty string
+- Replace `escalationBlock` with empty string (don't redirect to phone for reservations)
+- Replace `packagingBlock` with empty string
+- Keep `menuBlock` (the customer might ask about the menu while reserving — harmless)
+- Keep business name, location, tone, customer context
+
+**Change D — Add reservation override note in dynamic prompt**
+
+When `reservationMode = true`, add after the business name:
+```
+MODO ACTUAL: RESERVA. Tu ÚNICO objetivo es completar el FLUJO DE RESERVA del prompt principal. NO tomes pedidos. NO hables de horarios de cierre.
 ```
 
 ## What stays untouched
 
-- Order flow (PEDIDO_CONFIRMADO tags, parseOrder, saveOrder)
-- Suggestion flow, upselling, service overrides
-- Reservation validation, ICS generation, email sending
-- All existing tables and UI
+- `buildCoreSystemPrompt` (already has reservation mode working correctly)
+- Order flow, confirmation, modification tags
+- Reservation intent detection, validation, ICS generation
+- Database, tables, UI
 
 ## Expected result
 
-- When `reservation_flow` is active, the LLM sees "FLUJO DE RESERVA" as its primary flow instead of "FLUJO DE PEDIDO"
-- FLUJO DE PEDIDO should keep working at the same way it did before intruding reservation_flow
-- The LLM won't escalate to the phone number because its identity includes reservations
-- Restaurant-closed status won't block future-date bookings
+- When `reservationMode = true`, the dynamic prompt will be lean: business name + location + tone + menu + reservation mode indicator
+- No more "ESTADO: Cerrado" confusing the AI during reservation flow
+- No more escalation to phone number during reservation flow
+- The AI will focus exclusively on the FLUJO DE RESERVA instructions from the core prompt
+
