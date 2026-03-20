@@ -1221,7 +1221,7 @@ function buildPrompt(
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, config?.reservation_config);
     const dynamic = buildDynamicPrompt(
       config,
       products,
