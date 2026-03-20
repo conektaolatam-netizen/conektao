@@ -2122,7 +2122,7 @@ async function checkSlotAvailability(
   });
 
   if (overlapping.length >= maxPerSlot) {
-    return { available: false, error: `Lo siento, ese horario ya está completo. ¿Te gustaría otro horario?` };
+    return { available: false, error: "SLOT_FULL" };
   }
 
   return { available: true, error: "" };
