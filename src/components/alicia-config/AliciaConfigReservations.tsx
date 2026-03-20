@@ -374,7 +374,10 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
                   </Card>
                 ))}
               </div>
-      )}
+              )}
+            </div>
+          </>
+        )}
 
       {/* Save button — always visible */}
       <Button
@@ -384,9 +387,6 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
       >
         {saving ? "Guardando..." : "Guardar configuración de reservas"}
       </Button>
-    </div>
-        </>
-      )}
     </div>
   );
 }
