@@ -4096,7 +4096,8 @@ Deno.serve(async (req) => {
 
       // === RESERVATION MODE ===
       const currentFlowStatus = freshConv?.order_status || conv.order_status;
-      const isReservationMode = currentFlowStatus === "reservation_flow";
+      const isReservationMode = (typeof forceReservationMode !== "undefined" && forceReservationMode) || currentFlowStatus === "reservation_flow";
+      tlog("info", rId, `AI call prep: currentFlowStatus=${currentFlowStatus}, isReservationMode=${isReservationMode}, forceFlag=${typeof forceReservationMode !== "undefined" ? forceReservationMode : "N/A"}`);
 
       const sys =
         buildPrompt(
