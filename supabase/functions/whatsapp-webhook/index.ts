@@ -3811,6 +3811,29 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ===== RESERVATION INTENT DETECTION =====
+      const isReservationReq = isReservationIntent(text) && conv.order_status !== "reservation_flow";
+      if (isReservationReq) {
+        const resConfig = config?.reservation_config;
+        if (!resConfig?.enabled) {
+          // Reservations disabled — politely decline
+          const noResResp = "En este momento no estamos aceptando reservas por WhatsApp 😊 ¿Te puedo ayudar con algo más?";
+          const convMsgs = Array.isArray(conv.messages) ? [...conv.messages] : [];
+          convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
+          convMsgs.push({ role: "assistant", content: noResResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: convMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noResResp, true);
+          return new Response(JSON.stringify({ status: "reservations_disabled" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Reservations enabled — set flow state
+        await supabase.from("whatsapp_conversations").update({ order_status: "reservation_flow" }).eq("id", conv.id);
+        conv.order_status = "reservation_flow";
+        tlog("info", rId, `Reservation flow activated for ${from}`);
+      }
+
       // ===== NORMAL MESSAGE PROCESSING =====
       // Products are linked via user_id -> profiles.restaurant_id, not directly
       const { data: restProfiles } = await supabase.from("profiles").select("id").eq("restaurant_id", rId);
