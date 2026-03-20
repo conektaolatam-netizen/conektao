@@ -3893,7 +3893,7 @@ Deno.serve(async (req) => {
 
       // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
       const availability = checkRestaurantAvailability(config, activeOverrides, config.daily_overrides || []);
-      if (availability.blocked) {
+      if (availability.blocked && conv.order_status !== "reservation_flow") {
         tlog("info", rId, `Restaurant blocked: ${availability.message.substring(0, 60)}`);
         const convMsgs = Array.isArray(conv.messages) ? conv.messages : [];
         convMsgs.push({ role: "customer", content: text, timestamp: new Date().toISOString() });
