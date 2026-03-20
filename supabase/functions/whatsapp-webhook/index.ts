@@ -1414,12 +1414,28 @@ function buildDynamicPrompt(
 
   // Upselling now injected directly into the core flow steps (buildCoreSystemPrompt)
 
+  // ── Reservation mode overrides ──
+  if (reservationMode) {
+    scheduleBlock = "ESTADO: Aceptando reservas. El horario de operación del restaurante no afecta las reservas (son para fecha futura).";
+    deliveryBlock = "";
+    paymentBlock = "";
+    escalationBlock = "";
+    packagingBlock = "";
+    overridesBlock = "";
+    prom = "";
+    ctx = "";
+  }
+
+  const reservationModeNote = reservationMode
+    ? `\nMODO ACTUAL: RESERVA. Tu ÚNICO objetivo es completar el FLUJO DE RESERVA del prompt principal. NO tomes pedidos de comida. NO hables de horarios de cierre. NO redirijas al teléfono.\n`
+    : "";
+
   return `=== CONFIG DEL NEGOCIO ===
 
 NEGOCIO: "${config.restaurant_name}"
 ${config.restaurant_description ? `HISTORIA: ${config.restaurant_description}` : ""}
 UBICACIÓN: ${config.location_details || config.location_address || "Consulta con el equipo"}
-
+${reservationModeNote}
 ${scheduleBlock}
 ${overridesBlock}
 
