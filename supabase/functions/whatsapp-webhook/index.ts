@@ -2444,6 +2444,12 @@ async function processReservation(
 
   console.log(`📅 RESERVATION_SAVED: ${newRes.id} for ${phone} at ${reservationData.date} ${reservationData.time}`);
 
+  // 3b. Send the AI's pre-confirmation text (before system message)
+  if (preConfirmMsg) {
+    freshMsgs.push({ role: "assistant", content: preConfirmMsg, timestamp: new Date().toISOString() });
+    await sendWA(pid, token, phone, preConfirmMsg, true);
+  }
+
   // 4. Generate ICS
   const slotDuration = resConfig.slot_duration_minutes || 30;
   const icsContent = generateICS(reservationData, restaurantName, tz, slotDuration);
