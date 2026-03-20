@@ -2148,6 +2148,53 @@ async function checkSlotAvailability(
   return { available: true, error: "" };
 }
 
+/** Get available time slots for a given date */
+async function getAvailableSlots(restaurantId: string, date: string, resConfig: any, tz: string): Promise<string[]> {
+  const availHours = resConfig.available_hours || { start: "12:00", end: "21:00" };
+  const slotDuration = resConfig.slot_duration_minutes || 30;
+  const maxPerSlot = resConfig.max_per_slot || 4;
+
+  // Generate all possible slots
+  const startMin = timeToMinutes(availHours.start);
+  const endMin = timeToMinutes(availHours.end);
+  const allSlots: string[] = [];
+  for (let m = startMin; m <= endMin - slotDuration; m += slotDuration) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    allSlots.push(`${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`);
+  }
+
+  // Get existing reservations for that date
+  const { data: existing } = await supabase
+    .from("reservations")
+    .select("reservation_time")
+    .eq("restaurant_id", restaurantId)
+    .eq("reservation_date", date)
+    .in("status", ["confirmed", "pending"]);
+
+  const existingTimes = (existing || []).map((r: any) => timeToMinutes(r.reservation_time));
+
+  // Filter out full slots and past times if today
+  const offset = parseTimezoneOffset(tz);
+  const todayStr = getRestaurantDate(offset);
+  const localNow = getRestaurantTime(offset);
+  const nowMinutes = localNow.getHours() * 60 + localNow.getMinutes();
+  const isToday = date === todayStr;
+
+  const available: string[] = [];
+  for (const slot of allSlots) {
+    const slotMin = timeToMinutes(slot);
+    // Skip past times if today
+    if (isToday && slotMin <= nowMinutes) continue;
+    // Count overlapping
+    const overlapping = existingTimes.filter((t: number) => Math.abs(t - slotMin) < slotDuration);
+    if (overlapping.length < maxPerSlot) {
+      available.push(slot);
+    }
+  }
+  return available.slice(0, 6); // Max 6 suggestions
+}
+
 /** Generate ICS calendar file content */
 function generateICS(
   reservation: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
