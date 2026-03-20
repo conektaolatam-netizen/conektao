@@ -355,6 +355,10 @@ export default function WhatsAppDashboard() {
               <ShieldOff className="w-4 h-4" />
               Bloqueados
             </TabsTrigger>
+            <TabsTrigger value="reservations" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
+              <CalendarDays className="w-4 h-4" />
+              Reservas
+            </TabsTrigger>
             <Button
               variant="ghost"
               onClick={() => navigate("/alicia/config")}
