@@ -1111,17 +1111,29 @@ ${reservationMode ? (() => {
   const maxParty = rc.max_party_size || 12;
   const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
-  return `FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const todayDayName = dayNamesArr[now.getDay()];
+  return `FECHA_ACTUAL: ${todayStr} (${todayDayName})
+Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
+Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el sábado 22 de marzo de 2026, ¿correcto?"
+
+FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
 1. Pregunta para cuántas personas (máximo ${maxParty})
 2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
 3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
 4. Pide el nombre del cliente
-5. Confirma todos los datos con el cliente
-6. Cuando el cliente confirme, genera el tag:
+5. Confirma TODOS los datos con el cliente mostrando la fecha completa (día, número y mes)
+6. Cuando el cliente confirme TODOS los datos, genera el tag:
    ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
    El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
-   IMPORTANTE: La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
-   NO inventes disponibilidad. Solo recolecta los datos.
+
+CRÍTICO SOBRE EL TAG:
+- La reserva NO queda registrada en el sistema hasta que generes el tag ---RESERVA_CONFIRMADA---.
+- Sin el tag, el sistema NO la procesa. NUNCA digas "tu reserva está confirmada" sin incluir el tag en el mismo mensaje.
+- Genera el tag SOLO cuando tengas TODOS los datos: nombre, personas, fecha (YYYY-MM-DD) y hora (HH:MM).
+- La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
+- NO inventes disponibilidad. Solo recolecta los datos.
 
 REGLAS DE RESERVA:
 - NO tomes pedidos de comida durante el flujo de reserva
