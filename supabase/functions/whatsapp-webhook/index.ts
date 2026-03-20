@@ -4118,6 +4118,27 @@ Deno.serve(async (req) => {
         });
       }
 
+      // === RESERVATION TAG DETECTION (before order parsing) ===
+      const parsedReservation = parseReservation(ai);
+      if (parsedReservation) {
+        const cleanResp = parsedReservation.clean;
+        if (cleanResp) {
+          freshMsgs.push({ role: "assistant", content: cleanResp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, cleanResp, true);
+        }
+        return await processReservation(
+          parsedReservation.reservation,
+          rId,
+          conv.id,
+          from,
+          config,
+          pid,
+          token,
+          freshMsgs,
+        );
+      }
+
       const parsed = parseOrder(ai);
       const modification = !parsed ? parseOrderModification(ai) : null;
       let resp = ai;
