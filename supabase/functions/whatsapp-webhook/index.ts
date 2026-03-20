@@ -1953,6 +1953,421 @@ function parseOrderModification(txt: string): { type: "addition" | "change"; ord
   return null;
 }
 
+// ==================== RESERVATION PARSING & VALIDATION ====================
+
+/** Detect reservation intent in user message */
+function isReservationIntent(text: string): boolean {
+  if (!text) return false;
+  return /\b(reservar?|reservaci[oó]n|mesa para|quiero\s+(una\s+)?mesa|apartar\s+mesa|booking|reserv[oó]\s+mesa|hacer\s+reserva)\b/i.test(text);
+}
+
+/** Parse reservation confirmation tag from AI response */
+function parseReservation(txt: string): { reservation: any; clean: string } | null {
+  const m = txt.match(/---RESERVA_CONFIRMADA---\s*([\s\S]*?)\s*---FIN_RESERVA---/);
+  if (!m) return null;
+  try {
+    return {
+      reservation: JSON.parse(m[1].trim()),
+      clean: txt.replace(/---RESERVA_CONFIRMADA---[\s\S]*?---FIN_RESERVA---/, "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Validate reservation data against config rules */
+function validateReservation(
+  data: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
+  resConfig: any,
+  tz: string,
+): { valid: boolean; error: string } {
+  if (!resConfig?.enabled) return { valid: false, error: "Las reservas no están disponibles en este momento" };
+
+  const { party_size, date, time } = data;
+  const maxParty = resConfig.max_party_size || 12;
+  if (party_size > maxParty) return { valid: false, error: `Lo siento, el máximo de personas por mesa es ${maxParty}` };
+  if (party_size < 1) return { valid: false, error: "El número de personas debe ser al menos 1" };
+
+  // Parse target date
+  const [year, month, day] = date.split("-").map(Number);
+  if (!year || !month || !day) return { valid: false, error: "La fecha no es válida. Usa el formato AAAA-MM-DD" };
+  const targetDate = new Date(Date.UTC(year, month - 1, day));
+  const targetDayOfWeek = targetDate.getUTCDay(); // 0=Sun
+
+  // Check available days
+  const availableDays = resConfig.available_days || [1, 2, 3, 4, 5, 6];
+  if (!availableDays.includes(targetDayOfWeek)) {
+    const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+    const openDays = availableDays.map((d: number) => dayNames[d]).join(", ");
+    return { valid: false, error: `No aceptamos reservas los ${dayNames[targetDayOfWeek]}. Nuestros días de reserva son: ${openDays}` };
+  }
+
+  // Check blocked dates
+  const blockedDates = resConfig.blocked_dates || [];
+  if (blockedDates.includes(date)) return { valid: false, error: "Lo siento, esa fecha está bloqueada para reservas" };
+
+  // Check time within available hours
+  const availableHours = resConfig.available_hours || { start: "12:00", end: "21:00" };
+  const timeMinutes = timeToMinutes(time);
+  const startMinutes = timeToMinutes(availableHours.start);
+  const endMinutes = timeToMinutes(availableHours.end);
+  if (timeMinutes < startMinutes || timeMinutes >= endMinutes) {
+    return { valid: false, error: `Nuestro horario de reservas es de ${availableHours.start} a ${availableHours.end}` };
+  }
+
+  // Check advance time constraints
+  const offset = parseTimezoneOffset(tz);
+  const nowLocal = getRestaurantTime(offset);
+  const targetDateTime = new Date(Date.UTC(year, month - 1, day, ...time.split(":").map(Number)));
+  // Adjust targetDateTime to restaurant timezone
+  const targetUTC = new Date(targetDateTime.getTime() - offset * 3600000);
+  const nowUTC = new Date(Date.now());
+
+  const hoursUntil = (targetUTC.getTime() - nowUTC.getTime()) / 3600000;
+  const minAdvance = resConfig.min_advance_hours || 2;
+  if (hoursUntil < minAdvance) return { valid: false, error: `Las reservas deben hacerse con al menos ${minAdvance} horas de anticipación` };
+
+  const daysUntil = hoursUntil / 24;
+  const maxAdvance = resConfig.max_advance_days || 30;
+  if (daysUntil > maxAdvance) return { valid: false, error: `Solo aceptamos reservas con máximo ${maxAdvance} días de anticipación` };
+
+  return { valid: true, error: "" };
+}
+
+/** Check slot availability (count existing reservations) */
+async function checkSlotAvailability(
+  restaurantId: string,
+  date: string,
+  time: string,
+  resConfig: any,
+): Promise<{ available: boolean; error: string }> {
+  const maxPerSlot = resConfig.max_per_slot || 4;
+  const slotDuration = resConfig.slot_duration_minutes || 30;
+
+  // Count confirmed+pending reservations overlapping this slot
+  const timeMinutes = timeToMinutes(time);
+  const slotStart = timeMinutes - slotDuration;
+  const slotEnd = timeMinutes + slotDuration;
+
+  const { data: existing, error } = await supabase
+    .from("reservations")
+    .select("id, reservation_time")
+    .eq("restaurant_id", restaurantId)
+    .eq("reservation_date", date)
+    .in("status", ["confirmed", "pending"]);
+
+  if (error) {
+    console.error("Error checking slot availability:", error);
+    return { available: false, error: "Error verificando disponibilidad" };
+  }
+
+  // Count reservations in the same slot window
+  const overlapping = (existing || []).filter((r: any) => {
+    const rMinutes = timeToMinutes(r.reservation_time);
+    return Math.abs(rMinutes - timeMinutes) < slotDuration;
+  });
+
+  if (overlapping.length >= maxPerSlot) {
+    return { available: false, error: `Lo siento, ese horario ya está completo. ¿Te gustaría otro horario?` };
+  }
+
+  return { available: true, error: "" };
+}
+
+/** Generate ICS calendar file content */
+function generateICS(
+  reservation: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
+  restaurantName: string,
+  tz: string,
+  slotDurationMinutes: number,
+): string {
+  const [year, month, day] = reservation.date.split("-").map(Number);
+  const [hour, minute] = reservation.time.split(":").map(Number);
+
+  // Create DTSTART/DTEND in UTC
+  const offset = parseTimezoneOffset(tz);
+  const startUTC = new Date(Date.UTC(year, month - 1, day, hour - offset, minute));
+  const endUTC = new Date(startUTC.getTime() + slotDurationMinutes * 60000);
+
+  const fmt = (d: Date) =>
+    d.getUTCFullYear().toString() +
+    (d.getUTCMonth() + 1).toString().padStart(2, "0") +
+    d.getUTCDate().toString().padStart(2, "0") +
+    "T" +
+    d.getUTCHours().toString().padStart(2, "0") +
+    d.getUTCMinutes().toString().padStart(2, "0") +
+    d.getUTCSeconds().toString().padStart(2, "0") +
+    "Z";
+
+  const uid = crypto.randomUUID() + "@conektao.com";
+  const now = fmt(new Date());
+  const summary = `Reserva en ${restaurantName} - ${reservation.customer_name}`;
+  const description = `Reserva para ${reservation.party_size} personas\\nNombre: ${reservation.customer_name}${reservation.notes ? "\\nNotas: " + reservation.notes : ""}`;
+
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CONEKTAO//Reservas//ES",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${fmt(startUTC)}`,
+    `DTEND:${fmt(endUTC)}`,
+    `SUMMARY:${summary}`,
+    `DESCRIPTION:${description}`,
+    "STATUS:CONFIRMED",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+/** Send a document via WhatsApp Cloud API */
+async function sendWADocument(
+  phoneId: string,
+  token: string,
+  to: string,
+  documentUrl: string,
+  filename: string,
+  caption: string,
+) {
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "document",
+    document: {
+      link: documentUrl,
+      filename,
+      caption: caption.substring(0, 1024),
+    },
+  };
+
+  console.log(`📎 Sending document to ${to}: ${filename}`);
+  const r = await fetch(`https://graph.facebook.com/${WA_API_VERSION}/${phoneId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token.trim()}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    const errText = await r.text();
+    console.error("WA document send error:", errText);
+    // Fallback: send as text with link
+    await sendWA(phoneId, token, to, `${caption}\n\n📎 Descarga tu archivo de reserva aquí: ${documentUrl}`, false);
+  }
+}
+
+/** Send email with ICS attachment via Brevo */
+async function sendEmailWithICS(
+  to: string,
+  subject: string,
+  html: string,
+  icsContent: string,
+  icsFilename: string,
+): Promise<boolean> {
+  const apiKey = Deno.env.get("BREVO_API_KEY");
+  if (!apiKey) {
+    console.error("EMAIL_SKIP: BREVO_API_KEY not set for reservation email");
+    return false;
+  }
+  // Brevo expects base64 content for attachments
+  const icsBase64 = btoa(unescape(encodeURIComponent(icsContent)));
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "CONEKTAO Reservas", email: "pedidos@conektao.com" },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      attachment: [{ content: icsBase64, name: icsFilename }],
+    }),
+  });
+  const body = await res.text();
+  console.log(`Brevo reservation [→ ${to}]: status=${res.status} body=${body}`);
+  if (!res.ok) console.error(`RESERVATION_EMAIL_FAIL: ${res.status} ${body}`);
+  return res.ok;
+}
+
+/** Build reservation notification email HTML */
+function buildReservationEmailHtml(
+  reservation: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
+  phone: string,
+  restaurantName: string,
+): string {
+  const notesRow = reservation.notes
+    ? `<div style="margin-top:10px;padding:10px;background:#111;border-radius:8px;"><small style="color:#888;">Notas</small><p style="margin:4px 0 0;color:#e0e0e0;">📝 ${reservation.notes}</p></div>`
+    : "";
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;border-radius:12px;border:1px solid #1a1a1a;">
+    <div style="background:linear-gradient(135deg,#14b8a6,#0ea5e9);padding:20px;text-align:center;border-radius:12px 12px 0 0;">
+      <h1 style="margin:0;color:#fff;font-size:20px;">📅 Nueva Reserva</h1>
+      <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:12px;">${restaurantName}</p>
+    </div>
+    <div style="padding:20px;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="background:#111;padding:10px;border-radius:8px;flex:1;">
+          <small style="color:#888;">Cliente</small>
+          <p style="margin:4px 0 0;color:#fff;">👤 ${reservation.customer_name}</p>
+        </div>
+        <div style="background:#111;padding:10px;border-radius:8px;flex:1;">
+          <small style="color:#888;">Teléfono</small>
+          <p style="margin:4px 0 0;color:#fff;">📱 +${phone}</p>
+        </div>
+      </div>
+      <div style="background:rgba(20,184,166,0.15);padding:16px;border-radius:8px;border-left:4px solid #14b8a6;margin:12px 0;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div><small style="color:#888;">Fecha</small><p style="margin:4px 0 0;color:#fff;font-size:16px;">📅 ${reservation.date}</p></div>
+          <div><small style="color:#888;">Hora</small><p style="margin:4px 0 0;color:#fff;font-size:16px;">🕐 ${reservation.time}</p></div>
+          <div><small style="color:#888;">Personas</small><p style="margin:4px 0 0;color:#fff;font-size:16px;">👥 ${reservation.party_size}</p></div>
+        </div>
+      </div>
+      ${notesRow}
+    </div>
+    <div style="padding:12px;text-align:center;border-top:1px solid #1a1a1a;">
+      <p style="margin:0;color:#555;font-size:10px;">Powered by CONEKTAO • Reserva vía WhatsApp</p>
+    </div>
+  </div>`;
+}
+
+/** Process a confirmed reservation: validate, persist, send ICS */
+async function processReservation(
+  reservationData: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
+  rId: string,
+  convId: string,
+  phone: string,
+  config: any,
+  pid: string,
+  token: string,
+  freshMsgs: any[],
+): Promise<Response> {
+  const resConfig = config?.reservation_config || {};
+  const tz = config?.operating_hours?.timezone || "UTC-5";
+  const restaurantName = config?.restaurant_name || "Restaurante";
+
+  // 1. Validate reservation data
+  const validation = validateReservation(reservationData, resConfig, tz);
+  if (!validation.valid) {
+    const errorResp = validation.error;
+    freshMsgs.push({ role: "assistant", content: errorResp, timestamp: new Date().toISOString() });
+    await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
+    await sendWA(pid, token, phone, errorResp, true);
+    return new Response(JSON.stringify({ status: "reservation_validation_failed" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // 2. Check slot availability
+  const slotCheck = await checkSlotAvailability(rId, reservationData.date, reservationData.time, resConfig);
+  if (!slotCheck.available) {
+    const slotResp = slotCheck.error;
+    freshMsgs.push({ role: "assistant", content: slotResp, timestamp: new Date().toISOString() });
+    await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
+    await sendWA(pid, token, phone, slotResp, true);
+    return new Response(JSON.stringify({ status: "reservation_slot_full" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // 3. Insert reservation
+  const { data: newRes, error: insertErr } = await supabase
+    .from("reservations")
+    .insert({
+      restaurant_id: rId,
+      customer_name: reservationData.customer_name,
+      customer_phone: phone,
+      party_size: reservationData.party_size,
+      reservation_date: reservationData.date,
+      reservation_time: reservationData.time,
+      notes: reservationData.notes || null,
+      status: "confirmed",
+      confirmed_at: new Date().toISOString(),
+      source: "whatsapp",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) {
+    console.error("Error inserting reservation:", insertErr);
+    const errResp = "Hubo un error al guardar tu reserva. Por favor intenta de nuevo";
+    freshMsgs.push({ role: "assistant", content: errResp, timestamp: new Date().toISOString() });
+    await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
+    await sendWA(pid, token, phone, errResp, true);
+    return new Response(JSON.stringify({ status: "reservation_insert_error" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  console.log(`📅 RESERVATION_SAVED: ${newRes.id} for ${phone} at ${reservationData.date} ${reservationData.time}`);
+
+  // 4. Generate ICS
+  const slotDuration = resConfig.slot_duration_minutes || 30;
+  const icsContent = generateICS(reservationData, restaurantName, tz, slotDuration);
+
+  // 5. Upload ICS to storage
+  let icsPublicUrl: string | null = null;
+  try {
+    const icsBlob = new Blob([icsContent], { type: "text/calendar" });
+    const fileName = `reservations/${rId}/${Date.now()}-${newRes.id}.ics`;
+    const { error: uploadErr } = await supabase.storage
+      .from("whatsapp-media")
+      .upload(fileName, icsBlob, { contentType: "text/calendar", upsert: true });
+    if (uploadErr) {
+      console.error("ICS upload error:", uploadErr);
+    } else {
+      const { data: urlData } = supabase.storage.from("whatsapp-media").getPublicUrl(fileName);
+      icsPublicUrl = urlData.publicUrl;
+      console.log(`📎 ICS uploaded: ${icsPublicUrl}`);
+    }
+  } catch (e) {
+    console.error("ICS upload failed:", e);
+  }
+
+  // 6. Send confirmation to customer
+  const confirmMsg = resConfig.confirmation_message || "¡Tu reserva ha sido confirmada! Te esperamos 🎉";
+  const fullConfirm = `${confirmMsg}\n\n📅 ${reservationData.date} a las ${reservationData.time}\n👥 ${reservationData.party_size} personas\n👤 ${reservationData.customer_name}`;
+
+  freshMsgs.push({ role: "assistant", content: fullConfirm, timestamp: new Date().toISOString() });
+  await supabase
+    .from("whatsapp_conversations")
+    .update({
+      messages: freshMsgs.slice(-30),
+      order_status: "none",
+      current_order: null,
+    })
+    .eq("id", convId);
+  await sendWA(pid, token, phone, fullConfirm, true);
+
+  // 7. Send ICS document to customer via WhatsApp
+  if (icsPublicUrl) {
+    const icsFilename = `Reserva_${reservationData.customer_name.replace(/\s+/g, "_")}.ics`;
+    await sendWADocument(pid, token, phone, icsPublicUrl, icsFilename, "📎 Tu archivo de reserva para agregar al calendario");
+
+    // Update ics_sent flag
+    await supabase.from("reservations").update({ ics_sent: true }).eq("id", newRes.id);
+  }
+
+  // 8. Send email notification to restaurant
+  if (config.order_email) {
+    const emailHtml = buildReservationEmailHtml(reservationData, phone, restaurantName);
+    const icsFilename = `Reserva_${reservationData.customer_name.replace(/\s+/g, "_")}.ics`;
+    const subject = `📅 Nueva Reserva - ${reservationData.customer_name} - ${reservationData.date} ${reservationData.time} (${reservationData.party_size}p)`;
+    await sendEmailWithICS(config.order_email, subject, emailHtml, icsContent, icsFilename);
+  }
+
+  return new Response(JSON.stringify({ status: "reservation_confirmed", reservation_id: newRes.id }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 // ==================== ORDER PERSISTENCE & EMAIL ====================
 
 function buildOrderEmailHtml(order: any, phone: string, isDelivery: boolean, paymentProofUrl?: string | null): string {
