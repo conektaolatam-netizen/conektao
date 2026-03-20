@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2, Settings } from "lucide-react";
+import { MessageSquare, Phone, User, Clock, Package, ChevronLeft, RefreshCw, Search, FileText, ShieldOff, Trash2, Settings, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import AliciaDailyChat from "@/components/alicia-setup/AliciaDailyChat";
 import OrdersPanel from "@/components/alicia-dashboard/OrdersPanel";
 import TemplatesPanel from "@/components/alicia-dashboard/TemplatesPanel";
+import ReservationsPanel from "@/components/alicia-dashboard/ReservationsPanel";
 import aliciaAvatar from "@/assets/alicia-avatar.png";
 
 interface Message {
@@ -354,6 +355,10 @@ export default function WhatsAppDashboard() {
               <ShieldOff className="w-4 h-4" />
               Bloqueados
             </TabsTrigger>
+            <TabsTrigger value="reservations" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
+              <CalendarDays className="w-4 h-4" />
+              Reservas
+            </TabsTrigger>
             <Button
               variant="ghost"
               onClick={() => navigate("/alicia/config")}
@@ -540,6 +545,16 @@ export default function WhatsAppDashboard() {
         <TabsContent value="blocked" className="flex-1 m-0 overflow-y-auto">
           {restaurantId ? (
             <BlockedNumbersPanel restaurantId={restaurantId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
+              <p className="text-sm">Cargando...</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reservations" className="flex-1 m-0 overflow-y-auto">
+          {restaurantId ? (
+            <ReservationsPanel restaurantId={restaurantId} />
           ) : (
             <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground">
               <p className="text-sm">Cargando...</p>

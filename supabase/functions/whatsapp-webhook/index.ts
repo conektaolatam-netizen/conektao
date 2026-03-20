@@ -1111,10 +1111,13 @@ ${reservationMode ? (() => {
   const maxParty = rc.max_party_size || 12;
   const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
   const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
-  const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const todayDayName = dayNamesArr[now.getDay()];
+  const tz = reservationConfig?._timezone || "UTC-5";
+  const tzOffset = parseTimezoneOffset(tz);
+  const localNow = getRestaurantTime(tzOffset);
+  const todayStr = getRestaurantDate(tzOffset);
+  const todayDayName = dayNamesArr[localNow.getDay()];
   return `FECHA_ACTUAL: ${todayStr} (${todayDayName})
+HORA_ACTUAL: ${String(localNow.getHours()).padStart(2,"0")}:${String(localNow.getMinutes()).padStart(2,"0")}
 Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
 Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el sábado 22 de marzo de 2026, ¿correcto?"
 
@@ -1138,7 +1141,8 @@ CRÍTICO SOBRE EL TAG:
 REGLAS DE RESERVA:
 - NO tomes pedidos de comida durante el flujo de reserva
 - Si el cliente quiere pedir comida, dile que primero terminen con la reserva
-- Si el cliente quiere cancelar la reserva, responde amablemente y resetea
+- Si el cliente quiere CANCELAR una reserva existente, genera el tag:
+  ---CANCELAR_RESERVA---{"phone":"${escalationPhone ? "telefono_del_cliente" : "telefono_del_cliente"}"}---FIN_CANCELAR---
 - NUNCA muestres JSON ni tags al cliente`;
 })() : `${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
@@ -1233,7 +1237,8 @@ function buildPrompt(
     const assistantName = personality.name || "Alicia";
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, config?.reservation_config);
+    const resConfigWithTz = config?.reservation_config ? { ...config.reservation_config, _timezone: config?.operating_hours?.timezone || "UTC-5" } : undefined;
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz);
     const dynamic = buildDynamicPrompt(
       config,
       products,
@@ -2029,6 +2034,21 @@ function parseReservation(txt: string): { reservation: any; clean: string } | nu
   }
 }
 
+/** Parse cancel reservation tag from AI response */
+function parseCancelReservation(txt: string): { phone: string; clean: string } | null {
+  const m = txt.match(/---CANCELAR_RESERVA---\s*([\s\S]*?)\s*---FIN_CANCELAR---/);
+  if (!m) return null;
+  try {
+    const data = JSON.parse(m[1].trim());
+    return {
+      phone: data.phone || "",
+      clean: txt.replace(/---CANCELAR_RESERVA---[\s\S]*?---FIN_CANCELAR---/, "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Validate reservation data against config rules */
 function validateReservation(
   data: { customer_name: string; party_size: number; date: string; time: string; notes?: string },
@@ -2126,6 +2146,53 @@ async function checkSlotAvailability(
   }
 
   return { available: true, error: "" };
+}
+
+/** Get available time slots for a given date */
+async function getAvailableSlots(restaurantId: string, date: string, resConfig: any, tz: string): Promise<string[]> {
+  const availHours = resConfig.available_hours || { start: "12:00", end: "21:00" };
+  const slotDuration = resConfig.slot_duration_minutes || 30;
+  const maxPerSlot = resConfig.max_per_slot || 4;
+
+  // Generate all possible slots
+  const startMin = timeToMinutes(availHours.start);
+  const endMin = timeToMinutes(availHours.end);
+  const allSlots: string[] = [];
+  for (let m = startMin; m <= endMin - slotDuration; m += slotDuration) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    allSlots.push(`${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`);
+  }
+
+  // Get existing reservations for that date
+  const { data: existing } = await supabase
+    .from("reservations")
+    .select("reservation_time")
+    .eq("restaurant_id", restaurantId)
+    .eq("reservation_date", date)
+    .in("status", ["confirmed", "pending"]);
+
+  const existingTimes = (existing || []).map((r: any) => timeToMinutes(r.reservation_time));
+
+  // Filter out full slots and past times if today
+  const offset = parseTimezoneOffset(tz);
+  const todayStr = getRestaurantDate(offset);
+  const localNow = getRestaurantTime(offset);
+  const nowMinutes = localNow.getHours() * 60 + localNow.getMinutes();
+  const isToday = date === todayStr;
+
+  const available: string[] = [];
+  for (const slot of allSlots) {
+    const slotMin = timeToMinutes(slot);
+    // Skip past times if today
+    if (isToday && slotMin <= nowMinutes) continue;
+    // Count overlapping
+    const overlapping = existingTimes.filter((t: number) => Math.abs(t - slotMin) < slotDuration);
+    if (overlapping.length < maxPerSlot) {
+      available.push(slot);
+    }
+  }
+  return available.slice(0, 6); // Max 6 suggestions
 }
 
 /** Generate ICS calendar file content */
@@ -2298,6 +2365,7 @@ async function processReservation(
   pid: string,
   token: string,
   freshMsgs: any[],
+  preConfirmMsg?: string,
 ): Promise<Response> {
   const resConfig = config?.reservation_config || {};
   const tz = config?.operating_hours?.timezone || "UTC-5";
@@ -2319,9 +2387,22 @@ async function processReservation(
   // 2. Check slot availability
   const slotCheck = await checkSlotAvailability(rId, reservationData.date, reservationData.time, resConfig);
   if (!slotCheck.available) {
-    const slotResp = slotCheck.error === "SLOT_FULL"
+    let slotResp = slotCheck.error === "SLOT_FULL"
       ? (resConfig.slot_full_message || "Lo siento, ese horario ya está completo. ¿Te gustaría reservar en otro horario?")
       : slotCheck.error;
+
+    // Add available alternative slots
+    if (slotCheck.error === "SLOT_FULL") {
+      try {
+        const availSlots = await getAvailableSlots(rId, reservationData.date, resConfig, tz);
+        if (availSlots.length > 0) {
+          slotResp += "\n\nHorarios disponibles para ese día:\n" + availSlots.map((s: string) => `• ${s}`).join("\n");
+        }
+      } catch (e) {
+        console.error("Error getting available slots:", e);
+      }
+    }
+
     freshMsgs.push({ role: "assistant", content: slotResp, timestamp: new Date().toISOString() });
     await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", convId);
     await sendWA(pid, token, phone, slotResp, true);
@@ -2362,6 +2443,12 @@ async function processReservation(
   }
 
   console.log(`📅 RESERVATION_SAVED: ${newRes.id} for ${phone} at ${reservationData.date} ${reservationData.time}`);
+
+  // 3b. Send the AI's pre-confirmation text (before system message)
+  if (preConfirmMsg) {
+    freshMsgs.push({ role: "assistant", content: preConfirmMsg, timestamp: new Date().toISOString() });
+    await sendWA(pid, token, phone, preConfirmMsg, true);
+  }
 
   // 4. Generate ICS
   const slotDuration = resConfig.slot_duration_minutes || 30;
@@ -4131,6 +4218,24 @@ Deno.serve(async (req) => {
         }
         // Inject anti-contamination system hint
         reopenHint += "\n\nIMPORTANTE: El servicio de RESERVAS está ACTIVO ahora. Ignora CUALQUIER mensaje anterior donde se haya dicho que no se aceptan reservas o que se debe llamar al restaurante. Gestiona la reserva con normalidad siguiendo el FLUJO DE RESERVA.";
+
+        // === INJECT EXISTING RESERVATIONS FOR THIS CUSTOMER ===
+        try {
+          const { data: existingRes } = await supabase
+            .from("reservations")
+            .select("reservation_date, reservation_time, party_size, status, customer_name")
+            .eq("restaurant_id", rId)
+            .eq("customer_phone", from)
+            .in("status", ["confirmed", "pending"])
+            .order("reservation_date", { ascending: true })
+            .limit(5);
+          if (existingRes && existingRes.length > 0) {
+            const resLines = existingRes.map((r: any) => `- ${r.reservation_date} ${r.reservation_time} | ${r.party_size} personas | ${r.status} | ${r.customer_name}`);
+            reopenHint += `\n\nRESERVAS EXISTENTES DEL CLIENTE:\n${resLines.join("\n")}\nSi el cliente pregunta por sus reservas, usa esta información.`;
+          }
+        } catch (e) {
+          console.error("Error fetching customer reservations:", e);
+        }
       }
 
       const sys =
@@ -4185,12 +4290,7 @@ Deno.serve(async (req) => {
       // === RESERVATION TAG DETECTION (before order parsing) ===
       const parsedReservation = parseReservation(ai);
       if (parsedReservation) {
-        const cleanResp = parsedReservation.clean;
-        if (cleanResp) {
-          freshMsgs.push({ role: "assistant", content: cleanResp, timestamp: new Date().toISOString() });
-          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
-          await sendWA(pid, token, from, cleanResp, true);
-        }
+        // Do NOT send AI text yet — validate first via processReservation
         return await processReservation(
           parsedReservation.reservation,
           rId,
@@ -4200,7 +4300,43 @@ Deno.serve(async (req) => {
           pid,
           token,
           freshMsgs,
+          parsedReservation.clean, // pass AI text to send only on success
         );
+      }
+
+      // === CANCEL RESERVATION TAG DETECTION ===
+      const parsedCancel = parseCancelReservation(ai);
+      if (parsedCancel) {
+        const cancelClean = parsedCancel.clean;
+        // Find most recent confirmed/pending reservation for this phone
+        const { data: cancelTarget, error: cancelErr } = await supabase
+          .from("reservations")
+          .select("id, reservation_date, reservation_time, customer_name")
+          .eq("restaurant_id", rId)
+          .eq("customer_phone", from)
+          .in("status", ["confirmed", "pending"])
+          .order("reservation_date", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (cancelTarget && !cancelErr) {
+          await supabase.from("reservations").update({
+            status: "cancelled",
+            cancelled_at: new Date().toISOString(),
+          }).eq("id", cancelTarget.id);
+          const cancelMsg = cancelClean || `Tu reserva del ${cancelTarget.reservation_date} a las ${cancelTarget.reservation_time} ha sido cancelada`;
+          freshMsgs.push({ role: "assistant", content: cancelMsg, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30), order_status: "none" }).eq("id", conv.id);
+          await sendWA(pid, token, from, cancelMsg, true);
+          tlog("info", rId, `Reservation cancelled via chat: ${cancelTarget.id} for ${from}`);
+          return new Response(JSON.stringify({ status: "reservation_cancelled" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        } else {
+          const noCancelMsg = cancelClean || "No encontré una reserva activa para cancelar";
+          freshMsgs.push({ role: "assistant", content: noCancelMsg, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+          await sendWA(pid, token, from, noCancelMsg, true);
+          return new Response(JSON.stringify({ status: "no_reservation_to_cancel" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
       const parsed = parseOrder(ai);
