@@ -1236,6 +1236,7 @@ function buildPrompt(
       order,
       status,
       customerName,
+      reservationMode,
     );
     return core + "\n\n" + dynamic;
   }
@@ -1260,6 +1261,7 @@ function buildDynamicPrompt(
   order: any,
   status: string,
   customerName?: string,
+  reservationMode: boolean = false,
 ): string {
   const personality = config.personality_rules || {};
   const delivery = config.delivery_config || {};
@@ -1375,7 +1377,7 @@ function buildDynamicPrompt(
 
   // Packaging — built dynamically from products table (single source of truth)
   const packagingProducts = products.filter((p: any) => p.requires_packaging && p.packaging_price > 0);
-  const packagingBlock =
+  let packagingBlock =
     packagingProducts.length > 0
       ? "EMPAQUES (aplica siempre que el producto lo requiera):\n" +
         packagingProducts
@@ -1389,7 +1391,7 @@ function buildDynamicPrompt(
     : "";
 
   // Escalation
-  const escalationBlock = escalation.human_phone
+  let escalationBlock = escalation.human_phone
     ? `ESCALAMIENTO: Si insiste en persona → "${escalation.escalation_message || `Comunícate al ${escalation.human_phone}`}". Solo ---ESCALAMIENTO--- para temas técnicos.`
     : "";
 
@@ -1412,12 +1414,28 @@ function buildDynamicPrompt(
 
   // Upselling now injected directly into the core flow steps (buildCoreSystemPrompt)
 
+  // ── Reservation mode overrides ──
+  if (reservationMode) {
+    scheduleBlock = "ESTADO: Aceptando reservas. El horario de operación del restaurante no afecta las reservas (son para fecha futura).";
+    deliveryBlock = "";
+    paymentBlock = "";
+    escalationBlock = "";
+    packagingBlock = "";
+    overridesBlock = "";
+    prom = "";
+    ctx = "";
+  }
+
+  const reservationModeNote = reservationMode
+    ? `\nMODO ACTUAL: RESERVA. Tu ÚNICO objetivo es completar el FLUJO DE RESERVA del prompt principal. NO tomes pedidos de comida. NO hables de horarios de cierre. NO redirijas al teléfono.\n`
+    : "";
+
   return `=== CONFIG DEL NEGOCIO ===
 
 NEGOCIO: "${config.restaurant_name}"
 ${config.restaurant_description ? `HISTORIA: ${config.restaurant_description}` : ""}
 UBICACIÓN: ${config.location_details || config.location_address || "Consulta con el equipo"}
-
+${reservationModeNote}
 ${scheduleBlock}
 ${overridesBlock}
 
