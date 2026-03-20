@@ -1,124 +1,47 @@
 
 
-# Plan: Fix 7 Reservation Issues
+# Plan: Fix Date Calculation & Reservation Query in Chat
 
-## Issue Analysis
+## Issue 1 — AI suggests wrong date (e.g. "sábado 22" when sábado is 21)
 
-### 1. Wrong date calculation ("sábado 22" but tomorrow is "sábado 21")
-**Root cause**: The prompt uses `new Date().toISOString().split("T")[0]` which is UTC time. The server runs in UTC, so at night in Colombia (UTC-5) the date shown is already "tomorrow" in UTC. The AI calculates relative dates from the wrong base.
-**Fix**: Use `getRestaurantDate(offset)` instead of `new Date().toISOString()` to inject the restaurant's local date into the reservation prompt.
+**Root cause**: The date injection logic uses `getRestaurantDate(tzOffset)` correctly, but the issue is that `FECHA_ACTUAL` is only injected inside the `buildCoreSystemPrompt` when `reservationMode = true`. The AI calculates the date correctly in the prompt, but the instruction says "ejemplo: sería el sábado 22 de marzo de 2026" — this hardcoded example in the prompt text confuses the LLM into echoing "22" instead of calculating from the actual `FECHA_ACTUAL`.
 
-### 2. Move Reservas tab to alicia-dashboard
-**Fix**: Add a "Reservas" tab in `WhatsAppDashboard.tsx` next to Conversaciones. Import `AliciaConfigReservations` for the agenda portion, or create a lightweight reservations panel that shows the day's reservations with status management.
+**Fix**: Change the hardcoded example in line 1122 to use a dynamic example based on the actual date injected, so the AI doesn't parrot a stale example. For instance: `"Sería el ${todayDayName} ${localNow.getDate()} de ${monthName} de ${localNow.getFullYear()}, ¿correcto?"` — but using tomorrow or next relevant day so the example itself is correct.
 
-### 3. Cancel reservation from chat not reflected in DB
-**Root cause**: There is no `---CANCELAR_RESERVA---` tag handler. The AI says "cancelada" conversationally but nothing updates the `reservations` table.
-**Fix**: Add a `---CANCELAR_RESERVA---{phone}---FIN_CANCELAR---` tag to the prompt. Add `parseCancelReservation()` and handler that finds the most recent `confirmed`/`pending` reservation for that phone+restaurant and sets `status = "cancelled"`.
+### File: `supabase/functions/whatsapp-webhook/index.ts` (~line 1119-1122)
 
-### 4. Add "Restablecer a confirmado" button + "Cancelar" button for all statuses
-**Current UI**: Only `pending` shows confirm/cancel. Only `confirmed` shows completed/no_show.
-**Fix**: Add buttons for `completed`, `no_show`, and `cancelled` statuses to restore to `confirmed`. Add a cancel button to `confirmed` status.
-
-### 5. Query reservations from chat
-**Fix**: Add reservation lookup in the prompt instructions: when the user asks about their reservation, the backend should inject recent reservations for that phone number into the conversation context. Add a pre-AI check that queries `reservations` for the customer's phone.
-
-### 6. AI says "confirmada" BEFORE backend validates slot availability
-**Root cause**: Lines 4188-4192 send `cleanResp` (AI's confirmation text) to the customer BEFORE `processReservation()` checks availability. So customer sees "confirmada" then "slot full".
-**Fix**: Do NOT send `cleanResp` before `processReservation()`. Instead, pass it to `processReservation()` and only send it if validation passes. If validation fails, send only the rejection message.
-
-### 7. When slot is full, suggest available times (not past times if same day)
-**Fix**: Enhance `checkSlotAvailability` to also return available slots for that date. Filter out past times if the date is today. Include these in the slot_full response.
-
-## Files to Change
-
-### File 1: `supabase/functions/whatsapp-webhook/index.ts`
-
-**Change A — Fix date injection (line 1114-1116)**
-Replace `new Date()` with restaurant-local time:
+Replace the hardcoded example with a dynamically computed one:
 ```
-const tz = config?.operating_hours?.timezone || "UTC-5";  // available from outer scope
-const offset = parseTimezoneOffset(tz);
-const now = getRestaurantTime(offset);
-const todayStr = getRestaurantDate(offset);
-const todayDayName = dayNamesArr[now.getDay()]; // local day
-```
-Need to pass `config` into the reservation prompt builder — it's already available in `buildCoreSystemPrompt` params.
-
-**Change B — Don't send AI response before validation (lines 4186-4203)**
-Change flow:
-```
-if (parsedReservation) {
-  // Do NOT send cleanResp yet — validate first
-  return await processReservation(
-    parsedReservation.reservation, rId, conv.id, from,
-    config, pid, token, freshMsgs,
-    parsedReservation.clean,  // pass clean text to send only on success
-  );
-}
+FECHA_ACTUAL: ${todayStr} (${todayDayName})
+HORA_ACTUAL: HH:MM
+Cuando el cliente diga "mañana", "el sábado", etc., CALCULA la fecha real basándote en FECHA_ACTUAL.
+Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el [día] [número] de [mes] de [año], ¿correcto?"
+NO copies el ejemplo literalmente — calcula la fecha real.
 ```
 
-Update `processReservation` signature to accept optional `preConfirmMsg`. Only send it after validation+insert succeeds, before the system confirmation message.
+Remove the specific date from the example to prevent parroting.
 
-**Change C — Add cancel reservation tag to prompt (line 1138-1142)**
-Add to REGLAS DE RESERVA:
-```
-- Si el cliente quiere CANCELAR una reserva existente, genera el tag:
-  ---CANCELAR_RESERVA---{"phone":"<phone>"}---FIN_CANCELAR---
-```
+---
 
-**Change D — Add `parseCancelReservation()` function**
-Similar to `parseReservation()`, extracts phone from cancel tag.
+## Issue 2 — AI says "no tengo acceso" when asked about existing reservations
 
-**Change E — Add cancel reservation handler (after line 4203)**
-When cancel tag detected:
-1. Query `reservations` where `customer_phone = phone` and `restaurant_id = rId` and `status in ('confirmed','pending')`, order by `reservation_date desc`, limit 1
-2. Update status to `cancelled`, set `cancelled_at`
-3. Send confirmation message
+**Root cause**: The reservation context injection (lines 4222-4238) is inside the `if (isReservationMode)` block. When the customer asks "muéstrame mis reservas" but the conversation is NOT in `reservation_flow` status (e.g., it's in `none`), the code never queries the DB for existing reservations, so the AI has no data and says "no tengo acceso".
 
-**Change F — Inject customer's reservations into context**
-Before AI call, when `isReservationMode`, query reservations for this phone number and inject as context:
-```
-RESERVAS EXISTENTES DEL CLIENTE:
-- 2026-03-22 12:00 | 4 personas | confirmada
-```
+**Fix**: Move the reservation context injection OUTSIDE the `isReservationMode` block. Always query reservations for the customer's phone when reservations are enabled for the restaurant, regardless of flow status. This way, even in normal conversation mode, the AI can answer "you have a reservation on Saturday at 12:00".
 
-**Change G — Add available slots to slot_full response**
-In `processReservation`, when slot is full, query available slots for that date and append to the rejection message. Filter out past times if date is today.
+### File: `supabase/functions/whatsapp-webhook/index.ts` (~lines 4222-4238)
 
-### File 2: `src/pages/WhatsAppDashboard.tsx`
-
-**Change A — Add "Reservas" tab**
-Add a new tab trigger with CalendarDays icon after "Bloqueados". Import a new `ReservationsPanel` component (or reuse reservation list logic from `AliciaConfigReservations`).
-
-### File 3: `src/components/alicia-dashboard/ReservationsPanel.tsx` (NEW)
-
-Lightweight panel showing:
-- Date navigator (prev/next day)
-- Reservation cards with status badges
-- Action buttons per status:
-  - `pending`: confirm, cancel
-  - `confirmed`: completed, no_show, cancel
-  - `completed`/`no_show`/`cancelled`: restore to confirmed
-
-### File 4: `src/components/alicia-config/AliciaConfigReservations.tsx`
-
-**Change A — Add restore/cancel buttons for all statuses**
-- `completed`, `no_show`: add "Restablecer" button → sets to `confirmed`
-- `cancelled`: add "Restablecer" button → sets to `confirmed`
-- `confirmed`: add "Cancelar" button
+- Move the reservation DB query block to AFTER the `isReservationMode` block (after line 4239)
+- Make it conditional on `resConfig?.enabled === true` instead of `isReservationMode`
+- Keep it appending to `reopenHint` so it's included in the system prompt
+- Add instruction: "Si el cliente pregunta por sus reservas, responde con esta información. No digas que no tienes acceso."
 
 ## What stays untouched
-- Order flow (PEDIDO_CONFIRMADO, CAMBIO, ADICION tags)
-- Suggestion flow, upselling, service overrides
-- Email sending, ICS generation logic (correct, just timing changes)
-- All existing tables
+- Order flow, all tags, validation, ICS generation
+- Anti-contamination logic (stays inside `isReservationMode`)
+- UI components
 
-## Expected Results
-- Dates calculated correctly in restaurant's timezone
-- Reservas tab visible in alicia-dashboard
-- Cancel from chat updates DB
-- All reservation statuses have restore/cancel actions
-- Customer can ask about their reservations
-- AI confirmation NOT sent until backend validates
-- Slot full message includes available alternatives
+## Expected results
+- AI will calculate dates correctly without parroting a hardcoded example
+- AI will answer reservation queries in any conversation state (not just `reservation_flow`)
 
