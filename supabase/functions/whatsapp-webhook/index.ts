@@ -3871,9 +3871,15 @@ Deno.serve(async (req) => {
           });
         }
         // Reservations enabled — set flow state
-        await supabase.from("whatsapp_conversations").update({ order_status: "reservation_flow" }).eq("id", conv.id);
-        conv.order_status = "reservation_flow";
-        tlog("info", rId, `Reservation flow activated for ${from}`);
+        const { error: resFlowErr } = await supabase.from("whatsapp_conversations").update({ order_status: "reservation_flow" }).eq("id", conv.id);
+        if (resFlowErr) {
+          tlog("error", rId, `Failed to set reservation_flow in DB: ${resFlowErr.message}`);
+        } else {
+          conv.order_status = "reservation_flow";
+        }
+        // Local flag ensures this request uses reservation mode even if DB write failed
+        var forceReservationMode = true;
+        tlog("info", rId, `Reservation flow activated for ${from} (dbOk=${!resFlowErr})`);
       }
 
       // ===== NORMAL MESSAGE PROCESSING =====
@@ -4090,7 +4096,8 @@ Deno.serve(async (req) => {
 
       // === RESERVATION MODE ===
       const currentFlowStatus = freshConv?.order_status || conv.order_status;
-      const isReservationMode = currentFlowStatus === "reservation_flow";
+      const isReservationMode = (typeof forceReservationMode !== "undefined" && forceReservationMode) || currentFlowStatus === "reservation_flow";
+      tlog("info", rId, `AI call prep: currentFlowStatus=${currentFlowStatus}, isReservationMode=${isReservationMode}, forceFlag=${typeof forceReservationMode !== "undefined" ? forceReservationMode : "N/A"}`);
 
       const sys =
         buildPrompt(
