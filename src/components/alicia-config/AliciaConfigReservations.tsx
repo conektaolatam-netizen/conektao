@@ -374,8 +374,17 @@ export default function AliciaConfigReservations({ config, onSave }: Props) {
                   </Card>
                 ))}
               </div>
-            )}
-          </div>
+      )}
+
+      {/* Save button — always visible */}
+      <Button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white"
+      >
+        {saving ? "Guardando..." : "Guardar configuración de reservas"}
+      </Button>
+    </div>
         </>
       )}
     </div>
