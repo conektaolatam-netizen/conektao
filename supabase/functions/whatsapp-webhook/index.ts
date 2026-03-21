@@ -2691,6 +2691,63 @@ async function saveOrder(
   }
   console.log(`💾 DB_INSERT_OK { order_id: "${saved.id}", phone: "${phone}", total: ${order.total} }`);
 
+  // ── STEP 1b: Create kitchen_order (FIRE-AND-FORGET — never blocks main flow) ──
+  // This bridges whatsapp_orders → kitchen_orders so kitchen staff see the order immediately.
+  (async () => {
+    try {
+      const kitchenItems = (order.items || []).map((item: any) => item.product_name).join(", ");
+      const totalItems = (order.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0);
+
+      const { data: kitchenOrder, error: koError } = await supabase
+        .from("kitchen_orders")
+        .insert({
+          restaurant_id: rid,
+          user_id: null, // pedido automático de ALICIA — sin usuario asignado
+          table_number: null,
+          status: "pending",
+          total_items: totalItems,
+          priority: "normal",
+          estimated_time: 30,
+          notes: [
+            `📱 Pedido WhatsApp — ${order.customer_name || "Cliente"}`,
+            order.delivery_type === "delivery" ? `🛵 Domicilio: ${order.delivery_address || ""}` : "🏪 Para recoger",
+            order.payment_method ? `💳 Pago: ${order.payment_method}` : null,
+          ].filter(Boolean).join(" | "),
+          sent_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (koError) {
+        console.error(`🍳 KITCHEN_ORDER_FAIL { whatsapp_order_id: "${saved.id}", err: "${koError.message}" }`);
+        return;
+      }
+
+      const kitchenItems2 = (order.items || []).map((item: any) => ({
+        kitchen_order_id: kitchenOrder.id,
+        product_id: item.product_id || null,
+        product_name: item.product_name || "Producto",
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        special_instructions: item.notes || null,
+        status: "pending",
+      }));
+
+      if (kitchenItems2.length > 0) {
+        const { error: kiError } = await supabase
+          .from("kitchen_order_items")
+          .insert(kitchenItems2);
+        if (kiError) {
+          console.error(`🍳 KITCHEN_ITEMS_FAIL { kitchen_order_id: "${kitchenOrder.id}", err: "${kiError.message}" }`);
+        }
+      }
+
+      console.log(`🍳 KITCHEN_ORDER_OK { kitchen_order_id: "${kitchenOrder.id}", whatsapp_order_id: "${saved.id}", items: ${totalItems} }`);
+    } catch (e) {
+      console.error(`🍳 KITCHEN_ORDER_EXCEPTION { whatsapp_order_id: "${saved.id}", err: "${e}" }`);
+    }
+  })();
+
   // ── STEP 2: IMMEDIATELY mark conversation as confirmed (BEFORE email attempt) ──
   // This ensures the order stays confirmed even if email fails
   await supabase

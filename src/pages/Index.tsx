@@ -33,9 +33,13 @@ import { LoadingState, ErrorState } from "@/components/LoadingState";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import GasIndex from "@/components/gas/GasIndex";
 import React from "react";
+import { usePrintQueue } from "@/hooks/usePrintQueue";
 
 const Index = () => {
   const { user, profile, restaurant, loading } = useAuth();
+
+  // Escucha pedidos confirmados por ALICIA e imprime automáticamente
+  usePrintQueue();
   const { state, dispatch } = useApp();
   const { notifications } = useNotifications();
   const { isGasMode, isLoading: productModeLoading } = useProductMode();

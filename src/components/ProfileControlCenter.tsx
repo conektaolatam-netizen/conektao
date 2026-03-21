@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { 
-  User, Building, MapPin, CreditCard, Percent, Shield, 
-  Target, Lock, Wallet 
+import {
+  User, Building, MapPin, CreditCard, Percent, Shield,
+  Target, Lock, Wallet, Printer
 } from "lucide-react";
 import SettingsHeader from "./settings/SettingsHeader";
 import SettingsSection from "./settings/SettingsSection";
@@ -17,26 +17,30 @@ import TipsSettings from "./settings/TipsSettings";
 import SalesGoalsSettings from "./settings/SalesGoalsSettings";
 import PrivacyDataSettings from "./settings/PrivacyDataSettings";
 import PaymentMethodsSettings from "./settings/PaymentMethodsSettings";
+import PrinterSettings from "./settings/PrinterSettings";
+import { loadPrinterConfig } from "@/lib/printerConfig";
 
 interface ProfileControlCenterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type SettingsScreen = 
-  | "main" 
-  | "profile" 
-  | "restaurant" 
-  | "location" 
-  | "subscription" 
-  | "tips" 
+type SettingsScreen =
+  | "main"
+  | "profile"
+  | "restaurant"
+  | "location"
+  | "subscription"
+  | "tips"
   | "sales_goals"
   | "privacy"
-  | "payment_methods";
+  | "payment_methods"
+  | "printer";
 
 const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps) => {
   const { user, profile, restaurant } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<SettingsScreen>("main");
+  const printerConfig = loadPrinterConfig();
 
   const handleClose = () => {
     setCurrentScreen("main");
@@ -68,6 +72,15 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
         return <PrivacyDataSettings onBack={handleBack} />;
       case "payment_methods":
         return <PaymentMethodsSettings onBack={handleBack} />;
+      case "printer":
+        return (
+          <div className="flex flex-col h-full">
+            <SettingsHeader title="Impresión" onBack={handleBack} />
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <PrinterSettings />
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -144,6 +157,16 @@ const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps)
                   label="Propinas"
                   description="Configuración y distribución"
                   onClick={() => setCurrentScreen("tips")}
+                />
+                <SettingsRow
+                  icon={<Printer className="h-4 w-4" />}
+                  label="Impresión de Comandas"
+                  description={
+                    printerConfig.printerName
+                      ? `${printerConfig.printerName} · ${printerConfig.autoprint ? "Autoimpresión activa" : "Manual"}`
+                      : "Sin impresora configurada"
+                  }
+                  onClick={() => setCurrentScreen("printer")}
                 />
                 <SettingsRow
                   icon={<CreditCard className="h-4 w-4" />}
