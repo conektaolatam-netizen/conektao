@@ -96,18 +96,28 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
       box-sizing: border-box;
     }
 
-    /* ── Impresión: cero interferencia del navegador ── */
+    /* ── Impresión: cortar el papel justo donde termina el contenido ── */
     @media print {
       @page {
         margin: 0;
-        padding: 0;
-        ${pageSizeCSS}
+        /* height: auto → el papel se corta al alto real del contenido */
+        size: ${isNarrow ? paperWidth : 'auto'} auto;
       }
-      html, body {
+      html {
+        height: auto;
+      }
+      body {
         margin: 0;
         padding: 2mm;
         width: 100%;
         max-width: 100%;
+        /* display: inline-block hace que el body no se expanda más allá del contenido */
+        display: inline-block;
+        height: auto;
+        /* Evita páginas vacías por saltos de página automáticos */
+        page-break-after: avoid;
+        orphans: 0;
+        widows: 0;
         /* Fuerza blanco/negro puro en térmicas */
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
