@@ -5,7 +5,7 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 const benefits = [
   {
     icon: TrendingUp,
-    metric: "+15%",
+    metric: "+20%",
     title: "Ticket promedio",
     description: "Upselling inteligente en cada conversación",
     glow: "hsl(25 100% 50% / 0.28)",
