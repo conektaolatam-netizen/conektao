@@ -73,9 +73,9 @@ export function usePrintQueue() {
                 {
                   altText: 'Configurar impresora',
                   onClick: () => window.dispatchEvent(new CustomEvent('conektao:open-printer-settings')),
-                },
+                } as any,
                 'Configurar'
-              ),
+              ) as any,
             });
           }
         }
