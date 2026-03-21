@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,16 @@ const Layout: React.FC<LayoutProps> = ({
   const { isOwner } = useUserRoles();
   const [accountOpen, setAccountOpen] = useState(false);
   const [profileControlOpen, setProfileControlOpen] = useState(false);
+  const [openToPrinterSettings, setOpenToPrinterSettings] = useState(false);
+
+  useEffect(() => {
+    const handler = () => {
+      setOpenToPrinterSettings(true);
+      setProfileControlOpen(true);
+    };
+    window.addEventListener('conektao:open-printer-settings', handler);
+    return () => window.removeEventListener('conektao:open-printer-settings', handler);
+  }, []);
   const handleSwitchAccount = async () => {
     await signOut();
     navigate('/auth?mode=login');
@@ -329,7 +339,12 @@ const Layout: React.FC<LayoutProps> = ({
         </DialogContent>
       </Dialog>
 
-      <ProfileControlCenter open={profileControlOpen} onOpenChange={setProfileControlOpen} />
+      <ProfileControlCenter
+        open={profileControlOpen}
+        onOpenChange={(v) => { setProfileControlOpen(v); if (!v) setOpenToPrinterSettings(false); }}
+        openToPrinterSettings={openToPrinterSettings}
+        onPrinterSettingsOpened={() => setOpenToPrinterSettings(false)}
+      />
 
       {/* Main content */}
       <main className="p-2 sm:p-4 md:p-6 bg-background relative z-10">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -23,6 +23,8 @@ import { loadPrinterConfig } from "@/lib/printerConfig";
 interface ProfileControlCenterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  openToPrinterSettings?: boolean;
+  onPrinterSettingsOpened?: () => void;
 }
 
 type SettingsScreen =
@@ -37,10 +39,18 @@ type SettingsScreen =
   | "payment_methods"
   | "printer";
 
-const ProfileControlCenter = ({ open, onOpenChange }: ProfileControlCenterProps) => {
+const ProfileControlCenter = ({ open, onOpenChange, openToPrinterSettings, onPrinterSettingsOpened }: ProfileControlCenterProps) => {
   const { user, profile, restaurant } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<SettingsScreen>("main");
   const printerConfig = loadPrinterConfig();
+
+  // Navegar directo a pantalla de impresora cuando se solicita desde el exterior
+  useEffect(() => {
+    if (open && openToPrinterSettings) {
+      setCurrentScreen("printer");
+      onPrinterSettingsOpened?.();
+    }
+  }, [open, openToPrinterSettings, onPrinterSettingsOpened]);
 
   const handleClose = () => {
     setCurrentScreen("main");

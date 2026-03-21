@@ -2,16 +2,19 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { loadPrinterConfig, hasPrinterConfigured } from '@/lib/printerConfig';
+import { hasPrinterConfigured } from '@/lib/printerConfig';
 import { printComanda, whatsappOrderToComanda } from '@/lib/printComanda';
+import { ToastAction } from '@/components/ui/toast';
+import React from 'react';
 
 /**
  * Hook que escucha en tiempo real los pedidos confirmados por ALICIA
- * y los imprime automáticamente si el usuario tiene una impresora configurada
- * y la opción de autoimpresión activada.
+ * y los imprime automáticamente si el usuario tiene una impresora configurada.
+ *
+ * - Con impresora configurada → imprime directo, sin diálogos extra.
+ * - Sin impresora configurada → toast con botón que abre la pantalla de configuración.
  *
  * Uso: montar este hook una sola vez en el layout principal del dashboard.
- * No requiere props — se auto-configura con el restaurante del usuario autenticado.
  */
 export function usePrintQueue() {
   const { profile } = useAuth();
@@ -24,9 +27,6 @@ export function usePrintQueue() {
 
     const restaurantId = profile.restaurant_id;
 
-    // Canal Supabase Realtime: escucha UPDATE en whatsapp_orders cuando
-    // el status cambia a "confirmed". El webhook inserta primero con "received"
-    // y luego actualiza a "confirmed" una vez validado.
     const channel = supabase
       .channel(`print-queue-${restaurantId}`)
       .on(
@@ -50,20 +50,12 @@ export function usePrintQueue() {
           if (printedIds.current.has(orderId)) return;
           printedIds.current.add(orderId);
 
-          const config = loadPrinterConfig();
-
-          if (config.autoprint && hasPrinterConfigured()) {
-            // Imprimir automáticamente
+          if (hasPrinterConfigured()) {
+            // Imprimir directo — sin diálogo adicional
             const comanda = whatsappOrderToComanda(order);
             const success = printComanda(comanda);
 
-            if (success) {
-              toast({
-                title: 'Imprimiendo comanda',
-                description: `Pedido de ${comanda.customer_name} enviado a ${config.printerName}`,
-                className: 'bg-green-50 border-green-200',
-              });
-            } else {
+            if (!success) {
               toast({
                 title: 'No se pudo imprimir',
                 description: 'Verifica que el navegador permita ventanas emergentes para este sitio.',
@@ -71,13 +63,19 @@ export function usePrintQueue() {
               });
             }
           } else {
-            // Notificar al usuario con opción de imprimir manualmente
+            // Sin impresora: toast con botón directo a configuración
             const comanda = whatsappOrderToComanda(order);
             toast({
               title: `Nuevo pedido — ${comanda.customer_name}`,
-              description: hasPrinterConfigured()
-                ? 'La autoimpresión está desactivada. Ve a Configuración → Impresión para activarla.'
-                : 'No hay impresora configurada. Ve a Configuración → Impresión.',
+              description: 'Configura tu impresora térmica para imprimir comandas automáticamente.',
+              action: React.createElement(
+                ToastAction,
+                {
+                  altText: 'Configurar impresora',
+                  onClick: () => window.dispatchEvent(new CustomEvent('conektao:open-printer-settings')),
+                },
+                'Configurar'
+              ),
             });
           }
         }

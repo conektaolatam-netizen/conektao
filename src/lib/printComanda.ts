@@ -48,12 +48,14 @@ function getDeliveryLabel(type: string): string {
 }
 
 /**
- * Genera el HTML completo de una comanda, optimizado para papel térmico de 80mm
- * pero también legible en papel A4 normal.
+ * Genera el HTML completo de una comanda, optimizado para papel térmico de 80mm.
+ * @media print elimina absolutamente todo excepto la comanda — sin headers,
+ * sin footers del navegador, sin márgenes. Solo texto monoespaciado puro.
  */
 function buildComandaHTML(data: ComandaData, paperWidth: string): string {
   const isNarrow = paperWidth === '80mm' || paperWidth === '58mm';
   const widthPx = paperWidth === '58mm' ? '200px' : paperWidth === '80mm' ? '280px' : '100%';
+  const pageSizeCSS = isNarrow ? `size: ${paperWidth} auto;` : '';
 
   const itemsHTML = data.items
     .map(
@@ -64,7 +66,7 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
         </td>
         <td style="padding: 3px 4px; vertical-align: top;">
           ${item.product_name}
-          ${item.notes ? `<br/><em style="font-size:10px;">&nbsp;&nbsp;↳ ${item.notes}</em>` : ''}
+          ${item.notes ? `<br/><em style="font-size:10px;">&nbsp;&nbsp;&#8627; ${item.notes}</em>` : ''}
         </td>
         <td style="padding: 3px 0; vertical-align: top; text-align: right; white-space: nowrap;">
           ${formatPrice(item.unit_price * item.quantity)}
@@ -81,23 +83,37 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
   <meta charset="UTF-8"/>
   <title>Comanda ${data.order_id}</title>
   <style>
-    @media print {
-      @page {
-        margin: 4mm;
-        ${isNarrow ? `size: ${paperWidth} auto;` : ''}
-      }
-      body { margin: 0; }
-    }
-    body {
+    /* ── Pantalla ── */
+    html, body {
       font-family: 'Courier New', Courier, monospace;
       font-size: 12px;
       color: #000;
       background: #fff;
+      margin: 0;
       padding: 8px;
       width: ${widthPx};
       max-width: ${widthPx};
       box-sizing: border-box;
     }
+
+    /* ── Impresión: cero interferencia del navegador ── */
+    @media print {
+      @page {
+        margin: 0;
+        padding: 0;
+        ${pageSizeCSS}
+      }
+      html, body {
+        margin: 0;
+        padding: 2mm;
+        width: 100%;
+        max-width: 100%;
+        /* Fuerza blanco/negro puro en térmicas */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
     h1 { font-size: 16px; font-weight: bold; text-align: center; margin: 0 0 2px; }
     .center { text-align: center; }
     .bold { font-weight: bold; }
@@ -105,7 +121,7 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
     .double-divider { border-top: 3px double #000; margin: 6px 0; }
     table { width: 100%; border-collapse: collapse; }
     .total-row td { font-weight: bold; font-size: 14px; padding-top: 4px; }
-    .tag-wa {
+    .tag {
       display: inline-block;
       background: #000;
       color: #fff;
@@ -118,7 +134,7 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
 <body>
   <h1>*** NUEVO PEDIDO ***</h1>
   <div class="center" style="font-size:10px; margin-bottom: 4px;">
-    ${data.source === 'whatsapp' ? '<span class="tag-wa">WhatsApp</span>' : '<span class="tag-wa">POS</span>'}
+    <span class="tag">${data.source === 'whatsapp' ? 'WhatsApp' : 'POS'}</span>
   </div>
 
   <div class="divider"></div>
@@ -161,8 +177,8 @@ function buildComandaHTML(data: ComandaData, paperWidth: string): string {
 }
 
 /**
- * Abre una ventana de impresión con la comanda y la envía a la impresora
- * configurada (o al diálogo de impresión si no hay ninguna configurada).
+ * Abre una ventana de impresión con la comanda y la envía directamente
+ * a la impresora configurada. La ventana se cierra sola tras imprimir.
  *
  * Retorna true si la ventana se abrió correctamente.
  */
@@ -180,17 +196,17 @@ export function printComanda(data: ComandaData): boolean {
   printWindow.document.write(html);
   printWindow.document.close();
 
-  // Pequeña espera para que el navegador procese el DOM antes de imprimir
-  printWindow.onload = () => {
+  // setTimeout es más fiable que onload tras document.write():
+  // onload puede dispararse antes de que el DOM esté listo en Safari/Edge.
+  setTimeout(() => {
     printWindow.focus();
     printWindow.print();
-    // Cerrar automáticamente después del diálogo
     printWindow.onafterprint = () => printWindow.close();
     // Fallback: cerrar si onafterprint no se dispara (Safari)
     setTimeout(() => {
       try { printWindow.close(); } catch { /* ya cerrada */ }
     }, 10000);
-  };
+  }, 250);
 
   return true;
 }
