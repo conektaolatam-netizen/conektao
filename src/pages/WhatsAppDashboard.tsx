@@ -337,7 +337,16 @@ export default function WhatsAppDashboard() {
   return (
     <div className="h-screen flex flex-col alicia-dash-bg text-foreground">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-4 pt-3 pb-1 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/")}
+            className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl px-2.5 py-1.5 text-xs shrink-0"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+            Volver
+          </Button>
           <TabsList className="alicia-glass rounded-2xl p-1 w-auto">
             <TabsTrigger value="orders" className="flex items-center gap-1.5 rounded-xl data-[state=active]:bg-white/10 data-[state=active]:shadow-[0_0_12px_hsl(174_100%_29%/0.2)] transition-all">
               <Package className="w-4 h-4" />
