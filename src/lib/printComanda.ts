@@ -248,3 +248,144 @@ export function whatsappOrderToComanda(order: Record<string, unknown>): ComandaD
     source: 'whatsapp',
   };
 }
+
+// ─── Kitchen Ticket (one per product) ─────────────────────────────────────────
+
+function getDeliveryChannelLabel(type: string): string {
+  const lower = type.toLowerCase();
+  if (lower === 'delivery') return 'DOMICILIOS';
+  if (lower === 'pickup') return 'PARA LLEVAR';
+  if (lower === 'table' || lower === 'mesa') return 'MESA';
+  return type.toUpperCase();
+}
+
+function buildKitchenTicketHTML(
+  data: ComandaData,
+  item: ComandaItem,
+  paperWidth: string,
+): string {
+  const isNarrow = paperWidth === '80mm' || paperWidth === '58mm';
+  const widthPx = paperWidth === '58mm' ? '200px' : paperWidth === '80mm' ? '280px' : '100%';
+  const dateStr = formatTime(data.created_at);
+  const channelLabel = getDeliveryChannelLabel(data.delivery_type);
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Comanda ${data.order_id}</title>
+  <style>
+    html, body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: #000;
+      background: #fff;
+      margin: 0;
+      padding: 8px;
+      width: ${widthPx};
+      max-width: ${widthPx};
+      box-sizing: border-box;
+    }
+    @media print {
+      @page {
+        margin: 0;
+        size: ${isNarrow ? paperWidth : 'auto'} auto;
+      }
+      html { height: auto; }
+      body {
+        margin: 0;
+        padding: 2mm;
+        width: 100%;
+        max-width: 100%;
+        display: inline-block;
+        height: auto;
+        page-break-after: avoid;
+        orphans: 0; widows: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .double-divider { border-top: 3px double #000; margin: 6px 0; }
+    .channel {
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      margin: 4px 0;
+      letter-spacing: 1px;
+    }
+    .product {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      margin: 8px 0;
+      text-transform: uppercase;
+    }
+    .obs {
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+      margin: 4px 0;
+    }
+    .meta { font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="center bold" style="font-size:16px;">PEDIDO No. ${data.order_id}</div>
+
+  <div class="divider"></div>
+
+  <div class="channel">→ ${channelLabel}</div>
+
+  <div class="divider"></div>
+
+  <div class="meta">FECHA: ${dateStr}</div>
+  <div class="meta">PERSONAS: 0</div>
+  <div class="meta">VENDEDOR: --</div>
+
+  <div class="divider"></div>
+
+  <div class="product">${item.quantity} ${item.product_name}</div>
+
+  ${item.notes ? `<div class="obs">OBS: ${item.notes.toUpperCase()}</div>` : ''}
+
+  <div class="double-divider"></div>
+  <div class="center" style="font-size: 10px;">conektao.com</div>
+</body>
+</html>`;
+}
+
+/**
+ * Imprime una comanda de cocina por cada producto del pedido.
+ * Abre una ventana por item con un delay escalonado de 500ms.
+ * Retorna true si al menos una ventana se abrió correctamente.
+ */
+export function printKitchenTickets(data: ComandaData): boolean {
+  const config = loadPrinterConfig();
+  let anySuccess = false;
+
+  data.items.forEach((item, idx) => {
+    setTimeout(() => {
+      const html = buildKitchenTicketHTML(data, item, config.paperWidth);
+      const w = window.open('', '_blank', 'width=400,height=500');
+      if (!w) {
+        console.error('[printKitchenTickets] Ventana bloqueada para item', idx);
+        return;
+      }
+      anySuccess = true;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => {
+        w.focus();
+        w.print();
+        w.onafterprint = () => w.close();
+        setTimeout(() => { try { w.close(); } catch { /* ya cerrada */ } }, 10000);
+      }, 250);
+    }, idx * 500);
+  });
+
+  return true;
+}

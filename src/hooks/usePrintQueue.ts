@@ -51,9 +51,9 @@ export function usePrintQueue() {
           printedIds.current.add(orderId);
 
           if (hasPrinterConfigured()) {
-            // Imprimir directo — sin diálogo adicional
+            // Imprimir tickets de cocina — uno por producto
             const comanda = whatsappOrderToComanda(order);
-            const success = printComanda(comanda);
+            const success = printKitchenTickets(comanda);
 
             if (!success) {
               toast({

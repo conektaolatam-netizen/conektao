@@ -88,7 +88,7 @@ const PrinterSettings: React.FC = () => {
   }
 
   function handleTestPrint() {
-    const success = printComanda(TEST_COMANDA);
+    const success = printKitchenTickets(TEST_COMANDA);
     if (!success) {
       toast({
         title: 'No se pudo abrir la ventana de impresión',
