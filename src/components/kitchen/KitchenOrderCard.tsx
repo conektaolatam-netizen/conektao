@@ -46,6 +46,7 @@ interface KitchenOrderCardProps {
   onComplete: (orderId: string) => Promise<void>;
   onViewDetails: (order: KitchenOrder) => void;
   onCancel: (order: KitchenOrder) => void;
+  onPrint?: (order: KitchenOrder) => void;
   canCancel: boolean;
   isAnimatingOut?: boolean;
 }
