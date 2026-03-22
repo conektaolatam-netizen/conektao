@@ -4537,7 +4537,28 @@ Deno.serve(async (req) => {
         })
         .eq("id", conv.id);
 
+      // Check if AI wants to send the menu PDF
+      const wantsMenuPdf = resp.includes("---ENVIAR_CARTA---");
+      if (wantsMenuPdf) {
+        resp = resp.replace(/---ENVIAR_CARTA---/g, "").trim();
+        // Update the stored message without the tag
+        freshMsgs[freshMsgs.length - 1].content = resp;
+        await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+      }
+
       await sendWA(pid, token, from, resp, true);
+
+      // Send menu PDF as document attachment
+      if (wantsMenuPdf && config.menu_link && config.menu_link.endsWith(".pdf")) {
+        const restaurantName = config.restaurant_name || config.business_name || "Restaurante";
+        await sendWADocument(
+          pid, token, from,
+          config.menu_link,
+          `Carta_${restaurantName.replace(/\s+/g, "_")}.pdf`,
+          `📋 Carta de ${restaurantName}`
+        );
+      }
+
       return new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
