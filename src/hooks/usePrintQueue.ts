@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { hasPrinterConfigured } from '@/lib/printerConfig';
-import { printComanda, whatsappOrderToComanda } from '@/lib/printComanda';
+import { printKitchenTickets, whatsappOrderToComanda } from '@/lib/printComanda';
 import { ToastAction } from '@/components/ui/toast';
 import React from 'react';
 
