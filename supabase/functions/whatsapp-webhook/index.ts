@@ -3580,8 +3580,13 @@ Deno.serve(async (req) => {
       const negativeKeywords =
         /\b(no|cancel|cancelar|no quiero|dejalo|déjalo|nada|olvida|cambiar|cambio|modificar|quitar|quita|agregar|corregir)\b/i;
       const emojiAffirmative = /[✅👍🔥]/.test(text);
+      const paymentProofKeywords =
+        /\b(comprobante|transferencia|pago|pagué|pague|envié|envie|nequi|daviplata|consign|recibo|soporte|baucher|voucher)\b/i;
+      const isPaymentProof =
+        paymentProofKeywords.test(lowerTextTrim) &&
+        (conv.order_status === "pending_confirmation" || conv.order_status === "pending_button_confirmation");
       const isAffirmative =
-        !negativeKeywords.test(lowerTextTrim) && (affirmativeKeywords.test(lowerTextTrim) || emojiAffirmative);
+        !negativeKeywords.test(lowerTextTrim) && (affirmativeKeywords.test(lowerTextTrim) || emojiAffirmative || isPaymentProof);
 
       // ── BACKEND DETERMINISTIC CONFIRMATION ─────────────────────────────────────
       // The LLM ONLY converses. The backend decides to confirm.
