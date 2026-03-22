@@ -303,6 +303,31 @@ export default function WhatsAppDashboard() {
     }
   };
 
+  // ── Unread count logic ──
+  const getUnreadCount = (c: Conversation): number => {
+    const lastRead = readStatus.get(c.id);
+    if (!lastRead) return 0; // First time = all read
+    return c.messages.filter((m) => {
+      const ts = m.timestamp || m.ts;
+      return ts && new Date(ts) > new Date(lastRead) && m.role === 'customer';
+    }).length;
+  };
+
+  const markAsRead = async (conv: Conversation) => {
+    if (!userId || !restaurantId) return;
+    const now = new Date().toISOString();
+    setReadStatus((prev) => new Map(prev).set(conv.id, now));
+    await supabase.from("conversation_read_status").upsert(
+      { conversation_id: conv.id, user_id: userId, restaurant_id: restaurantId, last_read_at: now },
+      { onConflict: "conversation_id,user_id" }
+    );
+  };
+
+  const handleSelectConversation = (c: Conversation) => {
+    setSelected(c);
+    markAsRead(c);
+  };
+
   const formatPhone = (phone: string) => {
     if (phone.startsWith("57")) return `+57 ${phone.slice(2, 5)} ${phone.slice(5, 8)} ${phone.slice(8)}`;
     return `+${phone}`;
