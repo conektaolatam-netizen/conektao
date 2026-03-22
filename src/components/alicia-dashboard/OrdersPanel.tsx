@@ -263,9 +263,41 @@ export default function OrdersPanel({ restaurantId }: OrdersPanelProps) {
 
                 {/* Action button */}
                 {nextStatus && (
-                  <div className="px-4 pb-4">
+                  <div className="px-4 pb-4 flex gap-2">
                     <Button
-                      className="w-full"
+                      variant="outline"
+                      size="icon"
+                      title="Imprimir comandas"
+                      onClick={() => {
+                        if (!hasPrinterConfigured()) {
+                          toast.error('No hay impresora configurada', {
+                            description: 'Ve a Configuración → Impresora para configurarla'
+                          });
+                          return;
+                        }
+                        const comanda = {
+                          order_id: order.id.slice(0, 8),
+                          customer_name: order.customer_name || 'Cliente',
+                          items: order.items.map(item => ({
+                            product_name: item.name,
+                            quantity: item.quantity,
+                            unit_price: item.unit_price,
+                          })),
+                          delivery_type: order.delivery_type || 'delivery',
+                          date: format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
+                          seller: '',
+                          people: 0,
+                        };
+                        const success = printKitchenTickets(comanda);
+                        if (success) {
+                          toast.success('Comandas enviadas a impresión');
+                        }
+                      }}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      className="flex-1"
                       variant={order.status === "received" ? "default" : "secondary"}
                       disabled={updatingId === order.id}
                       onClick={() => updateStatus(order.id, nextStatus)}
