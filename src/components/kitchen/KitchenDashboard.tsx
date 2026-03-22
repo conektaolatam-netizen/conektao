@@ -353,6 +353,56 @@ const KitchenDashboard = () => {
     }
   };
 
+  // Imprimir comandas de cocina manualmente
+  const handlePrintOrder = (order: KitchenOrder) => {
+    if (!hasPrinterConfigured()) {
+      toast({
+        title: '🖨️ Sin impresora configurada',
+        description: 'Configura tu impresora térmica para imprimir comandas.',
+        action: React.createElement(
+          ToastAction,
+          {
+            altText: 'Configurar impresora',
+            onClick: () => window.dispatchEvent(new CustomEvent('conektao:open-printer-settings')),
+          } as any,
+          'Configurar'
+        ) as any,
+      });
+      return;
+    }
+
+    const comanda = {
+      order_id: order.order_number,
+      customer_name: order.table_number ? `Mesa ${order.table_number}` : 'Domicilio',
+      items: order.items.map(item => ({
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: 0,
+        notes: item.special_instructions || undefined,
+      })),
+      total: 0,
+      delivery_type: order.table_number ? 'table' : 'delivery',
+      notes: order.notes || undefined,
+      created_at: order.sent_at,
+      source: 'pos' as const,
+    };
+
+    const success = printKitchenTickets(comanda);
+    if (success) {
+      toast({
+        title: '🖨️ Comandas enviadas',
+        description: `${order.items.length} ticket(s) para orden #${order.order_number}`,
+        className: 'bg-cyan-900/90 border-cyan-600 text-white',
+      });
+    } else {
+      toast({
+        title: 'No se pudo imprimir',
+        description: 'Verifica que el navegador permita ventanas emergentes.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Abrir modal de anulación
   const handleCancelClick = (order: KitchenOrder) => {
     setOrderToCancel(order);
