@@ -1423,7 +1423,11 @@ function buildDynamicPrompt(
   else if (tone === "formal") toneBlock = "Habla profesional. Trato de usted.";
   else toneBlock = "Habla cercana y profesional. Natural, cálida pero con respeto.";
 
-  const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
+  const menuPdfUrl = config.menu_link || "";
+  const hasMenuPdf = menuPdfUrl.endsWith(".pdf");
+  const menuLinkBlock = hasMenuPdf
+    ? `\nCARTA: Tienes un PDF de la carta disponible. Cuando el cliente pida ver la carta/menú, responde algo como "¡Con gusto! Te envío nuestra carta 📋" y agrega el tag ---ENVIAR_CARTA--- al final de tu mensaje. NO pegues el link directamente.`
+    : config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
   // Customer context
   const customerCtx = customerName
