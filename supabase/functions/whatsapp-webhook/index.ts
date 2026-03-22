@@ -1423,7 +1423,11 @@ function buildDynamicPrompt(
   else if (tone === "formal") toneBlock = "Habla profesional. Trato de usted.";
   else toneBlock = "Habla cercana y profesional. Natural, cálida pero con respeto.";
 
-  const menuLinkBlock = config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
+  const menuPdfUrl = config.menu_link || "";
+  const hasMenuPdf = menuPdfUrl.endsWith(".pdf");
+  const menuLinkBlock = hasMenuPdf
+    ? `\nCARTA: Tienes un PDF de la carta disponible. Cuando el cliente pida ver la carta/menú, responde algo como "¡Con gusto! Te envío nuestra carta 📋" y agrega el tag ---ENVIAR_CARTA--- al final de tu mensaje. NO pegues el link directamente.`
+    : config.menu_link ? `\nCARTA: ${config.menu_link}` : "";
 
   // Customer context
   const customerCtx = customerName
@@ -4533,7 +4537,28 @@ Deno.serve(async (req) => {
         })
         .eq("id", conv.id);
 
+      // Check if AI wants to send the menu PDF
+      const wantsMenuPdf = resp.includes("---ENVIAR_CARTA---");
+      if (wantsMenuPdf) {
+        resp = resp.replace(/---ENVIAR_CARTA---/g, "").trim();
+        // Update the stored message without the tag
+        freshMsgs[freshMsgs.length - 1].content = resp;
+        await supabase.from("whatsapp_conversations").update({ messages: freshMsgs.slice(-30) }).eq("id", conv.id);
+      }
+
       await sendWA(pid, token, from, resp, true);
+
+      // Send menu PDF as document attachment
+      if (wantsMenuPdf && config.menu_link && config.menu_link.endsWith(".pdf")) {
+        const restaurantName = config.restaurant_name || config.business_name || "Restaurante";
+        await sendWADocument(
+          pid, token, from,
+          config.menu_link,
+          `Carta_${restaurantName.replace(/\s+/g, "_")}.pdf`,
+          `📋 Carta de ${restaurantName}`
+        );
+      }
+
       return new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
