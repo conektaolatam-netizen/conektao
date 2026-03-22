@@ -201,11 +201,14 @@ export default function WhatsAppDashboard() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [wabaId, setWabaId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("orders");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [readStatus, setReadStatus] = useState<Map<string, string>>(new Map()); // conversationId -> last_read_at ISO
 
   useEffect(() => {
     const fetchRestaurant = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setUserId(user.id);
         const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", user.id).maybeSingle();
         if (profile?.restaurant_id) {
           setRestaurantId(profile.restaurant_id);
@@ -216,6 +219,17 @@ export default function WhatsAppDashboard() {
             .maybeSingle();
           if (config?.waba_id) {
             setWabaId(config.waba_id as string);
+          }
+          // Fetch read statuses
+          const { data: readData } = await supabase
+            .from("conversation_read_status")
+            .select("conversation_id, last_read_at")
+            .eq("user_id", user.id)
+            .eq("restaurant_id", profile.restaurant_id);
+          if (readData) {
+            const map = new Map<string, string>();
+            readData.forEach((r: any) => map.set(r.conversation_id, r.last_read_at));
+            setReadStatus(map);
           }
         }
       }
