@@ -287,6 +287,9 @@ export default function OrdersPanel({ restaurantId }: OrdersPanelProps) {
                           date: format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
                           seller: '',
                           people: 0,
+                          total: order.total || 0,
+                          created_at: order.created_at,
+                          source: 'whatsapp' as const,
                         };
                         const success = printKitchenTickets(comanda);
                         if (success) {
