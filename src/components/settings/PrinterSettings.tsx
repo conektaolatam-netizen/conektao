@@ -15,7 +15,7 @@ import {
   savePrinterConfig,
   type PrinterConfig,
 } from '@/lib/printerConfig';
-import { printComanda, type ComandaData } from '@/lib/printComanda';
+import { printKitchenTickets, type ComandaData } from '@/lib/printComanda';
 import { useToast } from '@/hooks/use-toast';
 
 const TEST_COMANDA: ComandaData = {
@@ -53,7 +53,7 @@ const PrinterSettings: React.FC = () => {
   }
 
   function handleStep1Print() {
-    const success = printComanda(TEST_COMANDA);
+    const success = printKitchenTickets(TEST_COMANDA);
     if (!success) {
       toast({
         title: 'No se pudo abrir la ventana de impresión',
@@ -88,7 +88,7 @@ const PrinterSettings: React.FC = () => {
   }
 
   function handleTestPrint() {
-    const success = printComanda(TEST_COMANDA);
+    const success = printKitchenTickets(TEST_COMANDA);
     if (!success) {
       toast({
         title: 'No se pudo abrir la ventana de impresión',
