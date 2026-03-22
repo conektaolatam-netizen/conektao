@@ -306,10 +306,10 @@ export default function WhatsAppDashboard() {
   // ── Unread count logic ──
   const getUnreadCount = (c: Conversation): number => {
     const lastRead = readStatus.get(c.id);
-    if (!lastRead) return 0; // First time = all read
+    if (!lastRead) return c.messages.length; // No read record = all unread
     return c.messages.filter((m) => {
       const ts = m.timestamp || m.ts;
-      return ts && new Date(ts) > new Date(lastRead) && m.role === 'customer';
+      return ts && new Date(ts) > new Date(lastRead);
     }).length;
   };
 
