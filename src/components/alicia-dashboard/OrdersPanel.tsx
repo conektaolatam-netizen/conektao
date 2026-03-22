@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat, Mail, MailCheck, CreditCard, Image as ImageIcon } from "lucide-react";
+import { Package, MapPin, Store, Phone, CheckCircle2, Clock, RefreshCw, Truck, ChefHat, Mail, MailCheck, CreditCard, Image as ImageIcon, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { printKitchenTickets, hasPrinterConfigured } from "@/lib/printComanda";
 
 interface OrderItem {
   name: string;
