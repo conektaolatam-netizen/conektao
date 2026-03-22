@@ -579,6 +579,30 @@ export type Database = {
           },
         ]
       }
+      conversation_read_status: {
+        Row: {
+          conversation_id: string
+          id: string
+          last_read_at: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          last_read_at?: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          last_read_at?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null

@@ -201,11 +201,14 @@ export default function WhatsAppDashboard() {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [wabaId, setWabaId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("orders");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [readStatus, setReadStatus] = useState<Map<string, string>>(new Map()); // conversationId -> last_read_at ISO
 
   useEffect(() => {
     const fetchRestaurant = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setUserId(user.id);
         const { data: profile } = await supabase.from("profiles").select("restaurant_id").eq("id", user.id).maybeSingle();
         if (profile?.restaurant_id) {
           setRestaurantId(profile.restaurant_id);
@@ -216,6 +219,17 @@ export default function WhatsAppDashboard() {
             .maybeSingle();
           if (config?.waba_id) {
             setWabaId(config.waba_id as string);
+          }
+          // Fetch read statuses
+          const { data: readData } = await supabase
+            .from("conversation_read_status")
+            .select("conversation_id, last_read_at")
+            .eq("user_id", user.id)
+            .eq("restaurant_id", profile.restaurant_id);
+          if (readData) {
+            const map = new Map<string, string>();
+            readData.forEach((r: any) => map.set(r.conversation_id, r.last_read_at));
+            setReadStatus(map);
           }
         }
       }
@@ -287,6 +301,31 @@ export default function WhatsAppDashboard() {
       setSelected(null);
       setActiveTab("blocked");
     }
+  };
+
+  // ── Unread count logic ──
+  const getUnreadCount = (c: Conversation): number => {
+    const lastRead = readStatus.get(c.id);
+    if (!lastRead) return 0; // First time = all read
+    return c.messages.filter((m) => {
+      const ts = m.timestamp || m.ts;
+      return ts && new Date(ts) > new Date(lastRead) && m.role === 'customer';
+    }).length;
+  };
+
+  const markAsRead = async (conv: Conversation) => {
+    if (!userId || !restaurantId) return;
+    const now = new Date().toISOString();
+    setReadStatus((prev) => new Map(prev).set(conv.id, now));
+    await supabase.from("conversation_read_status").upsert(
+      { conversation_id: conv.id, user_id: userId, restaurant_id: restaurantId, last_read_at: now },
+      { onConflict: "conversation_id,user_id" }
+    );
+  };
+
+  const handleSelectConversation = (c: Conversation) => {
+    setSelected(c);
+    markAsRead(c);
   };
 
   const formatPhone = (phone: string) => {
@@ -406,16 +445,23 @@ export default function WhatsAppDashboard() {
               </div>
 
               <ScrollArea className="flex-1 alicia-glass-light">
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const unread = getUnreadCount(c);
+                  return (
                   <button
                     key={c.id}
-                    onClick={() => setSelected(c)}
+                    onClick={() => handleSelectConversation(c)}
                     className={`w-full text-left p-4 border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors ${selected?.id === c.id ? "alicia-active-bar bg-white/[0.06]" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
+                        <div className="relative w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
                           <User className="w-5 h-5 text-teal-400" />
+                          {unread > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-teal-500 text-white text-[10px] font-bold px-1">
+                              {unread}
+                            </span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{c.customer_name || formatPhone(c.customer_phone)}</p>
@@ -429,7 +475,8 @@ export default function WhatsAppDashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-2 truncate pl-[52px]">{getLastMessage(c)}</p>
                   </button>
-                ))}
+                  );
+                })}
               </ScrollArea>
             </div>
 
