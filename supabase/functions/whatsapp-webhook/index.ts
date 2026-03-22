@@ -4525,6 +4525,16 @@ Deno.serve(async (req) => {
         await escalate(config, from, "Cliente pregunta costo domicilio", freshMsgs);
       }
 
+      // ── LAYER 2 GUARDRAIL: Prevent AI hallucinated confirmations ──
+      if (
+        (freshOrderStatus === "pending_confirmation" || freshOrderStatus === "pending_button_confirmation") &&
+        /\b(confirmad[oa]|en preparaci[oó]n|listo tu pedido|empezar[áa] a preparar|pedido confirmado)\b/i.test(resp)
+      ) {
+        // AI said "confirmed" but the backend never actually confirmed — replace with safe prompt
+        resp = "Gracias por tu mensaje 💳 Para confirmar tu pedido, por favor responde con *Sí* o *Confirmar* 😊";
+        console.log("[GUARDRAIL] Replaced hallucinated confirmation for conv", conv.id);
+      }
+
       // Update conversation
       freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
       // Only parseOrder() sets pending_confirmation — no auto-detection
