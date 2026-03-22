@@ -445,16 +445,23 @@ export default function WhatsAppDashboard() {
               </div>
 
               <ScrollArea className="flex-1 alicia-glass-light">
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const unread = getUnreadCount(c);
+                  return (
                   <button
                     key={c.id}
-                    onClick={() => setSelected(c)}
+                    onClick={() => handleSelectConversation(c)}
                     className={`w-full text-left p-4 border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors ${selected?.id === c.id ? "alicia-active-bar bg-white/[0.06]" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
+                        <div className="relative w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
                           <User className="w-5 h-5 text-teal-400" />
+                          {unread > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-teal-500 text-white text-[10px] font-bold px-1">
+                              {unread}
+                            </span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{c.customer_name || formatPhone(c.customer_phone)}</p>
@@ -468,7 +475,8 @@ export default function WhatsAppDashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-2 truncate pl-[52px]">{getLastMessage(c)}</p>
                   </button>
-                ))}
+                  );
+                })}
               </ScrollArea>
             </div>
 
