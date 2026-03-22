@@ -57,6 +57,7 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
   onComplete,
   onViewDetails,
   onCancel,
+  onPrint,
   canCancel,
   isAnimatingOut = false
 }) => {
