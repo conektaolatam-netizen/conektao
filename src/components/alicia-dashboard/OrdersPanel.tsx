@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { printKitchenTickets, hasPrinterConfigured } from "@/lib/printComanda";
+import { printKitchenTickets } from "@/lib/printComanda";
+import { hasPrinterConfigured } from "@/lib/printerConfig";
 
 interface OrderItem {
   name: string;
