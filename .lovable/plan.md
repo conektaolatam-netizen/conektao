@@ -1,47 +1,77 @@
 
 
-# Plan: Fix Date Calculation & Reservation Query in Chat
+# Plan: Kitchen Ticket Format + Unread Indicator
 
-## Issue 1 — AI suggests wrong date (e.g. "sábado 22" when sábado is 21)
+## 1. Kitchen-style ticket printing (one per product)
 
-**Root cause**: The date injection logic uses `getRestaurantDate(tzOffset)` correctly, but the issue is that `FECHA_ACTUAL` is only injected inside the `buildCoreSystemPrompt` when `reservationMode = true`. The AI calculates the date correctly in the prompt, but the instruction says "ejemplo: sería el sábado 22 de marzo de 2026" — this hardcoded example in the prompt text confuses the LLM into echoing "22" instead of calculating from the actual `FECHA_ACTUAL`.
+### What changes
 
-**Fix**: Change the hardcoded example in line 1122 to use a dynamic example based on the actual date injected, so the AI doesn't parrot a stale example. For instance: `"Sería el ${todayDayName} ${localNow.getDate()} de ${monthName} de ${localNow.getFullYear()}, ¿correcto?"` — but using tomorrow or next relevant day so the example itself is correct.
+**`src/lib/printComanda.ts`** -- Add new function + HTML builder:
 
-### File: `supabase/functions/whatsapp-webhook/index.ts` (~line 1119-1122)
+- Add `printKitchenTickets(data: ComandaData): boolean` -- iterates `data.items` and prints one ticket per item with staggered `setTimeout` (500ms between each).
+- Add `buildKitchenTicketHTML(data, item, paperWidth)` -- generates a single-product ticket:
+  - Header: `PEDIDO No. {order_id}` (large, bold, centered)
+  - Channel tag: maps `delivery_type` to `DOMICILIOS` / `PARA LLEVAR` / `RECOGER` / `MESA` (large, bold)
+  - Meta line: `FECHA: {date}` / `PERSONAS: 0` / `VENDEDOR: {seller or '--'}`
+  - Product block (largest font ~20px): `{quantity} {PRODUCT_NAME}` (uppercase)
+  - If item has `notes`: `OBS: {notes}`
+  - NO prices, NO totals
+  - Same `@page` / thermal CSS as existing `buildComandaHTML`
+- Keep `printComanda()` and `buildComandaHTML()` untouched.
 
-Replace the hardcoded example with a dynamically computed one:
-```
-FECHA_ACTUAL: ${todayStr} (${todayDayName})
-HORA_ACTUAL: HH:MM
-Cuando el cliente diga "mañana", "el sábado", etc., CALCULA la fecha real basándote en FECHA_ACTUAL.
-Siempre CONFIRMA la fecha completa al cliente, ejemplo: "Sería el [día] [número] de [mes] de [año], ¿correcto?"
-NO copies el ejemplo literalmente — calcula la fecha real.
-```
+**`src/hooks/usePrintQueue.ts`** -- Change the print call:
 
-Remove the specific date from the example to prevent parroting.
+- Import `printKitchenTickets` instead of `printComanda` for the auto-print path
+- When `hasPrinterConfigured()` is true, call `printKitchenTickets(comanda)` instead of `printComanda(comanda)`
+- The toast/fallback path stays the same
+
+**`src/components/settings/PrinterSettings.tsx`** -- Update test print button to use `printKitchenTickets` so users can preview the new format.
+
+### Delivery type mapping
+
+| `delivery_type` value | Label on ticket |
+|---|---|
+| `delivery` | `DOMICILIOS` |
+| `pickup` | `PARA LLEVAR` |
+| `table` / `mesa` | `MESA` |
+| other | value as-is, uppercase |
 
 ---
 
-## Issue 2 — AI says "no tengo acceso" when asked about existing reservations
+## 2. Unread message indicator on /alicia-dashboard conversations
 
-**Root cause**: The reservation context injection (lines 4222-4238) is inside the `if (isReservationMode)` block. When the customer asks "muéstrame mis reservas" but the conversation is NOT in `reservation_flow` status (e.g., it's in `none`), the code never queries the DB for existing reservations, so the AI has no data and says "no tengo acceso".
+### Database change (migration)
 
-**Fix**: Move the reservation context injection OUTSIDE the `isReservationMode` block. Always query reservations for the customer's phone when reservations are enabled for the restaurant, regardless of flow status. This way, even in normal conversation mode, the AI can answer "you have a reservation on Saturday at 12:00".
+Create a table to track the last-read timestamp per conversation per user:
 
-### File: `supabase/functions/whatsapp-webhook/index.ts` (~lines 4222-4238)
+```sql
+CREATE TABLE public.conversation_read_status (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  restaurant_id uuid NOT NULL,
+  last_read_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(conversation_id, user_id)
+);
 
-- Move the reservation DB query block to AFTER the `isReservationMode` block (after line 4239)
-- Make it conditional on `resConfig?.enabled === true` instead of `isReservationMode`
-- Keep it appending to `reopenHint` so it's included in the system prompt
-- Add instruction: "Si el cliente pregunta por sus reservas, responde con esta información. No digas que no tienes acceso."
+ALTER TABLE public.conversation_read_status ENABLE ROW LEVEL SECURITY;
 
-## What stays untouched
-- Order flow, all tags, validation, ICS generation
-- Anti-contamination logic (stays inside `isReservationMode`)
-- UI components
+CREATE POLICY "Users can manage own read status"
+  ON public.conversation_read_status
+  FOR ALL TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+```
 
-## Expected results
-- AI will calculate dates correctly without parroting a hardcoded example
-- AI will answer reservation queries in any conversation state (not just `reservation_flow`)
+### Frontend changes
+
+**`src/pages/WhatsAppDashboard.tsx`**:
+
+- On mount (when `restaurantId` loads), fetch `conversation_read_status` for the current user into a `Map<conversationId, lastReadAt>`.
+- For each conversation in the sidebar, compute unread count: count messages where `timestamp > lastReadAt`. If no record exists, unread = 0 (first open marks as read).
+- Show a teal badge with the count next to the conversation name (only if > 0).
+- When a conversation is selected (`setSelected(c)`), upsert `conversation_read_status` with `last_read_at = now()` and update the local map to clear the badge immediately.
+
+### What stays untouched
+- Realtime subscription, order flow, `usePrintQueue` trigger logic, `printComanda()` function signature, WhatsApp webhook, restaurant_id filtering, all existing conversation data/messages.
 
