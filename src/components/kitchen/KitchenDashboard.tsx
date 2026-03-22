@@ -28,6 +28,9 @@ import KitchenOrderCard from './KitchenOrderCard';
 import KitchenCancelModal from './KitchenCancelModal';
 import KitchenHistorySection from './KitchenHistorySection';
 import { saveDailyKitchenReportToDocuments } from '@/lib/kitchenReports';
+import { printKitchenTickets } from '@/lib/printComanda';
+import { hasPrinterConfigured } from '@/lib/printerConfig';
+import { ToastAction } from '@/components/ui/toast';
 
 interface KitchenOrder {
   id: string;
