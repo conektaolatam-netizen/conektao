@@ -15,7 +15,7 @@ import {
   savePrinterConfig,
   type PrinterConfig,
 } from '@/lib/printerConfig';
-import { printComanda, type ComandaData } from '@/lib/printComanda';
+import { printKitchenTickets, type ComandaData } from '@/lib/printComanda';
 import { useToast } from '@/hooks/use-toast';
 
 const TEST_COMANDA: ComandaData = {
