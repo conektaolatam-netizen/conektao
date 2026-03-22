@@ -255,11 +255,23 @@ const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
                 variant="outline" 
                 size="sm" 
                 onClick={() => onViewDetails(order)}
-                className="flex-1 bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-slate-600"
+                className="bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-slate-600"
               >
                 <Eye className="h-4 w-4 mr-1" />
                 Detalles
               </Button>
+
+              {onPrint && (order.status === 'pending' || order.status === 'in_progress') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPrint(order)}
+                  className="bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-slate-600"
+                  title="Imprimir comandas"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              )}
 
               {order.status === 'pending' ? (
                 <Button 

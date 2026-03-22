@@ -785,6 +785,7 @@ const KitchenDashboard = () => {
                       setIsDetailOpen(true);
                     }}
                     onCancel={handleCancelClick}
+                    onPrint={handlePrintOrder}
                     canCancel={canCancelOrders}
                     isAnimatingOut={animatingOutIds.has(order.id)}
                   />

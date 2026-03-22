@@ -50,19 +50,7 @@ export function usePrintQueue() {
           if (printedIds.current.has(orderId)) return;
           printedIds.current.add(orderId);
 
-          if (hasPrinterConfigured()) {
-            // Imprimir tickets de cocina — uno por producto
-            const comanda = whatsappOrderToComanda(order);
-            const success = printKitchenTickets(comanda);
-
-            if (!success) {
-              toast({
-                title: 'No se pudo imprimir',
-                description: 'Verifica que el navegador permita ventanas emergentes para este sitio.',
-                variant: 'destructive',
-              });
-            }
-          } else {
+          {
             // Sin impresora: toast con botón directo a configuración
             const comanda = whatsappOrderToComanda(order);
             toast({
