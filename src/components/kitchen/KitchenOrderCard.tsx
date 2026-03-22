@@ -10,7 +10,8 @@ import {
   Eye,
   Flame,
   XCircle,
-  ChefHat
+  ChefHat,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
