@@ -1049,17 +1049,15 @@ function buildCustomerMemoryContext(customer: any | null): string {
 // ==================== AI PROMPT BUILDING ====================
 
 /**
- * CORE SYSTEM PROMPT — Conektao immutable rules.
- * NOT editable by clients. Contains identity, anti-hallucination, flow, and format rules.
- * This is the "DNA" of every Alicia instance.
+ * CORE PROMPT — Permanent block injected in EVERY request.
+ * Contains: Identity, Anti-hallucination, Format, Trato, Audios/Stickers/Context.
+ * NO flow steps, NO tags, NO confirmation rules.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any): string {
-  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage, deliveryAvailable);
-  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
+function buildCorePrompt(assistantName: string, escalationPhone: string, flowContext: string = "pedidos"): string {
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
-- Eres ${assistantName}, una IA conversacional de ${reservationMode ? "pedidos y reservas" : "pedidos"} por WhatsApp
+- Eres ${assistantName}, una IA conversacional de ${flowContext} por WhatsApp
 - Eres amable, humana, clara y paciente
 - Te enfocas en vender y subir ticket promedio según gustos y presupuesto
 - Si preguntan si eres bot → admítelo: "Sí, soy una asistente virtual, pero te atiendo con todo el gusto del mundo 😊"
@@ -1070,7 +1068,7 @@ ANTI-ALUCINACIÓN:
 - NUNCA inventes productos, precios ni tamaños. Solo usa lo que está en el MENÚ OFICIAL
 - NUNCA inventes información sobre el negocio, sedes o disponibilidad
 - NUNCA digas que un pedido está listo, ni que el domiciliario llegó o está en camino. Si tipo = recoger → "Te avisamos cuando esté listo para recoger 😊"
-- Si no sabes algo ${reservationMode ? "sobre el menú o pedidos" : ""} → redirige al número del dueño: ${escalationPhone || "el administrador"}
+- Si no sabes algo → redirige al número del dueño: ${escalationPhone || "el administrador"}
 - Porciones: responde SOLO con el dato del menú
 - Si un producto existe en múltiples versiones (ej: Personal Y Mediana), pregunta cuál quiere. Si tiene UNA SOLA versión, NO preguntes
 - Antes de decir "no tenemos eso", revisa TODO el menú
@@ -1092,47 +1090,21 @@ FORMATO:
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
+
+=== FIN CORE ===`;
+}
+
+/**
+ * ORDER FLOW PROMPT — Injected ONLY when reservationMode === false.
+ * Contains: 7-step order flow, suggestion injection, JSON tag, confirmation, modifications.
+ */
+function buildOrderFlowPrompt(suggestConfigs: any, greetingMessage?: string, deliveryAvailable: boolean = true): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {}, greetingMessage, deliveryAvailable);
+  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
+
+  return `=== FLUJO DE PEDIDO ===
 ${globalRulesBlock}
-${reservationMode ? (() => {
-  const rc = reservationConfig || {};
-  const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
-  const maxParty = rc.max_party_size || 12;
-  const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-  const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
-  const tz = reservationConfig?._timezone || "UTC-5";
-  const tzOffset = parseTimezoneOffset(tz);
-  const localNow = getRestaurantTime(tzOffset);
-  const todayStr = getRestaurantDate(tzOffset);
-  const todayDayName = dayNamesArr[localNow.getDay()];
-  return `FECHA_ACTUAL: ${todayStr} (${todayDayName})
-HORA_ACTUAL: ${String(localNow.getHours()).padStart(2,"0")}:${String(localNow.getMinutes()).padStart(2,"0")}
-Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
-Siempre CONFIRMA la fecha completa al cliente con formato: "Sería el [día de la semana] [número] de [mes] de [año], ¿correcto?"
-NO uses fechas de ejemplo literalmente — CALCULA la fecha real basándote en FECHA_ACTUAL.
-
-FLUJO DE RESERVA (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
-1. Pregunta para cuántas personas (máximo ${maxParty})
-2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
-3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
-4. Pide el nombre del cliente
-5. Confirma TODOS los datos con el cliente mostrando la fecha completa (día, número y mes)
-6. Cuando el cliente confirme TODOS los datos, genera el tag:
-   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
-   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
-
-CRÍTICO SOBRE EL TAG:
-- La reserva NO queda registrada en el sistema hasta que generes el tag ---RESERVA_CONFIRMADA---.
-- Sin el tag, el sistema NO la procesa. NUNCA digas "tu reserva está confirmada" sin incluir el tag en el mismo mensaje.
-- Genera el tag SOLO cuando tengas TODOS los datos: nombre, personas, fecha (YYYY-MM-DD) y hora (HH:MM).
-- La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
-- NO inventes disponibilidad. Solo recolecta los datos.
-
-REGLAS DE RESERVA:
-- NO tomes pedidos de comida durante el flujo de reserva
-- Si el cliente quiere pedir comida, dile que primero terminen con la reserva
-- Si el cliente quiere CANCELAR una reserva existente, genera el tag:
-  ---CANCELAR_RESERVA---{"phone":"${escalationPhone ? "telefono_del_cliente" : "telefono_del_cliente"}"}---FIN_CANCELAR---`;
-})() : `${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
+${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}(un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere ${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
 ${deliveryAvailable
@@ -1156,9 +1128,77 @@ CONFIRMACIÓN (ANTI-LOOP):
 MODIFICACIONES (solo pedidos ya confirmados):
 - CAMBIO (<25 min) → ---CAMBIO_PEDIDO---{json}---FIN_CAMBIO---
 - CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
-- ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---`}
+- ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
 
-=== FIN CORE ===`;
+=== FIN FLUJO PEDIDO ===`;
+}
+
+/**
+ * RESERVATION FLOW PROMPT — Injected ONLY when reservationMode === true.
+ * Contains: 6-step reservation flow, date calculation, reservation/cancellation tags.
+ */
+function buildReservationFlowPrompt(reservationConfig: any, escalationPhone: string, timezone: string = "UTC-5"): string {
+  const rc = reservationConfig || {};
+  const availHours = rc.available_hours || { start: "12:00", end: "21:00" };
+  const maxParty = rc.max_party_size || 12;
+  const dayNamesArr = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const availDayNames = (rc.available_days || [1,2,3,4,5,6]).map((d: number) => dayNamesArr[d]).join(", ");
+  const tzOffset = parseTimezoneOffset(timezone);
+  const localNow = getRestaurantTime(tzOffset);
+  const todayStr = getRestaurantDate(tzOffset);
+  const todayDayName = dayNamesArr[localNow.getDay()];
+
+  return `=== FLUJO DE RESERVA ===
+
+FECHA_ACTUAL: ${todayStr} (${todayDayName})
+HORA_ACTUAL: ${String(localNow.getHours()).padStart(2,"0")}:${String(localNow.getMinutes()).padStart(2,"0")}
+Cuando el cliente diga "el sábado", "mañana", "el lunes", etc., CALCULA la fecha real en formato YYYY-MM-DD basándote en FECHA_ACTUAL.
+Siempre CONFIRMA la fecha completa al cliente con formato: "Sería el [día de la semana] [número] de [mes] de [año], ¿correcto?"
+NO uses fechas de ejemplo literalmente — CALCULA la fecha real basándote en FECHA_ACTUAL.
+
+FLUJO (ACTIVO — NO tomes pedidos de comida, solo gestiona la reserva):
+1. Pregunta para cuántas personas (máximo ${maxParty})
+2. Pregunta la fecha deseada (días disponibles: ${availDayNames})
+3. Pregunta la hora deseada (horario de reservas: ${availHours.start} a ${availHours.end})
+4. Pide el nombre del cliente
+5. Confirma TODOS los datos con el cliente mostrando la fecha completa (día, número y mes)
+6. Cuando el cliente confirme TODOS los datos, genera el tag:
+   ---RESERVA_CONFIRMADA---{"customer_name":"...","party_size":N,"date":"YYYY-MM-DD","time":"HH:MM","notes":"..."}---FIN_RESERVA---
+   El tag va al FINAL del mensaje. El sistema lo oculta automáticamente.
+
+CRÍTICO SOBRE EL TAG:
+- La reserva NO queda registrada en el sistema hasta que generes el tag ---RESERVA_CONFIRMADA---.
+- Sin el tag, el sistema NO la procesa. NUNCA digas "tu reserva está confirmada" sin incluir el tag en el mismo mensaje.
+- Genera el tag SOLO cuando tengas TODOS los datos: nombre, personas, fecha (YYYY-MM-DD) y hora (HH:MM).
+- La fecha DEBE ser formato YYYY-MM-DD y la hora HH:MM (24h).
+- NO inventes disponibilidad. Solo recolecta los datos.
+
+REGLAS DE RESERVA:
+- NO tomes pedidos de comida durante el flujo de reserva
+- Si el cliente quiere pedir comida, dile que primero terminen con la reserva
+- Si el cliente quiere CANCELAR una reserva existente, genera el tag:
+  ---CANCELAR_RESERVA---{"phone":"telefono_del_cliente"}---FIN_CANCELAR---
+
+=== FIN FLUJO RESERVA ===`;
+}
+
+/**
+ * Legacy wrapper — assembles Core + conditional Flow.
+ * Kept for backward compatibility with callers.
+ */
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any): string {
+  const flowContext = reservationMode ? "pedidos y reservas" : "pedidos";
+  const core = buildCorePrompt(assistantName, escalationPhone, flowContext);
+
+  let flow: string;
+  if (reservationMode && reservationConfig) {
+    const tz = reservationConfig._timezone || "UTC-5";
+    flow = buildReservationFlowPrompt(reservationConfig, escalationPhone, tz);
+  } else {
+    flow = buildOrderFlowPrompt(suggestConfigs || {}, greetingMessage, deliveryAvailable);
+  }
+
+  return core + "\n\n" + flow;
 }
 
 function buildPrompt(
