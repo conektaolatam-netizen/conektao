@@ -4525,14 +4525,36 @@ Deno.serve(async (req) => {
         await escalate(config, from, "Cliente pregunta costo domicilio", freshMsgs);
       }
 
-      // ── LAYER 2 GUARDRAIL: Prevent AI hallucinated confirmations ──
+      // ── LAYER 2 GUARDRAIL: Prevent AI hallucinated confirmations (expanded) ──
+      const confirmationLanguageRegex = /\b(confirmad[oa]|en preparaci[oó]n|listo tu pedido|empezar[áa] a preparar|pedido confirmado|pedido.{0,10}listo|ya est[áa].{0,10}preparando)\b/i;
       if (
-        (freshOrderStatus === "pending_confirmation" || freshOrderStatus === "pending_button_confirmation") &&
-        /\b(confirmad[oa]|en preparaci[oó]n|listo tu pedido|empezar[áa] a preparar|pedido confirmado)\b/i.test(resp)
+        !parsed &&
+        confirmationLanguageRegex.test(resp) &&
+        !FINAL_ORDER_STATUSES.includes(freshOrderStatus)
       ) {
-        // AI said "confirmed" but the backend never actually confirmed — replace with safe prompt
-        resp = "Gracias por tu mensaje 💳 Para confirmar tu pedido, por favor responde con *Sí* o *Confirmar* 😊";
-        console.log("[GUARDRAIL] Replaced hallucinated confirmation for conv", conv.id);
+        // AI claims order is confirmed but no order tag was generated — verify DB
+        let realOrderExists = false;
+        try {
+          const { data: recentOrders } = await supabase
+            .from("whatsapp_orders")
+            .select("id")
+            .eq("conversation_id", conv.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          realOrderExists = !!(recentOrders && recentOrders.length > 0);
+        } catch (e) {
+          console.error("[GUARDRAIL] DB check failed:", e);
+        }
+
+        if (!realOrderExists) {
+          if (freshOrderStatus === "pending_confirmation" || freshOrderStatus === "pending_button_confirmation") {
+            resp = "Gracias por tu mensaje 💳 Para confirmar tu pedido, por favor responde con *Sí* o *Confirmar* 😊";
+          } else {
+            // Status is none/active — AI hallucinated an entire order+confirmation
+            resp = "¿Me confirmas los productos que deseas pedir? 😊 Puedo ayudarte a armar tu pedido.";
+          }
+          console.log(`[GUARDRAIL] Replaced hallucinated confirmation (status=${freshOrderStatus}, dbOrder=${realOrderExists}) for conv`, conv.id);
+        }
       }
 
       // Update conversation
