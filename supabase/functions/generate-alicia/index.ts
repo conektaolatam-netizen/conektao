@@ -7,12 +7,10 @@ const corsHeaders = {
 };
 
 /**
- * CORE SYSTEM PROMPT — Conektao immutable rules.
- * Exact copy from whatsapp-webhook to ensure consistency.
+ * CORE PROMPT — Permanent block (Identity, Anti-hallucination, Format, Trato).
+ * Synced with whatsapp-webhook/buildCorePrompt().
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true): string {
-  const sf = buildSuggestionFlow(suggestConfigs || {}, undefined, deliveryAvailable);
-  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
+function buildCorePrompt(assistantName: string, escalationPhone: string): string {
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
@@ -49,8 +47,21 @@ FORMATO:
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
 CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2 veces la misma pregunta
+
+=== FIN CORE ===`;
+}
+
+/**
+ * ORDER FLOW PROMPT — The 7-step order flow with suggestions.
+ * Synced with whatsapp-webhook/buildOrderFlowPrompt().
+ */
+function buildOrderFlowPrompt(suggestConfigs: any, deliveryAvailable: boolean = true): string {
+  const sf = buildSuggestionFlow(suggestConfigs || {}, undefined, deliveryAvailable);
+  const globalRulesBlock = sf.globalRules ? `\n${sf.globalRules}\n` : "";
+
+  return `=== FLUJO DE PEDIDO ===
 ${globalRulesBlock}
-FLUJO DE PEDIDO (un paso por mensaje, NO te saltes pasos):
+${!deliveryAvailable ? "⚠️ DOMICILIO NO DISPONIBLE: NO ofrezcas domicilio. SOLO recogida en el local. NUNCA preguntes 'recoger o domicilio'. NUNCA menciones domicilio como opción.\n" : ""}(un paso por mensaje, NO te saltes pasos):
 1. Saluda y pregunta qué quiere${sf.step1}
 2. Anota cada producto. Después de cada uno pregunta: "Algo más?"${sf.step2}
 ${deliveryAvailable
@@ -76,7 +87,17 @@ MODIFICACIONES (solo pedidos ya confirmados):
 - CAMBIO (>25 min) → "Ya lo preparamos, te lo mandamos como lo pediste"
 - ADICIÓN → ---ADICION_PEDIDO---{json items nuevos + nuevo total}---FIN_ADICION---
 
-=== FIN CORE ===`;
+=== FIN FLUJO PEDIDO ===`;
+}
+
+/**
+ * Legacy wrapper — assembles Core + Order Flow for generate-alicia.
+ * Reservation flow is never included here (only injected at runtime by webhook).
+ */
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true): string {
+  const core = buildCorePrompt(assistantName, escalationPhone);
+  const flow = buildOrderFlowPrompt(suggestConfigs || {}, deliveryAvailable);
+  return core + "\n\n" + flow;
 }
 
 /**
