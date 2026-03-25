@@ -5508,6 +5508,7 @@ export type Database = {
           items: Json
           payment_method: string | null
           payment_proof_url: string | null
+          printed_at: string | null
           restaurant_id: string
           status: string
           total: number
@@ -5524,6 +5525,7 @@ export type Database = {
           items?: Json
           payment_method?: string | null
           payment_proof_url?: string | null
+          printed_at?: string | null
           restaurant_id: string
           status?: string
           total?: number
@@ -5540,6 +5542,7 @@ export type Database = {
           items?: Json
           payment_method?: string | null
           payment_proof_url?: string | null
+          printed_at?: string | null
           restaurant_id?: string
           status?: string
           total?: number
