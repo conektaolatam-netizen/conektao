@@ -2951,8 +2951,10 @@ async function runSalesNudgeCheck() {
       }
     }
     if (allConvs.length === 0) return { nudged: 0 };
+    // Limit to 3 conversations per run to stay within compute limits
+    const limitedConvs = allConvs.slice(0, 3);
     let nudgedCount = 0;
-    for (const conv of allConvs) {
+    for (const conv of limitedConvs) {
       if (conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString() > tenMinAgo) continue;
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       // Skip if assistant responded recently (< 5 min) — avoid nudging while waiting for user confirmation
@@ -3276,8 +3278,9 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
     }
 
     case "check_nudges": {
-      const result = await runSalesNudgeCheck();
-      return new Response(JSON.stringify(result), {
+      // Run nudges in background to avoid WORKER_LIMIT timeout
+      EdgeRuntime.waitUntil(runSalesNudgeCheck().catch(e => console.error("Background nudge error:", e)));
+      return new Response(JSON.stringify({ status: "nudge_check_started" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -3359,7 +3362,7 @@ Deno.serve(async (req) => {
         });
 
       // Run sales nudge check ONLY when there's a real message (not status updates)
-      await runSalesNudgeCheck();
+      EdgeRuntime.waitUntil(runSalesNudgeCheck().catch(e => console.error("Inline nudge error:", e)));
 
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
