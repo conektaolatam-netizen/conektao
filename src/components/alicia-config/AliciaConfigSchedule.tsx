@@ -178,8 +178,45 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
 
         <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
           <Switch checked={mayExtend} onCheckedChange={setMayExtend} />
-          <label className="text-sm text-foreground">¿A veces se extienden del horario?</label>
+          <label className="text-sm text-foreground">Opciones de horario extendido</label>
         </div>
+
+        {mayExtend && (
+          <div className="space-y-4 pl-4 border-l-2 border-primary/30">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Días con horario extendido</label>
+              <DaySelector days={extendedDays} options={ALL_DAYS} onToggle={(key) => setExtendedDays((prev) => prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key])} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Horario de apertura y cierre extendido</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Abrimos a las</label>
+                  <Input type="time" value={extendedOpenTime} onChange={(e) => setExtendedOpenTime(e.target.value)} className="border-border" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Cerramos a las</label>
+                  <Input type="time" value={extendedCloseTime} onChange={(e) => setExtendedCloseTime(e.target.value)} className="border-border" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Inicio y fin de atención extendido</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Inicio de atención</label>
+                  <Input type="time" value={extendedScheduleStart} onChange={(e) => setExtendedScheduleStart(e.target.value)} className="border-border" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Fin de atención</label>
+                  <Input type="time" value={extendedScheduleEnd} onChange={(e) => setExtendedScheduleEnd(e.target.value)} className="border-border" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Días pico (mayor demanda)</label>
