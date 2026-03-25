@@ -404,8 +404,8 @@ function checkRestaurantAvailability(
     const schedStartMin = timeToMinutes(effectiveScheduleStart);
     if (nowMinutes < schedStartMin) {
       // If accept_pre_orders is true and we're within open hours, let the flow continue
-      if (hours.accept_pre_orders && hours.open_time) {
-        const openMin = timeToMinutes(hours.open_time);
+      if (hours.accept_pre_orders && effective.open_time) {
+        const openMin = timeToMinutes(effective.open_time);
         if (nowMinutes >= openMin) {
           // Allow pre-orders — the AI prompt (scheduleBlock) will handle the messaging
           return { blocked: false, message: "" };
