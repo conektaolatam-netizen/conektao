@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_orders ADD COLUMN printed_at TIMESTAMP DEFAULT NULL;
