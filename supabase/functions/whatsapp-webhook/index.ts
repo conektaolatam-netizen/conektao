@@ -3362,7 +3362,7 @@ Deno.serve(async (req) => {
         });
 
       // Run sales nudge check ONLY when there's a real message (not status updates)
-      await runSalesNudgeCheck();
+      EdgeRuntime.waitUntil(runSalesNudgeCheck().catch(e => console.error("Inline nudge error:", e)));
 
       const msg = value.messages[0];
       const phoneId = value.metadata?.phone_number_id;
