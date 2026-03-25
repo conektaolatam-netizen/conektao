@@ -141,6 +141,35 @@ function timeToMinutes(timeStr: string): number {
   return h * 60 + m;
 }
 
+/** Map JS getDay() (0=Sun) to operating_hours day keys */
+const DAY_INDEX_TO_KEY: Record<number, string> = {
+  0: "domingo", 1: "lunes", 2: "martes", 3: "miercoles",
+  4: "jueves", 5: "viernes", 6: "sabado",
+};
+
+/** Returns effective hours considering extended-day overrides */
+function getEffectiveHours(hours: any, dayIndex: number): {
+  open_time: string; close_time: string; schedule_start: string; schedule_end: string;
+} {
+  const base = {
+    open_time: hours.open_time || "",
+    close_time: hours.close_time || "",
+    schedule_start: hours.schedule_start || "",
+    schedule_end: hours.schedule_end || "",
+  };
+  if (!hours.may_extend) return base;
+  const extDays: string[] = hours.extended_days || [];
+  if (extDays.length === 0) return base;
+  const currentKey = DAY_INDEX_TO_KEY[dayIndex] || "";
+  if (!extDays.includes(currentKey)) return base;
+  return {
+    open_time: hours.extended_open_time || base.open_time,
+    close_time: hours.extended_close_time || base.close_time,
+    schedule_start: hours.extended_schedule_start || base.schedule_start,
+    schedule_end: hours.extended_schedule_end || base.schedule_end,
+  };
+}
+
 /** Check if the restaurant is currently within service hours */
 function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; preOrderMessage: string } {
   const hours = config?.operating_hours || {};
@@ -149,13 +178,14 @@ function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; 
     return { isOpen: false, isPreOrder: false, preOrderMessage: "" };
   }
 
-  const { hour, minute } = getRestaurantTimeInfo(config);
+  const { day, hour, minute } = getRestaurantTimeInfo(config);
   const currentMinutes = hour * 60 + minute;
-  const openMinutes = timeToMinutes(hours.open_time);
-  const closeMinutes = timeToMinutes(hours.close_time);
+  const effective = getEffectiveHours(hours, day);
+  const openMinutes = timeToMinutes(effective.open_time);
+  const closeMinutes = timeToMinutes(effective.close_time);
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  const schedStart = hours.schedule_start || hours.open_time;
+  const schedStart = effective.schedule_start || effective.open_time;
   const schedStartMin = timeToMinutes(schedStart);
   const isPreOrder = isOpen && currentMinutes < schedStartMin;
   const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
