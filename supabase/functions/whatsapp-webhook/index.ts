@@ -361,28 +361,31 @@ function checkRestaurantAvailability(
     }
   }
 
+  // --- Get effective hours for today (extended-day aware) ---
+  const effective = getEffectiveHours(hours, currentDay);
+
   // --- Priority 4: open_time / close_time ---
-  if (hours.open_time && hours.close_time) {
-    const openMin = timeToMinutes(hours.open_time);
-    const closeMin = timeToMinutes(hours.close_time);
+  if (effective.open_time && effective.close_time) {
+    const openMin = timeToMinutes(effective.open_time);
+    const closeMin = timeToMinutes(effective.close_time);
 
     if (nowMinutes < openMin) {
       return {
         blocked: true,
-        message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(hours.open_time)}. ¡Te esperamos! 🙏`,
+        message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(effective.open_time)}. ¡Te esperamos! 🙏`,
       };
     }
     if (nowMinutes >= closeMin) {
       return {
         blocked: true,
-        message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(hours.open_time)} a ${fmt12(hours.close_time)}. ¡Te esperamos mañana! 🙏`,
+        message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(effective.open_time)} a ${fmt12(effective.close_time)}. ¡Te esperamos mañana! 🙏`,
       };
     }
   }
 
   // --- Priority 5: schedule_start / schedule_end (with override support) ---
-  let effectiveScheduleStart = hours.schedule_start || null;
-  let effectiveScheduleEnd = hours.schedule_end || null;
+  let effectiveScheduleStart = effective.schedule_start || null;
+  let effectiveScheduleEnd = effective.schedule_end || null;
 
   // daily_overrides can override schedule_start/schedule_end
   for (const o of dailyOverrides || []) {
