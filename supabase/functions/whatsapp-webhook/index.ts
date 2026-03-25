@@ -1451,7 +1451,7 @@ function buildDynamicPrompt(
 
   // Custom rules (includes disambiguation, history, anti-hallucination specifics per business)
   const rulesBlock =
-    customRules.length > 0 ? "REGLAS DEL NEGOCIO:\n" + customRules.map((r: string) => `- ${r}`).join("\n") : "";
+    customRules.length > 0 ? "=== REGLAS OBLIGATORIAS DEL NEGOCIO (PRIORIDAD MÁXIMA) ===\nLas siguientes reglas son OBLIGATORIAS y tienen prioridad sobre cualquier otra instrucción del prompt:\n" + customRules.map((r: string) => `- ${r}`).join("\n") + "\n=== FIN REGLAS OBLIGATORIAS ===" : "";
 
   // Tone
   let toneBlock = "";
@@ -1505,12 +1505,13 @@ ${menuLinkBlock}
 
 ${menuBlock}
 ${prom}
-${rulesBlock}
 ${packagingBlock}
 ${deliveryBlock}
 ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
+
+${rulesBlock}
 
 === FIN CONFIG ===
 ${ctx}`;
