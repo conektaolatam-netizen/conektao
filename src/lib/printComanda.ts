@@ -364,28 +364,26 @@ function buildKitchenTicketHTML(
  */
 export function printKitchenTickets(data: ComandaData): boolean {
   const config = loadPrinterConfig();
-  let anySuccess = false;
+  const html = buildComandaHTML(data, config.paperWidth);
 
-  data.items.forEach((item, idx) => {
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (!printWindow) {
+    console.error('[printKitchenTickets] No se pudo abrir ventana de impresión.');
+    return false;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+    printWindow.onafterprint = () => printWindow.close();
     setTimeout(() => {
-      const html = buildKitchenTicketHTML(data, item, config.paperWidth);
-      const w = window.open('', '_blank', 'width=400,height=500');
-      if (!w) {
-        console.error('[printKitchenTickets] Ventana bloqueada para item', idx);
-        return;
-      }
-      anySuccess = true;
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => {
-        w.focus();
-        w.print();
-        w.onafterprint = () => w.close();
-        setTimeout(() => { try { w.close(); } catch { /* ya cerrada */ } }, 10000);
-      }, 250);
-    }, idx * 500);
-  });
+      try { printWindow.close(); } catch { /* ya cerrada */ }
+    }, 10000);
+  }, 250);
 
   return true;
 }
