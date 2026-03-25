@@ -123,7 +123,14 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
     if (hours.accept_pre_orders) {
       scheduleBlock += `. Pre-pedidos: "${hours.pre_order_message || `Empezamos a preparar a las ${hours.preparation_start || hours.open_time}`}"`;
     }
-    if (hours.may_extend) scheduleBlock += ". A veces nos extendemos";
+    if (hours.may_extend && hours.extended_days?.length > 0) {
+      const dayLabels = (hours.extended_days as string[]).join(", ");
+      const extOpen = hours.extended_open_time || hours.open_time;
+      const extClose = hours.extended_close_time || hours.close_time;
+      const extSchedStart = hours.extended_schedule_start || hours.schedule_start || extOpen;
+      const extSchedEnd = hours.extended_schedule_end || hours.schedule_end || extClose;
+      scheduleBlock += `. HORARIO EXTENDIDO (${dayLabels}): ${extOpen} - ${extClose}, atención ${extSchedStart} - ${extSchedEnd}`;
+    }
   }
 
   // Menu — always from products table (single source of truth)

@@ -63,6 +63,11 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
   const [closeTime, setCloseTime] = useState(h.close_time || "");
   const [preOrders, setPreOrders] = useState(h.accept_pre_orders ?? false);
   const [mayExtend, setMayExtend] = useState(h.may_extend ?? false);
+  const [extendedDays, setExtendedDays] = useState<string[]>(h.extended_days || []);
+  const [extendedOpenTime, setExtendedOpenTime] = useState(h.extended_open_time || "");
+  const [extendedCloseTime, setExtendedCloseTime] = useState(h.extended_close_time || "");
+  const [extendedScheduleStart, setExtendedScheduleStart] = useState(h.extended_schedule_start || "");
+  const [extendedScheduleEnd, setExtendedScheduleEnd] = useState(h.extended_schedule_end || "");
   const [preMsg, setPreMsg] = useState(h.pre_order_message || "");
   const [weekday, setWeekday] = useState(h.weekday_waiting_time || "");
   const [weekend, setWeekend] = useState(h.weekend_waiting_time || "");
@@ -99,6 +104,11 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
         accept_pre_orders: preOrders,
         pre_order_message: preMsg,
         may_extend: mayExtend,
+        extended_days: mayExtend ? extendedDays : [],
+        extended_open_time: mayExtend ? extendedOpenTime : "",
+        extended_close_time: mayExtend ? extendedCloseTime : "",
+        extended_schedule_start: mayExtend ? extendedScheduleStart : "",
+        extended_schedule_end: mayExtend ? extendedScheduleEnd : "",
         peak_days: peakDays,
         peak_hour_start: peakHourStart,
         peak_hour_end: peakHourEnd,
@@ -178,8 +188,45 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
 
         <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
           <Switch checked={mayExtend} onCheckedChange={setMayExtend} />
-          <label className="text-sm text-foreground">¿A veces se extienden del horario?</label>
+          <label className="text-sm text-foreground">Opciones de horario extendido</label>
         </div>
+
+        {mayExtend && (
+          <div className="space-y-4 pl-4 border-l-2 border-primary/30">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Días con horario extendido</label>
+              <DaySelector days={extendedDays} options={ALL_DAYS} onToggle={(key) => setExtendedDays((prev) => prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key])} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Horario de apertura y cierre extendido</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Abrimos a las</label>
+                  <Input type="time" value={extendedOpenTime} onChange={(e) => setExtendedOpenTime(e.target.value)} className="border-border" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Cerramos a las</label>
+                  <Input type="time" value={extendedCloseTime} onChange={(e) => setExtendedCloseTime(e.target.value)} className="border-border" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Inicio y fin de atención extendido</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Inicio de atención</label>
+                  <Input type="time" value={extendedScheduleStart} onChange={(e) => setExtendedScheduleStart(e.target.value)} className="border-border" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Fin de atención</label>
+                  <Input type="time" value={extendedScheduleEnd} onChange={(e) => setExtendedScheduleEnd(e.target.value)} className="border-border" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">Días pico (mayor demanda)</label>

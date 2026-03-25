@@ -141,6 +141,35 @@ function timeToMinutes(timeStr: string): number {
   return h * 60 + m;
 }
 
+/** Map JS getDay() (0=Sun) to operating_hours day keys */
+const DAY_INDEX_TO_KEY: Record<number, string> = {
+  0: "domingo", 1: "lunes", 2: "martes", 3: "miercoles",
+  4: "jueves", 5: "viernes", 6: "sabado",
+};
+
+/** Returns effective hours considering extended-day overrides */
+function getEffectiveHours(hours: any, dayIndex: number): {
+  open_time: string; close_time: string; schedule_start: string; schedule_end: string;
+} {
+  const base = {
+    open_time: hours.open_time || "",
+    close_time: hours.close_time || "",
+    schedule_start: hours.schedule_start || "",
+    schedule_end: hours.schedule_end || "",
+  };
+  if (!hours.may_extend) return base;
+  const extDays: string[] = hours.extended_days || [];
+  if (extDays.length === 0) return base;
+  const currentKey = DAY_INDEX_TO_KEY[dayIndex] || "";
+  if (!extDays.includes(currentKey)) return base;
+  return {
+    open_time: hours.extended_open_time || base.open_time,
+    close_time: hours.extended_close_time || base.close_time,
+    schedule_start: hours.extended_schedule_start || base.schedule_start,
+    schedule_end: hours.extended_schedule_end || base.schedule_end,
+  };
+}
+
 /** Check if the restaurant is currently within service hours */
 function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; preOrderMessage: string } {
   const hours = config?.operating_hours || {};
@@ -149,13 +178,14 @@ function isRestaurantOpen(config: any): { isOpen: boolean; isPreOrder: boolean; 
     return { isOpen: false, isPreOrder: false, preOrderMessage: "" };
   }
 
-  const { hour, minute } = getRestaurantTimeInfo(config);
+  const { day, hour, minute } = getRestaurantTimeInfo(config);
   const currentMinutes = hour * 60 + minute;
-  const openMinutes = timeToMinutes(hours.open_time);
-  const closeMinutes = timeToMinutes(hours.close_time);
+  const effective = getEffectiveHours(hours, day);
+  const openMinutes = timeToMinutes(effective.open_time);
+  const closeMinutes = timeToMinutes(effective.close_time);
 
   const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-  const schedStart = hours.schedule_start || hours.open_time;
+  const schedStart = effective.schedule_start || effective.open_time;
   const schedStartMin = timeToMinutes(schedStart);
   const isPreOrder = isOpen && currentMinutes < schedStartMin;
   const preOrderMessage = hours.pre_order_message || `Tomamos tu pedido, pero empezamos a atender a las ${schedStart}`;
@@ -331,28 +361,31 @@ function checkRestaurantAvailability(
     }
   }
 
+  // --- Get effective hours for today (extended-day aware) ---
+  const effective = getEffectiveHours(hours, currentDay);
+
   // --- Priority 4: open_time / close_time ---
-  if (hours.open_time && hours.close_time) {
-    const openMin = timeToMinutes(hours.open_time);
-    const closeMin = timeToMinutes(hours.close_time);
+  if (effective.open_time && effective.close_time) {
+    const openMin = timeToMinutes(effective.open_time);
+    const closeMin = timeToMinutes(effective.close_time);
 
     if (nowMinutes < openMin) {
       return {
         blocked: true,
-        message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(hours.open_time)}. ¡Te esperamos! 🙏`,
+        message: `El restaurante aún no está abierto.\nAbrimos a las ${fmt12(effective.open_time)}. ¡Te esperamos! 🙏`,
       };
     }
     if (nowMinutes >= closeMin) {
       return {
         blocked: true,
-        message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(hours.open_time)} a ${fmt12(hours.close_time)}. ¡Te esperamos mañana! 🙏`,
+        message: `El restaurante ya cerró por hoy.\nNuestro horario es de ${fmt12(effective.open_time)} a ${fmt12(effective.close_time)}. ¡Te esperamos mañana! 🙏`,
       };
     }
   }
 
   // --- Priority 5: schedule_start / schedule_end (with override support) ---
-  let effectiveScheduleStart = hours.schedule_start || null;
-  let effectiveScheduleEnd = hours.schedule_end || null;
+  let effectiveScheduleStart = effective.schedule_start || null;
+  let effectiveScheduleEnd = effective.schedule_end || null;
 
   // daily_overrides can override schedule_start/schedule_end
   for (const o of dailyOverrides || []) {
@@ -371,8 +404,8 @@ function checkRestaurantAvailability(
     const schedStartMin = timeToMinutes(effectiveScheduleStart);
     if (nowMinutes < schedStartMin) {
       // If accept_pre_orders is true and we're within open hours, let the flow continue
-      if (hours.accept_pre_orders && hours.open_time) {
-        const openMin = timeToMinutes(hours.open_time);
+      if (hours.accept_pre_orders && effective.open_time) {
+        const openMin = timeToMinutes(effective.open_time);
         if (nowMinutes >= openMin) {
           // Allow pre-orders — the AI prompt (scheduleBlock) will handle the messaging
           return { blocked: false, message: "" };
