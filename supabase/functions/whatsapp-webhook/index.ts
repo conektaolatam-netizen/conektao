@@ -2951,8 +2951,10 @@ async function runSalesNudgeCheck() {
       }
     }
     if (allConvs.length === 0) return { nudged: 0 };
+    // Limit to 3 conversations per run to stay within compute limits
+    const limitedConvs = allConvs.slice(0, 3);
     let nudgedCount = 0;
-    for (const conv of allConvs) {
+    for (const conv of limitedConvs) {
       if (conv.last_nudge_at && new Date(conv.last_nudge_at).toISOString() > tenMinAgo) continue;
       const msgs = Array.isArray(conv.messages) ? conv.messages : [];
       // Skip if assistant responded recently (< 5 min) — avoid nudging while waiting for user confirmation
