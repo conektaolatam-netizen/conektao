@@ -1505,12 +1505,13 @@ ${menuLinkBlock}
 
 ${menuBlock}
 ${prom}
-${rulesBlock}
 ${packagingBlock}
 ${deliveryBlock}
 ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
+
+${rulesBlock}
 
 === FIN CONFIG ===
 ${ctx}`;

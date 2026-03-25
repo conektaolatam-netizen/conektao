@@ -241,12 +241,13 @@ ${menuLinkBlock}
 
 ${menuBlock}
 ${promBlock}
-${rulesBlock}
 ${packagingBlock}
 ${deliveryBlock}
 ${timeBlock}
 ${paymentBlock}
 ${escalationBlock}
+
+${rulesBlock}
 
 === FIN CONFIG ===`;
 }
