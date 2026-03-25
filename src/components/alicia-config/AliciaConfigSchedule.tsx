@@ -63,6 +63,11 @@ export default function AliciaConfigSchedule({ config, onSave }: Props) {
   const [closeTime, setCloseTime] = useState(h.close_time || "");
   const [preOrders, setPreOrders] = useState(h.accept_pre_orders ?? false);
   const [mayExtend, setMayExtend] = useState(h.may_extend ?? false);
+  const [extendedDays, setExtendedDays] = useState<string[]>(h.extended_days || []);
+  const [extendedOpenTime, setExtendedOpenTime] = useState(h.extended_open_time || "");
+  const [extendedCloseTime, setExtendedCloseTime] = useState(h.extended_close_time || "");
+  const [extendedScheduleStart, setExtendedScheduleStart] = useState(h.extended_schedule_start || "");
+  const [extendedScheduleEnd, setExtendedScheduleEnd] = useState(h.extended_schedule_end || "");
   const [preMsg, setPreMsg] = useState(h.pre_order_message || "");
   const [weekday, setWeekday] = useState(h.weekday_waiting_time || "");
   const [weekend, setWeekend] = useState(h.weekend_waiting_time || "");
