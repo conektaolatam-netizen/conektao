@@ -3276,8 +3276,9 @@ async function handleAdminAction(url: URL, req: Request): Promise<Response | nul
     }
 
     case "check_nudges": {
-      const result = await runSalesNudgeCheck();
-      return new Response(JSON.stringify(result), {
+      // Run nudges in background to avoid WORKER_LIMIT timeout
+      EdgeRuntime.waitUntil(runSalesNudgeCheck().catch(e => console.error("Background nudge error:", e)));
+      return new Response(JSON.stringify({ status: "nudge_check_started" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
