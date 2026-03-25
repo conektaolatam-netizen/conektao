@@ -1,0 +1,1 @@
+UPDATE whatsapp_orders SET printed_at = now() WHERE printed_at IS NULL;
