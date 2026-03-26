@@ -4584,8 +4584,20 @@ Deno.serve(async (req) => {
         }
 
         // ORDER DETECTED BY AI → Validate and build backend summary
-        const validated = validateOrder(parsed.order, effectiveProducts, config);
+        const validated = await validateOrder(parsed.order, effectiveProducts, config);
         if (validated.corrected) parsed.order = validated.order;
+
+        // If delivery was blocked due to distance, inform customer and skip order flow
+        if (validated.order.delivery_blocked) {
+          resp = validated.order.delivery_blocked_message || "Lo siento, tu dirección está fuera de nuestra zona de cobertura. ¿Te gustaría recoger tu pedido en el local?";
+          freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: [...(conv.messages || []), ...freshMsgs],
+            updated_at: new Date().toISOString(),
+          }).eq("id", conv.id);
+          await sendWhatsAppMessage(waToken, waPhoneId, from, resp);
+          return new Response(JSON.stringify({ status: "delivery_blocked" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
 
         // Build summary from validated data — NEVER use AI text for prices
         resp = buildOrderSummary(validated.order, config, parsed.order.customer_name || freshCustomerName);
