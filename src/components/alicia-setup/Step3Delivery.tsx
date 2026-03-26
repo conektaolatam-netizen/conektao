@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Truck, Plus, X, Navigation, Loader2, CheckCircle2 } from "lucide-react";
+import { Truck, Plus, X, Navigation, Loader2, CheckCircle2, Building2, PenLine, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -10,6 +10,23 @@ interface Props {
 }
 
 type PricingMode = "fixed" | "dynamic" | "courier_collects";
+type LocationMode = "business" | "gps" | "manual";
+
+const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number; display: string } | null> => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+      { headers: { "Accept-Language": "es" } }
+    );
+    if (res.ok) {
+      const results = await res.json();
+      if (results.length > 0) {
+        return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), display: results[0].display_name };
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+};
 
 const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
   const config = data.delivery_config || {};
@@ -26,9 +43,15 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
   const [restaurantLat, setRestaurantLat] = useState<number | null>(config.restaurant_location?.lat ?? null);
   const [restaurantLng, setRestaurantLng] = useState<number | null>(config.restaurant_location?.lng ?? null);
   const [locationAddress, setLocationAddress] = useState<string>(config.restaurant_location?.address || "");
+  const [locationSource, setLocationSource] = useState<LocationMode>(config.restaurant_location?.source || "gps");
+  const [locationMode, setLocationMode] = useState<LocationMode>(config.restaurant_location?.source || "gps");
+  const [manualAddress, setManualAddress] = useState("");
   const [isLocating, setIsLocating] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const hasLocation = restaurantLat !== null && restaurantLng !== null;
+  const businessAddress = data.location_address || "";
+  const hasBusinessAddress = businessAddress.trim().length > 0;
 
   const addZone = () => {
     if (newZone.trim() && !freeZones.includes(newZone.trim())) {
@@ -38,6 +61,26 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
   };
   const removeZone = (z: string) => setFreeZones(freeZones.filter((x) => x !== z));
 
+  const handleUseBusinessAddress = async () => {
+    if (!hasBusinessAddress) return;
+    setIsGeocoding(true);
+    const result = await geocodeAddress(businessAddress);
+    if (result) {
+      setRestaurantLat(result.lat);
+      setRestaurantLng(result.lng);
+      setLocationAddress(businessAddress);
+      setLocationSource("business");
+      toast.success("Dirección de Tu Negocio aplicada");
+    } else {
+      setRestaurantLat(null);
+      setRestaurantLng(null);
+      setLocationAddress(businessAddress);
+      setLocationSource("business");
+      toast.warning("No se pudo geocodificar, se guardará como texto");
+    }
+    setIsGeocoding(false);
+  };
+
   const handleGetLocation = () => {
     if (!navigator.geolocation) { toast.error("Geolocalización no soportada"); return; }
     setIsLocating(true);
@@ -46,16 +89,44 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         setRestaurantLat(lat);
         setRestaurantLng(lng);
+        setLocationSource("gps");
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, { headers: { "Accept-Language": "es" } });
           if (res.ok) { const d = await res.json(); setLocationAddress(d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`); }
         } catch { /* ignore */ }
         setIsLocating(false);
-        toast.success("Ubicación capturada");
+        toast.success("Ubicación capturada por GPS");
       },
       () => { setIsLocating(false); toast.error("No se pudo obtener ubicación"); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  const handleManualGeocode = async () => {
+    if (!manualAddress.trim()) { toast.error("Escribe una dirección"); return; }
+    setIsGeocoding(true);
+    const result = await geocodeAddress(manualAddress);
+    if (result) {
+      setRestaurantLat(result.lat);
+      setRestaurantLng(result.lng);
+      setLocationAddress(manualAddress);
+      setLocationSource("manual");
+      toast.success("Dirección encontrada");
+    } else {
+      setRestaurantLat(null);
+      setRestaurantLng(null);
+      setLocationAddress(manualAddress);
+      setLocationSource("manual");
+      toast.warning("No se pudo geocodificar, se guardará como texto");
+    }
+    setIsGeocoding(false);
+  };
+
+  const sourceLabel: Record<LocationMode, string> = { business: "Tu Negocio", gps: "GPS", manual: "Manual" };
+  const sourceColor: Record<LocationMode, string> = {
+    business: "bg-blue-900/30 text-blue-400 border-blue-500/30",
+    gps: "bg-green-900/30 text-green-400 border-green-500/30",
+    manual: "bg-amber-900/30 text-amber-400 border-amber-500/30",
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,7 +142,9 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
         delivery_cost: deliveryCost ? Number(deliveryCost) : null,
         base_fee: baseFee ? Number(baseFee) : null,
         price_per_km: pricePerKm ? Number(pricePerKm) : null,
-        restaurant_location: hasLocation ? { lat: restaurantLat, lng: restaurantLng, address: locationAddress } : null,
+        restaurant_location: locationAddress
+          ? { lat: restaurantLat, lng: restaurantLng, address: locationAddress, source: locationSource }
+          : null,
         escalation_tag: "---CONSULTA_DOMICILIO---",
       },
     });
@@ -97,18 +170,89 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
 
       {enabled ? (
         <>
-          {/* Location */}
-          <div className="space-y-2">
+          {/* Location mode selector */}
+          <div className="space-y-3">
             <label className="block text-sm font-medium text-foreground/80">Ubicación del restaurante</label>
-            <button type="button" onClick={handleGetLocation} disabled={isLocating} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50">
-              {isLocating ? <><Loader2 className="w-4 h-4 animate-spin" />Obteniendo...</> : <><Navigation className="w-4 h-4" />{hasLocation ? "Actualizar ubicación" : "Capturar ubicación"}</>}
-            </button>
-            {hasLocation && (
+            <div className="grid gap-2">
+              {/* Business */}
+              <button type="button" onClick={() => hasBusinessAddress && setLocationMode("business")}
+                disabled={!hasBusinessAddress}
+                className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${locationMode === "business" ? "border-primary bg-primary/10" : "border-border"} ${!hasBusinessAddress ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Usar dirección de "Tu Negocio"</p>
+                    {hasBusinessAddress ? (
+                      <p className="text-xs text-muted-foreground truncate">{businessAddress}</p>
+                    ) : (
+                      <p className="text-xs text-destructive">No configurada en paso anterior</p>
+                    )}
+                  </div>
+                </div>
+              </button>
+              {/* GPS */}
+              <button type="button" onClick={() => setLocationMode("gps")}
+                className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${locationMode === "gps" ? "border-primary bg-primary/10" : "border-border"}`}>
+                <div className="flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Capturar ubicación actual (GPS)</p>
+                    <p className="text-xs text-muted-foreground">Usa el GPS de tu dispositivo</p>
+                  </div>
+                </div>
+              </button>
+              {/* Manual */}
+              <button type="button" onClick={() => setLocationMode("manual")}
+                className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${locationMode === "manual" ? "border-primary bg-primary/10" : "border-border"}`}>
+                <div className="flex items-center gap-2">
+                  <PenLine className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Escribir dirección manualmente</p>
+                    <p className="text-xs text-muted-foreground">Escribe y geocodificamos</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Action per mode */}
+            {locationMode === "business" && hasBusinessAddress && (
+              <button type="button" onClick={handleUseBusinessAddress} disabled={isGeocoding}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50">
+                {isGeocoding ? <><Loader2 className="w-4 h-4 animate-spin" />Geocodificando...</> : <><Building2 className="w-4 h-4" />Aplicar dirección de Tu Negocio</>}
+              </button>
+            )}
+            {locationMode === "gps" && (
+              <button type="button" onClick={handleGetLocation} disabled={isLocating}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50">
+                {isLocating ? <><Loader2 className="w-4 h-4 animate-spin" />Obteniendo...</> : <><Navigation className="w-4 h-4" />{hasLocation && locationSource === "gps" ? "Actualizar ubicación GPS" : "Capturar ubicación"}</>}
+              </button>
+            )}
+            {locationMode === "manual" && (
+              <div className="flex gap-2">
+                <input type="text" value={manualAddress} onChange={e => setManualAddress(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleManualGeocode())}
+                  placeholder="Ej: Calle 44 #5-20, Bogotá"
+                  className="flex-1 px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                <button type="button" onClick={handleManualGeocode} disabled={isGeocoding}
+                  className="px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50">
+                  {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+
+            {/* Current location result */}
+            {locationAddress && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-foreground">{locationAddress || "Ubicación capturada"}</p>
-                  <p className="font-mono mt-1">{restaurantLat?.toFixed(6)}, {restaurantLng?.toFixed(6)}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-medium text-foreground truncate">{locationAddress}</p>
+                    <span className={`inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-semibold ${sourceColor[locationSource]}`}>
+                      {sourceLabel[locationSource]}
+                    </span>
+                  </div>
+                  {hasLocation && <p className="font-mono">{restaurantLat?.toFixed(6)}, {restaurantLng?.toFixed(6)}</p>}
+                  {!hasLocation && <p className="text-amber-400 text-[10px]">⚠ Sin coordenadas — validación por distancia no disponible</p>}
                 </div>
               </div>
             )}
