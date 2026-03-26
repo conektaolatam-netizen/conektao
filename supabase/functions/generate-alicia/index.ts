@@ -176,13 +176,36 @@ function buildBusinessConfigPrompt(config: any, products: any[]): string {
   }
 
   // Delivery
-  const radiusInfo = delivery.radius && delivery.radius !== "" ? ` Radio de cobertura: ${delivery.radius}.` : "";
   let deliveryBlock = "";
   if (delivery.enabled) {
     const freeZones = (delivery.free_zones || []).join(", ");
+    const radiusKm = delivery.delivery_radius_km;
+    const pricingMode = delivery.delivery_pricing_mode || "fixed";
+    const hasRealValidation = delivery.restaurant_location?.lat && radiusKm;
+
+    let radiusInfo = "";
+    if (hasRealValidation) {
+      radiusInfo = ` Radio de cobertura: ${radiusKm} km (validación real por distancia activada).`;
+    } else if (delivery.radius && delivery.radius !== "") {
+      radiusInfo = ` Radio de cobertura: ${delivery.radius}.`;
+    }
+
+    let pricingInfo = "";
+    if (pricingMode === "dynamic") {
+      pricingInfo = ` El costo del domicilio se calcula automáticamente según la distancia (el sistema lo calcula, NO tú).`;
+    } else if (pricingMode === "courier_collects") {
+      pricingInfo = ` ${delivery.paid_delivery_note || "El domicilio se paga directamente al domiciliario."}`;
+    } else if (delivery.delivery_cost > 0) {
+      pricingInfo = ` Costo fijo de domicilio: $${Number(delivery.delivery_cost).toLocaleString("es-CO")}.`;
+    }
+
     deliveryBlock = freeZones
-      ? `DOMICILIO GRATIS: ${freeZones}.${radiusInfo} ${delivery.paid_delivery_note || "Otras zonas se pagan aparte."}`
-      : `DOMICILIO:${radiusInfo} ${delivery.paid_delivery_note || "Se paga al domiciliario."}`;
+      ? `DOMICILIO GRATIS: ${freeZones}.${radiusInfo}${pricingInfo}`
+      : `DOMICILIO:${radiusInfo}${pricingInfo}`;
+
+    if (hasRealValidation) {
+      deliveryBlock += "\nIMPORTANTE DOMICILIO: El sistema valida automáticamente si la dirección está dentro del radio. Si está fuera, el sistema bloqueará el pedido y le dirá al cliente. Tú NO calcules distancias ni precios de domicilio, solo pide la dirección.";
+    }
   } else {
     deliveryBlock = `Solo recogida. ${delivery.pickup_only_details || ""}`;
   }

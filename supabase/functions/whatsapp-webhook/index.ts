@@ -861,40 +861,125 @@ function normalizeText(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-// ── Backend delivery zone validation ──
-function validateDeliveryZone(
-  address: string,
-  deliveryConfig: any
-): { isFreeZone: boolean; deliveryCost: number; paidNote: string | null } {
-  if (!deliveryConfig || !address) {
-    return { isFreeZone: false, deliveryCost: 0, paidNote: null };
+// ── Haversine distance calculation (km) ──
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Geocode address using Nominatim ──
+async function geocodeAddress(address: string, countryHint?: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const q = encodeURIComponent(address + (countryHint ? `, ${countryHint}` : ""));
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
+      headers: { "User-Agent": "ConektaoAlicia/1.0", "Accept-Language": "es" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch (e) {
+    console.error("Geocoding error:", e);
+    return null;
   }
+}
 
-  const freeZones: string[] = deliveryConfig.free_zones || [];
+// ── Legacy text-based free zone check ──
+function checkFreeZoneLegacy(address: string, freeZones: string[]): boolean {
+  if (!freeZones || freeZones.length === 0) return false;
   const normalizedAddr = normalizeText(address);
-
-  // Check if the address matches any free zone
-  const matchedFreeZone = freeZones.some((zone) => {
+  return freeZones.some((zone) => {
     if (!zone || zone.trim() === "") return false;
     return normalizedAddr.includes(normalizeText(zone));
   });
+}
 
-  if (matchedFreeZone) {
-    return { isFreeZone: true, deliveryCost: 0, paidNote: null };
+interface DeliveryValidationResult {
+  available: boolean;
+  isFreeZone: boolean;
+  distance_km: number | null;
+  deliveryCost: number;
+  paidNote: string | null;
+  message: string | null;
+}
+
+// ── Backend delivery zone validation (async with geocoding + distance) ──
+async function validateDeliveryZone(
+  address: string,
+  deliveryConfig: any
+): Promise<DeliveryValidationResult> {
+  const defaultResult: DeliveryValidationResult = { available: true, isFreeZone: false, distance_km: null, deliveryCost: 0, paidNote: null, message: null };
+
+  if (!deliveryConfig || !address) return defaultResult;
+
+  const freeZones: string[] = deliveryConfig.free_zones || [];
+
+  // Always check free zones first (text matching — works with or without geocoding)
+  if (checkFreeZoneLegacy(address, freeZones)) {
+    return { available: true, isFreeZone: true, distance_km: null, deliveryCost: 0, paidNote: null, message: null };
   }
 
-  // Not a free zone — check if there's a fixed delivery cost
+  const restLoc = deliveryConfig.restaurant_location;
+  const radiusKm = deliveryConfig.delivery_radius_km;
+  const pricingMode = deliveryConfig.delivery_pricing_mode || "fixed";
+
+  // ── NEW: Real distance validation if restaurant_location + radius are configured ──
+  if (restLoc?.lat && restLoc?.lng && radiusKm && radiusKm > 0) {
+    const customerCoords = await geocodeAddress(address);
+
+    if (customerCoords) {
+      const distKm = haversineKm(restLoc.lat, restLoc.lng, customerCoords.lat, customerCoords.lng);
+      const roundedDist = Math.round(distKm * 10) / 10;
+
+      // Outside radius → blocked
+      if (distKm > radiusKm) {
+        return {
+          available: false,
+          isFreeZone: false,
+          distance_km: roundedDist,
+          deliveryCost: 0,
+          paidNote: null,
+          message: `Lo siento, por ahora solo hacemos domicilios dentro de un radio de ${radiusKm} km desde el restaurante. Tu dirección está a ${roundedDist} km. ¿Te gustaría recoger tu pedido en el local?`,
+        };
+      }
+
+      // Inside radius → calculate price by mode
+      let cost = 0;
+      let note: string | null = null;
+
+      if (pricingMode === "dynamic") {
+        const baseFee = deliveryConfig.base_fee || 0;
+        const perKm = deliveryConfig.price_per_km || 0;
+        cost = Math.round(baseFee + (distKm * perKm));
+      } else if (pricingMode === "courier_collects") {
+        cost = 0;
+        note = deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.";
+      } else {
+        // fixed
+        cost = deliveryConfig.delivery_cost || 0;
+      }
+
+      return { available: true, isFreeZone: false, distance_km: roundedDist, deliveryCost: cost, paidNote: note, message: null };
+    }
+
+    // Geocoding failed → fall through to legacy behavior
+    console.warn("⚠️ Geocoding failed for address, falling back to legacy validation:", address);
+  }
+
+  // ── LEGACY: No restaurant_location or geocoding failed → use old logic ──
+  if (pricingMode === "courier_collects") {
+    return { available: true, isFreeZone: false, distance_km: null, deliveryCost: 0, paidNote: deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.", message: null };
+  }
+
   const cost = deliveryConfig.delivery_cost;
   if (cost && cost > 0) {
-    return { isFreeZone: false, deliveryCost: cost, paidNote: null };
+    return { available: true, isFreeZone: false, distance_km: null, deliveryCost: cost, paidNote: null, message: null };
   }
 
-  // No fixed cost → paid externally (e.g., to the delivery driver)
-  return {
-    isFreeZone: false,
-    deliveryCost: 0,
-    paidNote: deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.",
-  };
+  return { available: true, isFreeZone: false, distance_km: null, deliveryCost: 0, paidNote: deliveryConfig.paid_delivery_note || "El domicilio se paga directamente al domiciliario.", message: null };
 }
 
 
@@ -1614,7 +1699,7 @@ function getPackagingCost(_itemName: string, requiresPackaging?: boolean, packag
 }
 
 /** Validate and correct order prices/packaging for any business */
-function validateOrder(order: any, products?: any[], config?: any): { order: any; corrected: boolean; issues: string[] } {
+async function validateOrder(order: any, products?: any[], config?: any): Promise<{ order: any; corrected: boolean; issues: string[] }> {
   if (!order?.items) return { order, corrected: false, issues: [] };
 
   const productEntries: ProductEntry[] = products ? buildProductEntries(products) : [];
@@ -1712,18 +1797,27 @@ function validateOrder(order: any, products?: any[], config?: any): { order: any
   // ── DELIVERY COST: Backend validation of delivery zones ──
   const deliveryConfig = config?.delivery_config;
   if (isDelivery && order.delivery_address && deliveryConfig) {
-    const zoneResult = validateDeliveryZone(order.delivery_address, deliveryConfig);
-    if (zoneResult.isFreeZone) {
+    const zoneResult = await validateDeliveryZone(order.delivery_address, deliveryConfig);
+    if (!zoneResult.available) {
+      // Address is outside delivery radius — block delivery
+      order.delivery_blocked = true;
+      order.delivery_blocked_message = zoneResult.message;
       order.delivery_cost = 0;
+      issues.push(`DOMICILIO BLOQUEADO: Fuera de radio (${zoneResult.distance_km} km)`);
+    } else if (zoneResult.isFreeZone) {
+      order.delivery_cost = 0;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       issues.push("DOMICILIO: Zona gratuita detectada");
     } else if (zoneResult.deliveryCost > 0) {
       order.delivery_cost = zoneResult.deliveryCost;
       order.total += zoneResult.deliveryCost;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       corrected = true;
-      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado (zona no gratuita)`);
+      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado${zoneResult.distance_km ? ` (${zoneResult.distance_km} km)` : " (zona no gratuita)"}`);
     } else {
       order.delivery_cost = 0;
       order.delivery_note = zoneResult.paidNote;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       issues.push("DOMICILIO: Zona no gratuita, pago al domiciliario");
     }
   }
@@ -3827,7 +3921,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          const validated = validateOrder(resolvedOrder, effectiveConfirmProds, config);
+          const validated = await validateOrder(resolvedOrder, effectiveConfirmProds, config);
 
           // ── STEP 1: CONFIRM IMMEDIATELY (email is async, never blocks) ──────
           // Fetch fresh proof from DB (image may have been saved in a previous message)
@@ -4490,8 +4584,20 @@ Deno.serve(async (req) => {
         }
 
         // ORDER DETECTED BY AI → Validate and build backend summary
-        const validated = validateOrder(parsed.order, effectiveProducts, config);
+        const validated = await validateOrder(parsed.order, effectiveProducts, config);
         if (validated.corrected) parsed.order = validated.order;
+
+        // If delivery was blocked due to distance, inform customer and skip order flow
+        if (validated.order.delivery_blocked) {
+          resp = validated.order.delivery_blocked_message || "Lo siento, tu dirección está fuera de nuestra zona de cobertura. ¿Te gustaría recoger tu pedido en el local?";
+          freshMsgs.push({ role: "assistant", content: resp, timestamp: new Date().toISOString() });
+          await supabase.from("whatsapp_conversations").update({
+            messages: [...(conv.messages || []), ...freshMsgs],
+            updated_at: new Date().toISOString(),
+          }).eq("id", conv.id);
+          await sendWhatsAppMessage(waToken, waPhoneId, from, resp);
+          return new Response(JSON.stringify({ status: "delivery_blocked" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
 
         // Build summary from validated data — NEVER use AI text for prices
         resp = buildOrderSummary(validated.order, config, parsed.order.customer_name || freshCustomerName);
