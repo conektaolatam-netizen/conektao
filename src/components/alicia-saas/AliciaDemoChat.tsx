@@ -12,7 +12,7 @@ const SUGGESTIONS = [
   { label: "🍕 Quiero pedir una pizza", icon: ShoppingCart },
   { label: "¿Qué puede hacer ALICIA?", icon: HelpCircle },
   { label: "¿Cómo sube el ticket promedio?", icon: Sparkles },
-  { label: "¿Cuánto cuesta el plan?", icon: HelpCircle },
+  { label: "¿Cuáles son los planes?", icon: HelpCircle },
 ];
 
 const AliciaDemoChat = () => {

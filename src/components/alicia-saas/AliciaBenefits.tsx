@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingUp, MessageSquare, Clock, HeartHandshake } from "lucide-react";
+import { TrendingUp, MessageSquare, Clock, HeartHandshake, ShoppingBag } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const benefits = [
@@ -31,9 +31,16 @@ const benefits = [
     description: "Retroalimentación automática que mejora tu operación",
     glow: "hsl(174 100% 29% / 0.28)",
   },
+  {
+    icon: ShoppingBag,
+    metric: "+248",
+    title: "Pedidos reales procesados",
+    description: "En producción con restaurantes reales en Colombia",
+    glow: "hsl(25 100% 50% / 0.28)",
+  },
 ];
 
-const delayClasses = ["reveal-delay-0", "reveal-delay-1", "reveal-delay-2", "reveal-delay-3"];
+const delayClasses = ["reveal-delay-0", "reveal-delay-1", "reveal-delay-2", "reveal-delay-3", "reveal-delay-3"];
 
 const AliciaBenefits = () => {
   const { ref: titleRef, isVisible: titleVisible } = useScrollReveal();
@@ -56,7 +63,7 @@ const AliciaBenefits = () => {
 
         <div
           ref={gridRef as React.RefObject<HTMLDivElement>}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6"
         >
           {benefits.map((benefit, index) => (
             <div

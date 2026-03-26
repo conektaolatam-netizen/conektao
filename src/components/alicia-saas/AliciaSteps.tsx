@@ -22,9 +22,9 @@ const steps = [
   {
     icon: Truck,
     number: "03",
-    title: "Coordina el domicilio",
+    title: "Confirma el pedido",
     description:
-      "Organiza la entrega con el cliente. Dirección, hora y seguimiento en tiempo real.",
+      "Valida cada detalle con el cliente, confirma el método de pago y genera el resumen del pedido sin errores.",
     gradient: "from-primary to-secondary",
   },
   {
