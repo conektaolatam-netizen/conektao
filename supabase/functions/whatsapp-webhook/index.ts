@@ -1797,18 +1797,27 @@ function validateOrder(order: any, products?: any[], config?: any): { order: any
   // ── DELIVERY COST: Backend validation of delivery zones ──
   const deliveryConfig = config?.delivery_config;
   if (isDelivery && order.delivery_address && deliveryConfig) {
-    const zoneResult = validateDeliveryZone(order.delivery_address, deliveryConfig);
-    if (zoneResult.isFreeZone) {
+    const zoneResult = await validateDeliveryZone(order.delivery_address, deliveryConfig);
+    if (!zoneResult.available) {
+      // Address is outside delivery radius — block delivery
+      order.delivery_blocked = true;
+      order.delivery_blocked_message = zoneResult.message;
       order.delivery_cost = 0;
+      issues.push(`DOMICILIO BLOQUEADO: Fuera de radio (${zoneResult.distance_km} km)`);
+    } else if (zoneResult.isFreeZone) {
+      order.delivery_cost = 0;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       issues.push("DOMICILIO: Zona gratuita detectada");
     } else if (zoneResult.deliveryCost > 0) {
       order.delivery_cost = zoneResult.deliveryCost;
       order.total += zoneResult.deliveryCost;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       corrected = true;
-      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado (zona no gratuita)`);
+      issues.push(`DOMICILIO: Costo $${zoneResult.deliveryCost.toLocaleString()} aplicado${zoneResult.distance_km ? ` (${zoneResult.distance_km} km)` : " (zona no gratuita)"}`);
     } else {
       order.delivery_cost = 0;
       order.delivery_note = zoneResult.paidNote;
+      if (zoneResult.distance_km) order.delivery_distance_km = zoneResult.distance_km;
       issues.push("DOMICILIO: Zona no gratuita, pago al domiciliario");
     }
   }
