@@ -1,54 +1,91 @@
 
 
-# Plan: Dirección manual + reutilizar dirección de "Tu Negocio"
+# Plan: Optimización SEO de la página Welcome de Conektao
 
-## Qué cambia
+## Resumen
 
-En la sección de ubicación del restaurante (tanto en `AliciaConfigDelivery.tsx` como en `Step3Delivery.tsx`), reemplazar el botón único de "Capturar ubicación" por **3 opciones claras**:
-
-```text
-┌─────────────────────────────────────────────┐
-│ Ubicación del restaurante                   │
-│                                             │
-│ ○ Usar dirección de "Tu Negocio"            │
-│   → Calle 44 #5-20, Ciudad (de config)      │
-│                                             │
-│ ○ Capturar ubicación actual (GPS)           │
-│   → [Botón capturar]                        │
-│                                             │
-│ ○ Escribir dirección manualmente            │
-│   → [Input de dirección]                    │
-│   → Se geocodifica con Nominatim al guardar │
-│                                             │
-│ ✅ Dirección activa: "Calle 44..."          │
-│    4.711000, -74.072100                     │
-└─────────────────────────────────────────────┘
-```
-
-## Comportamiento
-
-1. **"Usar dirección de Tu Negocio"**: Toma `config.location_address` (ya guardado en `whatsapp_configs`). Lo geocodifica con Nominatim para obtener lat/lng. Si no hay dirección configurada en "Tu Negocio", la opción aparece deshabilitada con texto explicativo.
-
-2. **"Capturar ubicación actual"**: Funciona igual que ahora (GPS del navegador + reverse geocode). Es el fallback si el usuario está físicamente en el restaurante.
-
-3. **"Escribir dirección manualmente"**: Input de texto libre. Al guardar, se geocodifica con Nominatim para obtener coordenadas. Si falla el geocoding, se muestra un warning pero se guarda la dirección como texto (fallback legacy).
-
-4. **Indicador visual**: Muestra claramente qué método se usó (badge: "GPS", "Manual", "Tu Negocio") junto con la dirección y coordenadas resultantes.
+Reescribir la página `Welcome.tsx` y `index.html` para posicionar Conektao como **"sistema operativo con IA para restaurantes"** en Google. Se mantiene el diseño visual actual (fondo negro, gradientes naranja/teal, animaciones) pero se reestructura todo el contenido con jerarquía SEO correcta, texto indexable y schema markup.
 
 ## Archivos a modificar
 
-| Archivo | Cambio |
-|---|---|
-| `src/components/alicia-config/AliciaConfigDelivery.tsx` | Agregar estado `locationMode` ("business" / "gps" / "manual"), RadioGroup para elegir, input manual, lógica de geocoding de dirección texto, badge de método usado. Recibe `config.location_address` para la opción "Tu Negocio". |
-| `src/components/alicia-setup/Step3Delivery.tsx` | Mismos cambios adaptados al wizard. Recibe `data.location_address` para la opción de negocio. |
+### 1. `index.html` — Meta tags SEO
+- **Title**: `Conektao — Sistema operativo con inteligencia artificial para restaurantes | POS, inventario y IA`
+- **Meta description**: `Software todo en uno para restaurantes, cafeterías y panaderías en Colombia. POS inteligente, control de inventario, food cost automático, marketplace de proveedores y ALICIA: chatbot IA por WhatsApp.`
+- **lang**: cambiar `en` → `es`
+- **OG tags**: actualizar title/description/image
+- **Agregar schema markup** (JSON-LD): SoftwareApplication + FAQPage
 
-## Detalles técnicos
+### 2. `src/pages/Welcome.tsx` — Reestructura completa de contenido
 
-- **Geocoding de dirección texto**: `fetch("https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1")` → tomar `lat`, `lon` del primer resultado.
-- **Estado nuevo**: `locationMode: "business" | "gps" | "manual"` se persiste en `delivery_config.restaurant_location.source` para saber qué método se usó.
-- **Estructura de `restaurant_location` actualizada**:
-  ```json
-  { "lat": 4.711, "lng": -74.072, "address": "Calle 44 #5-20", "source": "business" }
-  ```
-- No hay cambios en backend (`whatsapp-webhook`) ni en `generate-alicia` — solo consumen `lat`/`lng` que seguirán existiendo igual.
+Se reemplaza el contenido manteniendo la misma estructura visual (secciones, cards, animaciones, formulario de contacto). Los cambios son **solo de texto y estructura de headings**:
+
+#### Hero Section
+- **H1**: `Conektao — Sistema operativo con inteligencia artificial para restaurantes`
+- **Subtítulo** (p): incluye keywords "software para restaurantes", "cafeterías", "panaderías", "Colombia"
+- CTAs: sin cambios
+
+#### Sección Features → "El software todo en uno para administrar restaurantes" (H2)
+- Reorganizar las 7 feature cards con textos SEO:
+  - **POS inteligente para restaurantes** (H3) — facturación electrónica, gestión de mesas, control de caja, reportes de ventas
+  - **Control de inventario y food cost automático** (H3) — control de ingredientes, costeo automático, food cost restaurante
+  - **Facturas IA** (H3) — escaneo OCR de facturas de proveedores, inventario automático
+  - **Gestión de personal** (H3) — nómina, geolocalización, bonificaciones
+  - **Análisis del negocio con IA** (H3) — margen por plato, análisis de ventas
+  - **Control de caja inteligente** (H3) — cierre asistido, conciliación automática
+  - **Documentos digitales** (H3) — almacenamiento inteligente
+
+#### Sección IA → "Inteligencia artificial para administrar tu restaurante" (H2)
+- ConektAI y ContAI con textos que incluyan keywords de IA para restaurantes
+
+#### Sección ALICIA (nueva sección expandida) → "Alicia: la asistente de inteligencia artificial para restaurantes" (H2)
+- Texto descriptivo con keywords: chatbot WhatsApp restaurante, automatizar pedidos
+- Lista de capacidades: responder clientes, tomar pedidos, recomendar productos, enviar al POS
+- Sub-heading: "Automatiza pedidos de WhatsApp con inteligencia artificial" (H3)
+
+#### Sección Marketplace → "Marketplace de proveedores para restaurantes" (H2)
+- Keywords: proveedores gastronómicos, comprar insumos restaurante
+- Simulación visual sin cambios
+
+#### Nueva sección: "Plataforma completa para restaurantes, cafeterías y panaderías" (H2)
+- Párrafo con keywords long-tail: sistema para cafeterías, sistema para panaderías, sistema para bares
+
+#### Nueva sección FAQ (antes del contacto)
+- H2: "Preguntas frecuentes sobre software para restaurantes"
+- Preguntas con accordions (componente existente):
+  1. ¿Qué software es mejor para restaurantes?
+  2. ¿Qué POS usan los restaurantes en Colombia?
+  3. ¿Cómo controlar inventario en un restaurante?
+  4. ¿Cómo calcular el food cost?
+  5. ¿Cómo automatizar pedidos por WhatsApp?
+  6. ¿Qué es un sistema operativo para restaurantes?
+
+#### Footer
+- Cambiar `© 2024` → `© 2025` y agregar texto: "Software para restaurantes en Colombia y Latinoamérica"
+
+### 3. `index.html` — Schema markup JSON-LD
+
+```text
+- SoftwareApplication schema (name, description, applicationCategory, operatingSystem, offers)
+- FAQPage schema con las 6 preguntas
+```
+
+## Lo que NO cambia
+
+- Diseño visual, animaciones, gradientes, fondo negro
+- Formulario de contacto y lógica Supabase
+- Auth modal
+- Navegación a `/alicia`
+- Simulaciones animadas de Marketplace y AI Analysis
+
+## Complejidad
+
+Media-alta por el volumen de texto a reescribir, pero es trabajo mecánico sin lógica nueva.
+
+## Impacto SEO esperado
+
+- H1/H2/H3 correctamente jerarquizados con keywords principales
+- ~30 keywords long-tail distribuidas naturalmente en texto indexable
+- Schema markup para rich snippets en Google
+- FAQ schema para aparecer en "People also ask"
+- Meta tags optimizados para CTR en resultados de búsqueda
 
