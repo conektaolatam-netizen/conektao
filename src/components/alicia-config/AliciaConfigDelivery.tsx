@@ -4,13 +4,14 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Truck, X, MapPin, Navigation, Loader2, CheckCircle2, Building2, PenLine } from "lucide-react";
+import { Truck, X, Navigation, Loader2, CheckCircle2, Building2, Map } from "lucide-react";
 import { toast } from "sonner";
+import MapPicker from "@/components/location/MapPicker";
 
 interface Props { config: any; onSave: (field: string, value: any) => Promise<void>; }
 
 type PricingMode = "fixed" | "dynamic" | "courier_collects";
-type LocationMode = "business" | "gps" | "manual";
+type LocationMode = "business" | "gps" | "map";
 
 const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number; display: string } | null> => {
   try {
@@ -42,8 +43,9 @@ export default function AliciaConfigDelivery({ config, onSave }: Props) {
   const [restaurantLng, setRestaurantLng] = useState<number | null>(dc.restaurant_location?.lng ?? null);
   const [locationAddress, setLocationAddress] = useState<string>(dc.restaurant_location?.address || "");
   const [locationSource, setLocationSource] = useState<LocationMode>(dc.restaurant_location?.source || "gps");
-  const [locationMode, setLocationMode] = useState<LocationMode>(dc.restaurant_location?.source || "gps");
-  const [manualAddress, setManualAddress] = useState("");
+  const [locationMode, setLocationMode] = useState<LocationMode>(
+    dc.restaurant_location?.source === "manual" ? "map" : (dc.restaurant_location?.source || "gps")
+  );
   const [newZone, setNewZone] = useState("");
   const [saving, setSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -106,24 +108,12 @@ export default function AliciaConfigDelivery({ config, onSave }: Props) {
     );
   };
 
-  const handleManualGeocode = async () => {
-    if (!manualAddress.trim()) { toast.error("Escribe una dirección"); return; }
-    setIsGeocoding(true);
-    const result = await geocodeAddress(manualAddress);
-    if (result) {
-      setRestaurantLat(result.lat);
-      setRestaurantLng(result.lng);
-      setLocationAddress(manualAddress);
-      setLocationSource("manual");
-      toast.success("Dirección encontrada");
-    } else {
-      setRestaurantLat(null);
-      setRestaurantLng(null);
-      setLocationAddress(manualAddress);
-      setLocationSource("manual");
-      toast.warning("No se pudo geocodificar, se guardará como texto");
-    }
-    setIsGeocoding(false);
+  const handleMapSelect = (lat: number, lng: number, address: string) => {
+    setRestaurantLat(lat);
+    setRestaurantLng(lng);
+    setLocationAddress(address);
+    setLocationSource("map");
+    toast.success("Ubicación seleccionada en el mapa");
   };
 
   const handleSave = async () => {
@@ -145,11 +135,11 @@ export default function AliciaConfigDelivery({ config, onSave }: Props) {
     setSaving(false);
   };
 
-  const sourceLabel: Record<LocationMode, string> = { business: "Tu Negocio", gps: "GPS", manual: "Manual" };
+  const sourceLabel: Record<LocationMode, string> = { business: "Tu Negocio", gps: "GPS", map: "Mapa" };
   const sourceColor: Record<LocationMode, string> = {
     business: "bg-blue-900/30 text-blue-400 border-blue-500/30",
     gps: "bg-green-900/30 text-green-400 border-green-500/30",
-    manual: "bg-amber-900/30 text-amber-400 border-amber-500/30",
+    map: "bg-amber-900/30 text-amber-400 border-amber-500/30",
   };
 
   return (
@@ -197,13 +187,13 @@ export default function AliciaConfigDelivery({ config, onSave }: Props) {
                   </div>
                 </label>
 
-                {/* Option 3: Manual */}
+                {/* Option 3: Map */}
                 <label className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors">
-                  <RadioGroupItem value="manual" />
-                  <PenLine className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <RadioGroupItem value="map" />
+                  <Map className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Escribir dirección manualmente</p>
-                    <p className="text-xs text-muted-foreground">Escribe la dirección y la geocodificamos</p>
+                    <p className="text-sm font-medium text-foreground">Seleccionar en el mapa</p>
+                    <p className="text-xs text-muted-foreground">Haz clic en el mapa para elegir la ubicación</p>
                   </div>
                 </label>
               </RadioGroup>
@@ -221,19 +211,12 @@ export default function AliciaConfigDelivery({ config, onSave }: Props) {
                 </Button>
               )}
 
-              {locationMode === "manual" && (
-                <div className="flex gap-2">
-                  <Input
-                    value={manualAddress}
-                    onChange={e => setManualAddress(e.target.value)}
-                    placeholder="Ej: Calle 44 #5-20, Bogotá"
-                    className="border-border flex-1"
-                    onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleManualGeocode())}
-                  />
-                  <Button type="button" variant="outline" onClick={handleManualGeocode} disabled={isGeocoding} className="border-border">
-                    {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                  </Button>
-                </div>
+              {locationMode === "map" && (
+                <MapPicker
+                  lat={restaurantLat}
+                  lng={restaurantLng}
+                  onSelect={handleMapSelect}
+                />
               )}
 
               {/* Current location result */}

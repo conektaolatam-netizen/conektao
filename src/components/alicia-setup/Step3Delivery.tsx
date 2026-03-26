@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Truck, Plus, X, Navigation, Loader2, CheckCircle2, Building2, PenLine, MapPin } from "lucide-react";
+import { Truck, Plus, X, Navigation, Loader2, CheckCircle2, Building2, Map } from "lucide-react";
 import { toast } from "sonner";
+import MapPicker from "@/components/location/MapPicker";
 
 interface Props {
   data: any;
@@ -10,7 +11,7 @@ interface Props {
 }
 
 type PricingMode = "fixed" | "dynamic" | "courier_collects";
-type LocationMode = "business" | "gps" | "manual";
+type LocationMode = "business" | "gps" | "map";
 
 const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number; display: string } | null> => {
   try {
@@ -44,8 +45,9 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
   const [restaurantLng, setRestaurantLng] = useState<number | null>(config.restaurant_location?.lng ?? null);
   const [locationAddress, setLocationAddress] = useState<string>(config.restaurant_location?.address || "");
   const [locationSource, setLocationSource] = useState<LocationMode>(config.restaurant_location?.source || "gps");
-  const [locationMode, setLocationMode] = useState<LocationMode>(config.restaurant_location?.source || "gps");
-  const [manualAddress, setManualAddress] = useState("");
+  const [locationMode, setLocationMode] = useState<LocationMode>(
+    config.restaurant_location?.source === "manual" ? "map" : (config.restaurant_location?.source || "gps")
+  );
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -102,31 +104,19 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
     );
   };
 
-  const handleManualGeocode = async () => {
-    if (!manualAddress.trim()) { toast.error("Escribe una dirección"); return; }
-    setIsGeocoding(true);
-    const result = await geocodeAddress(manualAddress);
-    if (result) {
-      setRestaurantLat(result.lat);
-      setRestaurantLng(result.lng);
-      setLocationAddress(manualAddress);
-      setLocationSource("manual");
-      toast.success("Dirección encontrada");
-    } else {
-      setRestaurantLat(null);
-      setRestaurantLng(null);
-      setLocationAddress(manualAddress);
-      setLocationSource("manual");
-      toast.warning("No se pudo geocodificar, se guardará como texto");
-    }
-    setIsGeocoding(false);
+  const handleMapSelect = (lat: number, lng: number, address: string) => {
+    setRestaurantLat(lat);
+    setRestaurantLng(lng);
+    setLocationAddress(address);
+    setLocationSource("map");
+    toast.success("Ubicación seleccionada en el mapa");
   };
 
-  const sourceLabel: Record<LocationMode, string> = { business: "Tu Negocio", gps: "GPS", manual: "Manual" };
+  const sourceLabel: Record<LocationMode, string> = { business: "Tu Negocio", gps: "GPS", map: "Mapa" };
   const sourceColor: Record<LocationMode, string> = {
     business: "bg-blue-900/30 text-blue-400 border-blue-500/30",
     gps: "bg-green-900/30 text-green-400 border-green-500/30",
-    manual: "bg-amber-900/30 text-amber-400 border-amber-500/30",
+    map: "bg-amber-900/30 text-amber-400 border-amber-500/30",
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -201,14 +191,14 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
                   </div>
                 </div>
               </button>
-              {/* Manual */}
-              <button type="button" onClick={() => setLocationMode("manual")}
-                className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${locationMode === "manual" ? "border-primary bg-primary/10" : "border-border"}`}>
+              {/* Map */}
+              <button type="button" onClick={() => setLocationMode("map")}
+                className={`text-left px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${locationMode === "map" ? "border-primary bg-primary/10" : "border-border"}`}>
                 <div className="flex items-center gap-2">
-                  <PenLine className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Map className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Escribir dirección manualmente</p>
-                    <p className="text-xs text-muted-foreground">Escribe y geocodificamos</p>
+                    <p className="text-sm font-semibold text-foreground">Seleccionar en el mapa</p>
+                    <p className="text-xs text-muted-foreground">Haz clic en el mapa para elegir la ubicación</p>
                   </div>
                 </div>
               </button>
@@ -227,17 +217,12 @@ const Step3Delivery = ({ data, onSave, saving, onBack }: Props) => {
                 {isLocating ? <><Loader2 className="w-4 h-4 animate-spin" />Obteniendo...</> : <><Navigation className="w-4 h-4" />{hasLocation && locationSource === "gps" ? "Actualizar ubicación GPS" : "Capturar ubicación"}</>}
               </button>
             )}
-            {locationMode === "manual" && (
-              <div className="flex gap-2">
-                <input type="text" value={manualAddress} onChange={e => setManualAddress(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleManualGeocode())}
-                  placeholder="Ej: Calle 44 #5-20, Bogotá"
-                  className="flex-1 px-4 py-3 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
-                <button type="button" onClick={handleManualGeocode} disabled={isGeocoding}
-                  className="px-4 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-all disabled:opacity-50">
-                  {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                </button>
-              </div>
+            {locationMode === "map" && (
+              <MapPicker
+                lat={restaurantLat}
+                lng={restaurantLng}
+                onSelect={handleMapSelect}
+              />
             )}
 
             {/* Current location result */}
