@@ -71,6 +71,10 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
     }
   }, [restaurantId]);
 
+  useEffect(() => {
+    if (showInactive && restaurantId) loadInactiveCombos();
+  }, [showInactive, restaurantId]);
+
   async function loadProducts() {
     const { data } = await supabase
       .from("products")
