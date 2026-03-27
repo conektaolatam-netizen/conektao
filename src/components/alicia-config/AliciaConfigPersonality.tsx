@@ -146,9 +146,6 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
     </div>
   );
 }
-  const pr = config.personality_rules || {};
-  const esc = config.escalation_config || {};
-  const [tone, setTone] = useState(pr.tone || "casual_professional");
   const [assistantName, setAssistantName] = useState(pr.name || "Alicia");
   const [greeting, setGreeting] = useState(config.greeting_message || "");
   const [humanPhone, setHumanPhone] = useState(esc.human_phone || "");
