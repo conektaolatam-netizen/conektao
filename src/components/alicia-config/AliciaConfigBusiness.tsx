@@ -39,10 +39,6 @@ export default function AliciaConfigBusiness({ config, onSave }: Props) {
           <label className="block text-sm font-medium text-foreground mb-1">¿Dónde están ubicados?</label>
           <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Calle 44 #5-20, Ciudad" className="border-border" />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">¿Tienen varias sedes o referencias especiales?</label>
-          <Textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Estamos en el centro comercial, piso 2..." rows={2} className="border-border" />
-        </div>
         <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white">
           {saving ? "Guardando..." : "Guardar"}
         </Button>
