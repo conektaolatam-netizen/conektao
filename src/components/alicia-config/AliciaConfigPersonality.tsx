@@ -21,6 +21,8 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const [newProhibited, setNewProhibited] = useState("");
   const [rules, setRules] = useState<string[]>(pr.rules || []);
   const [newFormatRule, setNewFormatRule] = useState("");
+  const [vocabulary, setVocabulary] = useState<string[]>(pr.preferred_vocabulary || []);
+  const [newVocab, setNewVocab] = useState("");
   const [saving, setSaving] = useState(false);
 
   const addRule = () => { if (newRule.trim()) { setCustomRules([...customRules, newRule.trim()]); setNewRule(""); } };
