@@ -40,7 +40,7 @@ function groupProducts(products: any[]): CategoryWithProducts[] {
     .map(([name, products]) => ({ name, products: products.sort((a, b) => a.name.localeCompare(b.name)) }));
 }
 
-export default function AliciaConfigMenu({ config, onReload }: Props) {
+export default function AliciaConfigMenu({ config, configId, onSave, onReload }: Props) {
   const [showImport, setShowImport] = useState(false);
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +51,8 @@ export default function AliciaConfigMenu({ config, onReload }: Props) {
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState<ProductItem | null>(null);
   const [reactivating, setReactivating] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const restaurantId = config.restaurant_id;
