@@ -2029,6 +2029,110 @@ function handlePriceQuestion(text: string, effectiveProducts: any[], config: any
   return `${displayName}${catLabel} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
 }
 
+// ==================== COMBO COMPOSITION INTERCEPTOR ====================
+
+function handleComboCompositionQuestion(
+  text: string,
+  effectiveProducts: any[],
+  comboItemsMap: Map<string, { product_name: string; quantity: number; fraction: number }[]>,
+  config: any,
+): string | null {
+  // Detect composition question patterns (Spanish/Colombian)
+  const compositionPatterns = [
+    /(?:qu[ée])\s+(?:trae|incluye|tiene|lleva|viene|contiene)/i,
+    /(?:de\s+qu[ée])\s+(?:es|está|consta)/i,
+    /(?:qu[ée]\s+(?:productos?|cosas?))\s+(?:trae|incluye|tiene|lleva)/i,
+    /(?:contenido|composici[oó]n|componentes?)\s+(?:de(?:l)?)/i,
+    /(?:qu[ée]\s+(?:hay|viene)\s+(?:en|dentro))/i,
+    /(?:qu[ée]\s+(?:es\s+(?:el|la|un|una)))\s+(?:combo|paquete|promo)/i,
+  ];
+
+  const isComposition = compositionPatterns.some((p) => p.test(text));
+  if (!isComposition) return null;
+
+  // Strip question patterns to extract combo name
+  let comboQuery = text;
+  const stripPatterns = [
+    /(?:qu[ée])\s+(?:trae|incluye|tiene|lleva|viene|contiene)\s+(?:el|la|un|una|los|las)?\s*/i,
+    /(?:de\s+qu[ée])\s+(?:es|está|consta)\s+(?:el|la|un|una)?\s*/i,
+    /(?:qu[ée]\s+(?:productos?|cosas?))\s+(?:trae|incluye|tiene|lleva)\s+(?:el|la|un|una)?\s*/i,
+    /(?:contenido|composici[oó]n|componentes?)\s+(?:de(?:l)?)\s*/i,
+    /(?:qu[ée]\s+(?:hay|viene)\s+(?:en|dentro)\s+(?:de(?:l)?)?)\s*/i,
+    /(?:qu[ée]\s+(?:es\s+(?:el|la|un|una)))\s*/i,
+  ];
+  for (const sp of stripPatterns) {
+    comboQuery = comboQuery.replace(sp, "");
+  }
+  comboQuery = comboQuery.replace(/[?¿!¡.,]+/g, "").trim();
+
+  if (!comboQuery || comboQuery.length < 2) return null;
+
+  // Find matching combo in effectiveProducts
+  const combos = effectiveProducts.filter((p: any) => p.is_combo);
+  if (combos.length === 0) return null;
+
+  const queryLower = comboQuery.toLowerCase();
+  let bestMatch: any = null;
+  let bestScore = 0;
+
+  for (const combo of combos) {
+    const comboNameLower = (combo.name || "").toLowerCase();
+    // Exact match
+    if (comboNameLower === queryLower) {
+      bestMatch = combo;
+      bestScore = 100;
+      break;
+    }
+    // Contains match
+    if (comboNameLower.includes(queryLower) || queryLower.includes(comboNameLower)) {
+      const score = queryLower.length / Math.max(comboNameLower.length, 1) * 50;
+      if (score > bestScore) {
+        bestMatch = combo;
+        bestScore = score;
+      }
+    }
+    // Word overlap
+    const queryWords = queryLower.split(/\s+/);
+    const comboWords = comboNameLower.split(/\s+/);
+    const overlap = queryWords.filter((w: string) => comboWords.some((cw: string) => cw.includes(w) || w.includes(cw))).length;
+    const overlapScore = (overlap / Math.max(queryWords.length, 1)) * 40;
+    if (overlapScore > bestScore) {
+      bestMatch = combo;
+      bestScore = overlapScore;
+    }
+  }
+
+  if (!bestMatch || bestScore < 15) return null;
+
+  // Get items from the preloaded map
+  const items = comboItemsMap.get(bestMatch.id);
+  if (!items || items.length === 0) {
+    // Combo exists but has no items configured — let AI handle it
+    return null;
+  }
+
+  // Build response
+  const price = bestMatch.price || 0;
+  const currency = config?.currency || "COP";
+  const formattedPrice = currency === "COP"
+    ? `$${Math.round(price).toLocaleString("es-CO")}`
+    : `$${price.toFixed(2)}`;
+
+  let msg = `El *${bestMatch.name}* incluye:\n`;
+  for (const item of items) {
+    const qty = item.quantity * item.fraction;
+    const qtyLabel = qty === 1 ? "" : `${qty}x `;
+    msg += `• ${qtyLabel}${item.product_name}\n`;
+  }
+  msg += `\n💰 Precio: ${formattedPrice}`;
+  if (bestMatch.description) {
+    msg += `\n📝 ${bestMatch.description}`;
+  }
+  msg += `\n\n¿Te gustaría pedirlo?`;
+
+  return msg;
+}
+
 // ==================== AI INTEGRATION ====================
 
 /** Call AI for response generation */
