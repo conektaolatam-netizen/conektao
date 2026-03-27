@@ -73,6 +73,7 @@ const OnboardingStepConfig = ({ data, onSave, saving, onBack }: Props) => {
         prep_start: prepStartTime,
       },
       delivery_config: {
+        enabled: deliveryEnabled,
         estimated_time: deliveryTime,
         min_order: minOrder ? Number(minOrder) : 0,
         zones: validZones.map((z) => ({ name: z.name, cost: Number(z.cost) })),
