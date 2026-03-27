@@ -409,11 +409,27 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} — {formatPrice(p.price)}
-                              </SelectItem>
-                            ))}
+                            {Object.entries(
+                              products.reduce<Record<string, Product[]>>((acc, p) => {
+                                const cat = p.category_name || "Sin categoría";
+                                if (!acc[cat]) acc[cat] = [];
+                                acc[cat].push(p);
+                                return acc;
+                              }, {})
+                            )
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([catName, catProducts]) => (
+                                <React.Fragment key={catName}>
+                                  <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover">
+                                    {catName}
+                                  </div>
+                                  {catProducts.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                                    <SelectItem key={p.id} value={p.id} className="pl-4">
+                                      {p.name} — {formatPrice(p.price)}
+                                    </SelectItem>
+                                  ))}
+                                </React.Fragment>
+                              ))}
                           </SelectContent>
                         </Select>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeItem(idx)}>
