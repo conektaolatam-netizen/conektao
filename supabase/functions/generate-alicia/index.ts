@@ -274,7 +274,7 @@ UBICACIÓN: ${config.location_details || config.location_address || "Consulta co
 ${scheduleBlock}
 
 TONO: ${toneBlock}
-- Varía: ${(personality.preferred_vocabulary || ["dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto"]).join(", ")}
+${personality.preferred_vocabulary?.length ? `- Varía: ${personality.preferred_vocabulary.join(", ")}` : ""}
 
 SALUDO: "${config.greeting_message || `¡Hola! Bienvenido a ${config.restaurant_name} 😊 ¿En qué te puedo ayudar?`}"
 ${menuLinkBlock}
