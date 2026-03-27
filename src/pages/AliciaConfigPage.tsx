@@ -219,17 +219,6 @@ export default function AliciaConfigPage() {
               );
             })}
 
-            {/* Generate button */}
-            <div className="pt-4">
-              <Button 
-                onClick={handleGenerateAlicia} 
-                disabled={generating}
-                className="w-full bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white shadow-md gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                {generating ? "Generando..." : "Generar mi Alicia"}
-              </Button>
-            </div>
           </div>
         </nav>
 
