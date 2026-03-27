@@ -380,6 +380,7 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
       toast.success("Combo eliminado");
       setDeleteTarget(null);
       loadCombos();
+      if (showInactive) loadInactiveCombos();
     } catch (err) {
       toast.error("Error al eliminar combo");
     }
