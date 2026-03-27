@@ -182,6 +182,40 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
           <div><h3 className="text-lg font-semibold text-white">Menú</h3><p className="text-xs text-white/80">Los productos que Alicia puede ofrecer</p></div>
         </div>
         <div className="p-5">
+          {/* PDF del menú */}
+          <div className="mb-5 rounded-lg border border-border/30 bg-muted/40 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-teal-400" />
+              <span className="text-sm font-medium text-foreground">Menú en PDF</span>
+              <span className="text-xs text-muted-foreground">(se envía por WhatsApp cuando el cliente pide la carta)</span>
+            </div>
+            {menuLink ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                <a href={menuLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 underline underline-offset-2 truncate max-w-xs">
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  Ver PDF actual
+                </a>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploadingPdf}>
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingPdf ? "Subiendo..." : "Reemplazar"}
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={handleRemovePdf}>
+                  <X className="h-3.5 w-3.5" />
+                  Quitar
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-muted-foreground">No hay PDF cargado.</p>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploadingPdf}>
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingPdf ? "Subiendo..." : "Subir PDF"}
+                </Button>
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+          </div>
+
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">
               {totalProducts > 0
