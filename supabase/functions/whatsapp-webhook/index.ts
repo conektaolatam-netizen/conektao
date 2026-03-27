@@ -3844,9 +3844,29 @@ Deno.serve(async (req) => {
             category_name: p.categories?.name || "Otros",
           }));
 
+          // ── COMBOS at confirmation time ──
+          const { data: confirmCombos } = await supabase
+            .from("product_combos")
+            .select("id, name, description, calculated_price, override_price, category_id, categories(name)")
+            .eq("restaurant_id", rId)
+            .eq("is_active", true);
+          const confirmComboEntries = (confirmCombos || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            price: c.override_price ?? c.calculated_price,
+            description: c.description || "",
+            category_id: c.category_id,
+            category_name: c.categories?.name || "Combos",
+            is_combo: true,
+            requires_packaging: false,
+            packaging_price: 0,
+            portions: 1,
+          }));
+          const allConfirmProds = [...confirmProdsWithCategory, ...confirmComboEntries];
+
           // ── SYSTEM OVERRIDES: Apply overrides at confirmation time ──
           const confirmOverrides = await getActiveOverrides(rId);
-          const effectiveConfirmProds = applyOverridesToProducts(confirmProdsWithCategory, confirmOverrides);
+          const effectiveConfirmProds = applyOverridesToProducts(allConfirmProds, confirmOverrides);
 
           // ── Check if restaurant is closed by override ──
           if (isRestaurantClosedOverride(confirmOverrides)) {
