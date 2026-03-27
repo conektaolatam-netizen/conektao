@@ -656,19 +656,55 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
+      {/* Delete (soft) confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar combo?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.name}" dejará de estar disponible. Puedes recrearlo cuando quieras.
+              "{deleteTarget?.name}" dejará de estar disponible. Puedes reactivarlo desde la sección de inactivos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reactivate confirmation */}
+      <AlertDialog open={!!reactivateTarget} onOpenChange={(open) => !open && setReactivateTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reactivar combo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{reactivateTarget?.name}" volverá a estar disponible en el menú de Alicia.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivateCombo} disabled={reactivating} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              {reactivating ? "Reactivando..." : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Permanent delete confirmation */}
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{permanentDeleteTarget?.name}" será eliminado por completo de la base de datos. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={permanentDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePermanentDeleteCombo} disabled={permanentDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {permanentDeleting ? "Eliminando..." : "Eliminar permanentemente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

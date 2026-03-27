@@ -137,6 +137,30 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
     }
   }
 
+  async function handlePermanentDeleteProduct() {
+    if (!permanentDeleteTarget) return;
+    setPermanentDeleting(true);
+    try {
+      const { error } = await supabase.from("products").delete().eq("id", permanentDeleteTarget.id);
+      if (error) {
+        if (error.message?.includes("foreign key") || error.message?.includes("violates") || error.code === "23503") {
+          toast({ title: "No se puede eliminar", description: `"${permanentDeleteTarget.name}" tiene ventas u otros registros asociados. Solo puede permanecer inactivo.`, variant: "destructive" });
+        } else {
+          throw error;
+        }
+        return;
+      }
+      toast({ title: "Eliminado permanentemente", description: `"${permanentDeleteTarget.name}" fue eliminado de la base de datos.` });
+      setPermanentDeleteTarget(null);
+      loadInactiveProducts();
+    } catch (err: any) {
+      console.error("Error permanently deleting product:", err);
+      toast({ title: "Error", description: err?.message || "No se pudo eliminar el producto.", variant: "destructive" });
+    } finally {
+      setPermanentDeleting(false);
+    }
+  }
+
   async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
