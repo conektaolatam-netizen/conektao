@@ -48,7 +48,7 @@ export default function AliciaConfigPage() {
   const [loading, setLoading] = useState(true);
   const [configId, setConfigId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("business");
-  const [generating, setGenerating] = useState(false);
+  
   const [productCount, setProductCount] = useState(0);
 
   const [configVersion, setConfigVersion] = useState(0);
