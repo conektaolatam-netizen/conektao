@@ -28,7 +28,7 @@ const OnboardingStepConfig = ({ data, onSave, saving, onBack }: Props) => {
   const [openTime, setOpenTime] = useState(oh.open || "10:00");
   const [closeTime, setCloseTime] = useState(oh.close || "22:00");
   const [prepStartTime, setPrepStartTime] = useState(oh.prep_start || "09:30");
-  const [deliveryEnabled, setDeliveryEnabled] = useState(data.delivery_enabled ?? true);
+  const [deliveryEnabled, setDeliveryEnabled] = useState(dc.enabled ?? true);
   const [deliveryTime, setDeliveryTime] = useState(dc.estimated_time || "30-45 min");
   const [minOrder, setMinOrder] = useState(dc.min_order || "");
   const [selectedPayments, setSelectedPayments] = useState<string[]>(pc.methods || ["efectivo", "nequi"]);
