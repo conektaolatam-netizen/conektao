@@ -4246,12 +4246,12 @@ Deno.serve(async (req) => {
 
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
-      const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
+      const effectiveProducts = applyOverridesToProducts(allProdsWithCategory, activeOverrides);
       const overridePromptBlock = buildOverridePromptBlock(allProdsWithCategory, activeOverrides);
       tlog(
         "info",
         rId,
-        `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`,
+        `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${allProdsWithCategory.length} products effective`,
       );
 
       // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
