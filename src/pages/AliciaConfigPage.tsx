@@ -52,10 +52,11 @@ export default function AliciaConfigPage() {
   const [productCount, setProductCount] = useState(0);
 
   const [configVersion, setConfigVersion] = useState(0);
+  const skipRealtimeRef = React.useRef(false);
 
   useEffect(() => { loadConfig(); }, []);
 
-  // Realtime subscription to whatsapp_configs changes
+  // Realtime subscription to whatsapp_configs changes (external only)
   useEffect(() => {
     if (!configId) return;
     const channel = supabase
@@ -63,7 +64,12 @@ export default function AliciaConfigPage() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_configs", filter: `id=eq.${configId}` },
-        (payload) => {
+        async (payload) => {
+          // Skip realtime events triggered by our own saves
+          if (skipRealtimeRef.current) {
+            skipRealtimeRef.current = false;
+            return;
+          }
           setConfig(payload.new);
           setConfigVersion(v => v + 1);
         }
@@ -108,17 +114,19 @@ export default function AliciaConfigPage() {
 
   async function saveField(field: string, value: any) {
     if (!configId) return;
+    skipRealtimeRef.current = true;
     const { error } = await supabase.from("whatsapp_configs")
       .update({ [field]: value, updated_at: new Date().toISOString() }).eq("id", configId);
-    if (error) { toast.error("Error al guardar"); console.error(error); }
+    if (error) { toast.error("Error al guardar"); console.error(error); skipRealtimeRef.current = false; }
     else { setConfig((prev: any) => ({ ...prev, [field]: value })); toast.success("Guardado ✅"); }
   }
 
   async function saveMultipleFields(fields: Record<string, any>) {
     if (!configId) return;
+    skipRealtimeRef.current = true;
     const { error } = await supabase.from("whatsapp_configs")
       .update({ ...fields, updated_at: new Date().toISOString() }).eq("id", configId);
-    if (error) { toast.error("Error al guardar"); console.error(error); }
+    if (error) { toast.error("Error al guardar"); console.error(error); skipRealtimeRef.current = false; }
     else { setConfig((prev: any) => ({ ...prev, ...fields })); toast.success("Guardado ✅"); }
   }
 
