@@ -75,6 +75,15 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
           <Textarea value={greeting} onChange={e => setGreeting(e.target.value)} rows={2} placeholder="¡Hola! Soy Alicia, ¿en qué te puedo ayudar?" className="border-border" />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">Si el cliente necesita un humano, ¿a qué número lo envías?</label>
+          <Input value={humanPhone} onChange={e => setHumanPhone(e.target.value)} placeholder="3001234567" className="border-border" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">Mensaje de escalamiento</label>
+          <Input value={escMsg} onChange={e => setEscMsg(e.target.value)} placeholder="Comunícate al..." className="border-border" />
+        </div>
+
         {/* Preferred Vocabulary */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
@@ -95,14 +104,6 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
               </div>
             ))}
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Si el cliente necesita un humano, ¿a qué número lo envías?</label>
-          <Input value={humanPhone} onChange={e => setHumanPhone(e.target.value)} placeholder="3001234567" className="border-border" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Mensaje de escalamiento</label>
-          <Input value={escMsg} onChange={e => setEscMsg(e.target.value)} placeholder="Comunícate al..." className="border-border" />
         </div>
 
         {/* Prohibited Words */}
