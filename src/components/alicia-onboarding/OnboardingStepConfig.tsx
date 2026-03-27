@@ -67,7 +67,6 @@ const OnboardingStepConfig = ({ data, onSave, saving, onBack }: Props) => {
       restaurant_name: data.restaurant_name,
       location_address: city.trim(),
       location_details: neighborhood.trim(),
-      delivery_enabled: deliveryEnabled,
       operating_hours: {
         open: openTime,
         close: closeTime,
