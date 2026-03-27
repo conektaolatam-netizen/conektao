@@ -4247,7 +4247,7 @@ Deno.serve(async (req) => {
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
       const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
-      const overridePromptBlock = buildOverridePromptBlock(prodsWithCategory, activeOverrides);
+      const overridePromptBlock = buildOverridePromptBlock(allProdsWithCategory, activeOverrides);
       tlog(
         "info",
         rId,
