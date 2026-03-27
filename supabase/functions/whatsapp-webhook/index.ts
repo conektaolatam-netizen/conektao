@@ -1621,8 +1621,9 @@ ${ctx}`;
 function buildMenuFromProducts(products: any[]): string {
   if (!products || products.length === 0) return "MENÚ: No disponible en este momento";
   const pizzaSizes: Record<string, { desc: string; personal?: number; mediana?: number; cat: string }> = {};
-  const otherProducts: { name: string; desc: string; price: number; cat: string }[] = [];
+  const otherProducts: { name: string; desc: string; price: number; cat: string; portions: number }[] = [];
   for (const p of products) {
+    if (p.is_combo) continue; // combos handled separately
     const cat = p.category_name || "Otros",
       name = (p.name || "").trim(),
       desc = (p.description || "").trim(),
@@ -1671,6 +1672,20 @@ function buildMenuFromProducts(products: any[]): string {
     }
     menu += "\n";
   }
+
+  // ── COMBOS section ──
+  const comboProducts = products.filter((p: any) => p.is_combo === true);
+  if (comboProducts.length > 0) {
+    menu += "🎯 COMBOS Y COMBINACIONES:\n";
+    for (const c of comboProducts) {
+      const name = (c.name || "").trim();
+      const desc = (c.description || "").trim();
+      const price = Number(c.price);
+      menu += `${name} | ${desc || "—"} | $${price.toLocaleString("es-CO")}\n`;
+    }
+    menu += "\n";
+  }
+
   return menu + "=== FIN MENÚ ===";
 }
 
@@ -3844,9 +3859,29 @@ Deno.serve(async (req) => {
             category_name: p.categories?.name || "Otros",
           }));
 
+          // ── COMBOS at confirmation time ──
+          const { data: confirmCombos } = await supabase
+            .from("product_combos")
+            .select("id, name, description, calculated_price, override_price, category_id, categories(name)")
+            .eq("restaurant_id", rId)
+            .eq("is_active", true);
+          const confirmComboEntries = (confirmCombos || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            price: c.override_price ?? c.calculated_price,
+            description: c.description || "",
+            category_id: c.category_id,
+            category_name: c.categories?.name || "Combos",
+            is_combo: true,
+            requires_packaging: false,
+            packaging_price: 0,
+            portions: 1,
+          }));
+          const allConfirmProds = [...confirmProdsWithCategory, ...confirmComboEntries];
+
           // ── SYSTEM OVERRIDES: Apply overrides at confirmation time ──
           const confirmOverrides = await getActiveOverrides(rId);
-          const effectiveConfirmProds = applyOverridesToProducts(confirmProdsWithCategory, confirmOverrides);
+          const effectiveConfirmProds = applyOverridesToProducts(allConfirmProds, confirmOverrides);
 
           // ── Check if restaurant is closed by override ──
           if (isRestaurantClosedOverride(confirmOverrides)) {
@@ -4223,14 +4258,35 @@ Deno.serve(async (req) => {
         category_name: p.categories?.name || "Otros",
       }));
 
+      // ── COMBOS: Load active combos and inject as virtual products ──
+      const { data: combos } = await supabase
+        .from("product_combos")
+        .select("id, name, description, calculated_price, override_price, category_id, categories(name)")
+        .eq("restaurant_id", rId)
+        .eq("is_active", true);
+      const comboEntries = (combos || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        price: c.override_price ?? c.calculated_price,
+        description: c.description || "",
+        category_id: c.category_id,
+        category_name: c.categories?.name || "Combos",
+        is_combo: true,
+        requires_packaging: false,
+        packaging_price: 0,
+        portions: 1,
+      }));
+      const allProdsWithCategory = [...prodsWithCategory, ...comboEntries];
+      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos`);
+
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
-      const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
-      const overridePromptBlock = buildOverridePromptBlock(prodsWithCategory, activeOverrides);
+      const effectiveProducts = applyOverridesToProducts(allProdsWithCategory, activeOverrides);
+      const overridePromptBlock = buildOverridePromptBlock(allProdsWithCategory, activeOverrides);
       tlog(
         "info",
         rId,
-        `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${prodsWithCategory.length} products effective`,
+        `System overrides loaded: ${activeOverrides.length} active, ${effectiveProducts.length}/${allProdsWithCategory.length} products effective`,
       );
 
       // ── RESTAURANT AVAILABILITY CHECK: Block early if closed ──
