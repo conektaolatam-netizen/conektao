@@ -4403,7 +4403,6 @@ Deno.serve(async (req) => {
           }
         }
       }
-      }
       console.log(`🎯 Combos loaded: ${comboEntries.length} active combos, ${comboItemsMap.size} with items`);
 
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
