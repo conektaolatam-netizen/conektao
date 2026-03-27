@@ -48,6 +48,13 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Combo | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveCombos, setInactiveCombos] = useState<Combo[]>([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
+  const [reactivateTarget, setReactivateTarget] = useState<Combo | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<Combo | null>(null);
+  const [reactivating, setReactivating] = useState(false);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
 
   // Create/edit form state
   const [editCombo, setEditCombo] = useState<Combo | null>(null);
