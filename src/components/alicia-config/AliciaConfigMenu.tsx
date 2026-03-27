@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff, FileText, Upload, ExternalLink, X } from "lucide-react";
+import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff, FileText, Upload, ExternalLink, X, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MenuOnboardingFlow, ExtractedMenuData } from "@/components/onboarding/MenuOnboardingFlow";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import AliciaConfigCombos from "./AliciaConfigCombos";
 
 interface ProductItem {
   id: string;
