@@ -23,6 +23,8 @@ interface CategoryWithProducts {
 
 interface Props { config: any; configId: string; onSave: (field: string, value: any) => Promise<void>; onReload: () => void; }
 
+const BUCKET = "whatsapp-media";
+
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(price);
 
