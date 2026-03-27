@@ -51,7 +51,26 @@ export default function AliciaConfigPage() {
   const [generating, setGenerating] = useState(false);
   const [productCount, setProductCount] = useState(0);
 
+  const [configVersion, setConfigVersion] = useState(0);
+
   useEffect(() => { loadConfig(); }, []);
+
+  // Realtime subscription to whatsapp_configs changes
+  useEffect(() => {
+    if (!configId) return;
+    const channel = supabase
+      .channel(`alicia-config-${configId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "whatsapp_configs", filter: `id=eq.${configId}` },
+        (payload) => {
+          setConfig(payload.new);
+          setConfigVersion(v => v + 1);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [configId]);
 
   async function loadProductCount(restaurantId: string) {
     const { count } = await supabase
