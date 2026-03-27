@@ -395,10 +395,11 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
 }
 
 /* Extracted sub-component for category accordion list */
-function CategoryList({ categories, onAction, actionIcon }: {
+function CategoryList({ categories, onAction, actionIcon, onPermanentDelete }: {
   categories: CategoryWithProducts[];
   onAction: (product: ProductItem) => void;
   actionIcon: "delete" | "reactivate";
+  onPermanentDelete?: (product: ProductItem) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -421,18 +422,31 @@ function CategoryList({ categories, onAction, actionIcon }: {
                       <span className="text-xs text-muted-foreground ml-2">{formatPrice(product.price)}</span>
                     )}
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className={`h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity ${
-                      actionIcon === "delete"
-                        ? "text-destructive hover:text-destructive hover:bg-destructive/10"
-                        : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                    }`}
-                    onClick={() => onAction(product)}
-                  >
-                    {actionIcon === "delete" ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={`h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity ${
+                        actionIcon === "delete"
+                          ? "text-destructive hover:text-destructive hover:bg-destructive/10"
+                          : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      }`}
+                      onClick={() => onAction(product)}
+                    >
+                      {actionIcon === "delete" ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                    </Button>
+                    {onPermanentDelete && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onPermanentDelete(product)}
+                        title="Eliminar permanentemente"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
