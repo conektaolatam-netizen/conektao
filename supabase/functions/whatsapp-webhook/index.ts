@@ -2029,79 +2029,6 @@ function handlePriceQuestion(text: string, effectiveProducts: any[], config: any
   return `${displayName}${catLabel} cuesta ${formatCOP(resolved.entry.price)}.\n¿Quieres que te agregue una al pedido?`;
 }
 
-// ==================== COMBO COMPOSITION INTERCEPTOR ====================
-
-function handleComboCompositionQuestion(
-  text: string,
-  effectiveProducts: any[],
-  comboItemsMap: Map<string, { product_name: string; fraction: number; quantity: number }[]>
-): string | null {
-  // Detect composition question patterns (Colombian Spanish)
-  const compositionPatterns = [
-    /(?:qu[ée])\s+(?:trae|incluye|tiene|lleva|viene|contiene)/i,
-    /(?:de\s+qu[ée])\s+(?:es|est[áa]|consta)/i,
-    /(?:qu[ée]\s+(?:productos?|cosas?))\s+(?:trae|incluye|tiene|lleva)/i,
-    /(?:contenido|composici[óo]n|componentes?)\s+(?:de(?:l)?)/i,
-    /(?:qu[ée]\s+(?:va|hay)\s+en)/i,
-    /(?:c[óo]mo\s+(?:es|viene|est[áa]\s+compuesto))/i,
-  ];
-
-  const isComposition = compositionPatterns.some((p) => p.test(text));
-  if (!isComposition) return null;
-
-  // Strip question pattern to extract combo name
-  let comboQuery = text;
-  const stripPatterns = [
-    /(?:qu[ée])\s+(?:trae|incluye|tiene|lleva|viene|contiene)\s+(?:el|la|un|una|los|las)?\s*/i,
-    /(?:de\s+qu[ée])\s+(?:es|est[áa]|consta)\s+(?:el|la|un|una|los|las)?\s*/i,
-    /(?:qu[ée]\s+(?:productos?|cosas?))\s+(?:trae|incluye|tiene|lleva)\s+(?:el|la|un|una|los|las)?\s*/i,
-    /(?:contenido|composici[óo]n|componentes?)\s+(?:de(?:l)?)\s*/i,
-    /(?:qu[ée]\s+(?:va|hay)\s+en)\s+(?:el|la|un|una|los|las)?\s*/i,
-    /(?:c[óo]mo\s+(?:es|viene|est[áa]\s+compuesto))\s+(?:el|la|un|una|los|las)?\s*/i,
-  ];
-  for (const sp of stripPatterns) {
-    comboQuery = comboQuery.replace(sp, "");
-  }
-  comboQuery = comboQuery.replace(/[?¿!¡.,]+/g, "").trim();
-
-  if (!comboQuery || comboQuery.length < 2) return null;
-
-  // Only search in combo products
-  const comboProducts = effectiveProducts.filter((p: any) => p.is_combo === true);
-  if (comboProducts.length === 0) return null;
-
-  // Use shared resolver against combo-only entries
-  const comboEntries = buildProductEntries(comboProducts);
-  const resolved = resolveProductEntry(comboQuery, 0, comboEntries);
-
-  if (!resolved.entry) return null;
-
-  // Find the original combo to get its ID
-  const matchedCombo = comboProducts.find(
-    (p: any) => (p.name || "").toLowerCase().trim() === resolved.entry!.name
-  );
-  if (!matchedCombo) return null;
-
-  const items = comboItemsMap.get(matchedCombo.id);
-  if (!items || items.length === 0) {
-    // Combo exists but has no items loaded — fall back to description
-    const desc = matchedCombo.description || "combo especial";
-    return `${matchedCombo.name}: ${desc}\nPrecio: ${formatCOP(resolved.entry.price)}\n¿Te gustaría pedirlo?`;
-  }
-
-  // Build detailed composition response
-  const displayName = matchedCombo.name;
-  let msg = `${displayName} incluye:\n`;
-  for (const item of items) {
-    const fractionLabel = item.fraction < 1 ? ` (${item.fraction === 0.5 ? "mitad" : `${item.fraction}`})` : "";
-    const qtyLabel = item.quantity > 1 ? `${item.quantity}x ` : "";
-    msg += `- ${qtyLabel}${item.product_name}${fractionLabel}\n`;
-  }
-  msg += `\nPrecio: ${formatCOP(resolved.entry.price)}\n¿Te gustaría pedirlo? 😋`;
-
-  return msg;
-}
-
 // ==================== AI INTEGRATION ====================
 
 /** Call AI for response generation */
@@ -4350,21 +4277,7 @@ Deno.serve(async (req) => {
         portions: 1,
       }));
       const allProdsWithCategory = [...prodsWithCategory, ...comboEntries];
-      // ── COMBO ITEMS: Preload composition for interceptor ──
-      const comboIds = comboEntries.map((c: any) => c.id);
-      let comboItemsMap = new Map<string, { product_name: string; fraction: number; quantity: number }[]>();
-      if (comboIds.length > 0) {
-        const { data: comboItemsRaw } = await supabase
-          .from("product_combo_items")
-          .select("combo_id, fraction, quantity, products(name)")
-          .in("combo_id", comboIds);
-        for (const ci of comboItemsRaw || []) {
-          const arr = comboItemsMap.get(ci.combo_id) || [];
-          arr.push({ product_name: (ci as any).products?.name || "Producto", fraction: ci.fraction, quantity: ci.quantity });
-          comboItemsMap.set(ci.combo_id, arr);
-        }
-      }
-      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos, ${comboItemsMap.size} with items`);
+      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos`);
 
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
@@ -4641,29 +4554,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // === COMBO COMPOSITION INTERCEPTOR ===
-      // Check if user is asking what a combo includes — respond with DB data, skip AI
-      const compositionAnswer = handleComboCompositionQuestion(userTextForPrice, effectiveProducts || [], comboItemsMap);
-      if (compositionAnswer) {
-        console.log(`📦 COMBO COMPOSITION intercepted for ${from}: "${userTextForPrice.substring(0, 60)}"`);
-        freshMsgs.push({ role: "assistant", content: compositionAnswer, timestamp: new Date().toISOString() });
-        await supabase
-          .from("whatsapp_conversations")
-          .update({
-            messages: freshMsgs.slice(-30),
-            customer_name: freshCustomerName,
-            current_order: freshCurrentOrder,
-            order_status: freshOrderStatus,
-          })
-          .eq("id", conv.id);
-        await sendWA(pid, token, from, compositionAnswer, true);
-        return new Response(JSON.stringify({ status: "composition_answered" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-
+      const ai = await callAI(sys, finalMsgs);
 
       if (!ai) {
         console.error("AI returned empty response for", from);
