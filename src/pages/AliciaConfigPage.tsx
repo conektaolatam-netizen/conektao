@@ -173,15 +173,15 @@ export default function AliciaConfigPage() {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "business": return <AliciaConfigBusiness config={config} onSave={saveMultipleFields} />;
-      case "menu": return <AliciaConfigMenu config={config} configId={configId!} onSave={saveField} onReload={loadConfig} />;
-      case "payments": return <AliciaConfigPayments config={config} onSave={saveField} />;
-      case "schedule": return <AliciaConfigSchedule config={config} onSave={saveMultipleFields} />;
-      case "delivery": return <AliciaConfigDelivery config={config} onSave={saveField} />;
-      case "reservations": return <AliciaConfigReservations config={config} onSave={saveField} />;
-      case "upselling": return <AliciaConfigUpselling config={config} onSave={saveField} />;
-      case "personality": return <AliciaConfigPersonality config={config} onSave={saveMultipleFields} />;
-      case "connection": return <AliciaConfigConnection config={config} onSave={saveMultipleFields} />;
+      case "business": return <AliciaConfigBusiness key={configVersion} config={config} onSave={saveMultipleFields} />;
+      case "menu": return <AliciaConfigMenu key={configVersion} config={config} configId={configId!} onSave={saveField} onReload={loadConfig} />;
+      case "payments": return <AliciaConfigPayments key={configVersion} config={config} onSave={saveField} />;
+      case "schedule": return <AliciaConfigSchedule key={configVersion} config={config} onSave={saveMultipleFields} />;
+      case "delivery": return <AliciaConfigDelivery key={configVersion} config={config} onSave={saveField} />;
+      case "reservations": return <AliciaConfigReservations key={configVersion} config={config} onSave={saveField} />;
+      case "upselling": return <AliciaConfigUpselling key={configVersion} config={config} onSave={saveField} />;
+      case "personality": return <AliciaConfigPersonality key={configVersion} config={config} onSave={saveMultipleFields} />;
+      case "connection": return <AliciaConfigConnection key={configVersion} config={config} onSave={saveMultipleFields} />;
       default: return null;
     }
   };
