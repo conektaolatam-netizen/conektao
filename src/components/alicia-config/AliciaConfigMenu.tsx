@@ -140,18 +140,29 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
       toast({ title: "Formato inválido", description: "Solo se permiten archivos PDF.", variant: "destructive" });
       return;
     }
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Archivo muy grande", description: `El PDF pesa ${fileSizeMB} MB. El máximo permitido es 50 MB.`, variant: "destructive" });
+      return;
+    }
     setUploadingPdf(true);
     try {
       const filePath = `${restaurantId}/Carta.pdf`;
       const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, file, { upsert: true, contentType: "application/pdf" });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        if (uploadError.message?.includes("maximum allowed size")) {
+          toast({ title: "Archivo muy grande", description: `El PDF pesa ${fileSizeMB} MB y excede el límite del servidor. Intenta comprimir el archivo.`, variant: "destructive" });
+        } else {
+          toast({ title: "Error", description: uploadError.message || "No se pudo subir el PDF.", variant: "destructive" });
+        }
+        return;
+      }
       const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
-      const publicUrl = urlData.publicUrl;
-      await onSave("menu_link", publicUrl);
-      toast({ title: "PDF subido", description: "El menú en PDF se actualizó correctamente." });
-    } catch (err) {
+      await onSave("menu_link", urlData.publicUrl);
+      toast({ title: "PDF subido ✅", description: `Menú actualizado (${fileSizeMB} MB).` });
+    } catch (err: any) {
       console.error("Error uploading PDF:", err);
-      toast({ title: "Error", description: "No se pudo subir el PDF.", variant: "destructive" });
+      toast({ title: "Error", description: err?.message || "No se pudo subir el PDF.", variant: "destructive" });
     } finally {
       setUploadingPdf(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
