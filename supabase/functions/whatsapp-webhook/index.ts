@@ -1171,7 +1171,25 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * Contains: Identity, Anti-hallucination, Format, Trato, Audios/Stickers/Context.
  * NO flow steps, NO tags, NO confirmation rules.
  */
-function buildCorePrompt(assistantName: string, escalationPhone: string, flowContext: string = "pedidos"): string {
+function buildCorePrompt(assistantName: string, escalationPhone: string, flowContext: string = "pedidos", personalityRules?: any): string {
+  const pr = personalityRules || {};
+
+  // --- Prohibited words: merge defaults with dynamic config ---
+  const defaultProhibited = ["mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey"];
+  const extraProhibited: string[] = Array.isArray(pr.prohibited_words) ? pr.prohibited_words : [];
+  const allProhibited = [...new Set([...defaultProhibited, ...extraProhibited])];
+  const prohibitedLine = `- PROHIBIDO: ${allProhibited.map((w: string) => `"${w}"`).join(", ")}. NUNCA apodos cariñosos`;
+
+  // --- Format rules: merge defaults with dynamic config ---
+  const defaultFormatRules = [
+    'Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes',
+    'NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"',
+    'PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)',
+  ];
+  const extraRules: string[] = Array.isArray(pr.rules) ? pr.rules : [];
+  const allFormatRules = [...defaultFormatRules, ...extraRules];
+  const formatBlock = allFormatRules.map((r: string) => `- ${r}`).join("\n");
+
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
@@ -1193,7 +1211,7 @@ ANTI-ALUCINACIÓN:
 - NUNCA muestres JSON ni tags al cliente
 
 TRATO AL CLIENTE:
-- PROHIBIDO: "mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey". NUNCA apodos cariñosos
+${prohibitedLine}
 - Cuando sepas el nombre → úsalo: "Claro, María" o "Listo, señor Carlos"
 - Si NO sabes el nombre → tutea con amabilidad: "Claro, con gusto te ayudo"
 - Sé paciente. NUNCA respondas con agresividad ni impaciencia
@@ -1201,9 +1219,7 @@ TRATO AL CLIENTE:
 - Si el cliente se frustra → pasa al humano
 
 FORMATO:
-- Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
-- NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"
-- PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
+${formatBlock}
 
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
