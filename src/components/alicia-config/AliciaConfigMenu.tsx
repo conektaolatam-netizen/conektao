@@ -53,6 +53,8 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState<ProductItem | null>(null);
   const [reactivating, setReactivating] = useState(false);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<ProductItem | null>(null);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
