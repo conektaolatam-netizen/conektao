@@ -2034,7 +2034,7 @@ function handlePriceQuestion(text: string, effectiveProducts: any[], config: any
 function handleComboCompositionQuestion(
   text: string,
   effectiveProducts: any[],
-  comboItemsMap: Map<string, { product_name: string; quantity: number; fraction: number }[]>,
+  comboItemsMap: Map<string, { product_name: string; quantity: number; fraction: number; category_name: string }[]>,
   config: any,
 ): string | null {
   // Detect composition question patterns (Spanish/Colombian)
