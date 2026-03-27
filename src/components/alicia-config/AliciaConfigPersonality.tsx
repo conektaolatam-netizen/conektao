@@ -34,6 +34,9 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const addFormatRule = () => { if (newFormatRule.trim()) { setRules([...rules, newFormatRule.trim()]); setNewFormatRule(""); } };
   const removeFormatRule = (i: number) => setRules(rules.filter((_, idx) => idx !== i));
 
+  const addVocab = () => { if (newVocab.trim()) { setVocabulary([...vocabulary, newVocab.trim()]); setNewVocab(""); } };
+  const removeVocab = (i: number) => setVocabulary(vocabulary.filter((_, idx) => idx !== i));
+
   const handleSave = async () => {
     setSaving(true);
     await onSave({
