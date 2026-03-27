@@ -139,6 +139,94 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
     }
   }
 
+  async function loadInactiveCombos() {
+    setLoadingInactive(true);
+    try {
+      const { data: combosData } = await supabase
+        .from("product_combos")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_active", false)
+        .order("name");
+
+      if (!combosData || combosData.length === 0) {
+        setInactiveCombos([]);
+        setLoadingInactive(false);
+        return;
+      }
+
+      const comboIds = combosData.map(c => c.id);
+      const { data: itemsData } = await supabase
+        .from("product_combo_items")
+        .select("id, combo_id, product_id, fraction, quantity, products(name, price)")
+        .in("combo_id", comboIds);
+
+      const combosWithItems: Combo[] = combosData.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        calculated_price: Number(c.calculated_price),
+        override_price: c.override_price != null ? Number(c.override_price) : null,
+        is_active: c.is_active,
+        items: (itemsData || [])
+          .filter((i: any) => i.combo_id === c.id)
+          .map((i: any) => ({
+            id: i.id,
+            product_id: i.product_id,
+            product_name: (i as any).products?.name || "?",
+            product_price: Number((i as any).products?.price || 0),
+            fraction: Number(i.fraction),
+            quantity: i.quantity,
+          })),
+      }));
+
+      setInactiveCombos(combosWithItems);
+    } catch (err) {
+      console.error("Error loading inactive combos:", err);
+    } finally {
+      setLoadingInactive(false);
+    }
+  }
+
+  async function handleReactivateCombo() {
+    if (!reactivateTarget) return;
+    setReactivating(true);
+    try {
+      const { error } = await supabase
+        .from("product_combos")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq("id", reactivateTarget.id);
+      if (error) throw error;
+      toast.success(`"${reactivateTarget.name}" reactivado ✅`);
+      setReactivateTarget(null);
+      loadCombos();
+      loadInactiveCombos();
+    } catch (err) {
+      toast.error("Error al reactivar combo");
+    } finally {
+      setReactivating(false);
+    }
+  }
+
+  async function handlePermanentDeleteCombo() {
+    if (!permanentDeleteTarget) return;
+    setPermanentDeleting(true);
+    try {
+      // Delete items first (FK), then the combo
+      await supabase.from("product_combo_items").delete().eq("combo_id", permanentDeleteTarget.id);
+      const { error } = await supabase.from("product_combos").delete().eq("id", permanentDeleteTarget.id);
+      if (error) throw error;
+      toast.success(`"${permanentDeleteTarget.name}" eliminado permanentemente`);
+      setPermanentDeleteTarget(null);
+      loadInactiveCombos();
+    } catch (err: any) {
+      console.error("Error permanently deleting combo:", err);
+      toast.error(err?.message || "No se pudo eliminar el combo.");
+    } finally {
+      setPermanentDeleting(false);
+    }
+  }
+
   function openCreate() {
     setEditCombo(null);
     setFormName("");
