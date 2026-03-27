@@ -388,14 +388,21 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-sm text-muted-foreground">
             {combos.length > 0 ? `${combos.length} combos activos` : "No tienes combos creados aún."}
           </p>
-          <Button onClick={openCreate} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 text-white gap-2">
-            <Plus className="h-4 w-4" />
-            Crear combo
-          </Button>
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <Button onClick={() => setShowInactive(!showInactive)} size="sm" variant={showInactive ? "secondary" : "outline"} className="gap-1.5">
+              <EyeOff className="h-3.5 w-3.5" />
+              Inactivos
+              {inactiveCombos.length > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{inactiveCombos.length}</Badge>}
+            </Button>
+            <Button onClick={openCreate} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 text-white gap-2">
+              <Plus className="h-4 w-4" />
+              Crear combo
+            </Button>
+          </div>
         </div>
 
         {loading ? (
