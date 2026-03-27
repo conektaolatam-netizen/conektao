@@ -509,3 +509,73 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
     </>
   );
 }
+
+/* Collapsible category-based product picker */
+function ComboProductPicker({ products, onSelect }: { products: Product[]; onSelect: (p: Product) => void }) {
+  const [open, setOpen] = useState(false);
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+
+  const grouped = useMemo(() => {
+    const map: Record<string, Product[]> = {};
+    for (const p of products) {
+      const cat = p.category_name || "Sin categoría";
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(p);
+    }
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, items]) => ({ name, items: items.sort((a, b) => a.name.localeCompare(b.name)) }));
+  }, [products]);
+
+  const toggleCat = (name: string) => setOpenCats(prev => ({ ...prev, [name]: !prev[name] }));
+
+  return (
+    <div className="border border-dashed border-border/50 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full px-3 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <Plus className="h-3.5 w-3.5" /> Agregar producto
+        </span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="max-h-60 overflow-y-auto border-t border-border/30">
+          {grouped.map(cat => (
+            <div key={cat.name}>
+              <button
+                type="button"
+                onClick={() => toggleCat(cat.name)}
+                className="flex items-center justify-between w-full px-4 py-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${openCats[cat.name] ? "rotate-180" : ""}`} />
+                  <span className="text-xs font-semibold text-foreground">{cat.name}</span>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">{cat.items.length}</Badge>
+              </button>
+              {openCats[cat.name] && (
+                <div className="border-l-2 border-border/40 ml-4 mr-1">
+                  {cat.items.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { onSelect(p); }}
+                      className="flex items-center justify-between w-full text-left py-2 px-3 hover:bg-accent/50 transition-colors"
+                    >
+                      <span className="text-xs text-foreground">{p.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatPrice(p.price)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
