@@ -21,6 +21,8 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const [newProhibited, setNewProhibited] = useState("");
   const [rules, setRules] = useState<string[]>(pr.rules || []);
   const [newFormatRule, setNewFormatRule] = useState("");
+  const [vocabulary, setVocabulary] = useState<string[]>(pr.preferred_vocabulary || []);
+  const [newVocab, setNewVocab] = useState("");
   const [saving, setSaving] = useState(false);
 
   const addRule = () => { if (newRule.trim()) { setCustomRules([...customRules, newRule.trim()]); setNewRule(""); } };
@@ -32,10 +34,13 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const addFormatRule = () => { if (newFormatRule.trim()) { setRules([...rules, newFormatRule.trim()]); setNewFormatRule(""); } };
   const removeFormatRule = (i: number) => setRules(rules.filter((_, idx) => idx !== i));
 
+  const addVocab = () => { if (newVocab.trim()) { setVocabulary([...vocabulary, newVocab.trim()]); setNewVocab(""); } };
+  const removeVocab = (i: number) => setVocabulary(vocabulary.filter((_, idx) => idx !== i));
+
   const handleSave = async () => {
     setSaving(true);
     await onSave({
-      personality_rules: { ...pr, tone, name: assistantName, prohibited_words: prohibitedWords, rules },
+      personality_rules: { ...pr, tone, name: assistantName, prohibited_words: prohibitedWords, rules, preferred_vocabulary: vocabulary },
       greeting_message: greeting,
       escalation_config: { human_phone: humanPhone, escalation_message: escMsg },
       custom_rules: customRules,
@@ -64,6 +69,28 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
               <SelectItem value="formal">Formal (de usted)</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Preferred Vocabulary */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1.5">
+            💬 Vocabulario preferido
+          </label>
+          <p className="text-xs text-muted-foreground mb-2">
+            Palabras o expresiones que Alicia usará para variar sus respuestas (ej: "dale", "listo", "va", "con gusto")
+          </p>
+          <div className="flex gap-2">
+            <Input value={newVocab} onChange={e => setNewVocab(e.target.value)} placeholder='Ej: "dale", "va", "con gusto"' onKeyDown={e => e.key === "Enter" && addVocab()} className="border-border" />
+            <Button variant="outline" onClick={addVocab} className="border-border"><Plus className="h-4 w-4" /></Button>
+          </div>
+          <div className="mt-2 space-y-1.5 max-h-32 overflow-y-auto">
+            {vocabulary.map((w, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm bg-accent/30 p-2 rounded-lg border border-accent/40">
+                <span className="flex-1 text-foreground">"{w}"</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeVocab(i)}><Trash2 className="h-3 w-3" /></Button>
+              </div>
+            ))}
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Saludo inicial</label>

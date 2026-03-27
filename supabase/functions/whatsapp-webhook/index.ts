@@ -1599,7 +1599,7 @@ ${scheduleBlock}
 ${overridesBlock}
 
 TONO: ${toneBlock}
-- Varía: ${(personality.preferred_vocabulary || ["dale", "listo", "va", "claro", "bueno", "perfecto", "con gusto"]).join(", ")}
+${personality.preferred_vocabulary?.length ? `- Varía: ${personality.preferred_vocabulary.join(", ")}` : ""}
 
 ${customerCtx}
 ${menuLinkBlock}
