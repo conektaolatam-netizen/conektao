@@ -195,6 +195,16 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
           <div><h3 className="text-lg font-semibold text-white">Menú</h3><p className="text-xs text-white/80">Los productos que Alicia puede ofrecer</p></div>
         </div>
         <div className="p-5">
+          <Tabs defaultValue="products" className="w-full">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="products" className="flex-1 gap-1.5">
+                <UtensilsCrossed className="h-3.5 w-3.5" /> Productos
+              </TabsTrigger>
+              <TabsTrigger value="combos" className="flex-1 gap-1.5">
+                <Package className="h-3.5 w-3.5" /> Combos
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="products">
           {/* PDF del menú */}
           <div className="mb-5 rounded-lg border border-border/30 bg-muted/40 p-4">
             <div className="flex items-center gap-2 mb-2">
