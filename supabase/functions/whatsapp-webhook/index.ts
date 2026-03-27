@@ -1320,9 +1320,9 @@ REGLAS DE RESERVA:
  * Legacy wrapper — assembles Core + conditional Flow.
  * Kept for backward compatibility with callers.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any, personalityRules?: any): string {
   const flowContext = reservationMode ? "pedidos y reservas" : "pedidos";
-  const core = buildCorePrompt(assistantName, escalationPhone, flowContext);
+  const core = buildCorePrompt(assistantName, escalationPhone, flowContext, personalityRules);
 
   let flow: string;
   if (reservationMode && reservationConfig) {
