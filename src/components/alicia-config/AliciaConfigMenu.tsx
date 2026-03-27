@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff, FileText, Upload, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -23,6 +23,8 @@ interface CategoryWithProducts {
 
 interface Props { config: any; configId: string; onSave: (field: string, value: any) => Promise<void>; onReload: () => void; }
 
+const BUCKET = "whatsapp-media";
+
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(price);
 
@@ -38,7 +40,7 @@ function groupProducts(products: any[]): CategoryWithProducts[] {
     .map(([name, products]) => ({ name, products: products.sort((a, b) => a.name.localeCompare(b.name)) }));
 }
 
-export default function AliciaConfigMenu({ config, onReload }: Props) {
+export default function AliciaConfigMenu({ config, configId, onSave, onReload }: Props) {
   const [showImport, setShowImport] = useState(false);
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,8 @@ export default function AliciaConfigMenu({ config, onReload }: Props) {
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState<ProductItem | null>(null);
   const [reactivating, setReactivating] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const restaurantId = config.restaurant_id;
@@ -129,6 +133,38 @@ export default function AliciaConfigMenu({ config, onReload }: Props) {
     }
   }
 
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast({ title: "Formato inválido", description: "Solo se permiten archivos PDF.", variant: "destructive" });
+      return;
+    }
+    setUploadingPdf(true);
+    try {
+      const filePath = `${restaurantId}/Carta.pdf`;
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, file, { upsert: true, contentType: "application/pdf" });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+      await onSave("menu_link", publicUrl);
+      toast({ title: "PDF subido", description: "El menú en PDF se actualizó correctamente." });
+    } catch (err) {
+      console.error("Error uploading PDF:", err);
+      toast({ title: "Error", description: "No se pudo subir el PDF.", variant: "destructive" });
+    } finally {
+      setUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemovePdf() {
+    await onSave("menu_link", null);
+    toast({ title: "PDF removido", description: "El enlace del menú fue eliminado." });
+  }
+
+  const menuLink = config.menu_link;
+
   const handleImportComplete = (_data: ExtractedMenuData) => {
     setShowImport(false);
     onReload();
@@ -146,6 +182,40 @@ export default function AliciaConfigMenu({ config, onReload }: Props) {
           <div><h3 className="text-lg font-semibold text-white">Menú</h3><p className="text-xs text-white/80">Los productos que Alicia puede ofrecer</p></div>
         </div>
         <div className="p-5">
+          {/* PDF del menú */}
+          <div className="mb-5 rounded-lg border border-border/30 bg-muted/40 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-teal-400" />
+              <span className="text-sm font-medium text-foreground">Menú en PDF</span>
+              <span className="text-xs text-muted-foreground">(se envía por WhatsApp cuando el cliente pide la carta)</span>
+            </div>
+            {menuLink ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                <a href={menuLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 underline underline-offset-2 truncate max-w-xs">
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  Ver PDF actual
+                </a>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploadingPdf}>
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingPdf ? "Subiendo..." : "Reemplazar"}
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={handleRemovePdf}>
+                  <X className="h-3.5 w-3.5" />
+                  Quitar
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-muted-foreground">No hay PDF cargado.</p>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploadingPdf}>
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingPdf ? "Subiendo..." : "Subir PDF"}
+                </Button>
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+          </div>
+
           <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">
               {totalProducts > 0
