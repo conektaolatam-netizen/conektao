@@ -1621,8 +1621,9 @@ ${ctx}`;
 function buildMenuFromProducts(products: any[]): string {
   if (!products || products.length === 0) return "MENÚ: No disponible en este momento";
   const pizzaSizes: Record<string, { desc: string; personal?: number; mediana?: number; cat: string }> = {};
-  const otherProducts: { name: string; desc: string; price: number; cat: string }[] = [];
+  const otherProducts: { name: string; desc: string; price: number; cat: string; portions: number }[] = [];
   for (const p of products) {
+    if (p.is_combo) continue; // combos handled separately
     const cat = p.category_name || "Otros",
       name = (p.name || "").trim(),
       desc = (p.description || "").trim(),
