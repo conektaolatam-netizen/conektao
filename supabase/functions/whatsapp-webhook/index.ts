@@ -4678,6 +4678,28 @@ Deno.serve(async (req) => {
         });
       }
 
+      // === COMBO COMPOSITION INTERCEPTOR ===
+      // Check if user is asking what a combo includes — respond with real DB data, skip AI
+      const compositionAnswer = handleComboCompositionQuestion(userTextForPrice, effectiveProducts || [], comboItemsMap, config);
+      if (compositionAnswer) {
+        console.log(`🎯 COMBO COMPOSITION intercepted for ${from}: "${userTextForPrice.substring(0, 60)}"`);
+        freshMsgs.push({ role: "assistant", content: compositionAnswer, timestamp: new Date().toISOString() });
+        await supabase
+          .from("whatsapp_conversations")
+          .update({
+            messages: freshMsgs.slice(-30),
+            customer_name: freshCustomerName,
+            current_order: freshCurrentOrder,
+            order_status: freshOrderStatus,
+          })
+          .eq("id", conv.id);
+        await sendWA(pid, token, from, compositionAnswer, true);
+        return new Response(JSON.stringify({ status: "composition_answered" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const ai = await callAI(sys, finalMsgs);
 
       if (!ai) {
