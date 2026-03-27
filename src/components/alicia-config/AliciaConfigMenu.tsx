@@ -372,6 +372,24 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Permanent delete confirmation */}
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{permanentDeleteTarget?.name}" será eliminado por completo de la base de datos. Esta acción no se puede deshacer. Si tiene ventas asociadas, no podrá ser eliminado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={permanentDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePermanentDeleteProduct} disabled={permanentDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {permanentDeleting ? "Eliminando..." : "Eliminar permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
