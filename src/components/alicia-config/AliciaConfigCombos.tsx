@@ -388,50 +388,15 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
 
             {/* Items */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-muted-foreground">Productos del combo</label>
-                <Button size="sm" variant="outline" onClick={addItem} className="gap-1 h-7 text-xs">
-                  <Plus className="h-3 w-3" /> Agregar
-                </Button>
-              </div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Productos del combo</label>
 
-              {formItems.length === 0 ? (
-                <div className="bg-muted rounded-lg p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Agrega productos al combo</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
+              {/* Added items list */}
+              {formItems.length > 0 && (
+                <div className="space-y-2 mb-3">
                   {formItems.map((item, idx) => (
                     <div key={idx} className="bg-muted/50 rounded-lg p-3 border border-border/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="h-8 text-xs flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(
-                              products.reduce<Record<string, Product[]>>((acc, p) => {
-                                const cat = p.category_name || "Sin categoría";
-                                if (!acc[cat]) acc[cat] = [];
-                                acc[cat].push(p);
-                                return acc;
-                              }, {})
-                            )
-                              .sort(([a], [b]) => a.localeCompare(b))
-                              .map(([catName, catProducts]) => (
-                                <React.Fragment key={catName}>
-                                  <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover">
-                                    {catName}
-                                  </div>
-                                  {catProducts.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
-                                    <SelectItem key={p.id} value={p.id} className="pl-4">
-                                      {p.name} — {formatPrice(p.price)}
-                                    </SelectItem>
-                                  ))}
-                                </React.Fragment>
-                              ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground">{item.product_name} — {formatPrice(item.product_price)}</span>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeItem(idx)}>
                           <X className="h-3.5 w-3.5" />
                         </Button>
@@ -472,6 +437,17 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
                   ))}
                 </div>
               )}
+
+              {/* Collapsible category product picker */}
+              <ComboProductPicker products={products} onSelect={(p) => {
+                setFormItems(prev => [...prev, {
+                  product_id: p.id,
+                  product_name: p.name,
+                  product_price: p.price,
+                  fraction: 1,
+                  quantity: 1,
+                }]);
+              }} />
             </div>
 
             {/* Pricing */}
