@@ -287,6 +287,11 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
               )}
             </div>
           )}
+            </TabsContent>
+            <TabsContent value="combos">
+              <AliciaConfigCombos restaurantId={restaurantId} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
