@@ -70,6 +70,10 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1">Saludo inicial</label>
+          <Textarea value={greeting} onChange={e => setGreeting(e.target.value)} rows={2} placeholder="¡Hola! Soy Alicia, ¿en qué te puedo ayudar?" className="border-border" />
+        </div>
 
         {/* Preferred Vocabulary */}
         <div>
@@ -91,10 +95,6 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
               </div>
             ))}
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Saludo inicial</label>
-          <Textarea value={greeting} onChange={e => setGreeting(e.target.value)} rows={2} placeholder="¡Hola! Soy Alicia, ¿en qué te puedo ayudar?" className="border-border" />
         </div>
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">Si el cliente necesita un humano, ¿a qué número lo envías?</label>
