@@ -1171,7 +1171,25 @@ function buildCustomerMemoryContext(customer: any | null): string {
  * Contains: Identity, Anti-hallucination, Format, Trato, Audios/Stickers/Context.
  * NO flow steps, NO tags, NO confirmation rules.
  */
-function buildCorePrompt(assistantName: string, escalationPhone: string, flowContext: string = "pedidos"): string {
+function buildCorePrompt(assistantName: string, escalationPhone: string, flowContext: string = "pedidos", personalityRules?: any): string {
+  const pr = personalityRules || {};
+
+  // --- Prohibited words: merge defaults with dynamic config ---
+  const defaultProhibited = ["mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey"];
+  const extraProhibited: string[] = Array.isArray(pr.prohibited_words) ? pr.prohibited_words : [];
+  const allProhibited = [...new Set([...defaultProhibited, ...extraProhibited])];
+  const prohibitedLine = `- PROHIBIDO: ${allProhibited.map((w: string) => `"${w}"`).join(", ")}. NUNCA apodos cariñosos`;
+
+  // --- Format rules: merge defaults with dynamic config ---
+  const defaultFormatRules = [
+    'Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes',
+    'NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"',
+    'PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)',
+  ];
+  const extraRules: string[] = Array.isArray(pr.rules) ? pr.rules : [];
+  const allFormatRules = [...defaultFormatRules, ...extraRules];
+  const formatBlock = allFormatRules.map((r: string) => `- ${r}`).join("\n");
+
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
@@ -1193,7 +1211,7 @@ ANTI-ALUCINACIÓN:
 - NUNCA muestres JSON ni tags al cliente
 
 TRATO AL CLIENTE:
-- PROHIBIDO: "mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey". NUNCA apodos cariñosos
+${prohibitedLine}
 - Cuando sepas el nombre → úsalo: "Claro, María" o "Listo, señor Carlos"
 - Si NO sabes el nombre → tutea con amabilidad: "Claro, con gusto te ayudo"
 - Sé paciente. NUNCA respondas con agresividad ni impaciencia
@@ -1201,9 +1219,7 @@ TRATO AL CLIENTE:
 - Si el cliente se frustra → pasa al humano
 
 FORMATO:
-- Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
-- NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"
-- PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
+${formatBlock}
 
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
@@ -1304,9 +1320,9 @@ REGLAS DE RESERVA:
  * Legacy wrapper — assembles Core + conditional Flow.
  * Kept for backward compatibility with callers.
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any): string {
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, greetingMessage?: string, deliveryAvailable: boolean = true, reservationMode: boolean = false, reservationConfig?: any, personalityRules?: any): string {
   const flowContext = reservationMode ? "pedidos y reservas" : "pedidos";
-  const core = buildCorePrompt(assistantName, escalationPhone, flowContext);
+  const core = buildCorePrompt(assistantName, escalationPhone, flowContext, personalityRules);
 
   let flow: string;
   if (reservationMode && reservationConfig) {
@@ -1360,7 +1376,7 @@ function buildPrompt(
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
     const resConfigWithTz = config?.reservation_config ? { ...config.reservation_config, _timezone: config?.operating_hours?.timezone || "UTC-5" } : undefined;
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz, personality);
     const dynamic = buildDynamicPrompt(
       config,
       products,

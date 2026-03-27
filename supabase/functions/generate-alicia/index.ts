@@ -10,7 +10,23 @@ const corsHeaders = {
  * CORE PROMPT — Permanent block (Identity, Anti-hallucination, Format, Trato).
  * Synced with whatsapp-webhook/buildCorePrompt().
  */
-function buildCorePrompt(assistantName: string, escalationPhone: string): string {
+function buildCorePrompt(assistantName: string, escalationPhone: string, personalityRules?: any): string {
+  const pr = personalityRules || {};
+
+  const defaultProhibited = ["mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey"];
+  const extraProhibited: string[] = Array.isArray(pr.prohibited_words) ? pr.prohibited_words : [];
+  const allProhibited = [...new Set([...defaultProhibited, ...extraProhibited])];
+  const prohibitedLine = `- PROHIBIDO: ${allProhibited.map((w: string) => `"${w}"`).join(", ")}. NUNCA apodos cariñosos`;
+
+  const defaultFormatRules = [
+    'Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes',
+    'NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"',
+    'PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)',
+  ];
+  const extraRules: string[] = Array.isArray(pr.rules) ? pr.rules : [];
+  const allFormatRules = [...defaultFormatRules, ...extraRules];
+  const formatBlock = allFormatRules.map((r: string) => `- ${r}`).join("\n");
+
   return `=== CORE CONEKTAO (INMUTABLE) ===
 
 IDENTIDAD:
@@ -32,7 +48,7 @@ ANTI-ALUCINACIÓN:
 - NUNCA muestres JSON ni tags al cliente
 
 TRATO AL CLIENTE:
-- PROHIBIDO: "mi amor", "mi vida", "cariño", "corazón", "cielo", "linda", "hermosa", "papi", "mami", "reina", "rey". NUNCA apodos cariñosos
+${prohibitedLine}
 - Cuando sepas el nombre → úsalo: "Claro, María" o "Listo, señor Carlos"
 - Si NO sabes el nombre → tutea con amabilidad: "Claro, con gusto te ayudo"
 - Sé paciente. NUNCA respondas con agresividad ni impaciencia
@@ -40,9 +56,7 @@ TRATO AL CLIENTE:
 - Si el cliente se frustra → pasa al humano
 
 FORMATO:
-- Primera letra MAYÚSCULA siempre. NO punto final. Siempre cierra los signos de interrogación (¿...?) y exclamación (¡...!). Mensajes CORTOS (1-2 líneas). Máximo 1 emoji cada 2-3 mensajes
-- NUNCA asteriscos, negritas, markdown. NUNCA "la comunicación puede fallar"
-- PROHIBIDO: "oki", "cositas ricas", "delicias", signos dobles (!!)
+${formatBlock}
 
 AUDIOS: "[Audio transcrito]:" → responde natural. "[Audio no transcrito]" → "No te escuché, me lo escribes?"
 STICKERS: Responde simpático y redirige al pedido
@@ -50,6 +64,9 @@ CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2
 
 === FIN CORE ===`;
 }
+
+
+
 
 /**
  * ORDER FLOW PROMPT — The 7-step order flow with suggestions.
@@ -94,8 +111,8 @@ MODIFICACIONES (solo pedidos ya confirmados):
  * Legacy wrapper — assembles Core + Order Flow for generate-alicia.
  * Reservation flow is never included here (only injected at runtime by webhook).
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true): string {
-  const core = buildCorePrompt(assistantName, escalationPhone);
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true, personalityRules?: any): string {
+  const core = buildCorePrompt(assistantName, escalationPhone, personalityRules);
   const flow = buildOrderFlowPrompt(suggestConfigs || {}, deliveryAvailable);
   return core + "\n\n" + flow;
 }
@@ -330,7 +347,7 @@ Deno.serve(async (req) => {
 
     const deliveryAvailable = config.delivery_config?.enabled !== false;
     const suggestConfigs = config.suggest_configs || {};
-    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, deliveryAvailable);
+    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, deliveryAvailable, personality);
     const businessPrompt = buildBusinessConfigPrompt(config, products || []);
     const finalPrompt = corePrompt + "\n\n" + businessPrompt;
 
