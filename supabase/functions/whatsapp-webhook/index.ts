@@ -4350,7 +4350,21 @@ Deno.serve(async (req) => {
         portions: 1,
       }));
       const allProdsWithCategory = [...prodsWithCategory, ...comboEntries];
-      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos`);
+      // ── COMBO ITEMS: Preload composition for interceptor ──
+      const comboIds = comboEntries.map((c: any) => c.id);
+      let comboItemsMap = new Map<string, { product_name: string; fraction: number; quantity: number }[]>();
+      if (comboIds.length > 0) {
+        const { data: comboItemsRaw } = await supabase
+          .from("product_combo_items")
+          .select("combo_id, fraction, quantity, products(name)")
+          .in("combo_id", comboIds);
+        for (const ci of comboItemsRaw || []) {
+          const arr = comboItemsMap.get(ci.combo_id) || [];
+          arr.push({ product_name: (ci as any).products?.name || "Producto", fraction: ci.fraction, quantity: ci.quantity });
+          comboItemsMap.set(ci.combo_id, arr);
+        }
+      }
+      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos, ${comboItemsMap.size} with items`);
 
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
