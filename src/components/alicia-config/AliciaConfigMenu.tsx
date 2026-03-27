@@ -133,6 +133,38 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
     }
   }
 
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast({ title: "Formato inválido", description: "Solo se permiten archivos PDF.", variant: "destructive" });
+      return;
+    }
+    setUploadingPdf(true);
+    try {
+      const filePath = `${restaurantId}/Carta.pdf`;
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, file, { upsert: true, contentType: "application/pdf" });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+      await onSave("menu_link", publicUrl);
+      toast({ title: "PDF subido", description: "El menú en PDF se actualizó correctamente." });
+    } catch (err) {
+      console.error("Error uploading PDF:", err);
+      toast({ title: "Error", description: "No se pudo subir el PDF.", variant: "destructive" });
+    } finally {
+      setUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemovePdf() {
+    await onSave("menu_link", null);
+    toast({ title: "PDF removido", description: "El enlace del menú fue eliminado." });
+  }
+
+  const menuLink = config.menu_link;
+
   const handleImportComplete = (_data: ExtractedMenuData) => {
     setShowImport(false);
     onReload();
