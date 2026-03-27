@@ -4223,6 +4223,27 @@ Deno.serve(async (req) => {
         category_name: p.categories?.name || "Otros",
       }));
 
+      // ── COMBOS: Load active combos and inject as virtual products ──
+      const { data: combos } = await supabase
+        .from("product_combos")
+        .select("id, name, description, calculated_price, override_price, category_id, categories(name)")
+        .eq("restaurant_id", rId)
+        .eq("is_active", true);
+      const comboEntries = (combos || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        price: c.override_price ?? c.calculated_price,
+        description: c.description || "",
+        category_id: c.category_id,
+        category_name: c.categories?.name || "Combos",
+        is_combo: true,
+        requires_packaging: false,
+        packaging_price: 0,
+        portions: 1,
+      }));
+      const allProdsWithCategory = [...prodsWithCategory, ...comboEntries];
+      console.log(`🎯 Combos loaded: ${comboEntries.length} active combos`);
+
       // ── SYSTEM OVERRIDES: Load active overrides for this restaurant ──
       const activeOverrides = await getActiveOverrides(rId);
       const effectiveProducts = applyOverridesToProducts(prodsWithCategory, activeOverrides);
