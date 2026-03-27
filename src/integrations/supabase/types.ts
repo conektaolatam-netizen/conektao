@@ -3155,6 +3155,102 @@ export type Database = {
           },
         ]
       }
+      product_combo_items: {
+        Row: {
+          combo_id: string
+          created_at: string
+          fraction: number
+          id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          combo_id: string
+          created_at?: string
+          fraction?: number
+          id?: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          combo_id?: string
+          created_at?: string
+          fraction?: number
+          id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_combo_items_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "product_combos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combo_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_combos: {
+        Row: {
+          calculated_price: number
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          override_price: number | null
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          calculated_price?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          override_price?: number | null
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          calculated_price?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          override_price?: number | null
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_combos_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_combos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_ingredients: {
         Row: {
           created_at: string | null
@@ -5645,6 +5741,7 @@ export type Database = {
         }
         Returns: Json
       }
+      combo_effective_price: { Args: { p_combo_id: string }; Returns: number }
       generate_gas_order_number: {
         Args: { p_tenant_id: string }
         Returns: string
@@ -5717,6 +5814,7 @@ export type Database = {
         }
         Returns: Json
       }
+      recalculate_combo_price: { Args: { p_combo_id: string }; Returns: number }
       reset_daily_ai_usage: { Args: never; Returns: undefined }
       seed_table_states: {
         Args: { p_count?: number; p_restaurant_id: string }
