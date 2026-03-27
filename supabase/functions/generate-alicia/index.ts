@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
 
     const deliveryAvailable = config.delivery_config?.enabled !== false;
     const suggestConfigs = config.suggest_configs || {};
-    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, deliveryAvailable);
+    const corePrompt = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, deliveryAvailable, personality);
     const businessPrompt = buildBusinessConfigPrompt(config, products || []);
     const finalPrompt = corePrompt + "\n\n" + businessPrompt;
 
