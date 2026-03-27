@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, Store, UtensilsCrossed, Truck, CreditCard, 
-  Smile, Clock, Wifi, Lightbulb, Check, Sparkles, CalendarDays
+  Smile, Clock, Wifi, Lightbulb, Check, CalendarDays
 } from "lucide-react";
 import AliciaConfigBusiness from "@/components/alicia-config/AliciaConfigBusiness";
 import AliciaConfigMenu from "@/components/alicia-config/AliciaConfigMenu";
@@ -48,7 +48,7 @@ export default function AliciaConfigPage() {
   const [loading, setLoading] = useState(true);
   const [configId, setConfigId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("business");
-  const [generating, setGenerating] = useState(false);
+  
   const [productCount, setProductCount] = useState(0);
 
   const [configVersion, setConfigVersion] = useState(0);
@@ -122,35 +122,6 @@ export default function AliciaConfigPage() {
     else { setConfig((prev: any) => ({ ...prev, ...fields })); toast.success("Guardado ✅"); }
   }
 
-  async function handleGenerateAlicia() {
-    setGenerating(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Sesión expirada"); return; }
-
-      const res = await supabase.functions.invoke("generate-alicia", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.error) throw res.error;
-      const result = res.data;
-
-      if (!result?.success) {
-        toast.error(result?.error || "Error generando Alicia");
-        return;
-      }
-
-      setConfig((prev: any) => ({ ...prev, is_active: true, setup_completed: true, generated_system_prompt: "generated", prompt_generated_at: result.stats.generated_at }));
-      
-      const s = result.stats;
-      toast.success(`¡${s.assistant_name} está lista! 🎉 ${s.products_count} productos, ${s.prompt_length.toLocaleString()} caracteres de prompt`);
-    } catch (err: any) {
-      console.error("Generate Alicia error:", err);
-      toast.error("Error al generar Alicia");
-    } finally {
-      setGenerating(false);
-    }
-  }
 
   const completedCount = SECTIONS.filter(s => isSectionComplete(config, s.checkFields, { productCount })).length;
   const progress = Math.round((completedCount / SECTIONS.length) * 100);
@@ -248,17 +219,6 @@ export default function AliciaConfigPage() {
               );
             })}
 
-            {/* Generate button */}
-            <div className="pt-4">
-              <Button 
-                onClick={handleGenerateAlicia} 
-                disabled={generating}
-                className="w-full bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white shadow-md gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                {generating ? "Generando..." : "Generar mi Alicia"}
-              </Button>
-            </div>
           </div>
         </nav>
 
@@ -292,17 +252,6 @@ export default function AliciaConfigPage() {
         <div className="flex-1 min-w-0">
           {renderContent()}
 
-          {/* Mobile generate button */}
-          <div className="lg:hidden mt-6">
-            <Button 
-              onClick={handleGenerateAlicia} 
-              disabled={generating}
-              className="w-full bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white shadow-md gap-2 h-12 text-base"
-            >
-              <Sparkles className="h-5 w-5" />
-              {generating ? "Generando..." : "Generar mi Alicia"}
-            </Button>
-          </div>
         </div>
       </div>
     </div>
