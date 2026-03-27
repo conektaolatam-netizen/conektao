@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { UtensilsCrossed, Sparkles, RefreshCw, ChevronDown, Trash2, RotateCcw, EyeOff, FileText, Upload, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
