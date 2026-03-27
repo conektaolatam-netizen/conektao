@@ -459,6 +459,67 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
             <p className="text-sm text-muted-foreground">Crea combos como "Mitad y Mitad" o paquetes de productos.</p>
           </div>
         )}
+
+        {/* Inactive combos section */}
+        {showInactive && (
+          <div className="mt-5 border-t border-dashed border-border/40 pt-5">
+            <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+              <EyeOff className="h-4 w-4" /> Combos inactivos
+            </p>
+            {loadingInactive ? (
+              <div className="bg-muted rounded-lg p-6 text-center">
+                <p className="text-sm text-muted-foreground animate-pulse">Cargando inactivos...</p>
+              </div>
+            ) : inactiveCombos.length > 0 ? (
+              <div className="space-y-2 opacity-70">
+                {inactiveCombos.map(combo => {
+                  const effectivePrice = combo.override_price ?? combo.calculated_price;
+                  return (
+                    <div key={combo.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3 group">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm font-medium text-foreground truncate">{combo.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {combo.items.map(i => {
+                            const frac = i.fraction === 0.5 ? "½ " : i.fraction === 1 ? "" : `${i.fraction}× `;
+                            return `${frac}${i.product_name}`;
+                          }).join(" + ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm text-muted-foreground">{formatPrice(effectivePrice)}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setReactivateTarget(combo)}
+                          title="Reactivar"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setPermanentDeleteTarget(combo)}
+                          title="Eliminar permanentemente"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-muted rounded-lg p-4 text-center">
+                <p className="text-sm text-muted-foreground">No hay combos inactivos.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create/Edit Dialog */}
