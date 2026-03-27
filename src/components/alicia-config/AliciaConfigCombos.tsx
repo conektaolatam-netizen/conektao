@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Package, X, Save, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Package, X, Save, ChevronDown, EyeOff, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,13 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Combo | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveCombos, setInactiveCombos] = useState<Combo[]>([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
+  const [reactivateTarget, setReactivateTarget] = useState<Combo | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<Combo | null>(null);
+  const [reactivating, setReactivating] = useState(false);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
 
   // Create/edit form state
   const [editCombo, setEditCombo] = useState<Combo | null>(null);
@@ -63,6 +70,10 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
       loadProducts();
     }
   }, [restaurantId]);
+
+  useEffect(() => {
+    if (showInactive && restaurantId) loadInactiveCombos();
+  }, [showInactive, restaurantId]);
 
   async function loadProducts() {
     const { data } = await supabase
@@ -125,6 +136,94 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
       console.error("Error loading combos:", err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadInactiveCombos() {
+    setLoadingInactive(true);
+    try {
+      const { data: combosData } = await supabase
+        .from("product_combos")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_active", false)
+        .order("name");
+
+      if (!combosData || combosData.length === 0) {
+        setInactiveCombos([]);
+        setLoadingInactive(false);
+        return;
+      }
+
+      const comboIds = combosData.map(c => c.id);
+      const { data: itemsData } = await supabase
+        .from("product_combo_items")
+        .select("id, combo_id, product_id, fraction, quantity, products(name, price)")
+        .in("combo_id", comboIds);
+
+      const combosWithItems: Combo[] = combosData.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        calculated_price: Number(c.calculated_price),
+        override_price: c.override_price != null ? Number(c.override_price) : null,
+        is_active: c.is_active,
+        items: (itemsData || [])
+          .filter((i: any) => i.combo_id === c.id)
+          .map((i: any) => ({
+            id: i.id,
+            product_id: i.product_id,
+            product_name: (i as any).products?.name || "?",
+            product_price: Number((i as any).products?.price || 0),
+            fraction: Number(i.fraction),
+            quantity: i.quantity,
+          })),
+      }));
+
+      setInactiveCombos(combosWithItems);
+    } catch (err) {
+      console.error("Error loading inactive combos:", err);
+    } finally {
+      setLoadingInactive(false);
+    }
+  }
+
+  async function handleReactivateCombo() {
+    if (!reactivateTarget) return;
+    setReactivating(true);
+    try {
+      const { error } = await supabase
+        .from("product_combos")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq("id", reactivateTarget.id);
+      if (error) throw error;
+      toast.success(`"${reactivateTarget.name}" reactivado ✅`);
+      setReactivateTarget(null);
+      loadCombos();
+      loadInactiveCombos();
+    } catch (err) {
+      toast.error("Error al reactivar combo");
+    } finally {
+      setReactivating(false);
+    }
+  }
+
+  async function handlePermanentDeleteCombo() {
+    if (!permanentDeleteTarget) return;
+    setPermanentDeleting(true);
+    try {
+      // Delete items first (FK), then the combo
+      await supabase.from("product_combo_items").delete().eq("combo_id", permanentDeleteTarget.id);
+      const { error } = await supabase.from("product_combos").delete().eq("id", permanentDeleteTarget.id);
+      if (error) throw error;
+      toast.success(`"${permanentDeleteTarget.name}" eliminado permanentemente`);
+      setPermanentDeleteTarget(null);
+      loadInactiveCombos();
+    } catch (err: any) {
+      console.error("Error permanently deleting combo:", err);
+      toast.error(err?.message || "No se pudo eliminar el combo.");
+    } finally {
+      setPermanentDeleting(false);
     }
   }
 
@@ -281,6 +380,7 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
       toast.success("Combo eliminado");
       setDeleteTarget(null);
       loadCombos();
+      if (showInactive) loadInactiveCombos();
     } catch (err) {
       toast.error("Error al eliminar combo");
     }
@@ -289,14 +389,21 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-sm text-muted-foreground">
             {combos.length > 0 ? `${combos.length} combos activos` : "No tienes combos creados aún."}
           </p>
-          <Button onClick={openCreate} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 text-white gap-2">
-            <Plus className="h-4 w-4" />
-            Crear combo
-          </Button>
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <Button onClick={() => setShowInactive(!showInactive)} size="sm" variant={showInactive ? "secondary" : "outline"} className="gap-1.5">
+              <EyeOff className="h-3.5 w-3.5" />
+              Inactivos
+              {inactiveCombos.length > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{inactiveCombos.length}</Badge>}
+            </Button>
+            <Button onClick={openCreate} size="sm" className="bg-gradient-to-r from-teal-500 to-orange-400 text-white gap-2">
+              <Plus className="h-4 w-4" />
+              Crear combo
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -351,6 +458,67 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
           <div className="bg-muted rounded-lg p-6 text-center">
             <Package className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Crea combos como "Mitad y Mitad" o paquetes de productos.</p>
+          </div>
+        )}
+
+        {/* Inactive combos section */}
+        {showInactive && (
+          <div className="mt-5 border-t border-dashed border-border/40 pt-5">
+            <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+              <EyeOff className="h-4 w-4" /> Combos inactivos
+            </p>
+            {loadingInactive ? (
+              <div className="bg-muted rounded-lg p-6 text-center">
+                <p className="text-sm text-muted-foreground animate-pulse">Cargando inactivos...</p>
+              </div>
+            ) : inactiveCombos.length > 0 ? (
+              <div className="space-y-2 opacity-70">
+                {inactiveCombos.map(combo => {
+                  const effectivePrice = combo.override_price ?? combo.calculated_price;
+                  return (
+                    <div key={combo.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3 group">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm font-medium text-foreground truncate">{combo.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {combo.items.map(i => {
+                            const frac = i.fraction === 0.5 ? "½ " : i.fraction === 1 ? "" : `${i.fraction}× `;
+                            return `${frac}${i.product_name}`;
+                          }).join(" + ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm text-muted-foreground">{formatPrice(effectivePrice)}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setReactivateTarget(combo)}
+                          title="Reactivar"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setPermanentDeleteTarget(combo)}
+                          title="Eliminar permanentemente"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-muted rounded-lg p-4 text-center">
+                <p className="text-sm text-muted-foreground">No hay combos inactivos.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -489,19 +657,55 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
+      {/* Delete (soft) confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar combo?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.name}" dejará de estar disponible. Puedes recrearlo cuando quieras.
+              "{deleteTarget?.name}" dejará de estar disponible. Puedes reactivarlo desde la sección de inactivos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reactivate confirmation */}
+      <AlertDialog open={!!reactivateTarget} onOpenChange={(open) => !open && setReactivateTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reactivar combo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{reactivateTarget?.name}" volverá a estar disponible en el menú de Alicia.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivateCombo} disabled={reactivating} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              {reactivating ? "Reactivando..." : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Permanent delete confirmation */}
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{permanentDeleteTarget?.name}" será eliminado por completo de la base de datos. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={permanentDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePermanentDeleteCombo} disabled={permanentDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {permanentDeleting ? "Eliminando..." : "Eliminar permanentemente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

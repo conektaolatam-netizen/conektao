@@ -53,6 +53,8 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState<ProductItem | null>(null);
   const [reactivating, setReactivating] = useState(false);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<ProductItem | null>(null);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -132,6 +134,30 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
       toast({ title: "Error", description: "No se pudo reactivar el producto.", variant: "destructive" });
     } finally {
       setReactivating(false);
+    }
+  }
+
+  async function handlePermanentDeleteProduct() {
+    if (!permanentDeleteTarget) return;
+    setPermanentDeleting(true);
+    try {
+      const { error } = await supabase.from("products").delete().eq("id", permanentDeleteTarget.id);
+      if (error) {
+        if (error.message?.includes("foreign key") || error.message?.includes("violates") || error.code === "23503") {
+          toast({ title: "No se puede eliminar", description: `"${permanentDeleteTarget.name}" tiene ventas u otros registros asociados. Solo puede permanecer inactivo.`, variant: "destructive" });
+        } else {
+          throw error;
+        }
+        return;
+      }
+      toast({ title: "Eliminado permanentemente", description: `"${permanentDeleteTarget.name}" fue eliminado de la base de datos.` });
+      setPermanentDeleteTarget(null);
+      loadInactiveProducts();
+    } catch (err: any) {
+      console.error("Error permanently deleting product:", err);
+      toast({ title: "Error", description: err?.message || "No se pudo eliminar el producto.", variant: "destructive" });
+    } finally {
+      setPermanentDeleting(false);
     }
   }
 
@@ -288,7 +314,7 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
                 </div>
               ) : inactiveCategories.length > 0 ? (
                 <div className="opacity-70">
-                  <CategoryList categories={inactiveCategories} onAction={setReactivateTarget} actionIcon="reactivate" />
+                  <CategoryList categories={inactiveCategories} onAction={setReactivateTarget} actionIcon="reactivate" onPermanentDelete={setPermanentDeleteTarget} />
                 </div>
               ) : (
                 <div className="bg-muted rounded-lg p-4 text-center">
@@ -346,15 +372,34 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Permanent delete confirmation */}
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{permanentDeleteTarget?.name}" será eliminado por completo de la base de datos. Esta acción no se puede deshacer. Si tiene ventas asociadas, no podrá ser eliminado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={permanentDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePermanentDeleteProduct} disabled={permanentDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {permanentDeleting ? "Eliminando..." : "Eliminar permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 /* Extracted sub-component for category accordion list */
-function CategoryList({ categories, onAction, actionIcon }: {
+function CategoryList({ categories, onAction, actionIcon, onPermanentDelete }: {
   categories: CategoryWithProducts[];
   onAction: (product: ProductItem) => void;
   actionIcon: "delete" | "reactivate";
+  onPermanentDelete?: (product: ProductItem) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -377,18 +422,31 @@ function CategoryList({ categories, onAction, actionIcon }: {
                       <span className="text-xs text-muted-foreground ml-2">{formatPrice(product.price)}</span>
                     )}
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className={`h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity ${
-                      actionIcon === "delete"
-                        ? "text-destructive hover:text-destructive hover:bg-destructive/10"
-                        : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                    }`}
-                    onClick={() => onAction(product)}
-                  >
-                    {actionIcon === "delete" ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={`h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity ${
+                        actionIcon === "delete"
+                          ? "text-destructive hover:text-destructive hover:bg-destructive/10"
+                          : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      }`}
+                      onClick={() => onAction(product)}
+                    >
+                      {actionIcon === "delete" ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                    </Button>
+                    {onPermanentDelete && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 opacity-0 group-hover/item:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onPermanentDelete(product)}
+                        title="Eliminar permanentemente"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
