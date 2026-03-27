@@ -52,10 +52,11 @@ export default function AliciaConfigPage() {
   const [productCount, setProductCount] = useState(0);
 
   const [configVersion, setConfigVersion] = useState(0);
+  const skipRealtimeRef = React.useRef(false);
 
   useEffect(() => { loadConfig(); }, []);
 
-  // Realtime subscription to whatsapp_configs changes
+  // Realtime subscription to whatsapp_configs changes (external only)
   useEffect(() => {
     if (!configId) return;
     const channel = supabase
@@ -63,7 +64,12 @@ export default function AliciaConfigPage() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "whatsapp_configs", filter: `id=eq.${configId}` },
-        (payload) => {
+        async (payload) => {
+          // Skip realtime events triggered by our own saves
+          if (skipRealtimeRef.current) {
+            skipRealtimeRef.current = false;
+            return;
+          }
           setConfig(payload.new);
           setConfigVersion(v => v + 1);
         }
