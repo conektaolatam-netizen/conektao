@@ -252,17 +252,6 @@ export default function AliciaConfigPage() {
         <div className="flex-1 min-w-0">
           {renderContent()}
 
-          {/* Mobile generate button */}
-          <div className="lg:hidden mt-6">
-            <Button 
-              onClick={handleGenerateAlicia} 
-              disabled={generating}
-              className="w-full bg-gradient-to-r from-teal-500 to-orange-400 hover:from-teal-600 hover:to-orange-500 text-white shadow-md gap-2 h-12 text-base"
-            >
-              <Sparkles className="h-5 w-5" />
-              {generating ? "Generando..." : "Generar mi Alicia"}
-            </Button>
-          </div>
         </div>
       </div>
     </div>
