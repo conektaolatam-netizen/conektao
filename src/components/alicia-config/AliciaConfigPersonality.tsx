@@ -40,7 +40,7 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const handleSave = async () => {
     setSaving(true);
     await onSave({
-      personality_rules: { ...pr, tone, name: assistantName, prohibited_words: prohibitedWords, rules },
+      personality_rules: { ...pr, tone, name: assistantName, prohibited_words: prohibitedWords, rules, preferred_vocabulary: vocabulary },
       greeting_message: greeting,
       escalation_config: { human_phone: humanPhone, escalation_message: escMsg },
       custom_rules: customRules,
