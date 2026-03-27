@@ -1671,6 +1671,20 @@ function buildMenuFromProducts(products: any[]): string {
     }
     menu += "\n";
   }
+
+  // ── COMBOS section ──
+  const comboProducts = products.filter((p: any) => p.is_combo === true);
+  if (comboProducts.length > 0) {
+    menu += "🎯 COMBOS Y COMBINACIONES:\n";
+    for (const c of comboProducts) {
+      const name = (c.name || "").trim();
+      const desc = (c.description || "").trim();
+      const price = Number(c.price);
+      menu += `${name} | ${desc || "—"} | $${price.toLocaleString("es-CO")}\n`;
+    }
+    menu += "\n";
+  }
+
   return menu + "=== FIN MENÚ ===";
 }
 
