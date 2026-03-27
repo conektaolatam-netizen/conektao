@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Package, X, Save } from "lucide-react";
+import { Plus, Trash2, Package, X, Save, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -388,50 +388,15 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
 
             {/* Items */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-muted-foreground">Productos del combo</label>
-                <Button size="sm" variant="outline" onClick={addItem} className="gap-1 h-7 text-xs">
-                  <Plus className="h-3 w-3" /> Agregar
-                </Button>
-              </div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Productos del combo</label>
 
-              {formItems.length === 0 ? (
-                <div className="bg-muted rounded-lg p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Agrega productos al combo</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
+              {/* Added items list */}
+              {formItems.length > 0 && (
+                <div className="space-y-2 mb-3">
                   {formItems.map((item, idx) => (
                     <div key={idx} className="bg-muted/50 rounded-lg p-3 border border-border/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Select value={item.product_id} onValueChange={v => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="h-8 text-xs flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(
-                              products.reduce<Record<string, Product[]>>((acc, p) => {
-                                const cat = p.category_name || "Sin categoría";
-                                if (!acc[cat]) acc[cat] = [];
-                                acc[cat].push(p);
-                                return acc;
-                              }, {})
-                            )
-                              .sort(([a], [b]) => a.localeCompare(b))
-                              .map(([catName, catProducts]) => (
-                                <React.Fragment key={catName}>
-                                  <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 bg-popover">
-                                    {catName}
-                                  </div>
-                                  {catProducts.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
-                                    <SelectItem key={p.id} value={p.id} className="pl-4">
-                                      {p.name} — {formatPrice(p.price)}
-                                    </SelectItem>
-                                  ))}
-                                </React.Fragment>
-                              ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground">{item.product_name} — {formatPrice(item.product_price)}</span>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeItem(idx)}>
                           <X className="h-3.5 w-3.5" />
                         </Button>
@@ -472,6 +437,17 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
                   ))}
                 </div>
               )}
+
+              {/* Collapsible category product picker */}
+              <ComboProductPicker products={products} onSelect={(p) => {
+                setFormItems(prev => [...prev, {
+                  product_id: p.id,
+                  product_name: p.name,
+                  product_price: p.price,
+                  fraction: 1,
+                  quantity: 1,
+                }]);
+              }} />
             </div>
 
             {/* Pricing */}
@@ -531,5 +507,75 @@ export default function AliciaConfigCombos({ restaurantId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/* Collapsible category-based product picker */
+function ComboProductPicker({ products, onSelect }: { products: Product[]; onSelect: (p: Product) => void }) {
+  const [open, setOpen] = useState(false);
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+
+  const grouped = useMemo(() => {
+    const map: Record<string, Product[]> = {};
+    for (const p of products) {
+      const cat = p.category_name || "Sin categoría";
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(p);
+    }
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, items]) => ({ name, items: items.sort((a, b) => a.name.localeCompare(b.name)) }));
+  }, [products]);
+
+  const toggleCat = (name: string) => setOpenCats(prev => ({ ...prev, [name]: !prev[name] }));
+
+  return (
+    <div className="border border-dashed border-border/50 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full px-3 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <Plus className="h-3.5 w-3.5" /> Agregar producto
+        </span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="max-h-60 overflow-y-auto border-t border-border/30">
+          {grouped.map(cat => (
+            <div key={cat.name}>
+              <button
+                type="button"
+                onClick={() => toggleCat(cat.name)}
+                className="flex items-center justify-between w-full px-4 py-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${openCats[cat.name] ? "rotate-180" : ""}`} />
+                  <span className="text-xs font-semibold text-foreground">{cat.name}</span>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">{cat.items.length}</Badge>
+              </button>
+              {openCats[cat.name] && (
+                <div className="border-l-2 border-border/40 ml-4 mr-1">
+                  {cat.items.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { onSelect(p); }}
+                      className="flex items-center justify-between w-full text-left py-2 px-3 hover:bg-accent/50 transition-colors"
+                    >
+                      <span className="text-xs text-foreground">{p.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatPrice(p.price)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
