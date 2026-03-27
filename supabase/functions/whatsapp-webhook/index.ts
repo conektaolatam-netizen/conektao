@@ -2122,7 +2122,8 @@ function handleComboCompositionQuestion(
   for (const item of items) {
     const qty = item.quantity * item.fraction;
     const qtyLabel = qty === 1 ? "" : `${qty}x `;
-    msg += `• ${qtyLabel}${item.product_name}\n`;
+    const catLabel = item.category_name ? ` (${item.category_name})` : "";
+    msg += `• ${qtyLabel}${item.product_name}${catLabel}\n`;
   }
   msg += `\n💰 Precio: ${formattedPrice}`;
   if (bestMatch.description) {
