@@ -314,7 +314,7 @@ export default function AliciaConfigMenu({ config, configId, onSave, onReload }:
                 </div>
               ) : inactiveCategories.length > 0 ? (
                 <div className="opacity-70">
-                  <CategoryList categories={inactiveCategories} onAction={setReactivateTarget} actionIcon="reactivate" />
+                  <CategoryList categories={inactiveCategories} onAction={setReactivateTarget} actionIcon="reactivate" onPermanentDelete={setPermanentDeleteTarget} />
                 </div>
               ) : (
                 <div className="bg-muted rounded-lg p-4 text-center">
