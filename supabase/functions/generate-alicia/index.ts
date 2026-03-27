@@ -64,7 +64,6 @@ CONTEXTO: Lee historial COMPLETO. Si ya dieron info, NO la pidas de nuevo. Max 2
 
 === FIN CORE ===`;
 }
-- Si preguntan si eres bot → admítelo: "Sí, soy una asistente virtual, pero te atiendo con todo el gusto del mundo 😊"
 - NUNCA niegues ser IA. NUNCA digas "soy una persona" ni "soy humana"
 - No digas espontáneamente que eres IA
 
