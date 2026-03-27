@@ -2034,7 +2034,7 @@ function handlePriceQuestion(text: string, effectiveProducts: any[], config: any
 function handleComboCompositionQuestion(
   text: string,
   effectiveProducts: any[],
-  comboItemsMap: Map<string, { product_name: string; quantity: number; fraction: number }[]>,
+  comboItemsMap: Map<string, { product_name: string; quantity: number; fraction: number; category_name: string }[]>,
   config: any,
 ): string | null {
   // Detect composition question patterns (Spanish/Colombian)
@@ -2122,7 +2122,8 @@ function handleComboCompositionQuestion(
   for (const item of items) {
     const qty = item.quantity * item.fraction;
     const qtyLabel = qty === 1 ? "" : `${qty}x `;
-    msg += `• ${qtyLabel}${item.product_name}\n`;
+    const catLabel = item.category_name ? ` (${item.category_name})` : "";
+    msg += `• ${qtyLabel}${item.product_name}${catLabel}\n`;
   }
   msg += `\n💰 Precio: ${formattedPrice}`;
   if (bestMatch.description) {
@@ -4382,18 +4383,19 @@ Deno.serve(async (req) => {
       }));
       const allProdsWithCategory = [...prodsWithCategory, ...comboEntries];
       // ── Load combo items (components) for composition interceptor ──
-      const comboItemsMap = new Map<string, { product_name: string; quantity: number; fraction: number }[]>();
+      const comboItemsMap = new Map<string, { product_name: string; quantity: number; fraction: number; category_name: string }[]>();
       const comboIds = comboEntries.map((c: any) => c.id).filter(Boolean);
       if (comboIds.length > 0) {
         const { data: comboItems } = await supabase
           .from("product_combo_items")
-          .select("combo_id, quantity, fraction, product_id, products(name)")
+          .select("combo_id, quantity, fraction, product_id, products(name, category_id, categories(name))")
           .in("combo_id", comboIds);
         if (comboItems) {
           for (const ci of comboItems) {
             const arr = comboItemsMap.get(ci.combo_id) || [];
             arr.push({
               product_name: (ci as any).products?.name || "Producto",
+              category_name: (ci as any).products?.categories?.name || "",
               quantity: ci.quantity || 1,
               fraction: ci.fraction || 1,
             });
