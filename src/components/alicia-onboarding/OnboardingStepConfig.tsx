@@ -28,7 +28,7 @@ const OnboardingStepConfig = ({ data, onSave, saving, onBack }: Props) => {
   const [openTime, setOpenTime] = useState(oh.open || "10:00");
   const [closeTime, setCloseTime] = useState(oh.close || "22:00");
   const [prepStartTime, setPrepStartTime] = useState(oh.prep_start || "09:30");
-  const [deliveryEnabled, setDeliveryEnabled] = useState(data.delivery_enabled ?? true);
+  const [deliveryEnabled, setDeliveryEnabled] = useState(dc.enabled ?? true);
   const [deliveryTime, setDeliveryTime] = useState(dc.estimated_time || "30-45 min");
   const [minOrder, setMinOrder] = useState(dc.min_order || "");
   const [selectedPayments, setSelectedPayments] = useState<string[]>(pc.methods || ["efectivo", "nequi"]);
@@ -67,13 +67,13 @@ const OnboardingStepConfig = ({ data, onSave, saving, onBack }: Props) => {
       restaurant_name: data.restaurant_name,
       location_address: city.trim(),
       location_details: neighborhood.trim(),
-      delivery_enabled: deliveryEnabled,
       operating_hours: {
         open: openTime,
         close: closeTime,
         prep_start: prepStartTime,
       },
       delivery_config: {
+        enabled: deliveryEnabled,
         estimated_time: deliveryTime,
         min_order: minOrder ? Number(minOrder) : 0,
         zones: validZones.map((z) => ({ name: z.name, cost: Number(z.cost) })),

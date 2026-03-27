@@ -5330,7 +5330,6 @@ export type Database = {
           daily_overrides: Json | null
           delivery_company_email: string | null
           delivery_config: Json | null
-          delivery_enabled: boolean
           escalation_config: Json | null
           generated_system_prompt: string | null
           greeting_message: string | null
@@ -5365,7 +5364,6 @@ export type Database = {
           daily_overrides?: Json | null
           delivery_company_email?: string | null
           delivery_config?: Json | null
-          delivery_enabled?: boolean
           escalation_config?: Json | null
           generated_system_prompt?: string | null
           greeting_message?: string | null
@@ -5400,7 +5398,6 @@ export type Database = {
           daily_overrides?: Json | null
           delivery_company_email?: string | null
           delivery_config?: Json | null
-          delivery_enabled?: boolean
           escalation_config?: Json | null
           generated_system_prompt?: string | null
           greeting_message?: string | null
