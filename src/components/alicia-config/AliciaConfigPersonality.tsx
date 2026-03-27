@@ -146,10 +146,6 @@ export default function AliciaConfigPersonality({ config, onSave }: Props) {
     </div>
   );
 }
-
-interface Props { config: any; onSave: (fields: Record<string, any>) => Promise<void>; }
-
-export default function AliciaConfigPersonality({ config, onSave }: Props) {
   const pr = config.personality_rules || {};
   const esc = config.escalation_config || {};
   const [tone, setTone] = useState(pr.tone || "casual_professional");
