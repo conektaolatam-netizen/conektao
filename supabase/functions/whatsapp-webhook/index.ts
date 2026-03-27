@@ -1376,7 +1376,7 @@ function buildPrompt(
     const suggestConfigs = config.suggest_configs || {};
     const deliveryAvailable = config?.delivery_config?.enabled !== false && !isDeliveryDisabledOverride(activeOverrides || []);
     const resConfigWithTz = config?.reservation_config ? { ...config.reservation_config, _timezone: config?.operating_hours?.timezone || "UTC-5" } : undefined;
-    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz);
+    const core = buildCoreSystemPrompt(assistantName, escalation.human_phone || "", suggestConfigs, greeting, deliveryAvailable, reservationMode, resConfigWithTz, personality);
     const dynamic = buildDynamicPrompt(
       config,
       products,
