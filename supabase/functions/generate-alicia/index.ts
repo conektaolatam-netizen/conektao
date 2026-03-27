@@ -111,8 +111,8 @@ MODIFICACIONES (solo pedidos ya confirmados):
  * Legacy wrapper — assembles Core + Order Flow for generate-alicia.
  * Reservation flow is never included here (only injected at runtime by webhook).
  */
-function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true): string {
-  const core = buildCorePrompt(assistantName, escalationPhone);
+function buildCoreSystemPrompt(assistantName: string, escalationPhone: string, suggestConfigs?: any, deliveryAvailable: boolean = true, personalityRules?: any): string {
+  const core = buildCorePrompt(assistantName, escalationPhone, personalityRules);
   const flow = buildOrderFlowPrompt(suggestConfigs || {}, deliveryAvailable);
   return core + "\n\n" + flow;
 }
