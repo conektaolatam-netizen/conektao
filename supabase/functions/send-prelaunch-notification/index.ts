@@ -27,10 +27,10 @@ interface PrelaunchRegistration {
 }
 
 const NEED_LABELS: Record<string, string> = {
-  mejorar_domicilios: "🛵 Mejorar la atención en domicilios",
-  reducir_comisiones: "💸 Reducir comisiones a plataformas de domicilios",
-  usar_datos_ventas: "📊 Usar datos de ventas para mejores decisiones",
-  no_respondió: "No respondió paso 2",
+  mejorar_domicilios: "🛵 Mejorar la atención y gestión de domicilios",
+  reducir_comisiones: "💸 Dejar de pagar tanto en comisiones a plataformas de delivery",
+  usar_datos_ventas: "📊 Entender mis ventas y tomar mejores decisiones con datos",
+  no_respondió: "No respondió",
 };
 
 function isRealValue(v: unknown): v is string {
@@ -81,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
       fields.push(buildField("Sucursales", registration.branches));
     }
     if (isRealValue(registration.main_business_type)) {
-      fields.push(buildField("Tipo de Negocio", registration.main_business_type));
+      fields.push(buildField("Negocio", registration.main_business_type));
     }
     if (registration.pos_uses !== undefined) {
       const posInfo = registration.pos_uses
@@ -111,7 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Necesidad principal
     if (isRealValue(registration.necesidad_principal)) {
       const label = NEED_LABELS[registration.necesidad_principal] || registration.necesidad_principal;
-      fields.push(buildField("Necesidad Principal", label));
+      fields.push(buildField("Reto Principal", label));
     } else if (registration.completo_flujo === false) {
       // Step 1 only — hasn't reached step 2 yet
     }
@@ -124,13 +124,11 @@ const handler = async (req: Request): Promise<Response> => {
     const registrationDate = registration.created_at
       ? new Date(registration.created_at).toLocaleString("es-CO", { timeZone: "America/Bogota" })
       : new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
-    fields.push(buildField("Fecha de Registro", registrationDate));
+    fields.push(buildField("Hora", registrationDate));
 
-    const subjectParts = [registration.name].filter(isRealValue);
-    if (isRealValue(registration.business_name)) {
-      subjectParts.push(registration.business_name);
-    }
-    const subjectSuffix = subjectParts.length > 0 ? subjectParts.join(" - ") : "Nuevo lead";
+    const subjectName = isRealValue(registration.name) ? registration.name : "Sin nombre";
+    const subjectTipo = isRealValue(registration.main_business_type) ? registration.main_business_type : "Sin tipo";
+    const subjectSuffix = `${subjectName} - ${subjectTipo}`;
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -151,7 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🚀 Nuevo Registro Prelanzamiento Conektao</h1>
+            <h1>📞 Nuevo Lead Conektao</h1>
           </div>
           <div class="content">
             ${fields.join("\n")}
@@ -169,7 +167,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "Conektao <onboarding@resend.dev>",
       to: ["conektaolatam@gmail.com"],
-      subject: `🚀 Nuevo registro: ${subjectSuffix}`,
+      subject: `📞 Nuevo lead listo para llamar: ${subjectSuffix}`,
       html: emailHtml,
     });
 

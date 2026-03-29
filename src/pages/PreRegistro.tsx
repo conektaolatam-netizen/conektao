@@ -29,9 +29,9 @@ const businessTypeOptions = [
 ];
 
 const needOptions = [
-  { emoji: "🛵", label: "Mejorar la atención en domicilios", value: "mejorar_domicilios" },
-  { emoji: "💸", label: "Reducir comisiones a plataformas de domicilios", value: "reducir_comisiones" },
-  { emoji: "📊", label: "Usar mis datos de ventas para tomar mejores decisiones", value: "usar_datos_ventas" },
+  { emoji: "🛵", label: "Mejorar la atención y gestión de domicilios", value: "mejorar_domicilios" },
+  { emoji: "💸", label: "Dejar de pagar tanto en comisiones a plataformas de delivery", value: "reducir_comisiones" },
+  { emoji: "📊", label: "Entender mis ventas y tomar mejores decisiones con datos", value: "usar_datos_ventas" },
 ];
 
 // Generate unique session ID for tracking
@@ -219,11 +219,14 @@ export default function PreRegistro() {
           >
             {/* Logo & Intro */}
             <div className="text-center mb-4 sm:mb-6">
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent mb-1">
                 Conektao
               </h1>
+              <h2 className="text-base sm:text-lg font-bold text-white mb-1">
+                ¿Listo para vender más con tecnología?
+              </h2>
               <p className="text-xs sm:text-sm text-gray-400 max-w-xs mx-auto">
-                Regístrate para el <span className="text-orange-400 font-medium">prelanzamiento exclusivo</span>
+                Descubre cómo Conektao ayuda a negocios como el tuyo a crecer con inteligencia artificial
               </p>
             </div>
 
@@ -237,8 +240,6 @@ export default function PreRegistro() {
                 >
                   📝
                 </motion.div>
-                <h2 className="text-lg sm:text-xl font-bold text-white">Solo 3 datos rápidos</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Te tomará menos de 30 segundos</p>
               </div>
 
               <div className="space-y-3 sm:space-y-4">
@@ -274,7 +275,7 @@ export default function PreRegistro() {
                         formData.main_business_type ? "text-white" : "text-gray-500"
                       } ${showBusinessDropdown ? "border-teal-500 ring-2 ring-teal-500/20" : ""}`}
                     >
-                      {showCustomBusinessInput ? "✨ Otro" : formData.main_business_type || "Tipo de negocio"}
+                      {showCustomBusinessInput ? "✨ Otro" : formData.main_business_type || "¿Qué tipo de negocio tienes?"}
                     </button>
                     <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 transition-transform ${showBusinessDropdown ? "rotate-180" : ""}`} />
                   </div>
@@ -356,11 +357,12 @@ export default function PreRegistro() {
                         setFormData({ ...formData, phone: e.target.value });
                         if (errors.phone) setErrors({ ...errors, phone: "" });
                       }}
-                      placeholder="Tu WhatsApp (para avisarte primero) 📲"
+                      placeholder="Tu WhatsApp 📲"
                       className="pl-10 sm:pl-12 bg-[#1a1a1a]/80 border-[#333] text-white placeholder:text-gray-500 h-12 sm:h-14 text-base rounded-xl focus:border-teal-500 focus:ring-teal-500/20"
                       autoComplete="tel"
                     />
                   </div>
+                  <p className="text-gray-500 text-[10px] sm:text-xs mt-1 ml-1">Te llamamos para contarte cómo funciona</p>
                   {errors.phone && (
                     <p className="text-red-400 text-xs mt-1 ml-1">{errors.phone}</p>
                   )}
@@ -379,14 +381,14 @@ export default function PreRegistro() {
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                      ¡Quiero mi acceso exclusivo! 🚀
+                      Quiero saber cómo me ayuda Conektao →
                     </span>
                   )}
                 </Button>
                 
                 <p className="text-center text-gray-500 text-[10px] sm:text-xs mt-3">
                   <Sparkles className="w-3 h-3 inline mr-1 text-orange-400/60" />
-                  Prometemos no enviarte spam, solo cosas buenas
+                  Sin compromisos. Te explicamos todo en una llamada de 10 minutos.
                 </p>
               </div>
             </div>
@@ -416,9 +418,9 @@ export default function PreRegistro() {
                 >
                   🎯
                 </motion.div>
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-1">Una última cosa...</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-white mb-1">Una cosa más...</h2>
                 <p className="text-xs sm:text-sm text-gray-400">
-                  ¿Qué sientes que más necesitas mejorar en tu negocio ahora mismo?
+                  ¿Cuál es el mayor reto de tu negocio ahora mismo?
                 </p>
               </div>
 
@@ -459,7 +461,7 @@ export default function PreRegistro() {
                   {isFinishing ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    "Finalizar y obtener mi acceso ✨"
+                    "Que me llamen →"
                   )}
                 </Button>
               </div>
@@ -481,7 +483,7 @@ export default function PreRegistro() {
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                 className="text-5xl sm:text-6xl mb-4"
               >
-                🎉
+                🚀
               </motion.div>
               
               <motion.h2 
@@ -490,16 +492,25 @@ export default function PreRegistro() {
                 transition={{ delay: 0.3 }}
                 className="text-xl sm:text-2xl font-bold text-white mb-3"
               >
-                ¡Ya estás dentro!
+                ¡Listo! Te llamamos pronto
               </motion.h2>
               
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-gray-400 mb-6 text-sm sm:text-base"
+                className="text-gray-400 mb-2 text-sm sm:text-base"
               >
-                Te avisamos primero cuando abramos. Pronto te contactamos por WhatsApp 🚀
+                Uno de nuestros asesores te contactará para mostrarte exactamente cómo Conektao puede hacer crecer tu negocio 📈
+              </motion.p>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-gray-500 mb-6 text-xs"
+              >
+                Revisa tu WhatsApp, te escribimos primero para coordinar la llamada
               </motion.p>
 
               <motion.div 
