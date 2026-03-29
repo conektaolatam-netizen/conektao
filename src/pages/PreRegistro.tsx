@@ -418,9 +418,9 @@ export default function PreRegistro() {
                 >
                   🎯
                 </motion.div>
-                <h2 className="text-lg sm:text-xl font-bold text-white mb-1">Una última cosa...</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-white mb-1">Una cosa más...</h2>
                 <p className="text-xs sm:text-sm text-gray-400">
-                  ¿Qué sientes que más necesitas mejorar en tu negocio ahora mismo?
+                  ¿Cuál es el mayor reto de tu negocio ahora mismo?
                 </p>
               </div>
 
