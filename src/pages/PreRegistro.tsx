@@ -323,8 +323,15 @@ export default function PreRegistro() {
                         key={option.value}
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, main_business_type: option.value });
-                          setShowBusinessDropdown(false);
+                          if (option.value === "Otro") {
+                            setShowCustomBusinessInput(true);
+                            setFormData({ ...formData, main_business_type: "" });
+                            setShowBusinessDropdown(false);
+                          } else {
+                            setShowCustomBusinessInput(false);
+                            setFormData({ ...formData, main_business_type: option.value });
+                            setShowBusinessDropdown(false);
+                          }
                           if (errors.main_business_type) setErrors({ ...errors, main_business_type: "" });
                         }}
                         className={`w-full p-3 sm:p-4 text-left text-sm sm:text-base transition-colors ${
