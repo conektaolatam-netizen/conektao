@@ -240,8 +240,6 @@ export default function PreRegistro() {
                 >
                   📝
                 </motion.div>
-                <h2 className="text-lg sm:text-xl font-bold text-white">Solo 3 datos rápidos</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">Te tomará menos de 30 segundos</p>
               </div>
 
               <div className="space-y-3 sm:space-y-4">
