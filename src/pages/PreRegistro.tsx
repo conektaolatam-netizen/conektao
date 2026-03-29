@@ -184,13 +184,13 @@ export default function PreRegistro() {
       const necesidad = selectedNeed || "no_respondió";
 
       if (leadId) {
-        await supabase
-          .from("leads_conektao")
+        await (supabase
+          .from("leads_conektao" as any)
           .update({
             necesidad_principal: necesidad,
             completo_flujo: true,
             updated_at: new Date().toISOString(),
-          })
+          }) as any)
           .eq("id", leadId);
       }
 
