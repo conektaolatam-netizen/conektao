@@ -381,7 +381,7 @@ export default function PreRegistro() {
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                      ¡Quiero mi acceso exclusivo! 🚀
+                      Quiero saber cómo me ayuda Conektao →
                     </span>
                   )}
                 </Button>
