@@ -21,16 +21,23 @@ interface PrelaunchRegistration {
   free_trial_interest?: string;
   email?: string;
   phone?: string;
+  necesidad_principal?: string;
+  completo_flujo?: boolean;
   created_at?: string;
 }
 
-// Returns true only if the value is a real user-provided value
+const NEED_LABELS: Record<string, string> = {
+  mejorar_domicilios: "🛵 Mejorar la atención en domicilios",
+  reducir_comisiones: "💸 Reducir comisiones a plataformas de domicilios",
+  usar_datos_ventas: "📊 Usar datos de ventas para mejores decisiones",
+  no_respondió: "No respondió paso 2",
+};
+
 function isRealValue(v: unknown): v is string {
   if (v === null || v === undefined) return false;
   if (typeof v !== "string") return false;
   const trimmed = v.trim();
   if (trimmed === "") return false;
-  // Known placeholder/default values
   const fakes = ["por definir", "1"];
   if (fakes.includes(trimmed.toLowerCase())) return false;
   if (trimmed.endsWith("@pendiente.com")) return false;
@@ -59,7 +66,6 @@ const handler = async (req: Request): Promise<Response> => {
     const registration: PrelaunchRegistration = await req.json();
     console.log("📧 New registration received:", JSON.stringify(registration));
 
-    // Build fields dynamically — only include real values
     const fields: string[] = [];
 
     if (isRealValue(registration.name)) {
@@ -96,11 +102,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (isRealValue(registration.phone)) {
       const cleanPhone = registration.phone.replace(/\D/g, "");
-      // Always prepend Colombia country code 57
       const waPhone = cleanPhone.startsWith("57") ? cleanPhone : `57${cleanPhone}`;
-      fields.push(buildField("Teléfono / WhatsApp", registration.phone, {
+      fields.push(buildField("WhatsApp", registration.phone, {
         href: `https://wa.me/${waPhone}`,
       }));
+    }
+
+    // Necesidad principal
+    if (isRealValue(registration.necesidad_principal)) {
+      const label = NEED_LABELS[registration.necesidad_principal] || registration.necesidad_principal;
+      fields.push(buildField("Necesidad Principal", label));
+    } else if (registration.completo_flujo === false) {
+      // Step 1 only — hasn't reached step 2 yet
+    }
+
+    // Completó el flujo
+    if (registration.completo_flujo !== undefined) {
+      fields.push(buildField("Completó el Flujo", registration.completo_flujo ? "Sí ✅" : "No (solo paso 1)"));
     }
 
     const registrationDate = registration.created_at
@@ -108,7 +126,6 @@ const handler = async (req: Request): Promise<Response> => {
       : new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
     fields.push(buildField("Fecha de Registro", registrationDate));
 
-    // Build subject — only include business_name if real
     const subjectParts = [registration.name].filter(isRealValue);
     if (isRealValue(registration.business_name)) {
       subjectParts.push(registration.business_name);

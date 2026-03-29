@@ -2432,6 +2432,39 @@ export type Database = {
         }
         Relationships: []
       }
+      leads_conektao: {
+        Row: {
+          completo_flujo: boolean | null
+          created_at: string | null
+          id: string
+          main_business_type: string
+          name: string
+          necesidad_principal: string | null
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          completo_flujo?: boolean | null
+          created_at?: string | null
+          id?: string
+          main_business_type: string
+          name: string
+          necesidad_principal?: string | null
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          completo_flujo?: boolean | null
+          created_at?: string | null
+          id?: string
+          main_business_type?: string
+          name?: string
+          necesidad_principal?: string | null
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       manual_receipts: {
         Row: {
           created_at: string
