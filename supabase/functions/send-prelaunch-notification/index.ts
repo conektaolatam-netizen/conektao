@@ -27,10 +27,10 @@ interface PrelaunchRegistration {
 }
 
 const NEED_LABELS: Record<string, string> = {
-  mejorar_domicilios: "🛵 Mejorar la atención en domicilios",
-  reducir_comisiones: "💸 Reducir comisiones a plataformas de domicilios",
-  usar_datos_ventas: "📊 Usar datos de ventas para mejores decisiones",
-  no_respondió: "No respondió paso 2",
+  mejorar_domicilios: "🛵 Mejorar la atención y gestión de domicilios",
+  reducir_comisiones: "💸 Dejar de pagar tanto en comisiones a plataformas de delivery",
+  usar_datos_ventas: "📊 Entender mis ventas y tomar mejores decisiones con datos",
+  no_respondió: "No respondió",
 };
 
 function isRealValue(v: unknown): v is string {
