@@ -1,68 +1,77 @@
 
 
-## Plan: Flujo de pre-registro en 2 pasos con tabla `leads_conektao`
+## Plan: Actualizar textos del formulario de pre-registro
 
-### 1. Crear tabla `leads_conektao` (migración SQL)
+### Cambios en 2 archivos — solo textos, sin tocar lógica, colores ni estructura.
 
-```sql
-CREATE TABLE public.leads_conektao (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  phone text NOT NULL,
-  main_business_type text NOT NULL,
-  necesidad_principal text,
-  completo_flujo boolean DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
+---
 
-ALTER TABLE public.leads_conektao ENABLE ROW LEVEL SECURITY;
+### 1. `src/pages/PreRegistro.tsx`
 
-CREATE POLICY "Allow anonymous insert" ON public.leads_conektao
-  FOR INSERT TO anon WITH CHECK (true);
+**Encabezado (líneas 222-228):**
+- Título: "Conektao" → sin cambio
+- Subtítulo: cambiar "Regístrate para el prelanzamiento exclusivo" → `"Descubre cómo Conektao ayuda a negocios como el tuyo a crecer con inteligencia artificial"`
+- Agregar encima del subtítulo un título más grande: `"¿Listo para vender más con tecnología?"`
 
-CREATE POLICY "Allow anonymous update" ON public.leads_conektao
-  FOR UPDATE TO anon USING (true) WITH CHECK (true);
-```
+**Formulario card (líneas 238-241):**
+- Emoji: `📝` → sin cambio (o quitar si se prefiere)
+- `"Solo 3 datos rápidos"` → eliminar o reemplazar con algo neutro
+- `"Te tomará menos de 30 segundos"` → eliminar
 
-### 2. Reescribir `src/pages/PreRegistro.tsx`
+**Campos (líneas 255-359):**
+- Placeholder nombre (255): ya dice "Tu nombre" → sin cambio
+- Placeholder tipo de negocio (277): "Tipo de negocio" → `"¿Qué tipo de negocio tienes?"`
+- Placeholder WhatsApp (359): "Tu WhatsApp (para avisarte primero) 📲" → `"Tu WhatsApp 📲"`
+- Agregar texto de ayuda debajo del campo WhatsApp: `"Te llamamos para contarte cómo funciona"` (texto pequeño gris)
 
-- Nuevo estado `currentStep`: `"form"` | `"needs"` | `"completed"`
-- Nuevo estado `selectedNeed`: string | null
-- Nuevo estado `leadId`: string | null (para actualizar el registro en paso 2)
+**Botón paso 1 (382):**
+- `"¡Quiero mi acceso exclusivo! 🚀"` → `"Quiero saber cómo me ayuda Conektao →"`
 
-**Paso 1 (form):** Mismo formulario visual actual. Al dar click en el botón:
-  1. Valida campos
-  2. Inserta en `leads_conektao` con `completo_flujo = false`
-  3. Envía correo de notificación (con `completo_flujo: "No"`, sin `necesidad_principal`)
-  4. Guarda `leadId` en estado
-  5. Transición a `currentStep = "needs"`
+**Texto bajo botón (387-390):**
+- `"Prometemos no enviarte spam, solo cosas buenas"` → `"Sin compromisos. Te explicamos todo en una llamada de 10 minutos."`
 
-**Paso 2 (needs):** Reemplaza el formulario con AnimatePresence (fade):
-  - Icono 🎯, título "Una última cosa...", subtítulo
-  - 3 tarjetas seleccionables con estilo gradiente naranja-teal al seleccionar
-  - Botón "Finalizar y obtener mi acceso ✨"
-  - Al click: actualiza `leads_conektao` con `necesidad_principal` (o `"no_respondió"`) y `completo_flujo = true`
-  - Transición a `currentStep = "completed"`
+**Texto seguridad (394-396):**
+- Ya dice "Tus datos están seguros con nosotros 🔒" → sin cambio
 
-**Paso 3 (completed):** Nueva pantalla de confirmación:
-  - Icono 🎉, título "¡Ya estás dentro!", subtítulo con WhatsApp
-  - Botón Instagram + cerrar (mismo estilo actual)
+**Paso 2 — needOptions (líneas 31-35):**
+- Tarjeta 1: `"Mejorar la atención en domicilios"` → `"Mejorar la atención y gestión de domicilios"`
+- Tarjeta 2: `"Reducir comisiones a plataformas de domicilios"` → `"Dejar de pagar tanto en comisiones a plataformas de delivery"`
+- Tarjeta 3: `"Usar mis datos de ventas para tomar mejores decisiones"` → `"Entender mis ventas y tomar mejores decisiones con datos"`
 
-- Se elimina la inserción a `prelaunch_registrations` (se reemplaza por `leads_conektao`)
-- Se mantiene la lógica de `prelaunch_partial_registrations`
+**Paso 2 — títulos (líneas 419-422):**
+- `"Una última cosa..."` → `"Una cosa más..."`
+- `"¿Qué sientes que más necesitas mejorar en tu negocio ahora mismo?"` → `"¿Cuál es el mayor reto de tu negocio ahora mismo?"`
 
-### 3. Actualizar `supabase/functions/send-prelaunch-notification/index.ts`
+**Botón paso 2 (462):**
+- `"Finalizar y obtener mi acceso ✨"` → `"Que me llamen →"`
 
-- Agregar campos nuevos a la interfaz: `necesidad_principal`, `completo_flujo`
-- Agregar campos al email dinámicamente:
-  - `NECESIDAD PRINCIPAL`: valor o "No respondió paso 2"
-  - `COMPLETÓ EL FLUJO`: "Sí" / "No"
-- Mantener toda la lógica de filtrado de campos reales existente
-- Redeploy del edge function
+**Pantalla confirmación (líneas 483-502):**
+- Emoji: `🎉` → `🚀`
+- Título: `"¡Ya estás dentro!"` → `"¡Listo! Te llamamos pronto"`
+- Subtítulo: `"Te avisamos primero cuando abramos..."` → `"Uno de nuestros asesores te contactará para mostrarte exactamente cómo Conektao puede hacer crecer tu negocio 📈"`
+- Agregar texto pequeño: `"Revisa tu WhatsApp, te escribimos primero para coordinar la llamada"`
 
-### Notas técnicas
-- Las 3 tarjetas de necesidades usan el mismo gradiente `from-orange-500 to-teal-500` del botón actual, con opacidad reducida cuando no están seleccionadas
-- La transición entre pasos usa `AnimatePresence` con `mode="wait"` para fade suave
-- El correo se envía en paso 1 inmediatamente (antes de mostrar paso 2), garantizando que si el usuario abandona, los datos ya están guardados y el correo enviado
+---
+
+### 2. `supabase/functions/send-prelaunch-notification/index.ts`
+
+**Asunto del correo (línea 172):**
+- `"🚀 Nuevo registro: ${subjectSuffix}"` → `"📞 Nuevo lead listo para llamar: ${name} - ${tipo}"`
+- Construir subject con `name` y `main_business_type` en vez de `business_name`
+
+**Encabezado HTML del correo (línea 154):**
+- `"🚀 Nuevo Registro Prelanzamiento Conektao"` → `"📞 Nuevo Lead Conektao"`
+
+**Labels de campos en el correo:**
+- `"Nombre"` → sin cambio
+- `"Tipo de Negocio"` → `"Negocio"`
+- `"Necesidad Principal"` → `"Reto Principal"`
+- `"Completó el Flujo"` → sin cambio
+- `"Fecha de Registro"` → `"Hora"`
+
+**NEED_LABELS (líneas 29-34):**
+- Actualizar las etiquetas para coincidir con los nuevos textos de las tarjetas
+- `no_respondió` → `"No respondió"`
+
+**Redeploy** del edge function
 
