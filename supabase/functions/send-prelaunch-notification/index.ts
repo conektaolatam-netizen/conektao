@@ -126,11 +126,9 @@ const handler = async (req: Request): Promise<Response> => {
       : new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
     fields.push(buildField("Hora", registrationDate));
 
-    const subjectParts = [registration.name].filter(isRealValue);
-    if (isRealValue(registration.business_name)) {
-      subjectParts.push(registration.business_name);
-    }
-    const subjectSuffix = subjectParts.length > 0 ? subjectParts.join(" - ") : "Nuevo lead";
+    const subjectName = isRealValue(registration.name) ? registration.name : "Sin nombre";
+    const subjectTipo = isRealValue(registration.main_business_type) ? registration.main_business_type : "Sin tipo";
+    const subjectSuffix = `${subjectName} - ${subjectTipo}`;
 
     const emailHtml = `
       <!DOCTYPE html>
