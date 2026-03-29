@@ -275,7 +275,7 @@ export default function PreRegistro() {
                         formData.main_business_type ? "text-white" : "text-gray-500"
                       } ${showBusinessDropdown ? "border-teal-500 ring-2 ring-teal-500/20" : ""}`}
                     >
-                      {showCustomBusinessInput ? "✨ Otro" : formData.main_business_type || "Tipo de negocio"}
+                      {showCustomBusinessInput ? "✨ Otro" : formData.main_business_type || "¿Qué tipo de negocio tienes?"}
                     </button>
                     <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 transition-transform ${showBusinessDropdown ? "rotate-180" : ""}`} />
                   </div>
