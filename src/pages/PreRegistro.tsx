@@ -219,11 +219,14 @@ export default function PreRegistro() {
           >
             {/* Logo & Intro */}
             <div className="text-center mb-4 sm:mb-6">
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 via-orange-300 to-teal-400 bg-clip-text text-transparent mb-1">
                 Conektao
               </h1>
+              <h2 className="text-base sm:text-lg font-bold text-white mb-1">
+                ¿Listo para vender más con tecnología?
+              </h2>
               <p className="text-xs sm:text-sm text-gray-400 max-w-xs mx-auto">
-                Regístrate para el <span className="text-orange-400 font-medium">prelanzamiento exclusivo</span>
+                Descubre cómo Conektao ayuda a negocios como el tuyo a crecer con inteligencia artificial
               </p>
             </div>
 
