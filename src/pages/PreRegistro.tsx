@@ -149,10 +149,16 @@ export default function PreRegistro() {
         })
         .eq("session_id", sessionIdRef.current);
 
-      // Send notification email
+      // Send notification email — only send fields with real user data
       try {
+        const notificationData: Record<string, any> = {
+          name: formData.name.trim(),
+          main_business_type: formData.main_business_type,
+          phone: formData.phone.trim(),
+          created_at: new Date().toISOString(),
+        };
         await supabase.functions.invoke("send-prelaunch-notification", {
-          body: { ...registrationData, created_at: new Date().toISOString() },
+          body: notificationData,
         });
       } catch (emailError) {
         console.error("Email notification error:", emailError);
