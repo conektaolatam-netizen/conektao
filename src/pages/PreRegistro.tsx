@@ -124,14 +124,14 @@ export default function PreRegistro() {
     setIsSubmitting(true);
     try {
       // 1. Insert into leads_conektao
-      const { data, error: dbError } = await supabase
-        .from("leads_conektao")
+      const { data, error: dbError } = await (supabase
+        .from("leads_conektao" as any)
         .insert({
           name: formData.name.trim(),
           phone: formData.phone.trim(),
           main_business_type: formData.main_business_type,
           completo_flujo: false,
-        })
+        }) as any)
         .select("id")
         .single();
 
