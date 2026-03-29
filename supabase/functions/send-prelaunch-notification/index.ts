@@ -10,45 +10,110 @@ const corsHeaders = {
 };
 
 interface PrelaunchRegistration {
-  name: string;
-  business_name: string;
-  city: string;
-  branches: string;
-  main_business_type: string;
-  pos_uses: boolean;
+  name?: string;
+  business_name?: string;
+  city?: string;
+  branches?: string;
+  main_business_type?: string;
+  pos_uses?: boolean;
   pos_name?: string;
-  improvements_wanted: string[];
-  free_trial_interest: string;
-  email: string;
-  phone: string;
+  improvements_wanted?: string[];
+  free_trial_interest?: string;
+  email?: string;
+  phone?: string;
   created_at?: string;
+}
+
+// Returns true only if the value is a real user-provided value
+function isRealValue(v: unknown): v is string {
+  if (v === null || v === undefined) return false;
+  if (typeof v !== "string") return false;
+  const trimmed = v.trim();
+  if (trimmed === "") return false;
+  // Known placeholder/default values
+  const fakes = ["por definir", "1"];
+  if (fakes.includes(trimmed.toLowerCase())) return false;
+  if (trimmed.endsWith("@pendiente.com")) return false;
+  return true;
+}
+
+function buildField(label: string, value: string, isLink?: { href: string }): string {
+  const displayValue = isLink
+    ? `<a href="${isLink.href}">${value}</a>`
+    : value;
+  return `
+    <div class="field">
+      <div class="field-label">${label}</div>
+      <div class="field-value">${displayValue}</div>
+    </div>`;
 }
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("=== SEND PRELAUNCH NOTIFICATION CALLED ===");
-  console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
-  console.log("RESEND_API_KEY length:", RESEND_API_KEY?.length || 0);
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const registration: PrelaunchRegistration = await req.json();
-    console.log("📧 New registration received:");
-    console.log("- Name:", registration.name);
-    console.log("- Business:", registration.business_name);
-    console.log("- Phone:", registration.phone);
+    console.log("📧 New registration received:", JSON.stringify(registration));
 
-    const improvementsList = registration.improvements_wanted.join(", ") || "Ninguna seleccionada";
-    const posInfo = registration.pos_uses 
-      ? `Sí - ${registration.pos_name || 'No especificado'}` 
-      : 'No';
-    
-    const registrationDate = registration.created_at 
-      ? new Date(registration.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-      : new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+    // Build fields dynamically — only include real values
+    const fields: string[] = [];
+
+    if (isRealValue(registration.name)) {
+      fields.push(buildField("Nombre", registration.name));
+    }
+    if (isRealValue(registration.business_name)) {
+      fields.push(buildField("Nombre del Negocio", registration.business_name));
+    }
+    if (isRealValue(registration.city)) {
+      fields.push(buildField("Ciudad", registration.city));
+    }
+    if (isRealValue(registration.branches)) {
+      fields.push(buildField("Sucursales", registration.branches));
+    }
+    if (isRealValue(registration.main_business_type)) {
+      fields.push(buildField("Tipo de Negocio", registration.main_business_type));
+    }
+    if (registration.pos_uses !== undefined) {
+      const posInfo = registration.pos_uses
+        ? `Sí - ${registration.pos_name || "No especificado"}`
+        : "No";
+      fields.push(buildField("Usa POS/Software de Facturación", posInfo));
+    }
+    if (registration.improvements_wanted && registration.improvements_wanted.length > 0) {
+      fields.push(buildField("Mejoras que Busca", registration.improvements_wanted.join(", ")));
+    }
+    if (isRealValue(registration.free_trial_interest)) {
+      fields.push(buildField("Interés en Prueba Gratuita", registration.free_trial_interest));
+    }
+    if (isRealValue(registration.email)) {
+      fields.push(buildField("Correo Electrónico", registration.email, {
+        href: `mailto:${registration.email}`,
+      }));
+    }
+    if (isRealValue(registration.phone)) {
+      const cleanPhone = registration.phone.replace(/\D/g, "");
+      // Always prepend Colombia country code 57
+      const waPhone = cleanPhone.startsWith("57") ? cleanPhone : `57${cleanPhone}`;
+      fields.push(buildField("Teléfono / WhatsApp", registration.phone, {
+        href: `https://wa.me/${waPhone}`,
+      }));
+    }
+
+    const registrationDate = registration.created_at
+      ? new Date(registration.created_at).toLocaleString("es-CO", { timeZone: "America/Bogota" })
+      : new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
+    fields.push(buildField("Fecha de Registro", registrationDate));
+
+    // Build subject — only include business_name if real
+    const subjectParts = [registration.name].filter(isRealValue);
+    if (isRealValue(registration.business_name)) {
+      subjectParts.push(registration.business_name);
+    }
+    const subjectSuffix = subjectParts.length > 0 ? subjectParts.join(" - ") : "Nuevo lead";
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -72,50 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
             <h1>🚀 Nuevo Registro Prelanzamiento Conektao</h1>
           </div>
           <div class="content">
-            <div class="field">
-              <div class="field-label">Nombre</div>
-              <div class="field-value">${registration.name}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Nombre del Negocio</div>
-              <div class="field-value">${registration.business_name}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Ciudad</div>
-              <div class="field-value">${registration.city}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Sucursales</div>
-              <div class="field-value">${registration.branches}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Tipo de Negocio</div>
-              <div class="field-value">${registration.main_business_type}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Usa POS/Software de Facturación</div>
-              <div class="field-value">${posInfo}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Mejoras que Busca</div>
-              <div class="field-value">${improvementsList}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Interés en Prueba Gratuita</div>
-              <div class="field-value">${registration.free_trial_interest}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Correo Electrónico</div>
-              <div class="field-value"><a href="mailto:${registration.email}">${registration.email}</a></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Teléfono / WhatsApp</div>
-              <div class="field-value"><a href="https://wa.me/${registration.phone.replace(/\D/g, '')}">${registration.phone}</a></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Fecha de Registro</div>
-              <div class="field-value">${registrationDate}</div>
-            </div>
+            ${fields.join("\n")}
           </div>
           <div class="footer">
             <p>Este correo fue generado automáticamente por el sistema de prerregistro de Conektao.</p>
@@ -126,11 +148,11 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     console.log("📤 Attempting to send email via Resend...");
-    
+
     const emailResponse = await resend.emails.send({
       from: "Conektao <onboarding@resend.dev>",
       to: ["conektaolatam@gmail.com"],
-      subject: `🚀 Nuevo registro: ${registration.name} - ${registration.business_name}`,
+      subject: `🚀 Nuevo registro: ${subjectSuffix}`,
       html: emailHtml,
     });
 
@@ -143,10 +165,6 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("❌ Error in send-prelaunch-notification:", error);
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
-    
     return new Response(
       JSON.stringify({ error: error.message, name: error.name }),
       {
