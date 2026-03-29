@@ -461,7 +461,7 @@ export default function PreRegistro() {
                   {isFinishing ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    "Finalizar y obtener mi acceso ✨"
+                    "Que me llamen →"
                   )}
                 </Button>
               </div>
