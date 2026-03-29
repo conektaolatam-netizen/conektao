@@ -149,7 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🚀 Nuevo Registro Prelanzamiento Conektao</h1>
+            <h1>📞 Nuevo Lead Conektao</h1>
           </div>
           <div class="content">
             ${fields.join("\n")}
