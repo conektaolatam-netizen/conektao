@@ -362,6 +362,7 @@ export default function PreRegistro() {
                       autoComplete="tel"
                     />
                   </div>
+                  <p className="text-gray-500 text-[10px] sm:text-xs mt-1 ml-1">Te llamamos para contarte cómo funciona</p>
                   {errors.phone && (
                     <p className="text-red-400 text-xs mt-1 ml-1">{errors.phone}</p>
                   )}
