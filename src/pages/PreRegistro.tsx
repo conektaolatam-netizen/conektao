@@ -39,6 +39,7 @@ export default function PreRegistro() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
+  const [showCustomBusinessInput, setShowCustomBusinessInput] = useState(false);
   const sessionIdRef = useRef<string>(generateSessionId());
   const partialSavedRef = useRef<boolean>(false);
 
@@ -304,7 +305,7 @@ export default function PreRegistro() {
                     formData.main_business_type ? "text-white" : "text-gray-500"
                   } ${showBusinessDropdown ? "border-teal-500 ring-2 ring-teal-500/20" : ""}`}
                 >
-                  {formData.main_business_type || "Tipo de negocio"}
+                  {showCustomBusinessInput ? "✨ Otro" : formData.main_business_type || "Tipo de negocio"}
                 </button>
                 <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 transition-transform ${showBusinessDropdown ? "rotate-180" : ""}`} />
               </div>
@@ -322,8 +323,15 @@ export default function PreRegistro() {
                         key={option.value}
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, main_business_type: option.value });
-                          setShowBusinessDropdown(false);
+                          if (option.value === "Otro") {
+                            setShowCustomBusinessInput(true);
+                            setFormData({ ...formData, main_business_type: "" });
+                            setShowBusinessDropdown(false);
+                          } else {
+                            setShowCustomBusinessInput(false);
+                            setFormData({ ...formData, main_business_type: option.value });
+                            setShowBusinessDropdown(false);
+                          }
                           if (errors.main_business_type) setErrors({ ...errors, main_business_type: "" });
                         }}
                         className={`w-full p-3 sm:p-4 text-left text-sm sm:text-base transition-colors ${
@@ -338,7 +346,30 @@ export default function PreRegistro() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+
+              {showCustomBusinessInput && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-2"
+                >
+                  <div className="relative">
+                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-teal-400 z-10" />
+                    <Input
+                      type="text"
+                      placeholder="Escribe tu tipo de negocio"
+                      value={formData.main_business_type}
+                      onChange={(e) => {
+                        setFormData({ ...formData, main_business_type: e.target.value });
+                        if (errors.main_business_type) setErrors({ ...errors, main_business_type: "" });
+                      }}
+                      className="pl-10 sm:pl-12 bg-[#1a1a1a]/80 border-[#333] text-white h-12 sm:h-14 text-base rounded-xl placeholder:text-gray-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                      autoFocus
+                    />
+                  </div>
+                </motion.div>
+              )}
+
               {errors.main_business_type && (
                 <p className="text-red-400 text-xs mt-1 ml-1">{errors.main_business_type}</p>
               )}
