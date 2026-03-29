@@ -388,7 +388,7 @@ export default function PreRegistro() {
                 
                 <p className="text-center text-gray-500 text-[10px] sm:text-xs mt-3">
                   <Sparkles className="w-3 h-3 inline mr-1 text-orange-400/60" />
-                  Sin compromisos. Te explicamos todo en una llamada de 10 minutos.
+                  Sin compromisos. Te explicamos todo súper rapido.
                 </p>
               </div>
             </div>
