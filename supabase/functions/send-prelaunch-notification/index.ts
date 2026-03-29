@@ -81,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
       fields.push(buildField("Sucursales", registration.branches));
     }
     if (isRealValue(registration.main_business_type)) {
-      fields.push(buildField("Tipo de Negocio", registration.main_business_type));
+      fields.push(buildField("Negocio", registration.main_business_type));
     }
     if (registration.pos_uses !== undefined) {
       const posInfo = registration.pos_uses
