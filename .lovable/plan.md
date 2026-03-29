@@ -1,29 +1,38 @@
 
 
-## Plan: Combos inactivos + eliminación permanente (productos y combos)
+## Plan: Corregir correo de pre-registro (campos fantasma + WhatsApp sin +57)
+
+### Problema raíz
+
+En `src/pages/PreRegistro.tsx` líneas 118-130, `handleSubmit` construye `registrationData` con valores inventados para campos que el formulario nunca pide:
+
+```
+business_name: formData.main_business_type,  // pone tipo de negocio como nombre
+city: "Por definir",
+branches: "1",
+email: `${phone}@pendiente.com`,
+```
+
+Estos se envían al edge function que los renderiza todos sin filtrar.
 
 ### Cambios en 2 archivos
 
-**1. `src/components/alicia-config/AliciaConfigCombos.tsx`**
+**1. `supabase/functions/send-prelaunch-notification/index.ts`**
 
-- Agregar estado para combos inactivos (`inactiveCombos`, `showInactive`, `loadingInactive`)
-- Nueva función `loadInactiveCombos()` que consulta `product_combos` con `is_active = false`
-- Botón "Inactivos" (mismo estilo que en productos) con badge de conteo
-- Sección de combos inactivos con:
-  - Cada combo muestra botón de **reactivar** (update `is_active = true`) y botón de **eliminar permanentemente**
-- Función `handleReactivateCombo()`: update `is_active = true`
-- Función `handlePermanentDeleteCombo()`: DELETE real de `product_combo_items` + `product_combos`
-- AlertDialog de confirmacion para eliminacion permanente con texto claro: "Esta accion no se puede deshacer"
+- Crear función helper `isRealValue(v)` que retorna `false` para: `null`, `undefined`, string vacío, `"Por definir"`, `"1"` (como branches), cualquier `@pendiente.com`
+- Construir los campos del email dinámicamente: solo incluir un `<div class="field">` si el valor pasa `isRealValue()`
+- En el link de WhatsApp, anteponer `57` al número limpio: `https://wa.me/57${phone.replace(/\D/g, '')}`
+- En el subject del email, solo incluir `business_name` si es un valor real
+- Redeploy del edge function
 
-**2. `src/components/alicia-config/AliciaConfigMenu.tsx`**
+**2. `src/pages/PreRegistro.tsx`** (cambio mínimo, líneas 118-130)
 
-- En la seccion de productos inactivos, agregar boton de **eliminar permanentemente** junto al de reactivar
-- Nuevo estado `permanentDeleteTarget` y funcion `handlePermanentDeleteProduct()`
-- La eliminacion permanente hace DELETE real del producto (y sus `product_ingredients`, `sale_items` relacionados podrian causar FK errors, asi que se hara solo si no tiene ventas asociadas, o se mostrara error descriptivo)
-- Actualizar `CategoryList` para soportar un tercer tipo de accion o pasar dos callbacks (reactivate + permanent delete)
-- AlertDialog de confirmacion con advertencia "irreversible"
+- En `registrationData`, enviar solo los campos reales que el usuario llenó. Quitar los valores inventados:
+  - `business_name`: no enviarlo (o enviar `null`)
+  - `city`: no enviarlo (o enviar `null`)
+  - `branches`: no enviarlo (o enviar `null`)
+  - `email`: no enviarlo (o enviar `null`)
+- Mantener la inserción a `prelaunch_registrations` con los defaults si la tabla los requiere, pero al body del edge function enviar solo los valores reales
 
-### Patron visual
-- Mismo patron que productos inactivos: seccion con `opacity-70`, iconos `RotateCcw` para reactivar y `Trash2` rojo para eliminar permanentemente
-- Combos inactivos muestran nombre + precio + componentes en formato reducido
+Esto resuelve ambos problemas de raíz: el frontend deja de inventar datos, y el backend filtra cualquier valor no real antes de renderizar.
 
