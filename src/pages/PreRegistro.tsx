@@ -39,6 +39,7 @@ export default function PreRegistro() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showBusinessDropdown, setShowBusinessDropdown] = useState(false);
+  const [showCustomBusinessInput, setShowCustomBusinessInput] = useState(false);
   const sessionIdRef = useRef<string>(generateSessionId());
   const partialSavedRef = useRef<boolean>(false);
 
