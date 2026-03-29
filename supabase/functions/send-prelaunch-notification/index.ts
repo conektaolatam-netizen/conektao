@@ -124,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
     const registrationDate = registration.created_at
       ? new Date(registration.created_at).toLocaleString("es-CO", { timeZone: "America/Bogota" })
       : new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
-    fields.push(buildField("Fecha de Registro", registrationDate));
+    fields.push(buildField("Hora", registrationDate));
 
     const subjectParts = [registration.name].filter(isRealValue);
     if (isRealValue(registration.business_name)) {
