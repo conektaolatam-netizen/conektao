@@ -483,7 +483,7 @@ export default function PreRegistro() {
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                 className="text-5xl sm:text-6xl mb-4"
               >
-                🎉
+                🚀
               </motion.div>
               
               <motion.h2 
@@ -492,16 +492,25 @@ export default function PreRegistro() {
                 transition={{ delay: 0.3 }}
                 className="text-xl sm:text-2xl font-bold text-white mb-3"
               >
-                ¡Ya estás dentro!
+                ¡Listo! Te llamamos pronto
               </motion.h2>
               
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-gray-400 mb-6 text-sm sm:text-base"
+                className="text-gray-400 mb-2 text-sm sm:text-base"
               >
-                Te avisamos primero cuando abramos. Pronto te contactamos por WhatsApp 🚀
+                Uno de nuestros asesores te contactará para mostrarte exactamente cómo Conektao puede hacer crecer tu negocio 📈
+              </motion.p>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-gray-500 mb-6 text-xs"
+              >
+                Revisa tu WhatsApp, te escribimos primero para coordinar la llamada
               </motion.p>
 
               <motion.div 

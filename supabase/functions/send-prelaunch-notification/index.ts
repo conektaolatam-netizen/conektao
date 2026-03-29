@@ -167,7 +167,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "Conektao <onboarding@resend.dev>",
       to: ["conektaolatam@gmail.com"],
-      subject: `🚀 Nuevo registro: ${subjectSuffix}`,
+      subject: `📞 Nuevo lead listo para llamar: ${subjectSuffix}`,
       html: emailHtml,
     });
 
