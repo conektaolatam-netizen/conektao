@@ -29,9 +29,9 @@ const businessTypeOptions = [
 ];
 
 const needOptions = [
-  { emoji: "🛵", label: "Mejorar la atención en domicilios", value: "mejorar_domicilios" },
-  { emoji: "💸", label: "Reducir comisiones a plataformas de domicilios", value: "reducir_comisiones" },
-  { emoji: "📊", label: "Usar mis datos de ventas para tomar mejores decisiones", value: "usar_datos_ventas" },
+  { emoji: "🛵", label: "Mejorar la atención y gestión de domicilios", value: "mejorar_domicilios" },
+  { emoji: "💸", label: "Dejar de pagar tanto en comisiones a plataformas de delivery", value: "reducir_comisiones" },
+  { emoji: "📊", label: "Entender mis ventas y tomar mejores decisiones con datos", value: "usar_datos_ventas" },
 ];
 
 // Generate unique session ID for tracking
