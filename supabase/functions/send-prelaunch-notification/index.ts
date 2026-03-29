@@ -111,7 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Necesidad principal
     if (isRealValue(registration.necesidad_principal)) {
       const label = NEED_LABELS[registration.necesidad_principal] || registration.necesidad_principal;
-      fields.push(buildField("Necesidad Principal", label));
+      fields.push(buildField("Reto Principal", label));
     } else if (registration.completo_flujo === false) {
       // Step 1 only — hasn't reached step 2 yet
     }
