@@ -357,7 +357,7 @@ export default function PreRegistro() {
                         setFormData({ ...formData, phone: e.target.value });
                         if (errors.phone) setErrors({ ...errors, phone: "" });
                       }}
-                      placeholder="Tu WhatsApp (para avisarte primero) 📲"
+                      placeholder="Tu WhatsApp 📲"
                       className="pl-10 sm:pl-12 bg-[#1a1a1a]/80 border-[#333] text-white placeholder:text-gray-500 h-12 sm:h-14 text-base rounded-xl focus:border-teal-500 focus:ring-teal-500/20"
                       autoComplete="tel"
                     />
